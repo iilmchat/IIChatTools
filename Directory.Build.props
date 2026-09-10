@@ -1,0 +1,29 @@
+<Project>
+
+  <!--
+    Общие свойства MSBuild для всех проектов решения IIChatTools.
+    Позволяет избежать дублирования метаданных в каждом .csproj.
+    © 2026 RuChating (iilmchat) · IIChatTools v1.0
+  -->
+  <PropertyGroup>
+    <!-- Общие метаданные продукта -->
+    <Company>RuChating (iilmchat)</Company>
+    <Product>IIChatTools</Product>
+    <Version>1.0.0</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0</Copyright>
+    <Authors>RuChating</Authors>
+
+    <!-- Общие настройки компилятора -->
+    <LangVersion>8.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- Единая версия пакетов EF Core -->
+    <EFCoreVersion>3.1.32</EFCoreVersion>
+    <MicrosoftAspNetCoreVersion>3.1.32</MicrosoftAspNetCoreVersion>    
+  </PropertyGroup>
+
+</Project>

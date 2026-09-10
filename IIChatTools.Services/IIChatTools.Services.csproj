@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <RootNamespace>IIChatTools.Services</RootNamespace>
+    <AssemblyName>IIChatTools.Services</AssemblyName>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <Company>RuChating (iilmchat)</Company>
+    <Product>IIChatTools</Product>
+    <Version>1.0.0</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0</Copyright>
+    <Authors>RuChating</Authors>
+    <Description>Бизнес-логика IIChatTools: инструменты, аудит, подтверждения, суб-агенты.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ссылка на слой данных -->
+    <ProjectReference Include="..\IIChatTools.Data\IIChatTools.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Логирование (абстракции) -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="3.1.32" />
+
+    <!-- Аутентификация/JWT для генерации токенов -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.35.0" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.35.0" />
+
+    <!-- Браузерная автоматизация -->
+    <PackageReference Include="PuppeteerSharp" Version="10.1.4" />
+
+    <!-- Парсинг HTML (для извлечения контента) -->
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
+
+    <!-- JSON -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ресурсы локализации (для сервисных сообщений) -->
+    <EmbeddedResource Update="Resources\**\*.resx">
+      <Generator></Generator>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
