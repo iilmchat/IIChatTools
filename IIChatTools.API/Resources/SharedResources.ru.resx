@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Файл ресурсов русской локализации интерфейса IIChatTools v1.0.
+    Все ключи соответствуют ключам в SharedResources.resx (английский по умолчанию).
+    © 2026 RuChating (iilmchat) · IIChatTools v1.0
+  -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- ===== Общие ===== -->
+  <data name="Главная" xml:space="preserve"><value>Главная</value></data>
+  <data name="Статус" xml:space="preserve"><value>Статус</value></data>
+  <data name="Админка" xml:space="preserve"><value>Админка</value></data>
+  <data name="Тест" xml:space="preserve"><value>Тест</value></data>
+  <data name="Перейти" xml:space="preserve"><value>Перейти</value></data>
+  <data name="Сохранить" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Отмена" xml:space="preserve"><value>Отмена</value></data>
+  <data name="Создать" xml:space="preserve"><value>Создать</value></data>
+  <data name="Редактировать" xml:space="preserve"><value>Редактировать</value></data>
+  <data name="Удалить" xml:space="preserve"><value>Удалить</value></data>
+  <data name="Обновить" xml:space="preserve"><value>Обновить</value></data>
+  <data name="Поиск" xml:space="preserve"><value>Поиск</value></data>
+  <data name="Загрузка" xml:space="preserve"><value>Загрузка…</value></data>
+  <data name="Ошибка" xml:space="preserve"><value>Ошибка</value></data>
+  <data name="Успех" xml:space="preserve"><value>Успех</value></data>
+  <data name="Предупреждение" xml:space="preserve"><value>Предупреждение</value></data>
+  <data name="Подтверждение" xml:space="preserve"><value>Подтверждение</value></data>
+  <data name="Да" xml:space="preserve"><value>Да</value></data>
+  <data name="Нет" xml:space="preserve"><value>Нет</value></data>
+  <data name="Закрыть" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="Назад" xml:space="preserve"><value>Назад</value></data>
+  <data name="Имя" xml:space="preserve"><value>Имя</value></data>
+  <data name="Описание" xml:space="preserve"><value>Описание</value></data>
+  <data name="Действие" xml:space="preserve"><value>Действие</value></data>
+  <data name="Действия" xml:space="preserve"><value>Действия</value></data>
+  <data name="Дата" xml:space="preserve"><value>Дата</value></data>
+  <data name="СтатусЗаписи" xml:space="preserve"><value>Статус</value></data>
+
+  <!-- ===== Главная страница ===== -->
+  <data name="Добро пожаловать в IIChatTools v1.0" xml:space="preserve"><value>Добро пожаловать в IIChatTools v1.0</value></data>
+  <data name="Управляйте инструментами, пользователями и настройками." xml:space="preserve"><value>Управляйте инструментами, пользователями и настройками.</value></data>
+  <data name="Статус системы" xml:space="preserve"><value>Статус системы</value></data>
+  <data name="Администрирование" xml:space="preserve"><value>Администрирование</value></data>
+  <data name="Тестирование" xml:space="preserve"><value>Тестирование</value></data>
+  <data name="Проверка состояния сервера, зависимостей и статистики." xml:space="preserve"><value>Проверка состояния сервера, зависимостей и статистики.</value></data>
+  <data name="Управление пользователями, настройками и белым списком инструментов." xml:space="preserve"><value>Управление пользователями, настройками и белым списком инструментов.</value></data>
+  <data name="Ручной вызов инструментов для отладки." xml:space="preserve"><value>Ручной вызов инструментов для отладки.</value></data>
+
+  <!-- ===== Аутентификация ===== -->
+  <data name="Вход" xml:space="preserve"><value>Вход</value></data>
+  <data name="Выход" xml:space="preserve"><value>Выход</value></data>
+  <data name="Регистрация" xml:space="preserve"><value>Регистрация</value></data>
+  <data name="Войти" xml:space="preserve"><value>Войти</value></data>
+  <data name="Зарегистрироваться" xml:space="preserve"><value>Зарегистрироваться</value></data>
+  <data name="Имя пользователя" xml:space="preserve"><value>Имя пользователя</value></data>
+  <data name="Электронная почта" xml:space="preserve"><value>Электронная почта</value></data>
+  <data name="Пароль" xml:space="preserve"><value>Пароль</value></data>
+  <data name="Подтверждение пароля" xml:space="preserve"><value>Подтверждение пароля</value></data>
+  <data name="Запомнить меня" xml:space="preserve"><value>Запомнить меня</value></data>
+  <data name="Забыли пароль?" xml:space="preserve"><value>Забыли пароль?</value></data>
+  <data name="Полное имя" xml:space="preserve"><value>Полное имя</value></data>
+  <data name="Активен" xml:space="preserve"><value>Активен</value></data>
+  <data name="Неактивен" xml:space="preserve"><value>Неактивен</value></data>
+  <data name="Дата регистрации" xml:space="preserve"><value>Дата регистрации</value></data>
+  <data name="Роль" xml:space="preserve"><value>Роль</value></data>
+  <data name="Роли" xml:space="preserve"><value>Роли</value></data>
+  <data name="Администратор" xml:space="preserve"><value>Администратор</value></data>
+  <data name="Пользователь" xml:space="preserve"><value>Пользователь</value></data>
+  <data name="Вы успешно вошли в систему." xml:space="preserve"><value>Вы успешно вошли в систему.</value></data>
+  <data name="Вы вышли из системы." xml:space="preserve"><value>Вы вышли из системы.</value></data>
+  <data name="Неверное имя пользователя или пароль." xml:space="preserve"><value>Неверное имя пользователя или пароль.</value></data>
+  <data name="Пользователь с таким email уже существует." xml:space="preserve"><value>Пользователь с таким email уже существует.</value></data>
+  <data name="Пароли не совпадают." xml:space="preserve"><value>Пароли не совпадают.</value></data>
+  <data name="Первый зарегистрированный пользователь получает роль администратора." xml:space="preserve"><value>Первый зарегистрированный пользователь получает роль администратора.</value></data>
+
+  <!-- ===== Страница статуса ===== -->
+  <data name="Состояние сервера" xml:space="preserve"><value>Состояние сервера</value></data>
+  <data name="Время работы" xml:space="preserve"><value>Время работы</value></data>
+  <data name="Версия приложения" xml:space="preserve"><value>Версия приложения</value></data>
+  <data name="Внешние зависимости" xml:space="preserve"><value>Внешние зависимости</value></data>
+  <data name="Установлено" xml:space="preserve"><value>Установлено</value></data>
+  <data name="Не установлено" xml:space="preserve"><value>Не установлено</value></data>
+  <data name="Версия" xml:space="preserve"><value>Версия</value></data>
+  <data name="Всего пользователей" xml:space="preserve"><value>Всего пользователей</value></data>
+  <data name="Активных пользователей" xml:space="preserve"><value>Активных пользователей</value></data>
+  <data name="Выполнено действий" xml:space="preserve"><value>Выполнено действий</value></data>
+  <data name="Ожидают подтверждения" xml:space="preserve"><value>Ожидают подтверждения</value></data>
+  <data name="Последние действия" xml:space="preserve"><value>Последние действия</value></data>
+  <data name="Инструмент" xml:space="preserve"><value>Инструмент</value></data>
+  <data name="Длительность" xml:space="preserve"><value>Длительность</value></data>
+  <data name="Пользователь" xml:space="preserve"><value>Пользователь</value></data>
+  <data name="Подключение к БД" xml:space="preserve"><value>Подключение к БД</value></data>
+  <data name="Онлайн" xml:space="preserve"><value>Онлайн</value></data>
+  <data name="Оффлайн" xml:space="preserve"><value>Оффлайн</value></data>
+
+  <!-- ===== Админка ===== -->
+  <data name="Управление пользователями" xml:space="preserve"><value>Управление пользователями</value></data>
+  <data name="Управление настройками" xml:space="preserve"><value>Управление настройками</value></data>
+  <data name="Белый список инструментов" xml:space="preserve"><value>Белый список инструментов</value></data>
+  <data name="Просмотр аудита" xml:space="preserve"><value>Просмотр аудита</value></data>
+  <data name="Добавить пользователя" xml:space="preserve"><value>Добавить пользователя</value></data>
+  <data name="Изменить пользователя" xml:space="preserve"><value>Изменить пользователя</value></data>
+  <data name="Удалить пользователя" xml:space="preserve"><value>Удалить пользователя</value></data>
+  <data name="Вы действительно хотите удалить пользователя?" xml:space="preserve"><value>Вы действительно хотите удалить пользователя?</value></data>
+  <data name="Ключ" xml:space="preserve"><value>Ключ</value></data>
+  <data name="Значение" xml:space="preserve"><value>Значение</value></data>
+  <data name="Тип" xml:space="preserve"><value>Тип</value></data>
+  <data name="Категория" xml:space="preserve"><value>Категория</value></data>
+  <data name="По умолчанию" xml:space="preserve"><value>По умолчанию</value></data>
+  <data name="Сбросить к значению по умолчанию" xml:space="preserve"><value>Сбросить к значению по умолчанию</value></data>
+  <data name="Инструменты, не требующие подтверждения" xml:space="preserve"><value>Инструменты, не требующие подтверждения</value></data>
+  <data name="Добавить в белый список" xml:space="preserve"><value>Добавить в белый список</value></data>
+  <data name="Убрать из белого списка" xml:space="preserve"><value>Убрать из белого списка</value></data>
+
+  <!-- ===== Подтверждения действий ===== -->
+  <data name="Ожидают подтверждения" xml:space="preserve"><value>Ожидают подтверждения</value></data>
+  <data name="Подтвердить" xml:space="preserve"><value>Подтвердить</value></data>
+  <data name="Отклонить" xml:space="preserve"><value>Отклонить</value></data>
+  <data name="Причина отклонения" xml:space="preserve"><value>Причина отклонения</value></data>
+  <data name="Действие подтверждено." xml:space="preserve"><value>Действие подтверждено.</value></data>
+  <data name="Действие отклонено." xml:space="preserve"><value>Действие отклонено.</value></data>
+  <data name="Действие истекло." xml:space="preserve"><value>Действие истекло.</value></data>
+  <data name="Действие ожидает подтверждения пользователя." xml:space="preserve"><value>Действие ожидает подтверждения пользователя.</value></data>
+  <data name="Запрос на выполнение действия" xml:space="preserve"><value>Запрос на выполнение действия</value></data>
+  <data name="Инструмент требует подтверждения перед выполнением." xml:space="preserve"><value>Инструмент требует подтверждения перед выполнением.</value></data>
+  <data name="Параметры вызова" xml:space="preserve"><value>Параметры вызова</value></data>
+
+  <!-- ===== Страница тестирования ===== -->
+  <data name="Выбор инструмента" xml:space="preserve"><value>Выбор инструмента</value></data>
+  <data name="Параметры (JSON)" xml:space="preserve"><value>Параметры (JSON)</value></data>
+  <data name="Выполнить" xml:space="preserve"><value>Выполнить</value></data>
+  <data name="Результат" xml:space="preserve"><value>Результат</value></data>
+  <data name="Выполняется…" xml:space="preserve"><value>Выполняется…</value></data>
+  <data name="Инструмент не выбран." xml:space="preserve"><value>Инструмент не выбран.</value></data>
+  <data name="Некорректный JSON в параметрах." xml:space="preserve"><value>Некорректный JSON в параметрах.</value></data>
+
+  <!-- ===== Инструменты: Файловая система ===== -->
+  <data name="Список файлов" xml:space="preserve"><value>Список файлов</value></data>
+  <data name="Прочитать файл" xml:space="preserve"><value>Прочитать файл</value></data>
+  <data name="Сохранить файл" xml:space="preserve"><value>Сохранить файл</value></data>
+  <data name="Удалить путь" xml:space="preserve"><value>Удалить путь</value></data>
+  <data name="Создать папку" xml:space="preserve"><value>Создать папку</value></data>
+  <data name="Переместить файл" xml:space="preserve"><value>Переместить файл</value></data>
+  <data name="Копировать файл" xml:space="preserve"><value>Копировать файл</value></data>
+  <data name="Найти файлы" xml:space="preserve"><value>Найти файлы</value></data>
+  <data name="Метаданные файла" xml:space="preserve"><value>Метаданные файла</value></data>
+
+  <!-- ===== Инструменты: Выполнение кода ===== -->
+  <data name="Выполнить JavaScript" xml:space="preserve"><value>Выполнить JavaScript</value></data>
+  <data name="Выполнить Python" xml:space="preserve"><value>Выполнить Python</value></data>
+  <data name="Выполнить команду" xml:space="preserve"><value>Выполнить команду</value></data>
+
+  <!-- ===== Инструменты: Веб ===== -->
+  <data name="Поиск в интернете" xml:space="preserve"><value>Поиск в интернете</value></data>
+  <data name="Поиск в Wikipedia" xml:space="preserve"><value>Поиск в Wikipedia</value></data>
+  <data name="Загрузить содержимое страницы" xml:space="preserve"><value>Загрузить содержимое страницы</value></data>
+  <data name="Открыть браузерную сессию" xml:space="preserve"><value>Открыть браузерную сессию</value></data>
+  <data name="Управление браузерной сессией" xml:space="preserve"><value>Управление браузерной сессией</value></data>
+  <data name="Закрыть браузерную сессию" xml:space="preserve"><value>Закрыть браузерную сессию</value></data>
+
+  <!-- ===== Инструменты: Git/GitHub ===== -->
+  <data name="Статус Git" xml:space="preserve"><value>Статус Git</value></data>
+  <data name="Различия Git" xml:space="preserve"><value>Различия Git</value></data>
+  <data name="Журнал Git" xml:space="preserve"><value>Журнал Git</value></data>
+  <data name="Коммит Git" xml:space="preserve"><value>Коммит Git</value></data>
+  <data name="Создать issue" xml:space="preserve"><value>Создать issue</value></data>
+  <data name="Список issues" xml:space="preserve"><value>Список issues</value></data>
+  <data name="Создать Pull Request" xml:space="preserve"><value>Создать Pull Request</value></data>
+
+  <!-- ===== Инструменты: Суб-агенты ===== -->
+  <data name="Делегировать суб-агенту" xml:space="preserve"><value>Делегировать суб-агенту</value></data>
+  <data name="Задача суб-агента" xml:space="preserve"><value>Задача суб-агента</value></data>
+  <data name="Шаг" xml:space="preserve"><value>Шаг</value></data>
+  <data name="Всего шагов" xml:space="preserve"><value>Всего шагов</value></data>
+
+  <!-- ===== Инструменты: Утилиты ===== -->
+  <data name="Сохранить в память" xml:space="preserve"><value>Сохранить в память</value></data>
+  <data name="Информация о системе" xml:space="preserve"><value>Информация о системе</value></data>
+  <data name="Прочитать буфер обмена" xml:space="preserve"><value>Прочитать буфер обмена</value></data>
+  <data name="Записать в буфер обмена" xml:space="preserve"><value>Записать в буфер обмена</value></data>
+
+  <!-- ===== Ошибки валидации и системные ===== -->
+  <data name="Обязательное поле" xml:space="preserve"><value>Обязательное поле</value></data>
+  <data name="Слишком длинное значение" xml:space="preserve"><value>Слишком длинное значение</value></data>
+  <data name="Недопустимый путь" xml:space="preserve"><value>Недопустимый путь</value></data>
+  <data name="Выход за пределы рабочей директории запрещён." xml:space="preserve"><value>Выход за пределы рабочей директории запрещён.</value></data>
+  <data name="Доступ запрещён." xml:space="preserve"><value>Доступ запрещён.</value></data>
+  <data name="Внутренняя ошибка сервера." xml:space="preserve"><value>Внутренняя ошибка сервера.</value></data>
+  <data name="Ресурс не найден." xml:space="preserve"><value>Ресурс не найден.</value></data>
+  <data name="Некорректные данные запроса." xml:space="preserve"><value>Некорректные данные запроса.</value></data>
+
+  <!-- ===== Футер ===== -->
+  <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v1.0</value></data>
+</root>

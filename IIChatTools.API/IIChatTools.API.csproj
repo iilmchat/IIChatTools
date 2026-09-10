@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <RootNamespace>IIChatTools.API</RootNamespace>
+    <AssemblyName>IIChatTools.API</AssemblyName>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <UserSecretsId>iichattools-api-secrets-2026</UserSecretsId>
+    <Company>RuChating (iilmchat)</Company>
+    <Product>IIChatTools</Product>
+    <Version>1.0.0</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0</Copyright>
+    <Authors>RuChating</Authors>
+    <Description>Веб-приложение и API IIChatTools v1.0.</Description>
+
+    <!-- Настройки компиляции Razor (MSBuild-свойства, а не элементы!) -->
+    <MvcRazorCompileOnPublish>true</MvcRazorCompileOnPublish>
+    <MvcRazorExcludeRefAssembliesFromPublish>false</MvcRazorExcludeRefAssembliesFromPublish>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ссылки на слои -->
+    <ProjectReference Include="..\IIChatTools.Data\IIChatTools.Data.csproj" />
+    <ProjectReference Include="..\IIChatTools.Services\IIChatTools.Services.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- JWT аутентификация -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.32" />
+
+    <!-- MVC + Razor + локализация -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.32" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.32" />
+
+    <!-- EF Core Design для миграций из CLI -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.32">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <!-- Логирование (встроенный ILogger) -->
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="3.1.32" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Файлы локализации (.resx) -->
+    <EmbeddedResource Update="Resources\SharedResources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>SharedResources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Resources\SharedResources.ru.resx">
+      <DependentUpon>SharedResources.resx</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

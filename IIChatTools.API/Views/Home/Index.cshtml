@@ -1,0 +1,49 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = @Localizer["Главная"];
+}
+<div class="container mt-4">
+    <h1>@Localizer["Добро пожаловать в IIChatTools v1.0"]</h1>
+    <p>@Localizer["Управляйте инструментами, пользователями и настройками."]</p>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@Localizer["Статус системы"]</h5>
+                    <p class="card-text"><a href="/status">@Localizer["Перейти"]</a></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@Localizer["Администрирование"]</h5>
+                    <p class="card-text"><a href="/admin">@Localizer["Перейти"]</a></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@Localizer["Тестирование"]</h5>
+                    <p class="card-text"><a href="/test">@Localizer["Перейти"]</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5 text-muted text-center">
+    <div class="copyright">
+        © 2026 <a href="#" onclick="event.preventDefault(); toast.info('RuChating (iilmchat) — AI Chat Platform');">RuChating</a> (iilmchat) · IIChatTools v1.0
+    </div>
+</footer>
+
+@section Scripts {
+    <script type="module">
+        import { showToast } from '/js/modules/ui.js';
+        window.toast = showToast; // чтобы работал onclick
+        console.log('IIChatTools v1.0 loaded');
+    </script>
+}

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <RootNamespace>IIChatTools.Data</RootNamespace>
+    <AssemblyName>IIChatTools.Data</AssemblyName>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <Company>RuChating (iilmchat)</Company>
+    <Product>IIChatTools</Product>
+    <Version>1.0.0</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0</Copyright>
+    <Authors>RuChating</Authors>
+    <Description>Слой данных IIChatTools: EF Core Code First, сущности, миграции.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Entity Framework Core для MSSQL -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.32" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.32" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.1.32" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.32">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.32">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <!-- ASP.NET Core Identity (EF Core stores) -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="3.1.32" />
+  </ItemGroup>
+
+</Project>
