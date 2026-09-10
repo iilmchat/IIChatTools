@@ -1,0 +1,69 @@
+IIChatTools.sln
+├── IIChatTools.API
+│   ├── Controllers/
+│   │   ├── AuthController.cs
+│   │   ├── ToolsController.cs
+│   │   ├── ApprovalsController.cs
+│   │   ├── AdminController.cs
+│   │   └── StatusController.cs
+│   ├── Views/
+│   │   ├── Home/
+│   │   │   ├── Index.cshtml
+│   │   │   ├── Status.cshtml
+│   │   │   ├── Admin.cshtml
+│   │   │   └── Test.cshtml
+│   │   ├── Shared/
+│   │   │   ├── _Layout.cshtml
+│   │   │   └── _ValidationScriptsPartial.cshtml
+│   │   └── _ViewStart.cshtml
+│   ├── wwwroot/
+│   │   ├── css/
+│   │   ├── js/
+│   │   │   ├── modules/
+│   │   │   │   ├── api.js
+│   │   │   │   ├── approvals.js
+│   │   │   │   └── ui.js
+│   │   │   └── main.js (ES module entry)
+│   │   └── lib/
+│   ├── Program.cs
+│   ├── Startup.cs
+│   ├── appsettings.json
+│   └── appsettings.Development.json
+├── IIChatTools.Data
+│   ├── Entities/
+│   │   ├── BaseEntity.cs
+│   │   ├── ApplicationUser.cs
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   ├── AppDbContext.cs
+│   ├── Migrations/
+│   └── SeedData.cs
+├── IIChatTools.Services
+│   ├── Interfaces/
+│   │   ├── IDependencyChecker.cs
+│   │   ├── IAuditService.cs
+│   │   ├── IApprovalService.cs
+│   │   ├── IToolRegistry.cs
+│   │   └── ...
+│   ├── Implementation/
+│   │   ├── DependencyChecker.cs
+│   │   ├── AuditService.cs
+│   │   ├── ApprovalService.cs
+│   │   ├── ToolRegistry.cs
+│   │   └── PathHelper.cs
+│   ├── Tools/ (каждый инструмент – отдельный класс, реализующий ITool)
+│   │   ├── FileSystemTools/
+│   │   ├── CodeExecutionTools/
+│   │   ├── WebTools/
+│   │   ├── GitTools/
+│   │   └── SubAgentTools/
+│   └── Resources/ (для локализации)
+│       ├── SharedResources.resx
+│       ├── SharedResources.ru.resx
+│       └── ...
+└── IIChatTools.Tests
+    ├── UnitTests/
+    └── IntegrationTests/

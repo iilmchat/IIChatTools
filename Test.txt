@@ -1,0 +1,1106 @@
+## Реализация IIChatTools v1.0 – Первая итерация (Инфраструктура)
+
+Я подготовил **базовую структуру проекта**, включающую:
+
+- Решение и проекты с необходимыми пакетами
+- Сущности базы данных (Identity, Audit, Settings, PendingActions, AgentState, Memory)
+- `AppDbContext` с настройкой Identity и связями
+- Начальную миграцию
+- `DependencyChecker` – проверка внешних CLI
+- `PathHelper` – безопасная работа с путями
+- `AuditService` – запись действий в БД
+- Базовый `Program.cs` и `Startup.cs` с настройкой DI, MVC, Identity, JWT, локализации
+- Стартовую страницу (главная админка) с примером использования локализации и ES-модулей
+
+---
+
+### Структура решения
+
+```
+IIChatTools.sln
+├── IIChatTools.API
+│   ├── Controllers/
+│   │   ├── AuthController.cs
+│   │   ├── ToolsController.cs
+│   │   ├── ApprovalsController.cs
+│   │   ├── AdminController.cs
+│   │   └── StatusController.cs
+│   ├── Views/
+│   │   ├── Home/
+│   │   │   ├── Index.cshtml
+│   │   │   ├── Status.cshtml
+│   │   │   ├── Admin.cshtml
+│   │   │   └── Test.cshtml
+│   │   ├── Shared/
+│   │   │   ├── _Layout.cshtml
+│   │   │   └── _ValidationScriptsPartial.cshtml
+│   │   └── _ViewStart.cshtml
+│   ├── wwwroot/
+│   │   ├── css/
+│   │   ├── js/
+│   │   │   ├── modules/
+│   │   │   │   ├── api.js
+│   │   │   │   ├── approvals.js
+│   │   │   │   └── ui.js
+│   │   │   └── main.js (ES module entry)
+│   │   └── lib/
+│   ├── Program.cs
+│   ├── Startup.cs
+│   ├── appsettings.json
+│   └── appsettings.Development.json
+├── IIChatTools.Data
+│   ├── Entities/
+│   │   ├── BaseEntity.cs
+│   │   ├── ApplicationUser.cs
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   ├── AppDbContext.cs
+│   ├── Migrations/
+│   └── SeedData.cs
+├── IIChatTools.Services
+│   ├── Interfaces/
+│   │   ├── IDependencyChecker.cs
+│   │   ├── IAuditService.cs
+│   │   ├── IApprovalService.cs
+│   │   ├── IToolRegistry.cs
+│   │   └── ...
+│   ├── Implementation/
+│   │   ├── DependencyChecker.cs
+│   │   ├── AuditService.cs
+│   │   ├── ApprovalService.cs
+│   │   ├── ToolRegistry.cs
+│   │   └── PathHelper.cs
+│   ├── Tools/ (каждый инструмент – отдельный класс, реализующий ITool)
+│   │   ├── FileSystemTools/
+│   │   ├── CodeExecutionTools/
+│   │   ├── WebTools/
+│   │   ├── GitTools/
+│   │   └── SubAgentTools/
+│   └── Resources/ (для локализации)
+│       ├── SharedResources.resx
+│       ├── SharedResources.ru.resx
+│       └── ...
+└── IIChatTools.Tests
+    ├── UnitTests/
+    └── IntegrationTests/
+```
+
+---
+
+### 1. Код сущностей и DbContext
+
+#### BaseEntity.cs (в IIChatTools.Data/Entities)
+```csharp
+using System;
+
+namespace IIChatTools.Data.Entities
+{
+    /// <summary>
+    /// Базовый класс для всех сущностей с общими полями
+    /// </summary>
+    public abstract class BaseEntity
+    {
+        /// <summary>
+        /// Уникальный идентификатор
+        /// </summary>
+        public int Id { get; set; }
+
+        /// <summary>
+        /// Дата создания записи
+        /// </summary>
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Дата последнего обновления
+        /// </summary>
+        public DateTime? UpdatedAt { get; set; }
+    }
+}
+```
+
+#### ApplicationUser.cs (расширяем IdentityUser)
+```csharp
+using Microsoft.AspNetCore.Identity;
+
+namespace IIChatTools.Data.Entities
+{
+    /// <summary>
+    /// Пользователь системы с расширенными полями
+    /// </summary>
+    public class ApplicationUser : IdentityUser<int>
+    {
+        /// <summary>
+        /// Полное имя пользователя
+        /// </summary>
+        public string FullName { get; set; }
+
+        /// <summary>
+        /// Активен ли пользователь
+        /// </summary>
+        public bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Дата регистрации
+        /// </summary>
+        public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Навигационное свойство для аудита
+        /// </summary>
+        public virtual ICollection<AuditLog> AuditLogs { get; set; }
+
+        /// <summary>
+        /// Навигационное свойство для действий на подтверждении
+        /// </summary>
+        public virtual ICollection<PendingAction> PendingActions { get; set; }
+    }
+}
+```
+
+#### AuditLog.cs
+```csharp
+using System;
+
+namespace IIChatTools.Data.Entities
+{
+    /// <summary>
+    /// Лог аудита действий пользователей и агентов
+    /// </summary>
+    public class AuditLog : BaseEntity
+    {
+        /// <summary>
+        /// Идентификатор пользователя, выполнившего действие
+        /// </summary>
+        public int UserId { get; set; }
+
+        /// <summary>
+        /// Навигационное свойство пользователя
+        /// </summary>
+        public virtual ApplicationUser User { get; set; }
+
+        /// <summary>
+        /// Название вызванного инструмента
+        /// </summary>
+        public string ToolName { get; set; }
+
+        /// <summary>
+        /// Параметры вызова (JSON)
+        /// </summary>
+        public string ParametersJson { get; set; }
+
+        /// <summary>
+        /// Результат выполнения (JSON или текст)
+        /// </summary>
+        public string ResultJson { get; set; }
+
+        /// <summary>
+        /// Длительность выполнения в миллисекундах
+        /// </summary>
+        public long DurationMs { get; set; }
+
+        /// <summary>
+        /// Статус выполнения (Success, Error, Pending, Cancelled)
+        /// </summary>
+        public string Status { get; set; }
+
+        /// <summary>
+        /// IP-адрес клиента (опционально)
+        /// </summary>
+        public string ClientIp { get; set; }
+    }
+}
+```
+
+#### AppSetting.cs
+```csharp
+namespace IIChatTools.Data.Entities
+{
+    /// <summary>
+    /// Настройка приложения (ключ-значение), хранимая в БД
+    /// </summary>
+    public class AppSetting : BaseEntity
+    {
+        /// <summary>
+        /// Уникальный ключ настройки
+        /// </summary>
+        public string Key { get; set; }
+
+        /// <summary>
+        /// Значение настройки (в виде строки)
+        /// </summary>
+        public string Value { get; set; }
+
+        /// <summary>
+        /// Тип данных (string, int, bool, json и т.д.)
+        /// </summary>
+        public string Type { get; set; }
+
+        /// <summary>
+        /// Категория для группировки
+        /// </summary>
+        public string Category { get; set; }
+
+        /// <summary>
+        /// Признак значения по умолчанию (из appsettings.json)
+        /// </summary>
+        public bool IsDefault { get; set; }
+    }
+}
+```
+
+#### PendingAction.cs
+```csharp
+using System;
+
+namespace IIChatTools.Data.Entities
+{
+    /// <summary>
+    /// Действие, ожидающее подтверждения пользователя
+    /// </summary>
+    public class PendingAction : BaseEntity
+    {
+        /// <summary>
+        /// Идентификатор пользователя, инициировавшего действие (или агента)
+        /// </summary>
+        public int UserId { get; set; }
+
+        /// <summary>
+        /// Навигационное свойство пользователя
+        /// </summary>
+        public virtual ApplicationUser User { get; set; }
+
+        /// <summary>
+        /// Название инструмента
+        /// </summary>
+        public string ToolName { get; set; }
+
+        /// <summary>
+        /// Параметры в JSON
+        /// </summary>
+        public string ParametersJson { get; set; }
+
+        /// <summary>
+        /// Статус: Pending, Approved, Rejected, Expired
+        /// </summary>
+        public string Status { get; set; } = "Pending";
+
+        /// <summary>
+        /// Время создания
+        /// </summary>
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Время истечения (например, через 5 минут)
+        /// </summary>
+        public DateTime ExpiresAt { get; set; }
+
+        /// <summary>
+        /// Идентификатор администратора, утвердившего/отклонившего
+        /// </summary>
+        public int? ApprovedByUserId { get; set; }
+
+        /// <summary>
+        /// Время утверждения/отклонения
+        /// </summary>
+        public DateTime? ApprovedAt { get; set; }
+
+        /// <summary>
+        /// Комментарий при отклонении
+        /// </summary>
+        public string RejectionReason { get; set; }
+
+        /// <summary>
+        /// Результат выполнения после подтверждения (заполняется после выполнения)
+        /// </summary>
+        public string ResultJson { get; set; }
+    }
+}
+```
+
+#### AgentState.cs (для суб-агентов)
+```csharp
+using System;
+
+namespace IIChatTools.Data.Entities
+{
+    /// <summary>
+    /// Состояние сессии суб-агента
+    /// </summary>
+    public class AgentState : BaseEntity
+    {
+        /// <summary>
+        /// Идентификатор пользователя, владеющего сессией
+        /// </summary>
+        public int UserId { get; set; }
+
+        public virtual ApplicationUser User { get; set; }
+
+        /// <summary>
+        /// Уникальный идентификатор сессии (GUID)
+        /// </summary>
+        public string SessionId { get; set; }
+
+        /// <summary>
+        /// Описание задачи
+        /// </summary>
+        public string TaskDescription { get; set; }
+
+        /// <summary>
+        /// Текущий шаг выполнения
+        /// </summary>
+        public int CurrentStep { get; set; }
+
+        /// <summary>
+        /// Снимок кода/состояния (JSON)
+        /// </summary>
+        public string CodeSnapshotJson { get; set; }
+
+        /// <summary>
+        /// Дата последнего обновления
+        /// </summary>
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Завершена ли сессия
+        /// </summary>
+        public bool IsCompleted { get; set; }
+    }
+}
+```
+
+#### MemoryEntry.cs (долговременная память)
+```csharp
+using System;
+
+namespace IIChatTools.Data.Entities
+{
+    /// <summary>
+    /// Элемент долговременной памяти пользователя
+    /// </summary>
+    public class MemoryEntry : BaseEntity
+    {
+        /// <summary>
+        /// Идентификатор пользователя
+        /// </summary>
+        public int UserId { get; set; }
+
+        public virtual ApplicationUser User { get; set; }
+
+        /// <summary>
+        /// Ключ памяти
+        /// </summary>
+        public string Key { get; set; }
+
+        /// <summary>
+        /// Значение (JSON)
+        /// </summary>
+        public string Value { get; set; }
+
+        /// <summary>
+        /// Тип данных (строка, число, объект и т.д.)
+        /// </summary>
+        public string Type { get; set; }
+
+        /// <summary>
+        /// Дата создания
+        /// </summary>
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Дата последнего обновления
+        /// </summary>
+        public DateTime? UpdatedAt { get; set; }
+    }
+}
+```
+
+#### AppDbContext.cs
+```csharp
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using IIChatTools.Data.Entities;
+
+namespace IIChatTools.Data
+{
+    /// <summary>
+    /// Контекст базы данных приложения
+    /// </summary>
+    public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>
+    {
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
+        {
+        }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<AppSetting> AppSettings { get; set; }
+        public DbSet<PendingAction> PendingActions { get; set; }
+        public DbSet<AgentState> AgentStates { get; set; }
+        public DbSet<MemoryEntry> MemoryEntries { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Настройка связей и ограничений
+            modelBuilder.Entity<AuditLog>()
+                .HasOne(a => a.User)
+                .WithMany(u => u.AuditLogs)
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PendingAction>()
+                .HasOne(p => p.User)
+                .WithMany(u => u.PendingActions)
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Уникальность ключей настроек
+            modelBuilder.Entity<AppSetting>()
+                .HasIndex(a => a.Key)
+                .IsUnique();
+
+            // Для AgentState и MemoryEntry связи с пользователем
+            modelBuilder.Entity<AgentState>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MemoryEntry>()
+                .HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+}
+```
+
+---
+
+### 2. Начальная миграция
+
+Выполните в Package Manager Console (выбрав проект IIChatTools.Data):
+```
+Add-Migration InitialCreate -Context AppDbContext -OutputDir Migrations
+Update-Database
+```
+
+---
+
+### 3. Сервисы: DependencyChecker и AuditService
+
+#### IDependencyChecker.cs (в IIChatTools.Services/Interfaces)
+```csharp
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace IIChatTools.Services.Interfaces
+{
+    /// <summary>
+    /// Интерфейс для проверки наличия внешних зависимостей
+    /// </summary>
+    public interface IDependencyChecker
+    {
+        /// <summary>
+        /// Проверяет все зависимости и возвращает словарь { имя зависимости -> версия (или null, если не найдена) }
+        /// </summary>
+        Task<Dictionary<string, string>> CheckAllAsync();
+
+        /// <summary>
+        /// Проверяет, установлен ли Git
+        /// </summary>
+        Task<bool> IsGitInstalledAsync();
+
+        /// <summary>
+        /// Проверяет, установлен ли GitHub CLI (gh)
+        /// </summary>
+        Task<bool> IsGhInstalledAsync();
+
+        /// <summary>
+        /// Проверяет, установлен ли Python 3
+        /// </summary>
+        Task<bool> IsPythonInstalledAsync();
+
+        /// <summary>
+        /// Проверяет, установлен ли Node.js
+        /// </summary>
+        Task<bool> IsNodeInstalledAsync();
+    }
+}
+```
+
+#### DependencyChecker.cs (Implementation)
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
+namespace IIChatTools.Services.Implementation
+{
+    /// <summary>
+    /// Реализация проверки внешних зависимостей
+    /// </summary>
+    public class DependencyChecker : IDependencyChecker
+    {
+        private readonly ILogger<DependencyChecker> _logger;
+
+        public DependencyChecker(ILogger<DependencyChecker> logger)
+        {
+            _logger = logger;
+        }
+
+        public async Task<Dictionary<string, string>> CheckAllAsync()
+        {
+            var result = new Dictionary<string, string>();
+
+            // Проверка Git
+            var gitVersion = await GetVersionAsync("git", "--version");
+            result["git"] = gitVersion;
+            _logger.LogInformation(gitVersion != null ? "Git найден: {Version}" : "Git не найден", gitVersion ?? "отсутствует");
+
+            // Проверка GitHub CLI
+            var ghVersion = await GetVersionAsync("gh", "--version");
+            result["gh"] = ghVersion;
+            _logger.LogInformation(ghVersion != null ? "GitHub CLI найден: {Version}" : "GitHub CLI не найден", ghVersion ?? "отсутствует");
+
+            // Проверка Python
+            var pythonVersion = await GetVersionAsync("python3", "--version");
+            result["python3"] = pythonVersion;
+            _logger.LogInformation(pythonVersion != null ? "Python 3 найден: {Version}" : "Python 3 не найден", pythonVersion ?? "отсутствует");
+
+            // Проверка Node.js
+            var nodeVersion = await GetVersionAsync("node", "--version");
+            result["node"] = nodeVersion;
+            _logger.LogInformation(nodeVersion != null ? "Node.js найден: {Version}" : "Node.js не найден", nodeVersion ?? "отсутствует");
+
+            return result;
+        }
+
+        public async Task<bool> IsGitInstalledAsync() => await GetVersionAsync("git", "--version") != null;
+        public async Task<bool> IsGhInstalledAsync() => await GetVersionAsync("gh", "--version") != null;
+        public async Task<bool> IsPythonInstalledAsync() => await GetVersionAsync("python3", "--version") != null;
+        public async Task<bool> IsNodeInstalledAsync() => await GetVersionAsync("node", "--version") != null;
+
+        private async Task<string> GetVersionAsync(string command, string arguments)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = command,
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+
+                using var process = Process.Start(startInfo);
+                if (process == null)
+                    return null;
+
+                var output = await process.StandardOutput.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode != 0)
+                {
+                    _logger.LogWarning("Команда {Command} завершилась с кодом {ExitCode}: {Error}", command, process.ExitCode, error);
+                    return null;
+                }
+
+                var versionLine = string.IsNullOrEmpty(output) ? error : output;
+                return versionLine?.Trim().Split('\n')[0];
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Ошибка при проверке зависимости {Command}", command);
+                return null;
+            }
+        }
+    }
+}
+```
+
+#### PathHelper.cs (статический класс)
+```csharp
+using System;
+using System.IO;
+
+namespace IIChatTools.Services.Implementation
+{
+    /// <summary>
+    /// Вспомогательный класс для безопасной работы с путями
+    /// </summary>
+    public static class PathHelper
+    {
+        /// <summary>
+        /// Пытается получить безопасный абсолютный путь внутри workspace, предотвращая path traversal
+        /// </summary>
+        /// <param name="userPath">Путь, указанный пользователем</param>
+        /// <param name="workspaceRoot">Корневая директория рабочего пространства</param>
+        /// <param name="safePath">Результирующий безопасный абсолютный путь</param>
+        /// <returns>true, если путь безопасен и находится внутри workspaceRoot, иначе false</returns>
+        public static bool TryGetSafeFullPath(string userPath, string workspaceRoot, out string safePath)
+        {
+            safePath = null;
+
+            if (string.IsNullOrEmpty(userPath) || string.IsNullOrEmpty(workspaceRoot))
+                return false;
+
+            try
+            {
+                // Нормализуем корень
+                var root = Path.GetFullPath(workspaceRoot);
+                // Комбинируем с пользовательским путём и получаем полный
+                var combined = Path.GetFullPath(Path.Combine(root, userPath));
+
+                // Проверяем, что combined начинается с root (с учётом разделителей)
+                if (combined.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                {
+                    safePath = combined;
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+    }
+}
+```
+
+#### IAuditService.cs и AuditService.cs
+```csharp
+// IAuditService.cs
+using System.Threading.Tasks;
+using IIChatTools.Data.Entities;
+
+namespace IIChatTools.Services.Interfaces
+{
+    /// <summary>
+    /// Интерфейс сервиса аудита для записи действий
+    /// </summary>
+    public interface IAuditService
+    {
+        /// <summary>
+        /// Асинхронно записывает запись аудита в БД
+        /// </summary>
+        Task LogActionAsync(AuditLog logEntry);
+    }
+}
+
+// AuditService.cs
+using System;
+using System.Threading.Tasks;
+using IIChatTools.Data;
+using IIChatTools.Data.Entities;
+using Microsoft.Extensions.Logging;
+
+namespace IIChatTools.Services.Implementation
+{
+    /// <summary>
+    /// Реализация сервиса аудита
+    /// </summary>
+    public class AuditService : IAuditService
+    {
+        private readonly AppDbContext _dbContext;
+        private readonly ILogger<AuditService> _logger;
+
+        public AuditService(AppDbContext dbContext, ILogger<AuditService> logger)
+        {
+            _dbContext = dbContext;
+            _logger = logger;
+        }
+
+        public async Task LogActionAsync(AuditLog logEntry)
+        {
+            if (logEntry == null)
+                throw new ArgumentNullException(nameof(logEntry));
+
+            try
+            {
+                _dbContext.AuditLogs.Add(logEntry);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при записи аудита");
+                // Не пробрасываем, чтобы не нарушить основной поток
+            }
+        }
+    }
+}
+```
+
+---
+
+### 4. Настройка DI, MVC, Identity, JWT, локализации в Startup.cs
+
+```csharp
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using IIChatTools.Data;
+using IIChatTools.Data.Entities;
+using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Implementation;
+
+namespace IIChatTools.API
+{
+    public class Startup
+    {
+        public Startup(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
+
+        public IConfiguration Configuration { get; }
+
+        public void ConfigureServices(IServiceCollection services)
+        {
+            // 1. Контекст БД
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+
+            // 2. Identity
+            services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
+            {
+                // Настройки паролей и т.п. (можно вынести в конфиг)
+                options.Password.RequireDigit = true;
+                options.Password.RequiredLength = 6;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireLowercase = false;
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
+
+            // 3. JWT аутентификация
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = "JwtBearer";
+                options.DefaultChallengeScheme = "JwtBearer";
+            })
+            .AddJwtBearer("JwtBearer", options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = Configuration["Jwt:Issuer"],
+                    ValidAudience = Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
+                };
+            });
+
+            // 4. MVC с локализацией
+            services.AddLocalization(options => options.ResourcesPath = "Resources");
+            services.AddControllersWithViews()
+                .AddViewLocalization()
+                .AddDataAnnotationsLocalization();
+
+            services.Configure<RequestLocalizationOptions>(options =>
+            {
+                var supportedCultures = new[] { "ru", "en" };
+                options.SetDefaultCulture("ru")
+                       .AddSupportedCultures(supportedCultures)
+                       .AddSupportedUICultures(supportedCultures);
+            });
+
+            // 5. Добавляем наши сервисы
+            services.AddScoped<IDependencyChecker, DependencyChecker>();
+            services.AddScoped<IAuditService, AuditService>();
+            services.AddScoped<IApprovalService, ApprovalService>(); // реализуем позже
+            services.AddScoped<IToolRegistry, ToolRegistry>(); // позже
+
+            // 6. Настройка политик авторизации (админ)
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+            });
+
+            // 7. Регистрация HttpClient и т.д.
+            services.AddHttpClient();
+        }
+
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        {
+            if (env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+            else
+            {
+                app.UseExceptionHandler("/Home/Error");
+                app.UseHsts();
+            }
+
+            // Локализация
+            var locOptions = app.ApplicationServices.GetService<IOptions<RequestLocalizationOptions>>().Value;
+            app.UseRequestLocalization(locOptions);
+
+            app.UseHttpsRedirection();
+            app.UseStaticFiles();
+
+            app.UseRouting();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Home}/{action=Index}/{id?}");
+            });
+        }
+    }
+}
+```
+
+---
+
+### 5. Program.cs (с запуском миграций и проверкой зависимостей)
+
+```csharp
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
+using IIChatTools.Data;
+using IIChatTools.Services.Interfaces;
+
+namespace IIChatTools.API
+{
+    public class Program
+    {
+        public static async Task Main(string[] args)
+        {
+            var host = CreateHostBuilder(args).Build();
+
+            // Применяем миграции и создаём БД при старте
+            using (var scope = host.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                try
+                {
+                    var dbContext = services.GetRequiredService<AppDbContext>();
+                    await dbContext.Database.MigrateAsync();
+
+                    // Проверка зависимостей
+                    var checker = services.GetRequiredService<IDependencyChecker>();
+                    var deps = await checker.CheckAllAsync();
+                    var logger = services.GetRequiredService<ILogger<Program>>();
+                    foreach (var dep in deps)
+                    {
+                        logger.LogInformation("{Key}: {Value}", dep.Key, dep.Value ?? "Не установлен");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var logger = services.GetRequiredService<ILogger<Program>>();
+                    logger.LogError(ex, "Ошибка при инициализации БД или проверке зависимостей");
+                }
+            }
+
+            await host.RunAsync();
+        }
+
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.UseStartup<Startup>();
+                });
+    }
+}
+```
+
+---
+
+### 6. Представления (первая страница – главная админка)
+
+#### Views/Home/Index.cshtml
+```html
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = @Localizer["Главная"];
+}
+<div class="container mt-4">
+    <h1>@Localizer["Добро пожаловать в IIChatTools v1.0"]</h1>
+    <p>@Localizer["Управляйте инструментами, пользователями и настройками."]</p>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@Localizer["Статус системы"]</h5>
+                    <p class="card-text"><a href="/status">@Localizer["Перейти"]</a></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@Localizer["Администрирование"]</h5>
+                    <p class="card-text"><a href="/admin">@Localizer["Перейти"]</a></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@Localizer["Тестирование"]</h5>
+                    <p class="card-text"><a href="/test">@Localizer["Перейти"]</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5 text-muted text-center">
+    <div class="copyright">
+        © 2026 <a href="#" onclick="event.preventDefault(); toast.info('RuChating (iilmchat) — AI Chat Platform');">RuChating</a> (iilmchat) · IIChatTools v1.0
+    </div>
+</footer>
+
+@section Scripts {
+    <script type="module">
+        import { showToast } from '/js/modules/ui.js';
+        window.toast = showToast; // чтобы работал onclick
+        console.log('IIChatTools v1.0 loaded');
+    </script>
+}
+```
+
+#### Views/Shared/_Layout.cshtml (базовый шаблон с поддержкой локализации и ES-модулей)
+```html
+<!DOCTYPE html>
+<html lang="@Thread.CurrentThread.CurrentUICulture.Name">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - IIChatTools</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">IIChatTools</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Главная"]</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Status">@Localizer["Статус"]</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Admin">@Localizer["Админка"]</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Test">@Localizer["Тест"]</a>
+                        </li>
+                    </ul>
+                    <partial name="_LoginPartial" />
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="~/js/main.js"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>
+```
+
+#### wwwroot/js/modules/ui.js (пример модуля для тостов)
+```javascript
+export function showToast(message, type = 'info') {
+    // Простая реализация тоста через alert или можно подключить библиотеку
+    alert(message);
+}
+```
+
+#### wwwroot/js/main.js (главный модуль)
+```javascript
+import { showToast } from './modules/ui.js';
+
+console.log('IIChatTools main module loaded');
+
+// Здесь можно добавить глобальную инициализацию
+window.showToast = showToast;
+```
+
+---
+
+### 7. Ресурсы локализации
+
+Создайте папку `Resources` в проекте `IIChatTools.API` и добавьте файлы:
+- `SharedResources.resx` (английский по умолчанию)
+- `SharedResources.ru.resx` (русский)
+
+Пример содержимого `SharedResources.resx`:
+```xml
+<data name="Главная" xml:space="preserve"><value>Home</value></data>
+<data name="Добро пожаловать в IIChatTools v1.0" xml:space="preserve"><value>Welcome to IIChatTools v1.0</value></data>
+<data name="Управляйте инструментами, пользователями и настройками." xml:space="preserve"><value>Manage tools, users and settings.</value></data>
+<data name="Статус системы" xml:space="preserve"><value>System Status</value></data>
+<data name="Администрирование" xml:space="preserve"><value>Administration</value></data>
+<data name="Тестирование" xml:space="preserve"><value>Testing</value></data>
+<data name="Перейти" xml:space="preserve"><value>Go</value></data>
+```
+
+Для `ru.resx` – соответствующие русские строки.
+
+---
+
+### 8. Следующие шаги
+
+После того как вы подтвердите, что базовая структура вас устраивает, я продолжу:
+
+- Реализацию **Identity** (регистрация, логин, JWT, первый администратор через Seed).
+- **ApprovalService** и интеграцию с ToolsController.
+- **ToolRegistry** и реализацию первого набора инструментов (файловая система).
+- **Админку** (CRUD пользователей, настроек, просмотр аудита).
+- **Страницу статуса** (проверка зависимостей, статистика).
+- **Страницу тестирования** для вызова инструментов вручную.
+
+Все публичные методы будут задокументированы XML-комментариями на русском языке.
+
+Прошу вас проверить предоставленный код и концепцию. Если всё OK, я продолжу разработку. Если есть замечания – сообщите.
