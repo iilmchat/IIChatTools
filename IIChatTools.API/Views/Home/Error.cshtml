@@ -1,0 +1,15 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = Localizer["Ошибка"];
+}
+
+<div class="container mt-5">
+    <h1 class="text-danger">@Localizer["Ошибка"]</h1>
+    <p>@Localizer["Внутренняя ошибка сервера."]</p>
+    @if (ViewData["RequestId"] != null)
+    {
+        <p class="text-muted small"><strong>Request ID:</strong> <code>@ViewData["RequestId"]</code></p>
+    }
+    <a href="/" class="btn btn-outline-primary mt-3">@Localizer["Назад"]</a>
+</div>
