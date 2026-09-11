@@ -3,61 +3,50 @@ setlocal
 
 echo Creating Sprint 8 directory structure for IIChatTools...
 
-:: ============================================
-:: Создание каталогов
-:: ============================================
+rem === Создание каталогов ===
+mkdir "IIChatTools.Data" 2>nul
+mkdir "IIChatTools.Data\Entities" 2>nul
+mkdir "IIChatTools.Data\Migrations" 2>nul
 
-:: IIChatTools.Data
-mkdir IIChatTools.Data
-mkdir IIChatTools.Data\Entities
-mkdir IIChatTools.Data\Migrations
+mkdir "IIChatTools.Services" 2>nul
+mkdir "IIChatTools.Services\DTO" 2>nul
+mkdir "IIChatTools.Services\DTO\Browser" 2>nul
+mkdir "IIChatTools.Services\DTO\Admin" 2>nul
+mkdir "IIChatTools.Services\Extensions" 2>nul
+mkdir "IIChatTools.Services\Interfaces" 2>nul
+mkdir "IIChatTools.Services\Implementation" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools\FileSystem" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools\CodeExecution" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools\Web" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools\Git" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools\GitHub" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools\Browser" 2>nul
+mkdir "IIChatTools.Services\Implementation\Tools\Utils" 2>nul
 
-:: IIChatTools.Services
-mkdir IIChatTools.Services
-mkdir IIChatTools.Services\DTO
-mkdir IIChatTools.Services\DTO\Browser
-mkdir IIChatTools.Services\DTO\Admin
-mkdir IIChatTools.Services\Extensions
-mkdir IIChatTools.Services\Interfaces
-mkdir IIChatTools.Services\Implementation
-mkdir IIChatTools.Services\Implementation\Tools
-mkdir IIChatTools.Services\Implementation\Tools\FileSystem
-mkdir IIChatTools.Services\Implementation\Tools\CodeExecution
-mkdir IIChatTools.Services\Implementation\Tools\Web
-mkdir IIChatTools.Services\Implementation\Tools\Git
-mkdir IIChatTools.Services\Implementation\Tools\GitHub
-mkdir IIChatTools.Services\Implementation\Tools\Browser
-mkdir IIChatTools.Services\Implementation\Tools\Utils
+mkdir "IIChatTools.API" 2>nul
+mkdir "IIChatTools.API\Controllers" 2>nul
+mkdir "IIChatTools.API\DTO" 2>nul
+mkdir "IIChatTools.API\ViewModels" 2>nul
+mkdir "IIChatTools.API\Resources" 2>nul
+mkdir "IIChatTools.API\Views" 2>nul
+mkdir "IIChatTools.API\Views\Auth" 2>nul
+mkdir "IIChatTools.API\Views\Home" 2>nul
+mkdir "IIChatTools.API\Views\Shared" 2>nul
+mkdir "IIChatTools.API\wwwroot" 2>nul
+mkdir "IIChatTools.API\wwwroot\css" 2>nul
+mkdir "IIChatTools.API\wwwroot\js" 2>nul
+mkdir "IIChatTools.API\wwwroot\js\modules" 2>nul
 
-:: IIChatTools.API
-mkdir IIChatTools.API
-mkdir IIChatTools.API\Controllers
-mkdir IIChatTools.API\DTO
-mkdir IIChatTools.API\ViewModels
-mkdir IIChatTools.API\Resources
-mkdir IIChatTools.API\Views
-mkdir IIChatTools.API\Views\Auth
-mkdir IIChatTools.API\Views\Home
-mkdir IIChatTools.API\Views\Shared
-mkdir IIChatTools.API\wwwroot
-mkdir IIChatTools.API\wwwroot\css
-mkdir IIChatTools.API\wwwroot\js
-mkdir IIChatTools.API\wwwroot\js\modules
+mkdir "IIChatTools.Tests" 2>nul
+mkdir "IIChatTools.Tests\UnitTests" 2>nul
 
-:: IIChatTools.Tests
-mkdir IIChatTools.Tests
-mkdir IIChatTools.Tests\UnitTests
-
-:: ============================================
-:: Создание файлов (только если отсутствуют)
-:: ============================================
+rem === Создание файлов (только если отсутствуют) ===
 for %%F in (
   "IIChatTools.sln"
   "Directory.Build.props"
   "global.json"
   "NuGet.Config"
-
-  :: --- IIChatTools.Data ---
   "IIChatTools.Data\AppDbContext.cs"
   "IIChatTools.Data\SeedData.cs"
   "IIChatTools.Data\Entities\BaseEntity.cs"
@@ -67,8 +56,6 @@ for %%F in (
   "IIChatTools.Data\Entities\PendingAction.cs"
   "IIChatTools.Data\Entities\AgentState.cs"
   "IIChatTools.Data\Entities\MemoryEntry.cs"
-
-  :: --- IIChatTools.Services / DTO ---
   "IIChatTools.Services\DTO\ToolResult.cs"
   "IIChatTools.Services\DTO\ToolDescriptor.cs"
   "IIChatTools.Services\DTO\ToolParameterDescriptor.cs"
@@ -80,11 +67,7 @@ for %%F in (
   "IIChatTools.Services\DTO\Admin\UserEditDto.cs"
   "IIChatTools.Services\DTO\Admin\SettingDto.cs"
   "IIChatTools.Services\DTO\Admin\WhitelistEntryDto.cs"
-
-  :: --- IIChatTools.Services / Extensions ---
   "IIChatTools.Services\Extensions\JObjectExtensions.cs"
-
-  :: --- IIChatTools.Services / Interfaces ---
   "IIChatTools.Services\Interfaces\ITool.cs"
   "IIChatTools.Services\Interfaces\IToolRegistry.cs"
   "IIChatTools.Services\Interfaces\IAuditService.cs"
@@ -98,8 +81,6 @@ for %%F in (
   "IIChatTools.Services\Interfaces\IUserAdminService.cs"
   "IIChatTools.Services\Interfaces\IProcessRunner.cs"
   "IIChatTools.Services\Interfaces\IBrowserSessionManager.cs"
-
-  :: --- IIChatTools.Services / Implementation ---
   "IIChatTools.Services\Implementation\AppUptimeTracker.cs"
   "IIChatTools.Services\Implementation\AppVersionHolder.cs"
   "IIChatTools.Services\Implementation\AuditService.cs"
@@ -115,8 +96,6 @@ for %%F in (
   "IIChatTools.Services\Implementation\ProcessRunner.cs"
   "IIChatTools.Services\Implementation\BrowserSessionManager.cs"
   "IIChatTools.Services\Implementation\ToolRegistry.cs"
-
-  :: --- IIChatTools.Services / Tools / FileSystem (13) ---
   "IIChatTools.Services\Implementation\Tools\FileSystem\ListDirectoryTool.cs"
   "IIChatTools.Services\Implementation\Tools\FileSystem\ChangeDirectoryTool.cs"
   "IIChatTools.Services\Implementation\Tools\FileSystem\MakeDirectoryTool.cs"
@@ -130,18 +109,12 @@ for %%F in (
   "IIChatTools.Services\Implementation\Tools\FileSystem\FindFilesTool.cs"
   "IIChatTools.Services\Implementation\Tools\FileSystem\GetFileMetadataTool.cs"
   "IIChatTools.Services\Implementation\Tools\FileSystem\FuzzyFindLocalFilesTool.cs"
-
-  :: --- IIChatTools.Services / Tools / CodeExecution (3) ---
   "IIChatTools.Services\Implementation\Tools\CodeExecution\RunJavaScriptTool.cs"
   "IIChatTools.Services\Implementation\Tools\CodeExecution\RunPythonTool.cs"
   "IIChatTools.Services\Implementation\Tools\CodeExecution\ExecuteCommandTool.cs"
-
-  :: --- IIChatTools.Services / Tools / Web (3) ---
   "IIChatTools.Services\Implementation\Tools\Web\WebSearchTool.cs"
   "IIChatTools.Services\Implementation\Tools\Web\WikipediaSearchTool.cs"
   "IIChatTools.Services\Implementation\Tools\Web\FetchWebContentTool.cs"
-
-  :: --- IIChatTools.Services / Tools / Git (7 + base) ---
   "IIChatTools.Services\Implementation\Tools\Git\BaseGitTool.cs"
   "IIChatTools.Services\Implementation\Tools\Git\GitStatusTool.cs"
   "IIChatTools.Services\Implementation\Tools\Git\GitDiffTool.cs"
@@ -150,8 +123,6 @@ for %%F in (
   "IIChatTools.Services\Implementation\Tools\Git\GitCommitTool.cs"
   "IIChatTools.Services\Implementation\Tools\Git\GitCheckoutTool.cs"
   "IIChatTools.Services\Implementation\Tools\Git\GitPushTool.cs"
-
-  :: --- IIChatTools.Services / Tools / GitHub (7 + base) ---
   "IIChatTools.Services\Implementation\Tools\GitHub\BaseGhTool.cs"
   "IIChatTools.Services\Implementation\Tools\GitHub\GhAuthStatusTool.cs"
   "IIChatTools.Services\Implementation\Tools\GitHub\GhCreateIssueTool.cs"
@@ -160,18 +131,12 @@ for %%F in (
   "IIChatTools.Services\Implementation\Tools\GitHub\GhCreatePrTool.cs"
   "IIChatTools.Services\Implementation\Tools\GitHub\GhListPrsTool.cs"
   "IIChatTools.Services\Implementation\Tools\GitHub\GhViewPrDiffTool.cs"
-
-  :: --- IIChatTools.Services / Tools / Browser (4) ---
   "IIChatTools.Services\Implementation\Tools\Browser\BrowserSessionOpenTool.cs"
   "IIChatTools.Services\Implementation\Tools\Browser\BrowserSessionControlTool.cs"
   "IIChatTools.Services\Implementation\Tools\Browser\BrowserSessionCloseTool.cs"
   "IIChatTools.Services\Implementation\Tools\Browser\BrowserOpenPageTool.cs"
-
-  :: --- IIChatTools.Services / Tools / Utils (2) ---
   "IIChatTools.Services\Implementation\Tools\Utils\GetSystemInfoTool.cs"
   "IIChatTools.Services\Implementation\Tools\Utils\SaveMemoryTool.cs"
-
-  :: --- IIChatTools.API ---
   "IIChatTools.API\Program.cs"
   "IIChatTools.API\Startup.cs"
   "IIChatTools.API\AppVersion.cs"
@@ -210,8 +175,6 @@ for %%F in (
   "IIChatTools.API\wwwroot\js\modules\approvals.js"
   "IIChatTools.API\wwwroot\js\modules\admin.js"
   "IIChatTools.API\wwwroot\js\modules\test.js"
-
-  :: --- IIChatTools.Tests ---
   "IIChatTools.Tests\UnitTests\LocalizationSyncTests.cs"
 ) do (
   if not exist "%%~F" type nul > "%%~F"
