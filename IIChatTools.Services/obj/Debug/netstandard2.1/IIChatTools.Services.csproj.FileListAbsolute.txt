@@ -1,0 +1,5 @@
+G:\AI\IIChatTools\IIChatTools.Services\obj\Debug\netstandard2.1\IIChatTools.Services.csprojAssemblyReference.cache
+G:\AI\IIChatTools\IIChatTools.Services\obj\Debug\netstandard2.1\IIChatTools.Services.csproj.GenerateResource.cache
+G:\AI\IIChatTools\IIChatTools.Services\obj\Debug\netstandard2.1\IIChatTools.Services.csproj.CoreCompileInputs.cache
+G:\AI\IIChatTools\IIChatTools.Services\obj\Debug\netstandard2.1\IIChatTools.Services.AssemblyInfoInputs.cache
+G:\AI\IIChatTools\IIChatTools.Services\obj\Debug\netstandard2.1\IIChatTools.Services.AssemblyInfo.cs

@@ -3,22 +3,22 @@ using System;
 namespace IIChatTools.Data.Entities
 {
     /// <summary>
-    /// Базовый класс для всех сущностей с общими полями
+    /// Базовый класс для всех сущностей с общими полями.
     /// </summary>
     public abstract class BaseEntity
     {
         /// <summary>
-        /// Уникальный идентификатор
+        /// Уникальный идентификатор.
         /// </summary>
         public int Id { get; set; }
 
         /// <summary>
-        /// Дата создания записи
+        /// Дата создания записи (UTC).
         /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
-        /// Дата последнего обновления
+        /// Дата последнего обновления (UTC).
         /// </summary>
         public DateTime? UpdatedAt { get; set; }
     }

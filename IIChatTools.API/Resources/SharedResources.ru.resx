@@ -1,56 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!--
-    Файл ресурсов русской локализации интерфейса IIChatTools v1.0.
-    Все ключи соответствуют ключам в SharedResources.resx (английский по умолчанию).
-    © 2026 RuChating (iilmchat) · IIChatTools v1.0
-  -->
-  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
-    <xsd:element name="root" msdata:IsDataSet="true">
-      <xsd:complexType>
-        <xsd:choice maxOccurs="unbounded">
-          <xsd:element name="metadata">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" />
-              </xsd:sequence>
-              <xsd:attribute name="name" use="required" type="xsd:string" />
-              <xsd:attribute name="type" type="xsd:string" />
-              <xsd:attribute name="mimetype" type="xsd:string" />
-              <xsd:attribute ref="xml:space" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="assembly">
-            <xsd:complexType>
-              <xsd:attribute name="alias" type="xsd:string" />
-              <xsd:attribute name="name" type="xsd:string" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="data">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
-              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
-              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
-              <xsd:attribute ref="xml:space" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="resheader">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" />
-            </xsd:complexType>
-          </xsd:element>
-        </xsd:choice>
-      </xsd:complexType>
-    </xsd:element>
-  </xsd:schema>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -93,7 +42,7 @@
   <data name="Дата" xml:space="preserve"><value>Дата</value></data>
   <data name="СтатусЗаписи" xml:space="preserve"><value>Статус</value></data>
 
-  <!-- ===== Главная страница ===== -->
+  <!-- ===== Главная ===== -->
   <data name="Добро пожаловать в IIChatTools v1.0" xml:space="preserve"><value>Добро пожаловать в IIChatTools v1.0</value></data>
   <data name="Управляйте инструментами, пользователями и настройками." xml:space="preserve"><value>Управляйте инструментами, пользователями и настройками.</value></data>
   <data name="Статус системы" xml:space="preserve"><value>Статус системы</value></data>
@@ -130,7 +79,7 @@
   <data name="Пароли не совпадают." xml:space="preserve"><value>Пароли не совпадают.</value></data>
   <data name="Первый зарегистрированный пользователь получает роль администратора." xml:space="preserve"><value>Первый зарегистрированный пользователь получает роль администратора.</value></data>
 
-  <!-- ===== Страница статуса ===== -->
+  <!-- ===== Статус ===== -->
   <data name="Состояние сервера" xml:space="preserve"><value>Состояние сервера</value></data>
   <data name="Время работы" xml:space="preserve"><value>Время работы</value></data>
   <data name="Версия приложения" xml:space="preserve"><value>Версия приложения</value></data>
@@ -169,8 +118,7 @@
   <data name="Добавить в белый список" xml:space="preserve"><value>Добавить в белый список</value></data>
   <data name="Убрать из белого списка" xml:space="preserve"><value>Убрать из белого списка</value></data>
 
-  <!-- ===== Подтверждения действий ===== -->
-  <data name="Ожидают подтверждения" xml:space="preserve"><value>Ожидают подтверждения</value></data>
+  <!-- ===== Подтверждения ===== -->
   <data name="Подтвердить" xml:space="preserve"><value>Подтвердить</value></data>
   <data name="Отклонить" xml:space="preserve"><value>Отклонить</value></data>
   <data name="Причина отклонения" xml:space="preserve"><value>Причина отклонения</value></data>
@@ -182,7 +130,7 @@
   <data name="Инструмент требует подтверждения перед выполнением." xml:space="preserve"><value>Инструмент требует подтверждения перед выполнением.</value></data>
   <data name="Параметры вызова" xml:space="preserve"><value>Параметры вызова</value></data>
 
-  <!-- ===== Страница тестирования ===== -->
+  <!-- ===== Тест ===== -->
   <data name="Выбор инструмента" xml:space="preserve"><value>Выбор инструмента</value></data>
   <data name="Параметры (JSON)" xml:space="preserve"><value>Параметры (JSON)</value></data>
   <data name="Выполнить" xml:space="preserve"><value>Выполнить</value></data>
@@ -191,7 +139,7 @@
   <data name="Инструмент не выбран." xml:space="preserve"><value>Инструмент не выбран.</value></data>
   <data name="Некорректный JSON в параметрах." xml:space="preserve"><value>Некорректный JSON в параметрах.</value></data>
 
-  <!-- ===== Инструменты: Файловая система ===== -->
+  <!-- ===== Инструменты: ФС ===== -->
   <data name="Список файлов" xml:space="preserve"><value>Список файлов</value></data>
   <data name="Прочитать файл" xml:space="preserve"><value>Прочитать файл</value></data>
   <data name="Сохранить файл" xml:space="preserve"><value>Сохранить файл</value></data>
@@ -202,7 +150,7 @@
   <data name="Найти файлы" xml:space="preserve"><value>Найти файлы</value></data>
   <data name="Метаданные файла" xml:space="preserve"><value>Метаданные файла</value></data>
 
-  <!-- ===== Инструменты: Выполнение кода ===== -->
+  <!-- ===== Инструменты: Код ===== -->
   <data name="Выполнить JavaScript" xml:space="preserve"><value>Выполнить JavaScript</value></data>
   <data name="Выполнить Python" xml:space="preserve"><value>Выполнить Python</value></data>
   <data name="Выполнить команду" xml:space="preserve"><value>Выполнить команду</value></data>
@@ -236,7 +184,7 @@
   <data name="Прочитать буфер обмена" xml:space="preserve"><value>Прочитать буфер обмена</value></data>
   <data name="Записать в буфер обмена" xml:space="preserve"><value>Записать в буфер обмена</value></data>
 
-  <!-- ===== Ошибки валидации и системные ===== -->
+  <!-- ===== Ошибки ===== -->
   <data name="Обязательное поле" xml:space="preserve"><value>Обязательное поле</value></data>
   <data name="Слишком длинное значение" xml:space="preserve"><value>Слишком длинное значение</value></data>
   <data name="Недопустимый путь" xml:space="preserve"><value>Недопустимый путь</value></data>
@@ -248,7 +196,4 @@
 
   <!-- ===== Футер ===== -->
   <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v1.0</value></data>
-
-  <!-- ===== Назад ===== -->
-  <data name="Назад" xml:space="preserve"><value>Назад</value></data>    
 </root>

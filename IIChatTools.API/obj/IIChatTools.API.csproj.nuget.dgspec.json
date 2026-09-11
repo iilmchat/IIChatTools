@@ -257,7 +257,7 @@
             },
             "PuppeteerSharp": {
               "target": "Package",
-              "version": "[10.1.4, )"
+              "version": "[6.0.0, )"
             },
             "System.IdentityModel.Tokens.Jwt": {
               "target": "Package",
