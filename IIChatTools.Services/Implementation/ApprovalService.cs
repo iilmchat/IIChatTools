@@ -42,6 +42,17 @@ namespace IIChatTools.Services.Implementation
             if (string.IsNullOrWhiteSpace(toolName))
                 throw new ArgumentException("Имя инструмента не может быть пустым", nameof(toolName));
 
+            // Проверяем, что пользователь существует — защита от FK-ошибки SQLite
+            var userExists = await _dbContext.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists)
+            {
+                _logger.LogWarning(
+                    "Попытка создать PendingAction для несуществующего пользователя {UserId}",
+                    userId);
+                throw new InvalidOperationException(
+                    $"Пользователь с Id={userId} не найден. Возможно, требуется повторный вход в систему.");
+            }
+
             var expirationMinutes = 5;
             var expRaw = _configuration["Security:ApprovalExpirationMinutes"];
             if (!string.IsNullOrWhiteSpace(expRaw) && int.TryParse(expRaw, out var parsed))

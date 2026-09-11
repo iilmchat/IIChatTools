@@ -1,0 +1,2 @@
+dotnet ef migrations add InitialSqlServer --project IIChatTools.Data --startup-project IIChatTools.API --output-dir Migrations/SqlServer
+dotnet ef migrations add InitialSqlite    --project IIChatTools.Data --startup-project IIChatTools.API --output-dir Migrations/Sqlite
