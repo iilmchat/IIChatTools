@@ -250,5 +250,5 @@
   <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v1.0</value></data>
 
   <!-- ===== Назад ===== -->
-  <data name="Назад" xml:space="preserve"><value>Back</value></data>  
+  <!--<data name="Назад" xml:space="preserve"><value>Back</value></data>  -->
 </root>

@@ -1,0 +1,158 @@
+IIChatTools.sln
+├── Directory.Build.props
+├── global.json
+├── NuGet.Config
+│
+├── IIChatTools.Data/                                     (netstandard2.1)
+│   ├── AppDbContext.cs
+│   ├── SeedData.cs
+│   ├── Entities/
+│   │   ├── BaseEntity.cs
+│   │   ├── ApplicationUser.cs
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   └── Migrations/
+│
+├── IIChatTools.Services/                                 (netstandard2.1)
+│   ├── DTO/
+│   │   ├── ToolResult.cs
+│   │   ├── ToolDescriptor.cs
+│   │   ├── ToolParameterDescriptor.cs
+│   │   ├── ToolExecutionContext.cs
+│   │   ├── StatusSnapshot.cs
+│   │   ├── PagedResult.cs
+│   │   ├── Browser/
+│   │   │   └── BrowserSessionInfo.cs
+│   │   └── Admin/
+│   │       ├── UserListDto.cs
+│   │       ├── UserEditDto.cs
+│   │       ├── SettingDto.cs
+│   │       └── WhitelistEntryDto.cs
+│   ├── Extensions/
+│   │   └── JObjectExtensions.cs
+│   ├── Interfaces/
+│   │   ├── ITool.cs
+│   │   ├── IToolRegistry.cs
+│   │   ├── IAuditService.cs
+│   │   ├── IAuditQueryService.cs
+│   │   ├── IApprovalService.cs
+│   │   ├── IDependencyChecker.cs
+│   │   ├── IJwtService.cs
+│   │   ├── IStatusService.cs
+│   │   ├── IWorkspaceResolver.cs
+│   │   ├── IAppSettingsService.cs
+│   │   ├── IUserAdminService.cs
+│   │   ├── IProcessRunner.cs
+│   │   └── IBrowserSessionManager.cs
+│   └── Implementation/
+│       ├── AppUptimeTracker.cs
+│       ├── AppVersionHolder.cs
+│       ├── AuditService.cs
+│       ├── AuditQueryService.cs
+│       ├── ApprovalService.cs
+│       ├── DependencyChecker.cs
+│       ├── PathHelper.cs
+│       ├── JwtService.cs
+│       ├── StatusService.cs
+│       ├── WorkspaceResolver.cs
+│       ├── AppSettingsService.cs
+│       ├── UserAdminService.cs
+│       ├── ProcessRunner.cs
+│       ├── BrowserSessionManager.cs
+│       ├── ToolRegistry.cs
+│       └── Tools/
+│           ├── FileSystem/                               (13 инструментов)
+│           │   ├── ListDirectoryTool.cs
+│           │   ├── ChangeDirectoryTool.cs
+│           │   ├── MakeDirectoryTool.cs
+│           │   ├── ReadFileTool.cs
+│           │   ├── SaveFileTool.cs
+│           │   ├── DeletePathTool.cs
+│           │   ├── ReplaceTextInFileTool.cs
+│           │   ├── DeleteFilesByPatternTool.cs
+│           │   ├── MoveFileTool.cs
+│           │   ├── CopyFileTool.cs
+│           │   ├── FindFilesTool.cs
+│           │   ├── GetFileMetadataTool.cs
+│           │   └── FuzzyFindLocalFilesTool.cs
+│           ├── CodeExecution/                            (3 инструмента)
+│           │   ├── RunJavaScriptTool.cs
+│           │   ├── RunPythonTool.cs
+│           │   └── ExecuteCommandTool.cs
+│           ├── Web/                                      (3 инструмента)
+│           │   ├── WebSearchTool.cs
+│           │   ├── WikipediaSearchTool.cs
+│           │   └── FetchWebContentTool.cs
+│           ├── Git/                                      (7 инструментов + базовый класс)
+│           │   ├── BaseGitTool.cs
+│           │   ├── GitStatusTool.cs
+│           │   ├── GitDiffTool.cs
+│           │   ├── GitLogTool.cs
+│           │   ├── GitAddTool.cs
+│           │   ├── GitCommitTool.cs
+│           │   ├── GitCheckoutTool.cs
+│           │   └── GitPushTool.cs
+│           ├── GitHub/                                   (7 инструментов + базовый класс)
+│           │   ├── BaseGhTool.cs
+│           │   ├── GhAuthStatusTool.cs
+│           │   ├── GhCreateIssueTool.cs
+│           │   ├── GhListIssuesTool.cs
+│           │   ├── GhViewCommentsTool.cs
+│           │   ├── GhCreatePrTool.cs
+│           │   ├── GhListPrsTool.cs
+│           │   └── GhViewPrDiffTool.cs
+│           ├── Browser/                                  (4 инструмента)
+│           │   ├── BrowserSessionOpenTool.cs
+│           │   ├── BrowserSessionControlTool.cs
+│           │   ├── BrowserSessionCloseTool.cs
+│           │   └── BrowserOpenPageTool.cs
+│           └── Utils/                                    (2 инструмента)
+│               ├── GetSystemInfoTool.cs
+│               └── SaveMemoryTool.cs
+│
+├── IIChatTools.API/                                      (netcoreapp3.1)
+│   ├── Program.cs
+│   ├── Startup.cs
+│   ├── AppVersion.cs
+│   ├── appsettings.json
+│   ├── appsettings.Development.json
+│   ├── Controllers/
+│   │   ├── HomeController.cs
+│   │   ├── AuthController.cs
+│   │   ├── ToolsController.cs
+│   │   ├── ApprovalsController.cs
+│   │   ├── AdminController.cs
+│   │   └── StatusController.cs
+│   ├── DTO/
+│   │   └── ExecuteToolRequest.cs
+│   ├── ViewModels/
+│   │   ├── LoginViewModel.cs
+│   │   └── RegisterViewModel.cs
+│   ├── Resources/
+│   │   ├── SharedResources.cs
+│   │   ├── SharedResources.resx
+│   │   └── SharedResources.ru.resx
+│   ├── Views/
+│   │   ├── _ViewStart.cshtml
+│   │   ├── _ViewImports.cshtml
+│   │   ├── Auth/ (Login, Register)
+│   │   ├── Home/ (Index, Status, Admin, Test, Error)
+│   │   └── Shared/ (_Layout, _LoginPartial, _ApprovalModal, _ValidationScriptsPartial)
+│   └── wwwroot/
+│       ├── css/site.css
+│       └── js/
+│           ├── main.js
+│           └── modules/
+│               ├── api.js
+│               ├── ui.js
+│               ├── status.js
+│               ├── approvals.js
+│               ├── admin.js
+│               └── test.js
+│
+└── IIChatTools.Tests/                                    (netcoreapp3.1)
+    └── UnitTests/
+        └── LocalizationSyncTests.cs

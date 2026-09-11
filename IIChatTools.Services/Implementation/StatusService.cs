@@ -109,6 +109,7 @@ namespace IIChatTools.Services.Implementation
         }
     }
 
+    /* Перенесено в  AppVersionHolder.cs
     /// <summary>
     /// Хранит текущую версию приложения без зависимости слоя Services от слоя API.
     /// </summary>
@@ -119,4 +120,5 @@ namespace IIChatTools.Services.Implementation
         /// </summary>
         public static string Current { get; set; } = "1.0.0";
     }
+    */
 }
