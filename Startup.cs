@@ -20,6 +20,7 @@ using IIChatTools.Services.Implementation.Tools.Utils;
 using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.Tools.Browser;
+using IIChatTools.Services.Implementation.Tools.SubAgent;
 
 namespace IIChatTools.API
 {
@@ -193,6 +194,16 @@ namespace IIChatTools.API
 
             // 7. HttpClient для внешних сервисов
             services.AddHttpClient();
+
+            // Клиент LM Studio
+            services.AddScoped<ILmStudioClient, LmStudioClient>();
+
+            // Сервис суб-агента
+            services.AddScoped<ISubAgentService, SubAgentService>();
+
+            // Инструмент делегирования
+            services.AddScoped<ITool, ConsultSecondaryAgentTool>();
+
         }
 
         /// <summary>
