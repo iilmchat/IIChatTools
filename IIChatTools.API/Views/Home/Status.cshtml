@@ -1,0 +1,96 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = Localizer["Статус"];
+}
+
+<div class="container mt-4" id="status-root">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>@Localizer["Состояние сервера"]</h1>
+        <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">@Localizer["Обновить"]</button>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <div class="text-muted small">@Localizer["Версия приложения"]</div>
+                    <div class="fs-4 fw-bold" id="stat-version">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <div class="text-muted small">@Localizer["Время работы"]</div>
+                    <div class="fs-4 fw-bold" id="stat-uptime">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <div class="text-muted small">@Localizer["Всего пользователей"]</div>
+                    <div class="fs-4 fw-bold" id="stat-users">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <div class="text-muted small">@Localizer["Выполнено действий"]</div>
+                    <div class="fs-4 fw-bold" id="stat-actions">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-2">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">@Localizer["Внешние зависимости"]</div>
+                <ul class="list-group list-group-flush" id="deps-list">
+                    <li class="list-group-item text-muted">@Localizer["Загрузка"]…</li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">@Localizer["Подключение к БД"]</div>
+                <div class="card-body">
+                    <span id="db-status" class="badge bg-secondary">—</span>
+                    <div class="mt-2 small text-muted">
+                        @Localizer["Ожидают подтверждения"]: <strong id="stat-pending">—</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+        <div class="card-header">@Localizer["Последние действия"]</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>@Localizer["Пользователь"]</th>
+                        <th>@Localizer["Инструмент"]</th>
+                        <th>@Localizer["СтатусЗаписи"]</th>
+                        <th>@Localizer["Длительность"]</th>
+                        <th>@Localizer["Дата"]</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-actions-body">
+                    <tr><td colspan="5" class="text-muted text-center">@Localizer["Загрузка"]…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module">
+        import { startStatusPolling } from '/js/modules/status.js';
+        startStatusPolling(5000);
+    </script>
+}

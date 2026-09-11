@@ -1,0 +1,35 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = Localizer["Тест"];
+}
+
+<div class="container mt-4">
+    <h1 class="mb-3">@Localizer["Тестирование"]</h1>
+
+    <div class="row g-3">
+        <div class="col-md-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="tool-select" class="form-label">@Localizer["Выбор инструмента"]</label>
+                        <select id="tool-select" class="form-select">
+                            <option value="">— @Localizer["Инструмент не выбран."] —</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tool-params" class="form-label">@Localizer["Параметры (JSON)"]</label>
+                        <textarea id="tool-params" class="form-control font-monospace" rows="8">{}</textarea>
+                    </div>
+                    <button id="btn-execute" class="btn btn-primary w-100">@Localizer["Выполнить"]</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header">@Localizer["Результат"]</div>
+                <pre id="tool-result" class="m-0 p-3 bg-light" style="max-height: 60vh; overflow: auto;">—</pre>
+            </div>
+        </div>
+    </div>
+</div>

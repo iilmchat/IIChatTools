@@ -2,28 +2,34 @@
 
   <!--
     Общие свойства MSBuild для всех проектов решения IIChatTools.
-    Позволяет избежать дублирования метаданных в каждом .csproj.
+    Позволяет избежать дублирования метаданных и версий пакетов в каждом .csproj.
     © 2026 RuChating (iilmchat) · IIChatTools v1.0
   -->
   <PropertyGroup>
-    <!-- Общие метаданные продукта -->
+    <!-- Метаданные продукта -->
     <Company>RuChating (iilmchat)</Company>
     <Product>IIChatTools</Product>
     <Version>1.0.0</Version>
     <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0</Copyright>
     <Authors>RuChating</Authors>
 
-    <!-- Общие настройки компилятора -->
+    <!-- Настройки компилятора -->
     <LangVersion>8.0</LangVersion>
     <Nullable>disable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
 
-    <!-- Единая версия пакетов EF Core -->
+    <!-- Единые версии пакетов (используются через $(EFCoreVersion) и т.п. в .csproj) -->
     <EFCoreVersion>3.1.32</EFCoreVersion>
-    <MicrosoftAspNetCoreVersion>3.1.32</MicrosoftAspNetCoreVersion>    
+    <MicrosoftAspNetCoreVersion>3.1.32</MicrosoftAspNetCoreVersion>
+    <MicrosoftExtensionsVersion>3.1.32</MicrosoftExtensionsVersion>
+    <IdentityModelVersion>6.35.0</IdentityModelVersion>
+    <NewtonsoftJsonVersion>13.0.3</NewtonsoftJsonVersion>
+    <HtmlAgilityPackVersion>1.11.61</HtmlAgilityPackVersion>
+    <PuppeteerSharpVersion>2.0.4</PuppeteerSharpVersion>
+    <XunitVersion>2.7.0</XunitVersion>
+    <MoqVersion>4.20.70</MoqVersion>
   </PropertyGroup>
 
 </Project>

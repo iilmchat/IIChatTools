@@ -1,34 +1,48 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
 <!DOCTYPE html>
-<html lang="@Thread.CurrentThread.CurrentUICulture.Name">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - IIChatTools</title>
+    <title>@ViewData["Title"] — IIChatTools</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">IIChatTools</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                    <strong>IIChatTools</strong> <span class="text-muted small">v1.0</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Главная"]</a>
+                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">@Localizer["Главная"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Status">@Localizer["Статус"]</a>
+                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Status">@Localizer["Статус"]</a>
+                        </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Home" asp-action="Admin">@Localizer["Админка"]</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Home" asp-action="Test">@Localizer["Тест"]</a>
+                            </li>
+                        }
+                    </ul>
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" href="?culture=ru&ui-culture=ru">RU</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Admin">@Localizer["Админка"]</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Test">@Localizer["Тест"]</a>
+                            <a class="nav-link text-dark" href="?culture=en&ui-culture=en">EN</a>
                         </li>
                     </ul>
                     <partial name="_LoginPartial" />
@@ -36,15 +50,25 @@
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
+    <footer class="footer mt-5 py-3 border-top text-center text-muted small">
+        <div class="container">
+            <div class="copyright">
+                © 2026 <a href="#" onclick="event.preventDefault(); window.IIChatTools.toast.info('RuChating (iilmchat) — AI Chat Platform');">RuChating</a> (iilmchat) · IIChatTools v1.0
+            </div>
+        </div>
+    </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="~/js/main.js"></script>
+
+    <script type="module" src="~/js/main.js" asp-append-version="true"></script>
     @RenderSection("Scripts", required: false)
 </body>
 </html>

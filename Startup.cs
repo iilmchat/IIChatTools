@@ -1,3 +1,9 @@
+using System;
+using System.Text;
+using IIChatTools.Data;
+using IIChatTools.Data.Entities;
+using IIChatTools.Services.Implementation;
+using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -5,95 +11,117 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using IIChatTools.Data;
-using IIChatTools.Data.Entities;
-using IIChatTools.Services.Interfaces;
-using IIChatTools.Services.Implementation;
 
 namespace IIChatTools.API
 {
+    /// <summary>
+    /// Конфигурация приложения: сервисы и middleware-конвейер.
+    /// </summary>
     public class Startup
     {
+        /// <summary>
+        /// Создаёт экземпляр конфигурации.
+        /// </summary>
+        /// <param name="configuration">Конфигурация приложения</param>
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
 
+        /// <summary>
+        /// Конфигурация приложения.
+        /// </summary>
         public IConfiguration Configuration { get; }
 
+        /// <summary>
+        /// Регистрация сервисов в DI.
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        /// <exception cref="ArgumentNullException">Если services равен null</exception>
         public void ConfigureServices(IServiceCollection services)
         {
+            if (services == null)
+                throw new ArgumentNullException(nameof(services));
+
             // 1. Контекст БД
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
 
-            // 2. Identity
+            // 2. Identity (регистрирует cookie-схему Identity.Application по умолчанию)
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
             {
-                // Настройки паролей и т.п. (можно вынести в конфиг)
                 options.Password.RequireDigit = true;
                 options.Password.RequiredLength = 6;
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequireUppercase = false;
                 options.Password.RequireLowercase = false;
                 options.User.RequireUniqueEmail = true;
+                options.SignIn.RequireConfirmedEmail = false;
             })
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
 
-            // 3. JWT аутентификация
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = "JwtBearer";
-                options.DefaultChallengeScheme = "JwtBearer";
-            })
-            .AddJwtBearer("JwtBearer", options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
+            // 3. Аутентификация: JWT добавляется как именованная схема "JwtBearer".
+            //    Дефолтная схема (Identity.Application) остаётся для Razor-страниц.
+            services.AddAuthentication()
+                .AddJwtBearer("JwtBearer", options =>
                 {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = Configuration["Jwt:Issuer"],
-                    ValidAudience = Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
-                };
-            });
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = Configuration["Jwt:Issuer"],
+                        ValidAudience = Configuration["Jwt:Audience"],
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
+                    };
+                });
 
             // 4. MVC с локализацией
             services.AddLocalization(options => options.ResourcesPath = "Resources");
             services.AddControllersWithViews()
+                .AddNewtonsoftJson()
                 .AddViewLocalization()
                 .AddDataAnnotationsLocalization();
 
             services.Configure<RequestLocalizationOptions>(options =>
             {
-                var supportedCultures = new[] { "ru", "en" };
-                //options.SetDefaultCulture("ru")
+                var supportedCultures = new[] { "en", "ru" };
                 options.SetDefaultCulture("en")
                        .AddSupportedCultures(supportedCultures)
                        .AddSupportedUICultures(supportedCultures);
             });
 
-            // 5. Добавляем наши сервисы
+            services.AddSingleton<AppUptimeTracker>();
+            services.AddScoped<IStatusService, StatusService>();
+
+            // 5. Сервисы приложения
             services.AddScoped<IDependencyChecker, DependencyChecker>();
             services.AddScoped<IAuditService, AuditService>();
-            services.AddScoped<IApprovalService, ApprovalService>(); // реализуем позже
-            services.AddScoped<IToolRegistry, ToolRegistry>(); // позже
+            services.AddScoped<IApprovalService, ApprovalService>();
+            services.AddScoped<IJwtService, JwtService>();
+            // Регистрация IToolRegistry будет добавлена после реализации класса ToolRegistry
+            // services.AddScoped<IToolRegistry, ToolRegistry>();
 
-            // 6. Настройка политик авторизации (админ)
+            // 6. Политики авторизации
             services.AddAuthorization(options =>
             {
                 options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
             });
 
-            // 7. Регистрация HttpClient и т.д.
+            // 7. HttpClient для внешних сервисов
             services.AddHttpClient();
         }
 
+        /// <summary>
+        /// Конфигурация middleware-конвейера.
+        /// </summary>
+        /// <param name="app">Построитель приложения</param>
+        /// <param name="env">Окружение хостинга</param>
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -107,7 +135,9 @@ namespace IIChatTools.API
             }
 
             // Локализация
-            var locOptions = app.ApplicationServices.GetService<IOptions<RequestLocalizationOptions>>().Value;
+            var locOptions = app.ApplicationServices
+                .GetRequiredService<IOptions<RequestLocalizationOptions>>()
+                .Value;
             app.UseRequestLocalization(locOptions);
 
             app.UseHttpsRedirection();

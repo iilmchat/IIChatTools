@@ -1,0 +1,38 @@
+/* Стили IIChatTools v1.0 · © 2026 RuChating (iilmchat) */
+
+html, body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: #f8f9fa;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+.footer {
+    flex-shrink: 0;
+    background: #fff;
+}
+
+.copyright a {
+    color: inherit;
+    text-decoration: underline dotted;
+}
+
+.copyright a:hover {
+    text-decoration: underline;
+}
+
+.card {
+    border-radius: .5rem;
+}
+
+pre {
+    font-size: .875rem;
+}
