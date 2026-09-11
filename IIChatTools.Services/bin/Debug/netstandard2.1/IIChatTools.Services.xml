@@ -1,0 +1,2817 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>IIChatTools.Services</name>
+    </assembly>
+    <members>
+        <member name="T:IIChatTools.Services.DTO.PagedResult1`1">
+            <summary>
+            Обёртка для постраничного результата.
+            </summary>
+            <typeparam name="T">Тип элементов</typeparam>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult1`1.Items">
+            <summary>
+            Элементы текущей страницы.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult1`1.Page">
+            <summary>
+            Номер страницы (1-индексация).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult1`1.PageSize">
+            <summary>
+            Размер страницы.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult1`1.TotalCount">
+            <summary>
+            Общее количество записей.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult1`1.TotalPages">
+            <summary>
+            Общее количество страниц.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.Admin.SettingDto">
+            <summary>
+            DTO настройки приложения.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.SettingDto.Id">
+            <summary>
+            Идентификатор.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.SettingDto.Key">
+            <summary>
+            Ключ настройки.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.SettingDto.Value">
+            <summary>
+            Значение.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.SettingDto.Type">
+            <summary>
+            Тип данных (string, int, bool, json).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.SettingDto.Category">
+            <summary>
+            Категория для группировки.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.SettingDto.IsDefault">
+            <summary>
+            Признак значения по умолчанию.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.SettingDto.DefaultValue">
+            <summary>
+            Значение по умолчанию (из appsettings.json), если есть.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.Admin.UserEditDto">
+            <summary>
+            Данные для создания или редактирования пользователя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserEditDto.Id">
+            <summary>
+            Идентификатор (0 — создание).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserEditDto.Email">
+            <summary>
+            Электронная почта.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserEditDto.FullName">
+            <summary>
+            Полное имя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserEditDto.IsActive">
+            <summary>
+            Признак активности.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserEditDto.Role">
+            <summary>
+            Роль: Admin или User.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserEditDto.Password">
+            <summary>
+            Новый пароль (только при создании или сбросе).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.Admin.UserListDto">
+            <summary>
+            Краткая информация о пользователе для списка.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserListDto.Id">
+            <summary>
+            Идентификатор пользователя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserListDto.Email">
+            <summary>
+            Электронная почта.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserListDto.FullName">
+            <summary>
+            Полное имя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserListDto.IsActive">
+            <summary>
+            Признак активности.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserListDto.RegisteredAt">
+            <summary>
+            Дата регистрации.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.UserListDto.Roles">
+            <summary>
+            Список ролей пользователя.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.Admin.WhitelistEntryDto">
+            <summary>
+            Запись белого списка инструментов, не требующих подтверждения.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.WhitelistEntryDto.ToolName">
+            <summary>
+            Имя инструмента.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Admin.WhitelistEntryDto.Description">
+            <summary>
+            Описание инструмента (для UI).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.Browser.BrowserSessionInfo">
+            <summary>
+            Публичная информация о сессии браузера (для возврата LLM).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Browser.BrowserSessionInfo.SessionId">
+            <summary>
+            Уникальный идентификатор сессии (GUID).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Browser.BrowserSessionInfo.UserId">
+            <summary>
+            Идентификатор пользователя, открывшего сессию.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Browser.BrowserSessionInfo.CurrentUrl">
+            <summary>
+            Текущий URL (если установлен).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Browser.BrowserSessionInfo.CurrentTitle">
+            <summary>
+            Заголовок текущей страницы.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Browser.BrowserSessionInfo.CreatedAt">
+            <summary>
+            Время создания сессии (UTC).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.Browser.BrowserSessionInfo.LastActivityAt">
+            <summary>
+            Время последней активности (UTC).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.PagedResult`1">
+            <summary>
+            Обёртка для постраничного результата.
+            </summary>
+            <typeparam name="T">Тип элементов</typeparam>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult`1.Items">
+            <summary>
+            Элементы текущей страницы.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult`1.Page">
+            <summary>
+            Номер страницы (1-индексация).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult`1.PageSize">
+            <summary>
+            Размер страницы.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult`1.TotalCount">
+            <summary>
+            Общее количество записей.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.PagedResult`1.TotalPages">
+            <summary>
+            Общее количество страниц.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.StatusSnapshot">
+            <summary>
+            Снимок состояния системы для отображения на странице статуса.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.AppVersion">
+            <summary>
+            Версия приложения.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.UptimeSeconds">
+            <summary>
+            Время работы приложения в секундах.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.StartedAtUtc">
+            <summary>
+            Дата и время запуска приложения (UTC).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.TotalUsers">
+            <summary>
+            Всего пользователей в системе.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.ActiveUsers">
+            <summary>
+            Активных пользователей.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.TotalActions">
+            <summary>
+            Общее число записей аудита.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.PendingApprovals">
+            <summary>
+            Число ожидающих подтверждения действий.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.DatabaseOnline">
+            <summary>
+            Статус подключения к БД (true = доступна).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.Dependencies">
+            <summary>
+            Словарь внешних зависимостей: имя → версия или null.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.StatusSnapshot.RecentActions">
+            <summary>
+            Последние действия (аудит).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.RecentActionDto">
+            <summary>
+            Краткая информация о действии для отображения в списке последних.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.RecentActionDto.Id">
+            <summary>
+            Идентификатор записи аудита.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.RecentActionDto.UserName">
+            <summary>
+            Имя пользователя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.RecentActionDto.ToolName">
+            <summary>
+            Имя инструмента.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.RecentActionDto.Status">
+            <summary>
+            Статус выполнения.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.RecentActionDto.DurationMs">
+            <summary>
+            Длительность выполнения в миллисекундах.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.RecentActionDto.CreatedAt">
+            <summary>
+            Время выполнения (UTC).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.SubAgent.SubAgentStep">
+            <summary>
+            Один шаг выполнения задачи суб-агентом (для сохранения снимка в БД).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentStep.Step">
+            <summary>
+            Номер шага (1-индексация).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentStep.Type">
+            <summary>
+            Тип шага: "assistant_text", "tool_call", "tool_result", "system".
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentStep.ToolName">
+            <summary>
+            Имя инструмента (для tool_call/tool_result).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentStep.Content">
+            <summary>
+            Содержимое шага (текст или JSON).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest">
+            <summary>
+            Запрос на выполнение задачи суб-агентом.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest.Task">
+            <summary>
+            Текстовое описание задачи.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest.Context">
+            <summary>
+            Дополнительный контекст (например, содержимое файлов).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest.MaxSteps">
+            <summary>
+            Максимальное число шагов цикла (по умолчанию 10, максимум 30).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest.AutoDebug">
+            <summary>
+            Включить авто-отладку (вызов агента-рецензента после основного цикла).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest.AllowedTools">
+            <summary>
+            Список имён инструментов, доступных суб-агенту.
+            Если пуст — доступны все, кроме consult_secondary_agent.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult">
+            <summary>
+            Результат выполнения задачи суб-агентом.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult.SessionId">
+            <summary>
+            Уникальный идентификатор сессии суб-агента.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult.FinalAnswer">
+            <summary>
+            Финальный текст, сгенерированный суб-агентом.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult.Completed">
+            <summary>
+            Флаг завершения задачи (false — если исчерпан лимит шагов).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult.Steps">
+            <summary>
+            Количество выполненных шагов.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult.DurationMs">
+            <summary>
+            Длительность выполнения в миллисекундах.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult.UsedTools">
+            <summary>
+            Список имён инструментов, использованных в процессе.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.SubAgent.SubAgentTaskResult.DebugReview">
+            <summary>
+            Результат авто-отладки (если была включена).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.ToolDescriptor">
+            <summary>
+            Описание инструмента для LLM и API-клиентов.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolDescriptor.Name">
+            <summary>
+            Уникальное имя инструмента (snake_case).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolDescriptor.Description">
+            <summary>
+            Описание для LLM.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolDescriptor.RequiresApprovalByDefault">
+            <summary>
+            Флаг «требует подтверждения пользователя по умолчанию».
+            Может быть переопределён белым списком в настройках.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolDescriptor.Parameters">
+            <summary>
+            Список параметров.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.ToolExecutionContext">
+            <summary>
+            Контекст выполнения инструмента (передаётся на каждый вызов).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolExecutionContext.UserId">
+            <summary>
+            Идентификатор пользователя, инициировавшего вызов.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolExecutionContext.WorkspaceRoot">
+            <summary>
+            Абсолютный путь к рабочему пространству пользователя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolExecutionContext.ClientIp">
+            <summary>
+            IP-адрес клиента (для аудита).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolExecutionContext.CancellationToken">
+            <summary>
+            Токен отмены операции.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.ToolParameterDescriptor">
+            <summary>
+            Описание параметра инструмента (для схемы, передаваемой LLM).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolParameterDescriptor.Name">
+            <summary>
+            Имя параметра (латиница, snake_case).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolParameterDescriptor.Type">
+            <summary>
+            Тип параметра: string, integer, boolean, array, object.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolParameterDescriptor.Description">
+            <summary>
+            Описание параметра для LLM.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolParameterDescriptor.Required">
+            <summary>
+            Обязателен ли параметр.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolParameterDescriptor.Default">
+            <summary>
+            Значение по умолчанию (опционально).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.DTO.ToolResult">
+            <summary>
+            Результат выполнения инструмента.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolResult.Success">
+            <summary>
+            Признак успешного выполнения.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolResult.Data">
+            <summary>
+            Полезные данные (объект, сериализуемый в JSON).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.DTO.ToolResult.Message">
+            <summary>
+            Сообщение для LLM (описание результата или ошибки).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.DTO.ToolResult.Ok(System.Object,System.String)">
+            <summary>
+            Создаёт успешный результат.
+            </summary>
+            <param name="data">Данные</param>
+            <param name="message">Сообщение</param>
+            <returns>Успешный результат</returns>
+        </member>
+        <member name="M:IIChatTools.Services.DTO.ToolResult.Fail(System.String)">
+            <summary>
+            Создаёт результат-ошибку.
+            </summary>
+            <param name="message">Сообщение об ошибке</param>
+            <returns>Результат-ошибка</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Extensions.JObjectExtensions">
+            <summary>
+            Расширения для безопасного извлечения значений из JObject-аргументов.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Extensions.JObjectExtensions.GetString(Newtonsoft.Json.Linq.JObject,System.String,System.String)">
+            <summary>
+            Извлекает строковое значение по ключу.
+            </summary>
+            <param name="obj">Аргументы вызова</param>
+            <param name="key">Имя параметра</param>
+            <param name="defaultValue">Значение по умолчанию</param>
+            <returns>Строка или значение по умолчанию</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Extensions.JObjectExtensions.GetInt(Newtonsoft.Json.Linq.JObject,System.String,System.Int32)">
+            <summary>
+            Извлекает целочисленное значение по ключу.
+            </summary>
+            <param name="obj">Аргументы вызова</param>
+            <param name="key">Имя параметра</param>
+            <param name="defaultValue">Значение по умолчанию</param>
+            <returns>Число или значение по умолчанию</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Extensions.JObjectExtensions.GetBool(Newtonsoft.Json.Linq.JObject,System.String,System.Boolean)">
+            <summary>
+            Извлекает булево значение по ключу.
+            </summary>
+            <param name="obj">Аргументы вызова</param>
+            <param name="key">Имя параметра</param>
+            <param name="defaultValue">Значение по умолчанию</param>
+            <returns>Булево или значение по умолчанию</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Extensions.JObjectExtensions.GetStringArray(Newtonsoft.Json.Linq.JObject,System.String)">
+            <summary>
+            Извлекает массив строк по ключу.
+            </summary>
+            <param name="obj">Аргументы вызова</param>
+            <param name="key">Имя параметра</param>
+            <returns>Массив строк (возможно пустой)</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Extensions.ProcessExtensions">
+            <summary>
+            Расширения для System.Diagnostics.Process.
+            Восполняет отсутствие WaitForExitAsync в netstandard2.1.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Extensions.ProcessExtensions.WaitForExitAsync(System.Diagnostics.Process,System.Threading.CancellationToken)">
+            <summary>
+            Асинхронно ожидает завершения процесса с поддержкой отмены.
+            </summary>
+            <param name="process">Процесс</param>
+            <param name="cancellationToken">Токен отмены</param>
+            <returns>Задача, завершающаяся после выхода процесса</returns>
+            <exception cref="T:System.ArgumentNullException">Если process равен null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Extensions.ProcessExtensions.KillSafe(System.Diagnostics.Process)">
+            <summary>
+            Безопасно завершает процесс.
+            В netstandard2.1 нет Kill(entireProcessTree), поэтому просто Kill().
+            </summary>
+            <param name="process">Процесс</param>
+            <exception cref="T:System.ArgumentNullException">Если process равен null</exception>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.ApprovalService">
+            <summary>
+            Реализация сервиса подтверждений действий.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.#ctor(IIChatTools.Data.AppDbContext,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.ApprovalService})">
+            <summary>
+            Создаёт экземпляр сервиса.
+            </summary>
+            <param name="dbContext">Контекст БД</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.CreatePendingActionAsync(System.Int32,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.GetByIdAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.GetPendingForUserAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.GetAllPendingAsync">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.ApproveAsync(System.Int32,System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.RejectAsync(System.Int32,System.Int32,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ApprovalService.IsWhitelistedAsync(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.AppSettingsService">
+            <summary>
+            Реализация сервиса настроек на основе таблицы AppSettings.
+            Значения по умолчанию берутся из appsettings.json.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.#ctor(IIChatTools.Data.AppDbContext,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.AppSettingsService})">
+            <summary>
+            Создаёт экземпляр сервиса.
+            </summary>
+            <param name="dbContext">Контекст БД</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.GetAllAsync">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.GetByIdAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.CreateAsync(IIChatTools.Services.DTO.Admin.SettingDto)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.UpdateAsync(System.Int32,IIChatTools.Services.DTO.Admin.SettingDto)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.DeleteAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.ResetToDefaultAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.SyncDefaultsFromConfigurationAsync">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.ToDto(IIChatTools.Data.Entities.AppSetting)">
+            <summary>
+            Преобразует сущность в DTO.
+            </summary>
+            <param name="entity">Сущность</param>
+            <returns>DTO</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.InferType(System.String)">
+            <summary>
+            Выводит тип настройки по ключу.
+            </summary>
+            <param name="key">Ключ</param>
+            <returns>Тип</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppSettingsService.InferCategory(System.String)">
+            <summary>
+            Выводит категорию по ключу.
+            </summary>
+            <param name="key">Ключ</param>
+            <returns>Категория</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.AppUptimeTracker">
+            <summary>
+            Синглтон-трекер времени запуска приложения.
+            Регистрируется как singleton в DI.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppUptimeTracker.#ctor">
+            <summary>
+            Создаёт трекер и фиксирует момент запуска.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.AppUptimeTracker.StartedAtUtc">
+            <summary>
+            Момент запуска приложения (UTC).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AppUptimeTracker.GetUptime">
+            <summary>
+            Возвращает длительность работы приложения.
+            </summary>
+            <returns>Длительность работы</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.AppVersionHolder">
+            <summary>
+            Хранит текущую версию приложения.
+            Класс-разрыв зависимости: слой Services не должен ссылаться на слой API,
+            поэтому версия устанавливается извне (в Program.cs) и доступна сервисам.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.AppVersionHolder.Current">
+            <summary>
+            Текущая версия приложения. Устанавливается при старте из Program.cs.
+            Значение по умолчанию используется в тестах и до инициализации.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.AuditQueryService">
+            <summary>
+            Реализация сервиса чтения аудита.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AuditQueryService.#ctor(IIChatTools.Data.AppDbContext,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.AuditQueryService})">
+            <summary>
+            Создаёт экземпляр сервиса.
+            </summary>
+            <param name="dbContext">Контекст БД</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.AuditQueryService.GetPagedAsync(System.Int32,System.Int32,System.Nullable{System.Int32},System.String)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.AuditService">
+            <summary>
+            Реализация сервиса аудита
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.BrowserSessionManager">
+            <summary>
+            Менеджер браузерных сессий PuppeteerSharp.
+            Хранит активные сессии в памяти, автоматически закрывает «протухшие» по TTL.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.BrowserSessionManager})">
+            <summary>
+            Создаёт менеджер сессий.
+            </summary>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.OpenAsync(System.Int32,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.GetInfoAsync(System.String,System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.CloseAsync(System.String,System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.ListForUserAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.CloseAllForUserAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.EnsureBrowserAsync(System.Threading.CancellationToken)">
+            <summary>
+            Ленивая инициализация браузера.
+            </summary>
+            <param name="cancellationToken">Токен отмены</param>
+            <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.CloseHolderAsync(IIChatTools.Services.Implementation.BrowserSessionManager.SessionHolder)">
+            <summary>
+            Закрывает конкретную сессию.
+            </summary>
+            <param name="holder">Сессия</param>
+            <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.CleanupExpiredAsync">
+            <summary>
+            Периодическая очистка «протухших» сессий.
+            </summary>
+            <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.SafeGetTitleAsync(PuppeteerSharp.Page)">
+            <summary>
+            Безопасно получает заголовок страницы.
+            </summary>
+            <param name="page">Страница</param>
+            <returns>Заголовок или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.NormalizeUrl(System.String)">
+            <summary>
+            Приводит URL к безопасному виду.
+            </summary>
+            <param name="url">Входной URL</param>
+            <returns>Нормализованный URL</returns>
+            <exception cref="T:System.ArgumentException">Если URL некорректен</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.IsDisabled">
+            <summary>
+            Возвращает признак отключения браузерной автоматизации из конфигурации.
+            </summary>
+            <returns>true, если автоматизация отключена</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.GetHeadless">
+            <summary>
+            Режим headless из конфигурации (по умолчанию true).
+            </summary>
+            <returns>true — headless</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.GetMaxSessionsPerUser">
+            <summary>
+            Лимит одновременных сессий на пользователя.
+            </summary>
+            <returns>Количество сессий</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.GetSessionTtlMinutes">
+            <summary>
+            TTL сессии в минутах.
+            </summary>
+            <returns>TTL</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.GetPageTimeoutMs">
+            <summary>
+            Таймаут операций на странице.
+            </summary>
+            <returns>Таймаут в миллисекундах</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.DisposeAsync">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.ExecuteCommandAsync(IIChatTools.Services.DTO.ToolExecutionContext,System.String,System.String,Newtonsoft.Json.Linq.JObject,System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.BrowserSessionManager.SessionHolder">
+            <summary>
+            Внутренний контейнер сессии.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.DependencyChecker">
+            <summary>
+            Реализация проверки внешних зависимостей
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.JwtService">
+            <summary>
+            Реализация генерации JWT-токенов на основе параметров из конфигурации.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.JwtService.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Создаёт экземпляр сервиса.
+            </summary>
+            <param name="configuration">Конфигурация приложения</param>
+            <exception cref="T:System.ArgumentNullException">Если configuration равен null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.JwtService.GenerateTokenAsync(IIChatTools.Data.Entities.ApplicationUser,System.Collections.Generic.IList{System.String})">
+            <summary>
+            Формирует JWT-токен для пользователя.
+            </summary>
+            <param name="user">Пользователь</param>
+            <param name="roles">Список ролей пользователя</param>
+            <returns>Строка JWT-токена</returns>
+            <exception cref="T:System.ArgumentNullException">Если user или roles равны null</exception>
+            <exception cref="T:System.InvalidOperationException">Если в конфигурации отсутствуют параметры JWT</exception>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.LmStudioClient">
+            <summary>
+            Реализация клиента LM Studio (OpenAI-совместимый API).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.LmStudioClient.#ctor(System.Net.Http.IHttpClientFactory,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.LmStudioClient})">
+            <summary>
+            Создаёт клиент.
+            </summary>
+            <param name="httpClientFactory">Фабрика HTTP-клиентов</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.LmStudioClient.CompleteAsync(Newtonsoft.Json.Linq.JArray,Newtonsoft.Json.Linq.JArray,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.LmStudioClient.GetDouble(System.String,System.Double)">
+            <summary>
+            Извлекает значение double из конфигурации.
+            </summary>
+            <param name="key">Ключ</param>
+            <param name="defaultValue">Значение по умолчанию</param>
+            <returns>Значение</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.LmStudioClient.GetInt(System.String,System.Int32)">
+            <summary>
+            Извлекает значение int из конфигурации.
+            </summary>
+            <param name="key">Ключ</param>
+            <param name="defaultValue">Значение по умолчанию</param>
+            <returns>Значение</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.LmStudioClient.Truncate(System.String,System.Int32)">
+            <summary>
+            Обрезает строку до указанной длины.
+            </summary>
+            <param name="value">Строка</param>
+            <param name="max">Максимум символов</param>
+            <returns>Обрезанная строка</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.PathHelper">
+            <summary>
+            Вспомогательный класс для безопасной работы с путями.
+            Предотвращает path traversal и выход за пределы workspace.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.PathHelper.TryGetSafeFullPath(System.String,System.String,System.String@)">
+            <summary>
+            Пытается получить безопасный абсолютный путь внутри workspace.
+            </summary>
+            <param name="userPath">Путь, указанный пользователем (относительный или абсолютный)</param>
+            <param name="workspaceRoot">Корневая директория рабочего пространства</param>
+            <param name="safePath">Результирующий безопасный абсолютный путь</param>
+            <returns>true, если путь безопасен и находится внутри workspaceRoot</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.PathHelper.ToRelative(System.String,System.String)">
+            <summary>
+            Нормализует относительный путь для отображения в результатах (с прямыми слэшами).
+            </summary>
+            <param name="fullPath">Абсолютный путь</param>
+            <param name="workspaceRoot">Корень workspace</param>
+            <returns>Относительный путь с прямыми слэшами</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.ProcessRunner">
+            <summary>
+            Реализация безопасного запуска внешних процессов.
+            Использует ArgumentList (а не Arguments) для предотвращения инъекций.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ProcessRunner.#ctor(Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.ProcessRunner})">
+            <summary>
+            Создаёт экземпляр исполнителя.
+            </summary>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ProcessRunner.RunAsync(System.String,System.Collections.Generic.IReadOnlyList{System.String},System.String,System.Int32,System.Int64,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ProcessRunner.Truncate(System.String,System.Int64)">
+            <summary>
+            Обрезает строку до указанного размера в байтах.
+            </summary>
+            <param name="value">Исходная строка</param>
+            <param name="maxBytes">Максимум байт</param>
+            <returns>Обрезанная строка</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.StatusService">
+            <summary>
+            Реализация сервиса статистики.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.StatusService.#ctor(IIChatTools.Data.AppDbContext,IIChatTools.Services.Interfaces.IDependencyChecker,IIChatTools.Services.Implementation.AppUptimeTracker,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.StatusService})">
+            <summary>
+            Создаёт экземпляр сервиса.
+            </summary>
+            <param name="dbContext">Контекст БД</param>
+            <param name="dependencyChecker">Сервис проверки зависимостей</param>
+            <param name="uptimeTracker">Трекер времени работы</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.StatusService.GetSnapshotAsync">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.SubAgentService">
+            <summary>
+            Реализация сервиса суб-агента.
+            Управляет циклом: запрос → tool_calls → выполнение → продолжение.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.Services.Implementation.SubAgentService.ParentToolName">
+            <summary>
+            Имя инструмента-«родителя», который запрещён к вызову внутри суб-агента.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.#ctor(IIChatTools.Services.Interfaces.ILmStudioClient,IIChatTools.Services.Interfaces.IToolRegistry,IIChatTools.Data.AppDbContext,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.SubAgentService})">
+            <summary>
+            Создаёт сервис суб-агента.
+            </summary>
+            <param name="lmStudioClient">Клиент LM Studio</param>
+            <param name="toolRegistry">Реестр инструментов</param>
+            <param name="dbContext">Контекст БД</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.ExecuteTaskAsync(IIChatTools.Services.DTO.ToolExecutionContext,IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.BuildSystemMessage(System.Int32)">
+            <summary>
+            Формирует системное сообщение для суб-агента.
+            </summary>
+            <param name="maxSteps">Лимит шагов</param>
+            <returns>JObject сообщения</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.BuildUserMessage(System.String,System.String)">
+            <summary>
+            Формирует сообщение пользователя с задачей и контекстом.
+            </summary>
+            <param name="task">Задача</param>
+            <param name="extraContext">Доп. контекст</param>
+            <returns>JObject сообщения</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.BuildAssistantMessage(System.String,Newtonsoft.Json.Linq.JArray)">
+            <summary>
+            Формирует assistant-сообщение с tool_calls.
+            </summary>
+            <param name="content">Текстовое содержимое</param>
+            <param name="toolCalls">Вызовы инструментов</param>
+            <returns>JObject сообщения</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.BuildToolResultMessage(System.String,System.String)">
+            <summary>
+            Формирует сообщение с результатом вызова инструмента.
+            </summary>
+            <param name="toolCallId">Идентификатор вызова</param>
+            <param name="content">Содержимое результата</param>
+            <returns>JObject сообщения</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.BuildToolsForSubAgent(System.Collections.Generic.IReadOnlyList{System.String})">
+            <summary>
+            Формирует массив tools в формате OpenAI Function Calling,
+            исключая родительский инструмент и не разрешённые инструменты.
+            </summary>
+            <param name="allowed">Опциональный белый список имён</param>
+            <returns>JArray инструментов</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.BuildToolSchema(IIChatTools.Services.DTO.ToolDescriptor)">
+            <summary>
+            Формирует JSON-схему одного инструмента.
+            </summary>
+            <param name="descriptor">Описание инструмента</param>
+            <returns>JObject схемы</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.RunReviewerAsync(Newtonsoft.Json.Linq.JArray,System.String,IIChatTools.Services.DTO.ToolExecutionContext,System.Collections.Generic.List{IIChatTools.Services.DTO.SubAgent.SubAgentStep})">
+            <summary>
+            Запускает агента-рецензента для проверки финального результата.
+            </summary>
+            <param name="originalMessages">История суб-агента</param>
+            <param name="finalAnswer">Финальный ответ</param>
+            <param name="context">Контекст выполнения</param>
+            <param name="steps">Шаги (для дополнения лога)</param>
+            <returns>Текст рецензии</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.GetIntConfig(System.String,System.Int32)">
+            <summary>
+            Читает int-значение из конфигурации.
+            </summary>
+            <param name="key">Ключ</param>
+            <param name="defaultValue">Значение по умолчанию</param>
+            <returns>Значение</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.SubAgentService.Truncate(System.String,System.Int32)">
+            <summary>
+            Обрезает строку.
+            </summary>
+            <param name="value">Строка</param>
+            <param name="max">Максимум символов</param>
+            <returns>Обрезанная строка</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.ToolRegistry">
+            <summary>
+            Реализация реестра инструментов: инструменты внедряются через DI как IEnumerable{ITool}.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ToolRegistry.#ctor(System.Collections.Generic.IEnumerable{IIChatTools.Services.Interfaces.ITool},Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.ToolRegistry})">
+            <summary>
+            Создаёт реестр на основе всех зарегистрированных в DI инструментов.
+            </summary>
+            <param name="tools">Коллекция инструментов</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если параметры равны null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ToolRegistry.GetAllDescriptors">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ToolRegistry.GetDescriptor(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.ToolRegistry.ExecuteAsync(System.String,IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool">
+            <summary>
+            Инструмент: однократное открытие страницы (stateless).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.SafeGetTitleAsync(PuppeteerSharp.Page)">
+            <summary>
+            Безопасно получает заголовок страницы.
+            </summary>
+            <param name="page">Страница</param>
+            <returns>Заголовок или null</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool">
+            <summary>
+            Инструмент: закрытие браузерной сессии.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool.#ctor(IIChatTools.Services.Interfaces.IBrowserSessionManager,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="sessionManager">Менеджер сессий</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool">
+            <summary>
+            Инструмент: управление браузерной сессией (навигация, клики, ввод, evaluate).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool.#ctor(IIChatTools.Services.Interfaces.IBrowserSessionManager,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="sessionManager">Менеджер сессий</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionControlTool.ExecuteCommandAsync(IIChatTools.Services.DTO.ToolExecutionContext,System.String,System.String,Newtonsoft.Json.Linq.JObject)">
+            <summary>
+            Диспетчер команд управления сессией.
+            </summary>
+            <param name="context">Контекст</param>
+            <param name="sessionId">Идентификатор сессии</param>
+            <param name="command">Команда</param>
+            <param name="arguments">Аргументы</param>
+            <returns>Результат</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool">
+            <summary>
+            Инструмент: открытие долгоживущей браузерной сессии.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool.#ctor(IIChatTools.Services.Interfaces.IBrowserSessionManager,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="sessionManager">Менеджер сессий</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionOpenTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.CodeExecution.ExecuteCommandTool">
+            <summary>
+            Инструмент: выполнение shell-команды через передачу имени команды и списка аргументов.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.CodeExecution.ExecuteCommandTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="processRunner">Исполнитель процессов</param>
+            <param name="configuration">Конфигурация</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.ExecuteCommandTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.ExecuteCommandTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.ExecuteCommandTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.ExecuteCommandTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.CodeExecution.ExecuteCommandTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.CodeExecution.RunJavaScriptTool">
+            <summary>
+            Инструмент: выполнение JavaScript-кода через Node.js.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.CodeExecution.RunJavaScriptTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="processRunner">Исполнитель процессов</param>
+            <param name="configuration">Конфигурация</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunJavaScriptTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunJavaScriptTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunJavaScriptTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunJavaScriptTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.CodeExecution.RunJavaScriptTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.CodeExecution.RunPythonTool">
+            <summary>
+            Инструмент: выполнение Python-скрипта через python3.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.CodeExecution.RunPythonTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="processRunner">Исполнитель процессов</param>
+            <param name="configuration">Конфигурация</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunPythonTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunPythonTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunPythonTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.CodeExecution.RunPythonTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.CodeExecution.RunPythonTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.ChangeDirectoryTool">
+            <summary>
+            Инструмент: проверка и нормализация пути внутри рабочего пространства.
+            В stateless-режиме не меняет состояние, но возвращает абсолютный путь и признак существования.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ChangeDirectoryTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ChangeDirectoryTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ChangeDirectoryTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ChangeDirectoryTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.ChangeDirectoryTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.CopyFileTool">
+            <summary>
+            Инструмент: копирование файла.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.CopyFileTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.CopyFileTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.CopyFileTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.CopyFileTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.CopyFileTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.DeleteFilesByPatternTool">
+            <summary>
+            Инструмент: удаление файлов по регулярному выражению в имени.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeleteFilesByPatternTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeleteFilesByPatternTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeleteFilesByPatternTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeleteFilesByPatternTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.DeleteFilesByPatternTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.DeletePathTool">
+            <summary>
+            Инструмент: удаление файла или каталога (рекурсивно).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeletePathTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeletePathTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeletePathTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.DeletePathTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.DeletePathTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.FindFilesTool">
+            <summary>
+            Инструмент: поиск файлов по имени и расширению.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FindFilesTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FindFilesTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FindFilesTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FindFilesTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.FindFilesTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.FuzzyFindLocalFilesTool">
+            <summary>
+            Инструмент: нечёткий поиск файлов по имени (расстояние Левенштейна).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FuzzyFindLocalFilesTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FuzzyFindLocalFilesTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FuzzyFindLocalFilesTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.FuzzyFindLocalFilesTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.FuzzyFindLocalFilesTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.FuzzyFindLocalFilesTool.LevenshteinDistance(System.String,System.String)">
+            <summary>
+            Вычисляет расстояние Левенштейна между двумя строками.
+            </summary>
+            <param name="s">Первая строка</param>
+            <param name="t">Вторая строка</param>
+            <returns>Расстояние</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.GetFileMetadataTool">
+            <summary>
+            Инструмент: получение метаданных файла или каталога.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.GetFileMetadataTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.GetFileMetadataTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.GetFileMetadataTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.GetFileMetadataTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.GetFileMetadataTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.ListDirectoryTool">
+            <summary>
+            Инструмент: получение списка файлов и директорий.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ListDirectoryTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ListDirectoryTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ListDirectoryTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ListDirectoryTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.ListDirectoryTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.MakeDirectoryTool">
+            <summary>
+            Инструмент: создание каталога (включая вложенные).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MakeDirectoryTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MakeDirectoryTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MakeDirectoryTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MakeDirectoryTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.MakeDirectoryTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.MoveFileTool">
+            <summary>
+            Инструмент: перемещение файла или каталога.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MoveFileTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MoveFileTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MoveFileTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.MoveFileTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.MoveFileTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.ReadFileTool">
+            <summary>
+            Инструмент: чтение текстового файла с ограничением размера.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.ReadFileTool.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Создаёт инструмент чтения с лимитом размера.
+            </summary>
+            <param name="configuration">Конфигурация</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReadFileTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReadFileTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReadFileTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReadFileTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.ReadFileTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.ReplaceTextInFileTool">
+            <summary>
+            Инструмент: точечная замена текста в файле.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReplaceTextInFileTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReplaceTextInFileTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReplaceTextInFileTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.ReplaceTextInFileTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.ReplaceTextInFileTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.FileSystem.SaveFileTool">
+            <summary>
+            Инструмент: сохранение текстового файла.
+            Поддерживает режимы: перезапись, добавление.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.SaveFileTool.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Создаёт инструмент сохранения с лимитом размера.
+            </summary>
+            <param name="configuration">Конфигурация</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.SaveFileTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.SaveFileTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.SaveFileTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.FileSystem.SaveFileTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.FileSystem.SaveFileTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool">
+            <summary>
+            Базовый класс для всех инструментов GitHub CLI.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.ProcessRunner">
+            <summary>
+            Исполнитель процессов.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.Configuration">
+            <summary>
+            Конфигурация.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.Logger">
+            <summary>
+            Логгер.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Создаёт экземпляр базового класса.
+            </summary>
+            <param name="processRunner">Исполнитель процессов</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.GetGhTimeoutSeconds">
+            <summary>
+            Возвращает таймаут для gh-команд (по умолчанию 90 секунд).
+            </summary>
+            <returns>Таймаут в секундах</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.GetMaxOutputBytes">
+            <summary>
+            Возвращает лимит размера вывода.
+            </summary>
+            <returns>Лимит в байтах</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.RunGhAsync(IIChatTools.Services.DTO.ToolExecutionContext,System.Collections.Generic.IReadOnlyList{System.String})">
+            <summary>
+            Запускает gh-команду.
+            </summary>
+            <param name="context">Контекст выполнения</param>
+            <param name="args">Аргументы gh (без слова "gh")</param>
+            <returns>Результат выполнения</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.EnsureGhAvailableAsync(IIChatTools.Services.DTO.ToolExecutionContext)">
+            <summary>
+            Проверяет доступность gh CLI.
+            </summary>
+            <param name="context">Контекст</param>
+            <returns>true, если gh доступен</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.BaseGhTool.ValidateGhAsync(IIChatTools.Services.DTO.ToolExecutionContext)">
+            <summary>
+            Проверяет наличие gh. При отсутствии возвращает ToolResult с ошибкой.
+            </summary>
+            <param name="context">Контекст</param>
+            <returns>ToolResult с ошибкой или null</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool">
+            <summary>
+            Инструмент: проверка статуса авторизации в GitHub CLI.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhAuthStatusTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool">
+            <summary>
+            Инструмент: создание issue в GitHub через gh.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhCreateIssueTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool">
+            <summary>
+            Инструмент: создание Pull Request через gh.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhCreatePrTool.IsValidBranch(System.String)">
+            <summary>
+            Проверяет корректность имени ветки.
+            </summary>
+            <param name="value">Имя ветки</param>
+            <returns>true, если допустимо</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool">
+            <summary>
+            Инструмент: список issues репозитория через gh.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhListIssuesTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool">
+            <summary>
+            Инструмент: список Pull Request'ов текущего репозитория.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhListPrsTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool">
+            <summary>
+            Инструмент: просмотр комментариев к issue или pull request.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhViewCommentsTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool">
+            <summary>
+            Инструмент: просмотр diff Pull Request.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.GitHub.GhViewPrDiffTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool">
+            <summary>
+            Базовый класс для всех инструментов Git.
+            Содержит общую логику проверки репозитория и запуска git-команд.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.ProcessRunner">
+            <summary>
+            Исполнитель процессов.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.Configuration">
+            <summary>
+            Конфигурация приложения.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.Logger">
+            <summary>
+            Логгер инструмента.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Создаёт экземпляр базового класса.
+            </summary>
+            <param name="processRunner">Исполнитель процессов</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.IsGitRepository(System.String)">
+            <summary>
+            Проверяет, что в рабочем пространстве есть Git-репозиторий.
+            </summary>
+            <param name="workspaceRoot">Корень рабочего пространства</param>
+            <returns>true, если найден каталог .git</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.GetGitTimeoutSeconds">
+            <summary>
+            Возвращает значение таймаута для git-команд из конфигурации.
+            </summary>
+            <returns>Таймаут в секундах</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.GetMaxOutputBytes">
+            <summary>
+            Возвращает лимит размера вывода команды из конфигурации.
+            </summary>
+            <returns>Лимит в байтах</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.RunGitAsync(IIChatTools.Services.DTO.ToolExecutionContext,System.Collections.Generic.IReadOnlyList{System.String})">
+            <summary>
+            Запускает git-команду с указанными аргументами в рабочем пространстве.
+            </summary>
+            <param name="context">Контекст выполнения</param>
+            <param name="args">Аргументы git-команды (без слова "git")</param>
+            <returns>Результат выполнения</returns>
+            <exception cref="T:System.ArgumentNullException">Если context или args равны null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.EnsureGitAvailableAsync(IIChatTools.Services.DTO.ToolExecutionContext)">
+            <summary>
+            Проверяет, что git CLI доступен в системе.
+            </summary>
+            <param name="context">Контекст выполнения</param>
+            <returns>true, если git доступен</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.BaseGitTool.ValidateGitContextAsync(IIChatTools.Services.DTO.ToolExecutionContext)">
+            <summary>
+            Проверяет репозиторий и доступность git. Возвращает ошибку ToolResult при неудаче или null при успехе.
+            </summary>
+            <param name="context">Контекст выполнения</param>
+            <returns>ToolResult с ошибкой или null</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.GitAddTool">
+            <summary>
+            Инструмент: добавление файлов в индекс (git add).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitAddTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Git.GitAddTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitAddTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitAddTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitAddTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitAddTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitAddTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool">
+            <summary>
+            Инструмент: переключение веток и восстановление файлов (git checkout).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitCheckoutTool.IsValidRef(System.String)">
+            <summary>
+            Проверяет допустимость имени ref.
+            </summary>
+            <param name="value">Значение</param>
+            <returns>true, если значение допустимо</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.GitCommitTool">
+            <summary>
+            Инструмент: создание коммита (git commit -m).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitCommitTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Git.GitCommitTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCommitTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCommitTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCommitTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitCommitTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitCommitTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool">
+            <summary>
+            Инструмент: просмотр различий (git diff) между рабочей директорией и индексом/HEAD.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Git.GitDiffTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitDiffTool.IsValidRef(System.String)">
+            <summary>
+            Проверяет допустимость имени ref (ветки/коммита/тега).
+            </summary>
+            <param name="value">Значение</param>
+            <returns>true, если значение допустимо или пусто</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.GitLogTool">
+            <summary>
+            Инструмент: просмотр истории коммитов (git log).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitLogTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Git.GitLogTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitLogTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitLogTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitLogTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitLogTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitLogTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.GitPushTool">
+            <summary>
+            Инструмент: отправка изменений в удалённый репозиторий (git push).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitPushTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Git.GitPushTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitPushTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitPushTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitPushTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitPushTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitPushTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitPushTool.IsValidName(System.String)">
+            <summary>
+            Проверяет допустимость имени remote/ветки.
+            </summary>
+            <param name="value">Значение</param>
+            <returns>true, если значение допустимо</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Git.GitStatusTool">
+            <summary>
+            Инструмент: получение статуса Git-репозитория.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitStatusTool.#ctor(IIChatTools.Services.Interfaces.IProcessRunner,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Git.GitStatusTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="processRunner">Исполнитель процессов</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitStatusTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitStatusTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitStatusTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Git.GitStatusTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Git.GitStatusTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool">
+            <summary>
+            Инструмент: делегирование задачи суб-агенту.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.#ctor(IIChatTools.Services.Interfaces.ISubAgentService,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="subAgentService">Сервис суб-агента</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Utils.GetSystemInfoTool">
+            <summary>
+            Инструмент: информация о системе и среде исполнения.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.GetSystemInfoTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.GetSystemInfoTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.GetSystemInfoTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.GetSystemInfoTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Utils.GetSystemInfoTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool">
+            <summary>
+            Инструмент: сохранение значения в долговременную память пользователя.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool.#ctor(IIChatTools.Data.AppDbContext,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="dbContext">Контекст БД</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Utils.SaveMemoryTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool">
+            <summary>
+            Инструмент: загрузка текстового содержимого веб-страницы.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool.#ctor(System.Net.Http.IHttpClientFactory,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="httpClientFactory">Фабрика HTTP-клиентов</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Web.FetchWebContentTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool">
+            <summary>
+            Инструмент: веб-поиск через DuckDuckGo HTML-интерфейс.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool.#ctor(System.Net.Http.IHttpClientFactory,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Web.WebSearchTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="httpClientFactory">Фабрика HTTP-клиентов</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Web.WebSearchTool.DecodeDuckLink(System.String)">
+            <summary>
+            Извлекает настоящий URL из редиректной ссылки DuckDuckGo.
+            </summary>
+            <param name="href">Значение атрибута href</param>
+            <returns>Развёрнутый URL</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool">
+            <summary>
+            Инструмент: поиск в Wikipedia через официальный REST API.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool.#ctor(System.Net.Http.IHttpClientFactory,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool})">
+            <summary>
+            Создаёт инструмент.
+            </summary>
+            <param name="httpClientFactory">Фабрика HTTP-клиентов</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool.RequiresApprovalByDefault">
+            <inheritdoc />
+        </member>
+        <member name="P:IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool.Parameters">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Web.WikipediaSearchTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.UserAdminService">
+            <summary>
+            Реализация административного сервиса пользователей через ASP.NET Identity.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.#ctor(Microsoft.AspNetCore.Identity.UserManager{IIChatTools.Data.Entities.ApplicationUser},Microsoft.AspNetCore.Identity.RoleManager{Microsoft.AspNetCore.Identity.IdentityRole{System.Int32}},Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.UserAdminService})">
+            <summary>
+            Создаёт экземпляр сервиса.
+            </summary>
+            <param name="userManager">Менеджер пользователей</param>
+            <param name="roleManager">Менеджер ролей</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.GetAllAsync">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.GetByIdAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.CreateAsync(IIChatTools.Services.DTO.Admin.UserEditDto)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.UpdateAsync(System.Int32,IIChatTools.Services.DTO.Admin.UserEditDto)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.DeleteAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.ResetPasswordAsync(System.Int32,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.UserAdminService.GetRolesAsync">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.WorkspaceResolver">
+            <summary>
+            Реализация резолвера рабочего пространства.
+            Структура: {Workspace:RootPath}/users/{userId}
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.WorkspaceResolver.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.WorkspaceResolver})">
+            <summary>
+            Создаёт экземпляр резолвера.
+            </summary>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.WorkspaceResolver.GetWorkspacePathAsync(System.Int32)">
+            <inheritdoc />
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IApprovalService">
+            <summary>
+            Сервис управления действиями, требующими подтверждения пользователя.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IApprovalService.CreatePendingActionAsync(System.Int32,System.String,System.String)">
+            <summary>
+            Создаёт запрос на подтверждение действия.
+            </summary>
+            <param name="userId">Идентификатор пользователя</param>
+            <param name="toolName">Имя инструмента</param>
+            <param name="parametersJson">Параметры вызова (JSON)</param>
+            <returns>Созданное действие</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IApprovalService.GetByIdAsync(System.Int32)">
+            <summary>
+            Возвращает действие по идентификатору.
+            </summary>
+            <param name="id">Идентификатор действия</param>
+            <returns>Действие или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IApprovalService.GetPendingForUserAsync(System.Int32)">
+            <summary>
+            Возвращает список ожидающих действий пользователя.
+            </summary>
+            <param name="userId">Идентификатор пользователя</param>
+            <returns>Список действий</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IApprovalService.GetAllPendingAsync">
+            <summary>
+            Возвращает все ожидающие действия (для администратора).
+            </summary>
+            <returns>Список действий</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IApprovalService.ApproveAsync(System.Int32,System.Int32)">
+            <summary>
+            Подтверждает действие.
+            </summary>
+            <param name="actionId">Идентификатор действия</param>
+            <param name="approverUserId">Идентификатор пользователя, подтвердившего действие</param>
+            <returns>true, если действие успешно подтверждено</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IApprovalService.RejectAsync(System.Int32,System.Int32,System.String)">
+            <summary>
+            Отклоняет действие.
+            </summary>
+            <param name="actionId">Идентификатор действия</param>
+            <param name="approverUserId">Идентификатор пользователя, отклонившего действие</param>
+            <param name="reason">Причина отклонения</param>
+            <returns>true, если действие успешно отклонено</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IApprovalService.IsWhitelistedAsync(System.String)">
+            <summary>
+            Проверяет, разрешён ли инструмент в белом списке (без подтверждения).
+            </summary>
+            <param name="toolName">Имя инструмента</param>
+            <returns>true, если инструмент в белом списке</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IAppSettingsService">
+            <summary>
+            Сервис управления настройками приложения (хранятся в БД, дублируют appsettings.json).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAppSettingsService.GetAllAsync">
+            <summary>
+            Возвращает все настройки из БД.
+            </summary>
+            <returns>Список настроек</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAppSettingsService.GetByIdAsync(System.Int32)">
+            <summary>
+            Возвращает настройку по идентификатору.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>Настройка или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAppSettingsService.CreateAsync(IIChatTools.Services.DTO.Admin.SettingDto)">
+            <summary>
+            Создаёт новую настройку.
+            </summary>
+            <param name="dto">Данные настройки</param>
+            <returns>Созданная настройка</returns>
+            <exception cref="T:System.InvalidOperationException">Если ключ уже существует</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAppSettingsService.UpdateAsync(System.Int32,IIChatTools.Services.DTO.Admin.SettingDto)">
+            <summary>
+            Обновляет существующую настройку.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <param name="dto">Новые данные</param>
+            <returns>Обновлённая настройка или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAppSettingsService.DeleteAsync(System.Int32)">
+            <summary>
+            Удаляет настройку.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>true, если удалено</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAppSettingsService.ResetToDefaultAsync(System.Int32)">
+            <summary>
+            Сбрасывает значение настройки к значению по умолчанию из appsettings.json.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>Обновлённая настройка или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAppSettingsService.SyncDefaultsFromConfigurationAsync">
+            <summary>
+            Синхронизирует настройки из appsettings.json в БД (создаёт отсутствующие,
+            обновляет поля DefaultValue у существующих).
+            </summary>
+            <returns>Количество обработанных ключей</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IAuditQueryService">
+            <summary>
+            Сервис чтения журнала аудита с пагинацией.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAuditQueryService.GetPagedAsync(System.Int32,System.Int32,System.Nullable{System.Int32},System.String)">
+            <summary>
+            Возвращает страницу журнала аудита.
+            </summary>
+            <param name="page">Номер страницы (1-индексация)</param>
+            <param name="pageSize">Размер страницы (1–200)</param>
+            <param name="userId">Фильтр по пользователю (опционально)</param>
+            <param name="toolName">Фильтр по имени инструмента (опционально)</param>
+            <returns>Страница записей</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IAuditService">
+            <summary>
+            Интерфейс сервиса аудита для записи действий
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IAuditService.LogActionAsync(IIChatTools.Data.Entities.AuditLog)">
+            <summary>
+            Асинхронно записывает запись аудита в БД
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IBrowserSessionManager">
+            <summary>
+            Менеджер долгоживущих сессий браузера.
+            Регистрируется как singleton: держит словарь активных сессий PuppeteerSharp.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IBrowserSessionManager.OpenAsync(System.Int32,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Открывает новую браузерную сессию для пользователя.
+            </summary>
+            <param name="userId">Идентификатор пользователя</param>
+            <param name="initialUrl">Опциональный начальный URL</param>
+            <param name="cancellationToken">Токен отмены</param>
+            <returns>Информация о созданной сессии</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IBrowserSessionManager.GetInfoAsync(System.String,System.Int32)">
+            <summary>
+            Возвращает сессию по идентификатору, проверяя владельца.
+            </summary>
+            <param name="sessionId">Идентификатор сессии</param>
+            <param name="userId">Идентификатор пользователя (для проверки прав)</param>
+            <returns>Сессия или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IBrowserSessionManager.CloseAsync(System.String,System.Int32)">
+            <summary>
+            Закрывает сессию.
+            </summary>
+            <param name="sessionId">Идентификатор сессии</param>
+            <param name="userId">Идентификатор пользователя</param>
+            <returns>true, если сессия была закрыта</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IBrowserSessionManager.ListForUserAsync(System.Int32)">
+            <summary>
+            Возвращает список сессий пользователя.
+            </summary>
+            <param name="userId">Идентификатор пользователя</param>
+            <returns>Список сессий</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IBrowserSessionManager.CloseAllForUserAsync(System.Int32)">
+            <summary>
+            Закрывает все сессии пользователя (например, при выходе).
+            </summary>
+            <param name="userId">Идентификатор пользователя</param>
+            <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IBrowserSessionManager.ExecuteCommandAsync(IIChatTools.Services.DTO.ToolExecutionContext,System.String,System.String,Newtonsoft.Json.Linq.JObject,System.Int32)">
+            <summary>
+            Выполняет команду управления сессией (goto, click, type и т.д.).
+            </summary>
+            <param name="context">Контекст выполнения</param>
+            <param name="sessionId">Идентификатор сессии</param>
+            <param name="command">Команда</param>
+            <param name="arguments">Аргументы команды</param>
+            <param name="timeoutMs">Таймаут операции</param>
+            <returns>Результат выполнения</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IDependencyChecker">
+            <summary>
+            Интерфейс для проверки наличия внешних зависимостей
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IDependencyChecker.CheckAllAsync">
+            <summary>
+            Проверяет все зависимости и возвращает словарь { имя зависимости -> версия (или null, если не найдена) }
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IDependencyChecker.IsGitInstalledAsync">
+            <summary>
+            Проверяет, установлен ли Git
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IDependencyChecker.IsGhInstalledAsync">
+            <summary>
+            Проверяет, установлен ли GitHub CLI (gh)
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IDependencyChecker.IsPythonInstalledAsync">
+            <summary>
+            Проверяет, установлен ли Python 3
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IDependencyChecker.IsNodeInstalledAsync">
+            <summary>
+            Проверяет, установлен ли Node.js
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IJwtService">
+            <summary>
+            Интерфейс генерации JWT-токенов.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IJwtService.GenerateTokenAsync(IIChatTools.Data.Entities.ApplicationUser,System.Collections.Generic.IList{System.String})">
+            <summary>
+            Формирует JWT-токен для указанного пользователя.
+            </summary>
+            <param name="user">Пользователь</param>
+            <param name="roles">Список ролей пользователя</param>
+            <returns>Строка JWT-токена</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.ChatCompletionResponse">
+            <summary>
+            Ответ LM Studio на запрос chat completion.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ChatCompletionResponse.Content">
+            <summary>
+            Содержимое ответа (может быть null при tool_calls).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ChatCompletionResponse.ToolCalls">
+            <summary>
+            Список вызовов инструментов (может быть пустым).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ChatCompletionResponse.FinishReason">
+            <summary>
+            Причина завершения: "stop", "tool_calls", "length".
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.ILmStudioClient">
+            <summary>
+            Клиент LM Studio (OpenAI-совместимый API /v1/chat/completions).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.ILmStudioClient.CompleteAsync(Newtonsoft.Json.Linq.JArray,Newtonsoft.Json.Linq.JArray,System.Threading.CancellationToken)">
+            <summary>
+            Отправляет запрос chat completion в LM Studio.
+            </summary>
+            <param name="messages">История сообщений (JArray, формат OpenAI)</param>
+            <param name="tools">Список инструментов (JArray, формат OpenAI Function Calling)</param>
+            <param name="cancellationToken">Токен отмены</param>
+            <returns>Ответ модели</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.ProcessResult">
+            <summary>
+            Результат выполнения внешнего процесса.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ProcessResult.ExitCode">
+            <summary>
+            Код возврата процесса.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ProcessResult.StdOut">
+            <summary>
+            Содержимое стандартного вывода.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ProcessResult.StdErr">
+            <summary>
+            Содержимое стандартного потока ошибок.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ProcessResult.TimedOut">
+            <summary>
+            Признак истечения таймаута.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ProcessResult.DurationMs">
+            <summary>
+            Длительность выполнения в миллисекундах.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ProcessResult.Truncated">
+            <summary>
+            Признак превышения лимита размера вывода.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IProcessRunner">
+            <summary>
+            Безопасный запуск внешних процессов с ограничениями и экранированием.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IProcessRunner.RunAsync(System.String,System.Collections.Generic.IReadOnlyList{System.String},System.String,System.Int32,System.Int64,System.Threading.CancellationToken)">
+            <summary>
+            Запускает процесс и возвращает результат.
+            </summary>
+            <param name="fileName">Исполняемый файл</param>
+            <param name="argumentList">Аргументы (список, без конкатенации строк)</param>
+            <param name="workingDirectory">Рабочая директория (обязательно внутри workspace)</param>
+            <param name="timeoutSeconds">Таймаут в секундах</param>
+            <param name="maxOutputBytes">Максимальный размер вывода в байтах</param>
+            <param name="cancellationToken">Токен отмены</param>
+            <returns>Результат выполнения процесса</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IStatusService">
+            <summary>
+            Сервис получения сводной информации о состоянии системы.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IStatusService.GetSnapshotAsync">
+            <summary>
+            Возвращает снимок состояния системы.
+            </summary>
+            <returns>Снимок состояния</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.ISubAgentService">
+            <summary>
+            Оркестратор цикла суб-агента.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.ISubAgentService.ExecuteTaskAsync(IIChatTools.Services.DTO.ToolExecutionContext,IIChatTools.Services.DTO.SubAgent.SubAgentTaskRequest)">
+            <summary>
+            Выполняет задачу суб-агентом в изолированном цикле.
+            </summary>
+            <param name="context">Контекст выполнения (UserId, Workspace, CancellationToken)</param>
+            <param name="request">Запрос задачи</param>
+            <returns>Результат выполнения</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.ITool">
+            <summary>
+            Базовый контракт инструмента, доступного LLM.
+            Каждый инструмент реализуется отдельным классом и регистрируется в DI.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ITool.Name">
+            <summary>
+            Уникальное имя инструмента (snake_case).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ITool.Description">
+            <summary>
+            Описание инструмента для LLM.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ITool.RequiresApprovalByDefault">
+            <summary>
+            Требует ли инструмент подтверждения пользователя по умолчанию.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.Services.Interfaces.ITool.Parameters">
+            <summary>
+            Параметры инструмента.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.ITool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <summary>
+            Выполняет инструмент с заданными аргументами.
+            </summary>
+            <param name="context">Контекст выполнения</param>
+            <param name="arguments">Аргументы вызова</param>
+            <returns>Результат выполнения</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IToolRegistry">
+            <summary>
+            Реестр инструментов: обнаружение, описание, выполнение.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IToolRegistry.GetAllDescriptors">
+            <summary>
+            Возвращает описания всех зарегистрированных инструментов.
+            </summary>
+            <returns>Список описаний</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IToolRegistry.GetDescriptor(System.String)">
+            <summary>
+            Возвращает описание инструмента по имени или null.
+            </summary>
+            <param name="name">Имя инструмента</param>
+            <returns>Описание или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IToolRegistry.ExecuteAsync(System.String,IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
+            <summary>
+            Выполняет инструмент по имени.
+            </summary>
+            <param name="toolName">Имя инструмента</param>
+            <param name="context">Контекст выполнения</param>
+            <param name="arguments">Аргументы вызова</param>
+            <returns>Результат выполнения</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IUserAdminService">
+            <summary>
+            Сервис администрирования пользователей (CRUD).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IUserAdminService.GetAllAsync">
+            <summary>
+            Возвращает список пользователей с ролями.
+            </summary>
+            <returns>Список пользователей</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IUserAdminService.GetByIdAsync(System.Int32)">
+            <summary>
+            Возвращает данные пользователя по идентификатору.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>DTO или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IUserAdminService.CreateAsync(IIChatTools.Services.DTO.Admin.UserEditDto)">
+            <summary>
+            Создаёт пользователя.
+            </summary>
+            <param name="dto">Данные</param>
+            <returns>Созданный пользователь</returns>
+            <exception cref="T:System.InvalidOperationException">При ошибке Identity</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IUserAdminService.UpdateAsync(System.Int32,IIChatTools.Services.DTO.Admin.UserEditDto)">
+            <summary>
+            Обновляет пользователя.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <param name="dto">Новые данные</param>
+            <returns>Обновлённый пользователь или null</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IUserAdminService.DeleteAsync(System.Int32)">
+            <summary>
+            Удаляет пользователя.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>true, если удалён</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IUserAdminService.ResetPasswordAsync(System.Int32,System.String)">
+            <summary>
+            Сбрасывает пароль пользователя.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <param name="newPassword">Новый пароль</param>
+            <returns>true, если пароль изменён</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IUserAdminService.GetRolesAsync">
+            <summary>
+            Возвращает список доступных ролей.
+            </summary>
+            <returns>Список имён ролей</returns>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IWorkspaceResolver">
+            <summary>
+            Сервис получения пути к рабочему пространству пользователя.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IWorkspaceResolver.GetWorkspacePathAsync(System.Int32)">
+            <summary>
+            Возвращает абсолютный путь к рабочему пространству пользователя,
+            создавая директорию при необходимости.
+            </summary>
+            <param name="userId">Идентификатор пользователя</param>
+            <returns>Абсолютный путь</returns>
+        </member>
+    </members>
+</doc>

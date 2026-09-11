@@ -22,6 +22,7 @@
 
     <!-- Единые версии пакетов (используются через $(EFCoreVersion) и т.п. в .csproj) -->
     <EFCoreVersion>3.1.32</EFCoreVersion>
+    <EntityFrameworkSqliteVersion>3.1.32</EntityFrameworkSqliteVersion>    
     <MicrosoftAspNetCoreVersion>3.1.32</MicrosoftAspNetCoreVersion>
     <MicrosoftExtensionsVersion>3.1.32</MicrosoftExtensionsVersion>
     <IdentityModelVersion>6.35.0</IdentityModelVersion>
@@ -31,8 +32,10 @@
     <XunitVersion>2.7.0</XunitVersion>
     <MoqVersion>4.20.70</MoqVersion>
 
+
+
     <RuntimeNativeOpenSslVersion>4.3.0</RuntimeNativeOpenSslVersion>    
-     <PuppeteerSharpVersion>6.0.0</PuppeteerSharpVersion>
+    <PuppeteerSharpVersion>6.0.0</PuppeteerSharpVersion>
   </PropertyGroup>
 
 </Project>

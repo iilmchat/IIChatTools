@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
@@ -12,8 +12,7 @@ using PuppeteerSharp;
 namespace IIChatTools.Services.Implementation.Tools.Browser
 {
     /// <summary>
-    /// Инструмент: однократное открытие страницы (stateless) с возвратом текста и/или HTML.
-    /// Не сохраняет сессию — браузер инициализируется внутри и закрывается сразу.
+    /// Инструмент: однократное открытие страницы (stateless).
     /// </summary>
     public class BrowserOpenPageTool : ITool
     {
@@ -23,8 +22,6 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
-        /// <param name="configuration">Конфигурация</param>
-        /// <param name="logger">Логгер</param>
         public BrowserOpenPageTool(IConfiguration configuration, ILogger<BrowserOpenPageTool> logger)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -64,11 +61,12 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
             var timeout = arguments.GetInt("timeoutSeconds", 30);
             if (timeout <= 0 || timeout > 120) timeout = 30;
 
-            IBrowser browser = null;
-            IPage page = null;
+            PuppeteerSharp.Browser browser = null;
+            Page page = null;
             try
             {
-                await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
+                //await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
+                await new BrowserFetcher().DownloadAsync();
 
                 browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
@@ -114,9 +112,11 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
         }
 
         /// <summary>
-        /// Безопасно получает заголовок.
+        /// Безопасно получает заголовок страницы.
         /// </summary>
-        private static async Task<string> SafeGetTitleAsync(IPage page)
+        /// <param name="page">Страница</param>
+        /// <returns>Заголовок или null</returns>
+        private static async Task<string> SafeGetTitleAsync(Page page)  // ← было IPage
         {
             try { return page?.IsClosed == false ? await page.GetTitleAsync() : null; }
             catch { return null; }

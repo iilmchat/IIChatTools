@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>IIChatTools.Tests</name>
+    </assembly>
+    <members>
+        <member name="T:IIChatTools.Tests.IntegrationTests.ApprovalServiceTests">
+            <summary>
+            Тесты сервиса подтверждений действий.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ApprovalServiceTests.CreatePendingActionAsync_SetsCorrectExpiration">
+            <summary>
+            Проверяет создание запроса на подтверждение с правильным сроком действия.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ApprovalServiceTests.ApproveAsync_UpdatesStatusAndApprover">
+            <summary>
+            Проверяет подтверждение действия.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ApprovalServiceTests.RejectAsync_SavesRejectionReason">
+            <summary>
+            Проверяет отклонение действия с причиной.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ApprovalServiceTests.ApproveAsync_AlreadyApproved_ReturnsFalse">
+            <summary>
+            Проверяет, что повторное подтверждение не проходит.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Tests.IntegrationTests.TestDbContextFactory">
+            <summary>
+            Фабрика контекста БД в памяти для интеграционных тестов.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.TestDbContextFactory.Create">
+            <summary>
+            Создаёт изолированный контекст с уникальным именем БД.
+            </summary>
+            <returns>Контекст БД</returns>
+        </member>
+        <member name="T:IIChatTools.Tests.IntegrationTests.ToolRegistryTests">
+            <summary>
+            Тесты реестра инструментов.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Tests.IntegrationTests.ToolRegistryTests.FakeTool">
+            <summary>
+            Фиктивный инструмент для тестов.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ToolRegistryTests.GetAllDescriptors_ReturnsRegisteredTools">
+            <summary>
+            Проверяет, что инструменты корректно регистрируются.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ToolRegistryTests.Constructor_DuplicateNames_KeepsFirst">
+            <summary>
+            Проверяет, что дубликаты имён игнорируются.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ToolRegistryTests.ExecuteAsync_KnownTool_ReturnsResult">
+            <summary>
+            Проверяет выполнение известного инструмента.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.IntegrationTests.ToolRegistryTests.ExecuteAsync_UnknownTool_ReturnsFail">
+            <summary>
+            Проверяет ошибку при неизвестном инструменте.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.Tests.UnitTests.LocalizationSyncTests">
+            <summary>
+            Тесты синхронизации ключей файлов локализации.
+            Проверяет, что наборы ключей в SharedResources.resx (английский, базовый)
+            и SharedResources.ru.resx (русский) полностью совпадают.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.UnitTests.LocalizationSyncTests.ResourceKeys_ShouldBeSynchronized">
+            <summary>
+            Проверяет, что ключи английского и русского файлов ресурсов совпадают.
+            Тест падает, если какой-либо ключ присутствует только в одном из файлов.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.UnitTests.LocalizationSyncTests.GetKeys(System.Resources.ResourceSet)">
+            <summary>
+            Извлекает все строковые ключи из набора ресурсов.
+            </summary>
+            <param name="resourceSet">Набор ресурсов ResourceSet</param>
+            <returns>Множество строковых ключей</returns>
+        </member>
+        <member name="T:IIChatTools.Tests.UnitTests.PathHelperTests">
+            <summary>
+            Тесты безопасности PathHelper (защита от path traversal).
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.UnitTests.PathHelperTests.TryGetSafeFullPath_InsideWorkspace_ReturnsTrue">
+            <summary>
+            Проверяет, что относительный путь внутри workspace разрешён.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.UnitTests.PathHelperTests.TryGetSafeFullPath_PathTraversal_ReturnsFalse(System.String)">
+            <summary>
+            Проверяет, что path traversal блокируется.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Tests.UnitTests.PathHelperTests.TryGetSafeFullPath_EmptyPath_ReturnsRoot">
+            <summary>
+            Проверяет, что пустой путь возвращает корень workspace.
+            </summary>
+        </member>
+    </members>
+</doc>

@@ -53,7 +53,9 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
                 var dir = Path.GetDirectoryName(safeDest);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                File.Copy(safeSource, safeDest, overwrite);
+                if (overwrite && File.Exists(safeDest))
+                    File.Delete(safeDest);                    
+                File.Copy(safeSource, safeDest);
             }
             catch (Exception ex)
             {

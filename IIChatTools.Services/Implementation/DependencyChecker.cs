@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
+using IIChatTools.Services.Extensions;
 
 namespace IIChatTools.Services.Implementation
 {

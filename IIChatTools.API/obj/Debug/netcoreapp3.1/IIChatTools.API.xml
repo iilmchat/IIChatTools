@@ -1,0 +1,585 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>IIChatTools.API</name>
+    </assembly>
+    <members>
+        <member name="T:IIChatTools.API.AppVersion">
+            <summary>
+            Содержит константы версии приложения.
+            Обновляется при изменении публичного API.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.API.AppVersion.Current">
+            <summary>
+            Текущая версия приложения.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.API.AppVersion.ProductName">
+            <summary>
+            Человекочитаемое наименование продукта.
+            </summary>
+        </member>
+        <member name="F:IIChatTools.API.AppVersion.Copyright">
+            <summary>
+            Информация об авторских правах.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.AdminController">
+            <summary>
+            Административный API: CRUD пользователей, настроек, белый список, аудит.
+            Доступен только пользователям с ролью Admin.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.#ctor(IIChatTools.Services.Interfaces.IUserAdminService,IIChatTools.Services.Interfaces.IAppSettingsService,IIChatTools.Services.Interfaces.IAuditQueryService,IIChatTools.Services.Interfaces.IToolRegistry,IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.AdminController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.AdminController})">
+            <summary>
+            Создаёт экземпляр контроллера.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.GetUsersAsync">
+            <summary>
+            Возвращает список пользователей.
+            </summary>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.GetUserAsync(System.Int32)">
+            <summary>
+            Возвращает пользователя по идентификатору.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.CreateUserAsync(IIChatTools.Services.DTO.Admin.UserEditDto)">
+            <summary>
+            Создаёт нового пользователя.
+            </summary>
+            <param name="dto">Данные пользователя</param>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.UpdateUserAsync(System.Int32,IIChatTools.Services.DTO.Admin.UserEditDto)">
+            <summary>
+            Обновляет пользователя.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <param name="dto">Новые данные</param>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.DeleteUserAsync(System.Int32)">
+            <summary>
+            Удаляет пользователя.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>JSON { success, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.ResetPasswordAsync(System.Int32,IIChatTools.API.Controllers.ResetPasswordRequest)">
+            <summary>
+            Сбрасывает пароль пользователя.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <param name="request">Тело запроса с новым паролем</param>
+            <returns>JSON { success, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.GetRolesAsync">
+            <summary>
+            Возвращает список доступных ролей.
+            </summary>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.GetSettingsAsync">
+            <summary>
+            Возвращает все настройки.
+            </summary>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.CreateSettingAsync(IIChatTools.Services.DTO.Admin.SettingDto)">
+            <summary>
+            Создаёт настройку.
+            </summary>
+            <param name="dto">Данные</param>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.UpdateSettingAsync(System.Int32,IIChatTools.Services.DTO.Admin.SettingDto)">
+            <summary>
+            Обновляет настройку.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <param name="dto">Новые данные</param>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.DeleteSettingAsync(System.Int32)">
+            <summary>
+            Удаляет настройку.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>JSON { success, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.ResetSettingAsync(System.Int32)">
+            <summary>
+            Сбрасывает настройку к значению по умолчанию.
+            </summary>
+            <param name="id">Идентификатор</param>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.GetWhitelistAsync">
+            <summary>
+            Возвращает белый список инструментов.
+            </summary>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.AddToWhitelistAsync(IIChatTools.API.Controllers.WhitelistRequest)">
+            <summary>
+            Добавляет инструмент в белый список.
+            </summary>
+            <param name="request">Запрос с именем инструмента</param>
+            <returns>JSON { success, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.RemoveFromWhitelistAsync(System.String)">
+            <summary>
+            Убирает инструмент из белого списка.
+            </summary>
+            <param name="toolName">Имя инструмента</param>
+            <returns>JSON { success, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.GetAuditAsync(System.Int32,System.Int32,System.Nullable{System.Int32},System.String)">
+            <summary>
+            Возвращает постраничный журнал аудита.
+            </summary>
+            <param name="page">Номер страницы</param>
+            <param name="pageSize">Размер страницы</param>
+            <param name="userId">Фильтр по пользователю</param>
+            <param name="toolName">Фильтр по инструменту</param>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.UpdateWhitelistAsync(System.String,System.Boolean)">
+            <summary>
+            Обновляет белый список, добавляя или удаляя имя инструмента.
+            </summary>
+            <param name="toolName">Имя инструмента</param>
+            <param name="add">true — добавить, false — удалить</param>
+            <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.LogAdminActionAsync(System.String,System.Int32,System.String)">
+            <summary>
+            Записывает административное действие в журнал аудита.
+            </summary>
+            <param name="action">Имя действия</param>
+            <param name="entityId">Идентификатор сущности</param>
+            <param name="extra">Дополнительная информация</param>
+            <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AdminController.GetCurrentUserId">
+            <summary>
+            Возвращает идентификатор текущего пользователя из claims.
+            </summary>
+            <returns>Идентификатор пользователя</returns>
+            <exception cref="T:System.UnauthorizedAccessException">Если пользователь не аутентифицирован</exception>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.ResetPasswordRequest">
+            <summary>
+            Тело запроса сброса пароля.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.Controllers.ResetPasswordRequest.NewPassword">
+            <summary>
+            Новый пароль.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.WhitelistRequest">
+            <summary>
+            Тело запроса на добавление инструмента в белый список.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.Controllers.WhitelistRequest.ToolName">
+            <summary>
+            Имя инструмента.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.ApprovalsController">
+            <summary>
+            API управления запросами на подтверждение действий.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ApprovalsController.#ctor(IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.ApprovalsController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.ApprovalsController})">
+            <summary>
+            Создаёт экземпляр контроллера.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ApprovalsController.GetPendingAsync">
+            <summary>
+            Возвращает список ожидающих действий текущего пользователя.
+            </summary>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ApprovalsController.ApproveAsync(System.Int32)">
+            <summary>
+            Подтверждает действие.
+            </summary>
+            <param name="id">Идентификатор действия</param>
+            <returns>JSON { success, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ApprovalsController.RejectAsync(System.Int32,IIChatTools.API.Controllers.RejectRequest)">
+            <summary>
+            Отклоняет действие.
+            </summary>
+            <param name="id">Идентификатор действия</param>
+            <param name="request">Тело запроса с причиной</param>
+            <returns>JSON { success, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ApprovalsController.GetCurrentUserId">
+            <summary>
+            Извлекает идентификатор текущего пользователя из claims.
+            </summary>
+            <returns>Идентификатор пользователя</returns>
+            <exception cref="T:System.UnauthorizedAccessException">Если пользователь не аутентифицирован</exception>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.RejectRequest">
+            <summary>
+            Тело запроса отклонения действия.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.Controllers.RejectRequest.Reason">
+            <summary>
+            Причина отклонения.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.AuthController">
+            <summary>
+            Контроллер аутентификации: регистрация, вход, выход, выдача JWT.
+            Первый зарегистрированный пользователь получает роль Admin.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AuthController.#ctor(Microsoft.AspNetCore.Identity.UserManager{IIChatTools.Data.Entities.ApplicationUser},Microsoft.AspNetCore.Identity.SignInManager{IIChatTools.Data.Entities.ApplicationUser},IIChatTools.Services.Interfaces.IJwtService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.AuthController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.AuthController})">
+            <summary>
+            Создаёт экземпляр контроллера.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AuthController.Login(System.String)">
+            <summary>
+            Отображает страницу входа.
+            </summary>
+            <param name="returnUrl">URL возврата после входа</param>
+            <returns>Razor-представление</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AuthController.LoginAsync(IIChatTools.API.ViewModels.LoginViewModel,System.String)">
+            <summary>
+            Обрабатывает POST-запрос на вход.
+            </summary>
+            <param name="model">Данные входа</param>
+            <param name="returnUrl">URL возврата</param>
+            <returns>Редирект или представление с ошибками</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AuthController.Register">
+            <summary>
+            Отображает страницу регистрации.
+            </summary>
+            <returns>Razor-представление</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AuthController.RegisterAsync(IIChatTools.API.ViewModels.RegisterViewModel)">
+            <summary>
+            Обрабатывает POST-запрос регистрации.
+            Первый зарегистрированный пользователь получает роль Admin.
+            </summary>
+            <param name="model">Данные регистрации</param>
+            <returns>Редирект при успехе или представление с ошибками</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AuthController.LogoutAsync">
+            <summary>
+            Выполняет выход из системы.
+            </summary>
+            <returns>Редирект на главную</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.AuthController.TokenAsync(IIChatTools.API.ViewModels.LoginViewModel)">
+            <summary>
+            Выдаёт JWT-токен для API-клиента.
+            </summary>
+            <param name="model">Данные входа</param>
+            <returns>JSON с токеном или ошибкой</returns>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.HomeController">
+            <summary>
+            Контроллер Razor-страниц административного интерфейса.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.HomeController.#ctor(IIChatTools.Services.Interfaces.IStatusService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.HomeController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.HomeController})">
+            <summary>
+            Создаёт экземпляр контроллера.
+            </summary>
+            <param name="statusService">Сервис статистики</param>
+            <param name="logger">Логгер</param>
+            <param name="localizer">Локализатор</param>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.HomeController.Index">
+            <summary>
+            Главная страница админки.
+            </summary>
+            <returns>Razor-представление</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.HomeController.Status">
+            <summary>
+            Страница статуса системы и статистики.
+            </summary>
+            <returns>Razor-представление</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.HomeController.Admin">
+            <summary>
+            Страница администрирования (только для роли Admin).
+            </summary>
+            <returns>Razor-представление</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.HomeController.Test">
+            <summary>
+            Страница тестирования инструментов (только для Admin).
+            </summary>
+            <returns>Razor-представление</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.HomeController.Error">
+            <summary>
+            Страница ошибки.
+            </summary>
+            <returns>Razor-представление</returns>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.StatusController">
+            <summary>
+            API статуса и статистики. Используется для polling со страницы статуса.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.StatusController.#ctor(IIChatTools.Services.Interfaces.IStatusService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.StatusController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.StatusController})">
+            <summary>
+            Создаёт экземпляр контроллера.
+            </summary>
+            <param name="statusService">Сервис статистики</param>
+            <param name="logger">Логгер</param>
+            <param name="localizer">Локализатор</param>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.StatusController.GetSnapshotAsync">
+            <summary>
+            Возвращает снимок состояния системы.
+            </summary>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="T:IIChatTools.API.Controllers.ToolsController">
+            <summary>
+            API-контроллер для вызова инструментов LLM.
+            Интегрирован с системой подтверждения действий.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ToolsController.#ctor(IIChatTools.Services.Interfaces.IToolRegistry,IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,IIChatTools.Services.Interfaces.IWorkspaceResolver,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.ToolsController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.ToolsController})">
+            <summary>
+            Создаёт экземпляр контроллера.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ToolsController.GetAllTools">
+            <summary>
+            Возвращает список доступных инструментов с описаниями.
+            </summary>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ToolsController.GetTool(System.String)">
+            <summary>
+            Возвращает описание конкретного инструмента.
+            </summary>
+            <param name="name">Имя инструмента</param>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ToolsController.ExecuteAsync(IIChatTools.API.DTO.ExecuteToolRequest)">
+            <summary>
+            Выполняет инструмент с учётом системы подтверждения.
+            </summary>
+            <param name="request">Запрос на выполнение</param>
+            <returns>JSON { success, data, message }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ToolsController.GetExecutionStatusAsync(System.Int32)">
+            <summary>
+            Возвращает статус запроса на подтверждение (для polling).
+            </summary>
+            <param name="actionId">Идентификатор действия</param>
+            <returns>JSON { success, data }</returns>
+        </member>
+        <member name="M:IIChatTools.API.Controllers.ToolsController.GetCurrentUserId">
+            <summary>
+            Извлекает идентификатор текущего пользователя из claims.
+            </summary>
+            <returns>Идентификатор пользователя</returns>
+            <exception cref="T:System.UnauthorizedAccessException">Если пользователь не аутентифицирован</exception>
+        </member>
+        <member name="T:IIChatTools.API.DTO.ExecuteToolRequest">
+            <summary>
+            Тело запроса на выполнение инструмента.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.DTO.ExecuteToolRequest.ToolName">
+            <summary>
+            Имя инструмента.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.DTO.ExecuteToolRequest.Arguments">
+            <summary>
+            Аргументы вызова (объект JSON).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.DTO.ExecuteToolRequest.ApprovalId">
+            <summary>
+            Идентификатор ранее подтверждённого действия (если требуется подтверждение).
+            </summary>
+        </member>
+        <member name="T:IIChatTools.API.Program">
+            <summary>
+            Точка входа в приложение IIChatTools.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Program.Main(System.String[])">
+            <summary>
+            Запускает приложение: проверяет зависимости, применяет миграции,
+            инициализирует роли и синхронизирует настройки.
+            </summary>
+            <param name="args">Аргументы командной строки</param>
+            <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.API.Program.CreateHostBuilder(System.String[])">
+            <summary>
+            Создаёт построитель хоста с настройками по умолчанию.
+            </summary>
+            <param name="args">Аргументы командной строки</param>
+            <returns>Построитель хоста</returns>
+        </member>
+        <member name="M:IIChatTools.API.Program.InitializeApplicationAsync(Microsoft.Extensions.Hosting.IHost)">
+            <summary>
+            Выполняет инициализацию приложения перед запуском web-сервера.
+            </summary>
+            <param name="host">Хост приложения</param>
+            <returns>Асинхронная задача</returns>
+            <exception cref="T:System.ArgumentNullException">Если host равен null</exception>
+        </member>
+        <member name="T:IIChatTools.API.Resources.SharedResources">
+            <summary>
+            Маркерный класс для ресурсов локализации интерфейса.
+            Используется совместно с SharedResources.resx и SharedResources.ru.resx.
+            </summary>
+        </member>
+        <member name="T:IIChatTools.API.Startup">
+            <summary>
+            Конфигурация приложения: сервисы (DI) и middleware-конвейер.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Startup.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Создаёт экземпляр конфигурации.
+            </summary>
+            <param name="configuration">Конфигурация приложения</param>
+            <exception cref="T:System.ArgumentNullException">Если configuration равен null</exception>
+        </member>
+        <member name="P:IIChatTools.API.Startup.Configuration">
+            <summary>
+            Конфигурация приложения.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Startup.ConfigureServices(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрация всех сервисов приложения в контейнере DI.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+            <exception cref="T:System.ArgumentNullException">Если services равен null</exception>
+        </member>
+        <member name="M:IIChatTools.API.Startup.Configure(Microsoft.AspNetCore.Builder.IApplicationBuilder,Microsoft.AspNetCore.Hosting.IWebHostEnvironment)">
+            <summary>
+            Конфигурация middleware-конвейера.
+            </summary>
+            <param name="app">Построитель приложения</param>
+            <param name="env">Окружение хостинга</param>
+            <exception cref="T:System.ArgumentNullException">Если app или env равны null</exception>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterFileSystemTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует инструменты файловой системы.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterCodeExecutionTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует инструменты выполнения кода.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterWebTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует веб-инструменты.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterGitTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует Git-инструменты.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterGitHubTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует GitHub-инструменты.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterBrowserTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует браузерные инструменты.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterUtilityTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует утилитарные инструменты.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="M:IIChatTools.API.Startup.RegisterSubAgentTools(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Регистрирует инструмент делегирования суб-агенту.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+        </member>
+        <member name="T:IIChatTools.API.ViewModels.LoginViewModel">
+            <summary>
+            Модель представления для входа в систему.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.ViewModels.LoginViewModel.Email">
+            <summary>
+            Электронная почта (логин).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.ViewModels.LoginViewModel.Password">
+            <summary>
+            Пароль.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.ViewModels.LoginViewModel.RememberMe">
+            <summary>
+            Флаг «запомнить меня».
+            </summary>
+        </member>
+        <member name="T:IIChatTools.API.ViewModels.RegisterViewModel">
+            <summary>
+            Модель представления для регистрации пользователя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.ViewModels.RegisterViewModel.Email">
+            <summary>
+            Электронная почта пользователя (используется как логин).
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.ViewModels.RegisterViewModel.FullName">
+            <summary>
+            Полное имя пользователя.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.ViewModels.RegisterViewModel.Password">
+            <summary>
+            Пароль.
+            </summary>
+        </member>
+        <member name="P:IIChatTools.API.ViewModels.RegisterViewModel.ConfirmPassword">
+            <summary>
+            Подтверждение пароля.
+            </summary>
+        </member>
+    </members>
+</doc>
