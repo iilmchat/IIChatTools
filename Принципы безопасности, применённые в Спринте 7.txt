@@ -1,0 +1,17 @@
+📌 Принципы безопасности, применённые в блоке
+Единая точка запуска CLI — все Git-команды идут через BaseGitTool.RunGitAsync, все GitHub-команды — через BaseGhTool.RunGhAsync. Это гарантирует корректное экранирование (через ArgumentList в ProcessRunner) и единые лимиты.
+
+Проверка наличия CLI — git --version и gh --version перед любой командой. При отсутствии возвращается понятная ошибка.
+
+Проверка наличия репозитория — EnsureGitAvailableAsync проверяет наличие каталога .git.
+
+Валидация ref/веток/remote — метод IsValidRef/IsValidName отсекает значения с ведущим - (защита от инъекций опций) и недопустимыми символами.
+
+Все пути проходят через PathHelper.TryGetSafeFullPath перед добавлением в аргументы git.
+
+Ограничения на размеры: сообщение коммита ≤ 4000, тело issue/PR ≤ 60 000, заголовок ≤ 500, метка ≤ 100.
+
+Таймауты — из Security:GitTimeoutSeconds (по умолчанию 60) и Security:GhTimeoutSeconds (по умолчанию 90).
+
+Подтверждение по умолчанию: все операции, изменяющие состояние (git_add, git_commit, git_checkout, git_push, gh_create_issue, gh_create_pr), требуют подтверждения. Информационные (git_status, git_diff, git_log, gh_auth_status, gh_list_issues, gh_list_prs, gh_view_comments, gh_view_pr_diff) — не требуют.
+

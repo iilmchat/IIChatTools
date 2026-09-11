@@ -17,6 +17,8 @@ using IIChatTools.Services.Implementation.Tools.FileSystem;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.Web;
 using IIChatTools.Services.Implementation.Tools.Utils;
+using IIChatTools.Services.Implementation.Tools.Git;
+using IIChatTools.Services.Implementation.Tools.GitHub;
 
 namespace IIChatTools.API
 {
@@ -154,6 +156,24 @@ namespace IIChatTools.API
             // Утилитарные инструменты
             services.AddScoped<ITool, GetSystemInfoTool>();
             services.AddScoped<ITool, SaveMemoryTool>();
+
+            // Git-инструменты
+            services.AddScoped<ITool, GitStatusTool>();
+            services.AddScoped<ITool, GitDiffTool>();
+            services.AddScoped<ITool, GitLogTool>();
+            services.AddScoped<ITool, GitAddTool>();
+            services.AddScoped<ITool, GitCommitTool>();
+            services.AddScoped<ITool, GitCheckoutTool>();
+            services.AddScoped<ITool, GitPushTool>();
+
+            // GitHub-инструменты
+            services.AddScoped<ITool, GhAuthStatusTool>();
+            services.AddScoped<ITool, GhCreateIssueTool>();
+            services.AddScoped<ITool, GhListIssuesTool>();
+            services.AddScoped<ITool, GhViewCommentsTool>();
+            services.AddScoped<ITool, GhCreatePrTool>();
+            services.AddScoped<ITool, GhListPrsTool>();
+            services.AddScoped<ITool, GhViewPrDiffTool>();
 
             // 6. Политики авторизации
             services.AddAuthorization(options =>
