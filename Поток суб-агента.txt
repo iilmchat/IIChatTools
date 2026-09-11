@@ -1,0 +1,26 @@
+Главный LLM → consult_secondary_agent(task, maxSteps, autoDebug)
+       │
+       ▼
+   ConsultSecondaryAgentTool
+       │
+       ▼
+   SubAgentService.ExecuteTaskAsync
+       │
+       ├─► 1. Создать AgentState в БД (CurrentStep = 0)
+       │
+       ├─► 2. Сформировать system + user messages
+       │
+       ├─► 3. Список tools без consult_secondary_agent
+       │
+       ├─► 4. Цикл до maxSteps:
+       │       ├─ POST LM Studio /v1/chat/completions
+       │       ├─ Если tool_calls → выполнить каждый через ToolRegistry
+       │       │   (с той же проверкой approval и безопасности)
+       │       ├─ Обновить AgentState.CurrentStep
+       │       └─ Если финальный текст → break
+       │
+       ├─► 5. Если autoDebug → RunReviewerAsync (агент-рецензент)
+       │
+       ├─► 6. Сохранить снимок в AgentState.CodeSnapshotJson
+       │
+       └─► 7. Вернуть SubAgentTaskResult главному агенту
