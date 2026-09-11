@@ -94,7 +94,7 @@
   <data name="Последние действия" xml:space="preserve"><value>Recent Actions</value></data>
   <data name="Инструмент" xml:space="preserve"><value>Tool</value></data>
   <data name="Длительность" xml:space="preserve"><value>Duration</value></data>
-  <data name="Пользователь" xml:space="preserve"><value>User</value></data>
+  <!--<data name="Пользователь" xml:space="preserve"><value>User</value></data>-->
   <data name="Подключение к БД" xml:space="preserve"><value>Database Connection</value></data>
   <data name="Онлайн" xml:space="preserve"><value>Online</value></data>
   <data name="Оффлайн" xml:space="preserve"><value>Offline</value></data>

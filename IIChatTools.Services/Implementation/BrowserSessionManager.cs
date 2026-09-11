@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,7 +25,8 @@ namespace IIChatTools.Services.Implementation
         private readonly ILogger<BrowserSessionManager> _logger;
 
         // _browser инициализируется лениво — при первом открытии сессии
-        private IBrowser _browser;
+        //private Browser _browser;
+        private PuppeteerSharp.Browser _browser;
         private readonly SemaphoreSlim _browserInitLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _sessionLock = new SemaphoreSlim(1, 1);
 
@@ -187,7 +188,8 @@ namespace IIChatTools.Services.Implementation
                     return;
 
                 _logger.LogInformation("Инициализация PuppeteerSharp...");
-                await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
+                //await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
+                await new BrowserFetcher().DownloadAsync();
 
                 _browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
@@ -274,7 +276,7 @@ namespace IIChatTools.Services.Implementation
         /// </summary>
         /// <param name="page">Страница</param>
         /// <returns>Заголовок или null</returns>
-        private static async Task<string> SafeGetTitleAsync(IPage page)
+        private static async Task<string> SafeGetTitleAsync(Page page)
         {
             try
             {
@@ -530,7 +532,7 @@ namespace IIChatTools.Services.Implementation
         {
             public string SessionId { get; set; }
             public int UserId { get; set; }
-            public IPage Page { get; set; }
+            public Page Page { get; set; }
             public DateTime CreatedAtUtc { get; set; }
             public DateTime LastActivityUtc { get; set; }
         }

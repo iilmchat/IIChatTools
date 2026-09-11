@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
+using IIChatTools.Services.Extensions;
 
 namespace IIChatTools.Services.Implementation
 {
@@ -113,7 +114,8 @@ namespace IIChatTools.Services.Implementation
                     try
                     {
                         if (!process.HasExited)
-                            process.Kill(entireProcessTree: true);
+                            //process.Kill(entireProcessTree: true);
+                            process.KillSafe();
                     }
                     catch (Exception killEx)
                     {

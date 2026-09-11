@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.Extensions;
 using IIChatTools.Services.Interfaces;
 using Newtonsoft.Json.Linq;
 
