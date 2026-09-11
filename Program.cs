@@ -51,6 +51,12 @@ namespace IIChatTools.API
                     logger.LogInformation(
                         "Начальные данные инициализированы. Версия: {Version}",
                         AppVersion.Current);
+
+                    // Синхронизация настроек из appsettings.json в БД
+                    var settingsService = services.GetRequiredService<IAppSettingsService>();
+                    var syncedCount = await settingsService.SyncDefaultsFromConfigurationAsync();
+                    logger.LogInformation("Синхронизировано настроек по умолчанию: {Count}", syncedCount);                        
+                    
                 }
                 catch (Exception ex)
                 {
