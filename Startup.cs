@@ -19,6 +19,7 @@ using IIChatTools.Services.Implementation.Tools.Web;
 using IIChatTools.Services.Implementation.Tools.Utils;
 using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
+using IIChatTools.Services.Implementation.Tools.Browser;
 
 namespace IIChatTools.API
 {
@@ -174,6 +175,15 @@ namespace IIChatTools.API
             services.AddScoped<ITool, GhCreatePrTool>();
             services.AddScoped<ITool, GhListPrsTool>();
             services.AddScoped<ITool, GhViewPrDiffTool>();
+
+            // Менеджер браузерных сессий — singleton
+            services.AddSingleton<IBrowserSessionManager, BrowserSessionManager>();
+
+            // Инструменты браузерной автоматизации
+            services.AddScoped<ITool, BrowserSessionOpenTool>();
+            services.AddScoped<ITool, BrowserSessionControlTool>();
+            services.AddScoped<ITool, BrowserSessionCloseTool>();
+            services.AddScoped<ITool, BrowserOpenPageTool>();
 
             // 6. Политики авторизации
             services.AddAuthorization(options =>

@@ -1,0 +1,28 @@
+7. Особенности работы с PuppeteerSharp 2.0.4
+Момент	Пояснение
+Первый запуск	BrowserFetcher().DownloadAsync() скачивает совместимый Chromium в локальную папку %LOCALAPPDATA%\.local-chromium. Требуется ~200 МБ свободного места и доступ к сети.
+BrowserFetcher.DefaultRevision	Используйте его — он соответствует версии PuppeteerSharp. Хардкодить номер не нужно.
+page.DefaultTimeout	Значение в миллисекундах, не в секундах.
+WaitForExitAsync на Process	В ProcessRunner используем .NET Core 3.1 метод WaitForExitAsync (появился в .NET Core 3.0). Для ранних версий нужен TaskCompletionSource.
+Параллельные вызовы	BrowserSessionManager использует SemaphoreSlim для инициализации браузера и ConcurrentDictionary для сессий. Безопасен при параллельных запросах.
+Освобождение ресурсов	DisposeAsync() закрывает все страницы и сам браузер. Регистрируется автоматически через DI при graceful shutdown.
+--no-sandbox	Обязателен при запуске под Windows без прав администратора и в контейнерах.
+TTL сессий	Каждую минуту CleanupExpiredAsync закрывает сессии, неактивные дольше BrowserSessionTtlMinutes.
+8. Безопасность блока
+URL-валидация — только http:// и https://, никаких file://, ftp://, data:.
+
+Проверка владельца сессии — каждый вызов GetInfoAsync/CloseAsync/ExecuteCommandAsync сверяет UserId.
+
+Ограничение числа сессий — MaxBrowserSessionsPerUser (по умолчанию 3).
+
+TTL сессий — авто-закрытие через BrowserSessionTtlMinutes (по умолчанию 15).
+
+Таймауты операций — timeoutMs в контроле, BrowserPageTimeoutSeconds для навигации.
+
+Ограничение размера ответов — get_content обрезает HTML до 200 000 символов, browser_open_page — текст до 50 000.
+
+Toggle — Security:EnableBrowserAutomation = false полностью отключает группу.
+
+Только headless-режим по умолчанию (BrowserHeadless: true) — без GUI, что снижает риск случайного взаимодействия с рабочим столом.
+
+Escape — PuppeteerSharp сам корректно передаёт селекторы/скрипты; дополнительно ограничен размер JS-скрипта (20 000 символов).
