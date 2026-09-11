@@ -840,10 +840,53 @@
             Внутренний контейнер сессии.
             </summary>
         </member>
+        <member name="T:IIChatTools.Services.Implementation.CompositeAuditService">
+            <summary>
+            Композитный сервис аудита: пишет в БД и/или в файл в зависимости от конфигурации.
+            Управляется флагами Audit:ToDatabase и Audit:ToFile.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.CompositeAuditService.#ctor(IIChatTools.Data.AppDbContext,IIChatTools.Services.Interfaces.IFileAuditService,Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.CompositeAuditService})">
+            <summary>
+            Создаёт композитный сервис аудита.
+            </summary>
+            <param name="dbContext">Контекст БД</param>
+            <param name="fileAuditService">Файловый аудит</param>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.CompositeAuditService.LogActionAsync(IIChatTools.Data.Entities.AuditLog)">
+            <inheritdoc />
+        </member>
         <member name="T:IIChatTools.Services.Implementation.DependencyChecker">
             <summary>
             Реализация проверки внешних зависимостей
             </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Implementation.FileAuditService">
+            <summary>
+            Реализация файлового аудита с записью в JSONL-файл и ротацией по дням.
+            Формат файла: logs/audit/audit-YYYY-MM-DD.jsonl
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.FileAuditService.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.FileAuditService})">
+            <summary>
+            Создаёт сервис файлового аудита.
+            </summary>
+            <param name="configuration">Конфигурация</param>
+            <param name="logger">Логгер</param>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.FileAuditService.WriteAsync(IIChatTools.Data.Entities.AuditLog)">
+            <inheritdoc />
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.FileAuditService.BuildFilePath(System.DateTime)">
+            <summary>
+            Формирует путь к файлу аудита на указанную дату.
+            </summary>
+            <param name="utcDate">Дата (UTC)</param>
+            <returns>Полный путь к файлу</returns>
         </member>
         <member name="T:IIChatTools.Services.Implementation.JwtService">
             <summary>
@@ -2126,13 +2169,15 @@
         <member name="T:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool">
             <summary>
             Инструмент: делегирование задачи суб-агенту.
+            Использует фабрику ISubAgentService, чтобы разорвать циклическую зависимость
+            между ToolRegistry и SubAgentService.
             </summary>
         </member>
-        <member name="M:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.#ctor(IIChatTools.Services.Interfaces.ISubAgentService,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool})">
+        <member name="M:IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool.#ctor(System.Func{IIChatTools.Services.Interfaces.ISubAgentService},Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.SubAgent.ConsultSecondaryAgentTool})">
             <summary>
             Создаёт инструмент.
             </summary>
-            <param name="subAgentService">Сервис суб-агента</param>
+            <param name="subAgentFactory">Фабрика сервиса суб-агента (ленивая)</param>
             <param name="logger">Логгер</param>
             <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
         </member>
@@ -2560,6 +2605,19 @@
             <summary>
             Проверяет, установлен ли Node.js
             </summary>
+        </member>
+        <member name="T:IIChatTools.Services.Interfaces.IFileAuditService">
+            <summary>
+            Сервис файлового логирования аудита (JSONL-формат с ротацией по дням).
+            Используется, когда БД недоступна или требуется независимый журнал.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Interfaces.IFileAuditService.WriteAsync(IIChatTools.Data.Entities.AuditLog)">
+            <summary>
+            Записывает запись аудита в файл.
+            </summary>
+            <param name="entry">Запись аудита</param>
+            <returns>Асинхронная задача</returns>
         </member>
         <member name="T:IIChatTools.Services.Interfaces.IJwtService">
             <summary>

@@ -21,6 +21,7 @@ using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.SubAgent;
+using IIChatTools.API.Extensions;
 
 namespace IIChatTools.API
 {
@@ -53,9 +54,14 @@ namespace IIChatTools.API
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
 
+            /*
             // 1. Контекст БД
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+            */
+            
+            // ============ 1. База данных ============
+            services.AddAppDbContext(Configuration);
 
             // 2. Identity (регистрирует cookie-схему Identity.Application по умолчанию)
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>

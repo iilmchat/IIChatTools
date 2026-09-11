@@ -11,6 +11,7 @@ using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.Tools.SubAgent;
 using IIChatTools.Services.Implementation.Tools.Utils;
 using IIChatTools.Services.Implementation.Tools.Web;
+using IIChatTools.API.Extensions;
 using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -54,9 +55,14 @@ namespace IIChatTools.API
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
 
+            /*
             // ============ 1. База данных ============
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+            */
+
+            // ============ 1. База данных ============
+            services.AddAppDbContext(Configuration);
 
             // ============ 2. Identity ============
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
@@ -110,6 +116,14 @@ namespace IIChatTools.API
             // ============ 6. Инфраструктурные сервисы ============
             services.AddSingleton<AppUptimeTracker>();
             services.AddScoped<IDependencyChecker, DependencyChecker>();
+
+            services.AddSingleton<IFileAuditService, FileAuditService>();
+            services.AddScoped<IAuditService, CompositeAuditService>();
+
+            services.AddScoped<IAuditQueryService, AuditQueryService>();
+            services.AddScoped<IApprovalService, ApprovalService>();
+            services.AddSingleton<AppUptimeTracker>();
+            services.AddScoped<IDependencyChecker, DependencyChecker>();
             services.AddScoped<IAuditService, AuditService>();
             services.AddScoped<IAuditQueryService, AuditQueryService>();
             services.AddScoped<IApprovalService, ApprovalService>();
@@ -123,9 +137,18 @@ namespace IIChatTools.API
             // ============ 7. Реестр инструментов ============
             services.AddScoped<IToolRegistry, ToolRegistry>();
 
+            /*
             // ============ 8. Клиент LM Studio и суб-агент ============
             services.AddScoped<ILmStudioClient, LmStudioClient>();
             services.AddScoped<ISubAgentService, SubAgentService>();
+            */
+            // ============ 8. Клиент LM Studio и суб-агент ============
+            services.AddScoped<ILmStudioClient, LmStudioClient>();
+            services.AddScoped<ISubAgentService, SubAgentService>();
+
+            // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
+            services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
+
 
             // ============ 9. Менеджер браузерных сессий (singleton) ============
             services.AddSingleton<IBrowserSessionManager, BrowserSessionManager>();

@@ -12,23 +12,25 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
 {
     /// <summary>
     /// Инструмент: делегирование задачи суб-агенту.
+    /// Использует фабрику ISubAgentService, чтобы разорвать циклическую зависимость
+    /// между ToolRegistry и SubAgentService.
     /// </summary>
     public class ConsultSecondaryAgentTool : ITool
     {
-        private readonly ISubAgentService _subAgentService;
+        private readonly Func<ISubAgentService> _subAgentFactory;
         private readonly ILogger<ConsultSecondaryAgentTool> _logger;
 
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
-        /// <param name="subAgentService">Сервис суб-агента</param>
+        /// <param name="subAgentFactory">Фабрика сервиса суб-агента (ленивая)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ConsultSecondaryAgentTool(
-            ISubAgentService subAgentService,
+            Func<ISubAgentService> subAgentFactory,
             ILogger<ConsultSecondaryAgentTool> logger)
         {
-            _subAgentService = subAgentService ?? throw new ArgumentNullException(nameof(subAgentService));
+            _subAgentFactory = subAgentFactory ?? throw new ArgumentNullException(nameof(subAgentFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -107,7 +109,9 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
                     AutoDebug = autoDebug
                 };
 
-                var result = await _subAgentService.ExecuteTaskAsync(context, request);
+                // Ленивое создание сервиса суб-агента — разрывает DI-цикл
+                var subAgent = _subAgentFactory();
+                var result = await subAgent.ExecuteTaskAsync(context, request);
 
                 return ToolResult.Ok(new
                 {

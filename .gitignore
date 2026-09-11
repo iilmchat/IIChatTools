@@ -1,0 +1,116 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Build artifacts
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+## .NET Core 3.1 specific
+# Восстановление NuGet
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Публикация
+**/[Pp]ublish/
+**/publish/
+
+# dotnet CLI
+project.lock.json
+*.deps.json
+*.runtimeconfig.json
+
+## Rider
+.idea/
+*.sln.iml
+
+## ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+TestResult.xml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+## NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+## Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+## Databases
+*.mdf
+*.ldf
+*.ndf
+*.sqlite
+*.db
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+## Secrets / config
+appsettings.Development.json
+appsettings.Local.json
+*.secret
+.env
+secrets.json
+
+## Azure / Publish profiles
+*.pubxml
+*.publishproj
+PublishProfiles/
+
+## Misc
+*.tmp
+*.cache
+*.bak
+*.orig
+*.swp
+*~

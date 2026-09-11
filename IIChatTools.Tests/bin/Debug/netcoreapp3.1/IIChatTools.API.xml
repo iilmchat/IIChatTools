@@ -422,9 +422,35 @@
             Идентификатор ранее подтверждённого действия (если требуется подтверждение).
             </summary>
         </member>
+        <member name="T:IIChatTools.API.Extensions.DbContextOptionsExtensions">
+            <summary>
+            Расширения для выбора провайдера БД на основе конфигурации.
+            Поддерживаются три режима: SqlServer, Sqlite, InMemory.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.API.Extensions.DbContextOptionsExtensions.AddAppDbContext(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Регистрирует AppDbContext с провайдером, выбранным в конфигурации.
+            </summary>
+            <param name="services">Коллекция сервисов</param>
+            <param name="configuration">Конфигурация</param>
+            <returns>Коллекция сервисов</returns>
+            <exception cref="T:System.ArgumentNullException">Если один из параметров равен null</exception>
+            <exception cref="T:System.InvalidOperationException">Если провайдер не поддерживается</exception>
+        </member>
+        <member name="M:IIChatTools.API.Extensions.DbContextOptionsExtensions.ShouldApplyMigrations(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Возвращает признак того, что провайдер поддерживает миграции EF Core.
+            Для InMemory миграции не применяются.
+            </summary>
+            <param name="configuration">Конфигурация</param>
+            <returns>true — если нужно применять миграции</returns>
+        </member>
         <member name="T:IIChatTools.API.Program">
             <summary>
             Точка входа в приложение IIChatTools.
+            Выполняет инициализацию (проверка зависимостей, подготовка БД, seed, синхронизация настроек)
+            и запускает web-хост.
             </summary>
         </member>
         <member name="M:IIChatTools.API.Program.Main(System.String[])">
@@ -437,14 +463,18 @@
         </member>
         <member name="M:IIChatTools.API.Program.CreateHostBuilder(System.String[])">
             <summary>
-            Создаёт построитель хоста с настройками по умолчанию.
+            Создаёт построитель хоста с настройками логирования и Startup.
             </summary>
             <param name="args">Аргументы командной строки</param>
             <returns>Построитель хоста</returns>
         </member>
         <member name="M:IIChatTools.API.Program.InitializeApplicationAsync(Microsoft.Extensions.Hosting.IHost)">
             <summary>
-            Выполняет инициализацию приложения перед запуском web-сервера.
+            Выполняет инициализацию приложения до старта web-сервера:
+            1) проверка внешних зависимостей;
+            2) подготовка БД (миграции или EnsureCreated в зависимости от провайдера);
+            3) создание ролей Admin/User;
+            4) синхронизация настроек из appsettings.json в БД.
             </summary>
             <param name="host">Хост приложения</param>
             <returns>Асинхронная задача</returns>
