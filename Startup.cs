@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using IIChatTools.Services.Implementation.Tools.FileSystem;
 
 namespace IIChatTools.API
 {
@@ -106,6 +107,28 @@ namespace IIChatTools.API
             services.AddScoped<IJwtService, JwtService>();
             // Регистрация IToolRegistry будет добавлена после реализации класса ToolRegistry
             // services.AddScoped<IToolRegistry, ToolRegistry>();
+
+
+            // Резолвер рабочего пространства
+            services.AddScoped<IWorkspaceResolver, WorkspaceResolver>();
+
+            // Реестр инструментов
+            services.AddScoped<IToolRegistry, ToolRegistry>();
+
+            // Регистрация инструментов файловой системы
+            services.AddScoped<ITool, ListDirectoryTool>();
+            services.AddScoped<ITool, ChangeDirectoryTool>();
+            services.AddScoped<ITool, MakeDirectoryTool>();
+            services.AddScoped<ITool, ReadFileTool>();
+            services.AddScoped<ITool, SaveFileTool>();
+            services.AddScoped<ITool, DeletePathTool>();
+            services.AddScoped<ITool, ReplaceTextInFileTool>();
+            services.AddScoped<ITool, DeleteFilesByPatternTool>();
+            services.AddScoped<ITool, MoveFileTool>();
+            services.AddScoped<ITool, CopyFileTool>();
+            services.AddScoped<ITool, FindFilesTool>();
+            services.AddScoped<ITool, GetFileMetadataTool>();
+            services.AddScoped<ITool, FuzzyFindLocalFilesTool>();
 
             // 6. Политики авторизации
             services.AddAuthorization(options =>
