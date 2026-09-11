@@ -14,6 +14,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
+using IIChatTools.Services.Implementation.Tools.CodeExecution;
+using IIChatTools.Services.Implementation.Tools.Web;
+using IIChatTools.Services.Implementation.Tools.Utils;
 
 namespace IIChatTools.API
 {
@@ -134,6 +137,23 @@ namespace IIChatTools.API
             services.AddScoped<IAppSettingsService, AppSettingsService>();
             services.AddScoped<IUserAdminService, UserAdminService>();
             services.AddScoped<IAuditQueryService, AuditQueryService>();
+
+            // Исполнитель процессов
+            services.AddSingleton<IProcessRunner, ProcessRunner>();
+
+            // Инструменты выполнения кода
+            services.AddScoped<ITool, RunJavaScriptTool>();
+            services.AddScoped<ITool, RunPythonTool>();
+            services.AddScoped<ITool, ExecuteCommandTool>();
+
+            // Веб-инструменты
+            services.AddScoped<ITool, WebSearchTool>();
+            services.AddScoped<ITool, WikipediaSearchTool>();
+            services.AddScoped<ITool, FetchWebContentTool>();
+
+            // Утилитарные инструменты
+            services.AddScoped<ITool, GetSystemInfoTool>();
+            services.AddScoped<ITool, SaveMemoryTool>();
 
             // 6. Политики авторизации
             services.AddAuthorization(options =>

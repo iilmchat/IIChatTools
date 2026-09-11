@@ -1,0 +1,134 @@
+IIChatTools.sln
+├── Directory.Build.props                         ← Общие свойства MSBuild, версии пакетов
+├── global.json                                    ← Фиксация версии SDK (3.1.201)
+├── NuGet.Config                                   ← Источники пакетов (если требуется)
+│
+├── IIChatTools.Data/                              ← Слой данных (netstandard2.1)
+│   ├── IIChatTools.Data.csproj
+│   ├── AppDbContext.cs                            ← EF Core контекст + Identity
+│   ├── SeedData.cs                                ← Создание ролей Admin/User
+│   ├── Entities/
+│   │   ├── BaseEntity.cs                          ← Базовые поля: Id, CreatedAt, UpdatedAt
+│   │   ├── ApplicationUser.cs                     ← Пользователь (IdentityUser<int>)
+│   │   ├── AuditLog.cs                            ← Журнал аудита действий
+│   │   ├── AppSetting.cs                          ← Настройка (ключ-значение) в БД
+│   │   ├── PendingAction.cs                       ← Действие, ожидающее подтверждения
+│   │   ├── AgentState.cs                          ← Состояние сессии суб-агента
+│   │   └── MemoryEntry.cs                         ← Долговременная память пользователя
+│   └── Migrations/                                ← EF Core миграции (Code First)
+│
+├── IIChatTools.Services/                          ← Слой бизнес-логики (netstandard2.1)
+│   ├── IIChatTools.Services.csproj
+│   ├── DTO/
+│   │   ├── ToolResult.cs                          ← Результат выполнения инструмента
+│   │   ├── ToolDescriptor.cs                      ← Описание инструмента для LLM
+│   │   ├── ToolParameterDescriptor.cs             ← Описание параметра инструмента
+│   │   ├── ToolExecutionContext.cs                ← Контекст вызова инструмента
+│   │   ├── StatusSnapshot.cs                      ← Снимок состояния системы
+│   │   ├── PagedResult.cs                         ← Обёртка пагинации
+│   │   └── Admin/
+│   │       ├── UserListDto.cs                     ← Пользователь в списке
+│   │       ├── UserEditDto.cs                     ← Пользователь для редактирования
+│   │       ├── SettingDto.cs                      ← Настройка приложения
+│   │       └── WhitelistEntryDto.cs               ← Запись белого списка
+│   ├── Extensions/
+│   │   └── JObjectExtensions.cs                   ← Хелперы извлечения из JObject
+│   ├── Interfaces/
+│   │   ├── ITool.cs                               ← Контракт инструмента
+│   │   ├── IToolRegistry.cs                       ← Реестр инструментов
+│   │   ├── IAuditService.cs                       ← Сервис аудита (запись)
+│   │   ├── IAuditQueryService.cs                  ← Сервис аудита (чтение)
+│   │   ├── IApprovalService.cs                    ← Сервис подтверждений
+│   │   ├── IDependencyChecker.cs                  ← Проверка внешних CLI
+│   │   ├── IJwtService.cs                         ← Генерация JWT
+│   │   ├── IStatusService.cs                      ← Сервис статистики
+│   │   ├── IWorkspaceResolver.cs                  ← Резолвер путей пользователя
+│   │   ├── IAppSettingsService.cs                 ← Сервис настроек
+│   │   └── IUserAdminService.cs                   ← Сервис администратора
+│   └── Implementation/
+│       ├── AppUptimeTracker.cs                    ← Трекер времени работы (singleton)
+│       ├── AppVersionHolder.cs                    ← Прокси версии приложения
+│       ├── AuditService.cs                        ← Запись аудита в БД
+│       ├── AuditQueryService.cs                   ← Пагинированное чтение аудита
+│       ├── ApprovalService.cs                     ← Подтверждения (создание, approve/reject)
+│       ├── DependencyChecker.cs                   ← Проверка git/gh/python/node
+│       ├── PathHelper.cs                          ← Безопасная работа с путями
+│       ├── JwtService.cs                          ← JWT-генерация
+│       ├── StatusService.cs                       ← Сбор статистики
+│       ├── WorkspaceResolver.cs                   ← Резолвер workspace пользователя
+│       ├── AppSettingsService.cs                  ← CRUD настроек
+│       ├── UserAdminService.cs                    ← CRUD пользователей
+│       ├── ToolRegistry.cs                        ← Реестр инструментов (DI-based)
+│       └── Tools/
+│           └── FileSystem/                        ← Инструменты файловой системы
+│               ├── ListDirectoryTool.cs           ← list_directory
+│               ├── ChangeDirectoryTool.cs         ← change_directory
+│               ├── MakeDirectoryTool.cs           ← make_directory
+│               ├── ReadFileTool.cs                ← read_file
+│               ├── SaveFileTool.cs                ← save_file
+│               ├── DeletePathTool.cs              ← delete_path
+│               ├── ReplaceTextInFileTool.cs       ← replace_text_in_file
+│               ├── DeleteFilesByPatternTool.cs    ← delete_files_by_pattern
+│               ├── MoveFileTool.cs                ← move_file
+│               ├── CopyFileTool.cs                ← copy_file
+│               ├── FindFilesTool.cs               ← find_files
+│               ├── GetFileMetadataTool.cs         ← get_file_metadata
+│               └── FuzzyFindLocalFilesTool.cs     ← fuzzy_find_local_files
+│
+├── IIChatTools.API/                               ← Веб-приложение (netcoreapp3.1)
+│   ├── IIChatTools.API.csproj
+│   ├── Program.cs                                 ← Точка входа: миграции, seed, проверки
+│   ├── Startup.cs                                 ← DI, MVC, Identity, JWT, локализация
+│   ├── AppVersion.cs                              ← Константы версии
+│   ├── appsettings.json                           ← Базовая конфигурация
+│   ├── appsettings.Development.json               ← Конфигурация разработки
+│   ├── Controllers/
+│   │   ├── HomeController.cs                      ← Razor: Index/Status/Admin/Test/Error
+│   │   ├── AuthController.cs                      ← Регистрация/Login/Logout/JWT
+│   │   ├── ToolsController.cs                     ← Вызов инструментов LLM
+│   │   ├── ApprovalsController.cs                 ← Pending/Approve/Reject
+│   │   ├── AdminController.cs                     ← CRUD админки
+│   │   └── StatusController.cs                    ← API статуса (polling)
+│   ├── DTO/
+│   │   └── ExecuteToolRequest.cs                  ← Тело запроса /api/tools/execute
+│   ├── ViewModels/
+│   │   ├── LoginViewModel.cs                      ← Модель входа
+│   │   └── RegisterViewModel.cs                   ← Модель регистрации
+│   ├── Resources/
+│   │   ├── SharedResources.cs                     ← Маркерный класс для IStringLocalizer
+│   │   ├── SharedResources.resx                   ← Английские строки (базовые)
+│   │   └── SharedResources.ru.resx                ← Русские строки
+│   ├── Views/
+│   │   ├── _ViewStart.cshtml                      ← Устанавливает Layout
+│   │   ├── _ViewImports.cshtml                    ← Общие using + tag helpers
+│   │   ├── Auth/
+│   │   │   ├── Login.cshtml                       ← Страница входа
+│   │   │   └── Register.cshtml                    ← Страница регистрации
+│   │   ├── Home/
+│   │   │   ├── Index.cshtml                       ← Главная (карточки)
+│   │   │   ├── Status.cshtml                      ← Статус + polling
+│   │   │   ├── Admin.cshtml                       ← Админка (4 вкладки)
+│   │   │   ├── Test.cshtml                        ← Тестер инструментов
+│   │   │   └── Error.cshtml                       ← Страница ошибки
+│   │   └── Shared/
+│   │       ├── _Layout.cshtml                     ← Общий шаблон с футером
+│   │       ├── _LoginPartial.cshtml               ← Блок логина в шапке
+│   │       ├── _ApprovalModal.cshtml              ← Модалка подтверждения
+│   │       └── _ValidationScriptsPartial.cshtml   ← jQuery validation
+│   └── wwwroot/
+│       ├── css/
+│       │   └── site.css                           ← Общие стили
+│       └── js/
+│           ├── main.js                            ← Точка входа ES-модулей
+│           └── modules/
+│               ├── api.js                         ← Fetch-обёртка
+│               ├── ui.js                          ← Toast, escapeHtml, formatUptime
+│               ├── status.js                      ← Polling статуса
+│               ├── approvals.js                   ← Модалка подтверждения
+│               ├── admin.js                       ← Логика админки
+│               └── test.js                        ← Логика тестера инструментов
+│
+└── IIChatTools.Tests/                             ← Тесты (netcoreapp3.1)
+    ├── IIChatTools.Tests.csproj
+    └── UnitTests/
+        └── LocalizationSyncTests.cs               ← Проверка синхронизации ключей

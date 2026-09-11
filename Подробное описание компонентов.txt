@@ -1,0 +1,75 @@
+🔍 Подробное описание компонентов
+Слой IIChatTools.Data
+Файл	Назначение
+AppDbContext.cs	Единый контекст EF Core. Наследует IdentityDbContext<ApplicationUser, IdentityRole<int>, int>. Содержит DbSet для аудита, настроек, подтверждений, состояний агента и памяти. Настраивает связи и уникальные индексы.
+SeedData.cs	Создаёт роли Admin и User при старте. Не создаёт первого админа автоматически — это делает AuthController при первой регистрации.
+ApplicationUser	Расширяет IdentityUser<int> полями: FullName, IsActive, RegisteredAt, навигационные свойства.
+AuditLog	Каждая запись содержит UserId, ToolName, ParametersJson, ResultJson, DurationMs, Status, ClientIp.
+AppSetting	Ключ-значение настроек с Type, Category, IsDefault. Уникальный индекс на Key.
+PendingAction	Запрос на подтверждение действия. Поля: Status (Pending/Approved/Rejected/Expired), ExpiresAt, ApprovedByUserId, RejectionReason.
+AgentState	Состояние сессии суб-агента для восстановления после перезапуска.
+MemoryEntry	Долговременная память пользователя (ключ-значение-тип).
+Слой IIChatTools.Services
+DTO — объекты передачи данных, не зависящие от EF и ASP.NET:
+
+Файл	Назначение
+ToolResult	Универсальный результат инструмента: Success, Data, Message + фабрики Ok()/Fail().
+ToolDescriptor	Описание инструмента для LLM: Name, Description, RequiresApprovalByDefault, Parameters.
+ToolParameterDescriptor	Описание отдельного параметра: Name, Type, Description, Required, Default.
+ToolExecutionContext	Контекст одного вызова: UserId, WorkspaceRoot, ClientIp, CancellationToken.
+StatusSnapshot	Снимок состояния: версия, uptime, статистика, зависимости, последние действия.
+PagedResult<T>	Обёртка постраничной выдачи: Items, Page, PageSize, TotalCount, TotalPages.
+Interfaces — контракты сервисов:
+
+Интерфейс	Назначение
+ITool	Базовый контракт инструмента: Name, Description, RequiresApprovalByDefault, Parameters, ExecuteAsync.
+IToolRegistry	Реестр инструментов: получение списка, поиск по имени, выполнение.
+IAuditService	Запись действия в журнал аудита.
+IAuditQueryService	Пагинированное чтение журнала аудита с фильтрами.
+IApprovalService	Управление запросами на подтверждение: создание, approve, reject, whitelist.
+IDependencyChecker	Проверка наличия внешних CLI (git, gh, python, node).
+IJwtService	Генерация JWT-токенов для API-клиентов.
+IStatusService	Сбор снимка состояния системы.
+IWorkspaceResolver	Возврат абсолютного пути рабочего пространства пользователя.
+IAppSettingsService	CRUD настроек приложения в БД.
+IUserAdminService	CRUD пользователей через Identity.
+Implementation — реализации:
+
+Класс	Назначение
+AppUptimeTracker	Singleton, фиксирует момент старта приложения.
+AppVersionHolder	Разрывает зависимость Services↔API для передачи версии.
+AuditService	Асинхронная запись AuditLog в БД. Не пробрасывает исключения, чтобы не срывать основной поток.
+AuditQueryService	Пагинированное чтение журнала с фильтрами по пользователю и инструменту.
+ApprovalService	Создаёт PendingAction, проверяет whitelist, обрабатывает approve/reject/expire.
+DependencyChecker	Запускает git --version, gh --version, python3 --version, node --version через ProcessStartInfo.
+PathHelper	Статический класс: TryGetSafeFullPath (защита от path traversal), ToRelative.
+JwtService	Формирует JWT на основе конфигурации.
+StatusService	Собирает статистику из БД + зависимости + последние действия.
+WorkspaceResolver	Создаёт и возвращает {Workspace:RootPath}/users/{userId}.
+AppSettingsService	CRUD + SyncDefaultsFromConfigurationAsync() + ResetToDefaultAsync().
+UserAdminService	CRUD через UserManager/RoleManager с обработкой ошибок Identity.
+ToolRegistry	Собирает все ITool из DI, строит словарь по имени, выполняет с обработкой ошибок.
+Tools/FileSystem/*	13 инструментов: list_directory, change_directory, make_directory, read_file, save_file, delete_path, replace_text_in_file, delete_files_by_pattern, move_file, copy_file, find_files, get_file_metadata, fuzzy_find_local_files.
+Слой IIChatTools.API
+Компонент	Назначение
+Program.cs	Проверяет зависимости, применяет миграции, инициализирует роли, синхронизирует настройки.
+Startup.cs	Регистрирует все сервисы, инструменты, Identity, JWT, локализацию, MVC.
+AppVersion	Константы версии, названия, copyright.
+HomeController	Отдаёт Razor-страницы /, /status, /admin, /test, /error.
+AuthController	/auth/login, /auth/register, /auth/logout, /auth/token (JWT). Первый зарегистрированный = Admin.
+ToolsController	/api/tools (список), /api/tools/{name} (описание), /api/tools/execute (вызов с approval), /api/tools/execution/{id} (polling статуса).
+ApprovalsController	/api/approvals/pending, /approve, /reject.
+AdminController	/api/admin/users, /settings, /whitelist, /audit, /roles.
+StatusController	/api/status/snapshot — для polling страницы /status.
+Слой IIChatTools.Tests
+Файл	Назначение
+LocalizationSyncTests.cs	Проверяет синхронность ключей в SharedResources.resx и SharedResources.ru.resx. Падает при расхождении.
+Клиентские ES-модули
+Модуль	Назначение
+main.js	Регистрирует window.IIChatTools, подключает зависимости.
+api.js	Обёртка fetch с единым форматом { success, data, message } и credentials: same-origin.
+ui.js	toast() (Bootstrap), escapeHtml(), formatUptime().
+status.js	Polling /api/status/snapshot каждые 5 секунд.
+approvals.js	requestApproval() — модалка с countdown, разрешение/отклонение через API.
+admin.js	CRUD пользователей, настроек, белый список, пагинированный аудит.
+test.js	Выбор инструмента, шаблон параметров, вызов с автоматическим подтверждением.

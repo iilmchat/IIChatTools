@@ -1,0 +1,21 @@
+📌 Принципы безопасности, применённые в этом блоке
+ProcessStartInfo.ArgumentList вместо склейки строк — защита от command injection.
+
+Белый список команд для execute_command (git, gh, dotnet, node, npm, npx, python3, pip3).
+
+Ограничение таймаута каждого процесса (по умолчанию 30–60 с, максимум 300–600 с).
+
+Ограничение размера вывода — усечение с пометкой truncated.
+
+Временные файлы кода создаются внутри {workspace}/.tmp/ и удаляются в finally.
+
+Проверка URL — только http:// и https://.
+
+Toggle-безопасность — Security:EnableCodeExecution и Security:EnableShellCommands отключают соответствующие инструменты без пересборки.
+
+Лимиты на размер сохраняемой памяти (200 символов на ключ, 100 000 на значение).
+
+Все исключения логируются через ILogger, не пробрасываются наружу в контроллер — конвертируются в ToolResult.Fail.
+
+🚀 Что дальше
+Следующий логичный блок — Git/GitHub-инструменты (git_status, git_diff, git_log, git_add, git_commit, git_checkout, gh_create_issue, gh_list_issues, gh_create_pr, gh_list_prs, gh_push), использующие ProcessRunner с командой git/gh. Затем — PuppeteerSharp-инструменты для браузерной автоматизации и суб-агенты.
