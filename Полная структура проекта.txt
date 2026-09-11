@@ -1,0 +1,126 @@
+IIChatTools.sln
+├── Directory.Build.props
+├── global.json
+├── NuGet.Config
+├── README.md
+│
+├── IIChatTools.Data/                                     (netstandard2.1)
+│   ├── AppDbContext.cs
+│   ├── SeedData.cs
+│   ├── Entities/
+│   │   ├── BaseEntity.cs
+│   │   ├── ApplicationUser.cs
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   └── Migrations/
+│
+├── IIChatTools.Services/                                 (netstandard2.1)
+│   ├── DTO/
+│   │   ├── ToolResult.cs
+│   │   ├── ToolDescriptor.cs
+│   │   ├── ToolParameterDescriptor.cs
+│   │   ├── ToolExecutionContext.cs
+│   │   ├── StatusSnapshot.cs
+│   │   ├── PagedResult.cs
+│   │   ├── Admin/
+│   │   │   ├── UserListDto.cs
+│   │   │   ├── UserEditDto.cs
+│   │   │   ├── SettingDto.cs
+│   │   │   └── WhitelistEntryDto.cs
+│   │   ├── Browser/
+│   │   │   └── BrowserSessionInfo.cs
+│   │   └── SubAgent/
+│   │       ├── SubAgentTaskRequest.cs
+│   │       ├── SubAgentTaskResult.cs
+│   │       └── SubAgentStep.cs
+│   ├── Extensions/
+│   │   └── JObjectExtensions.cs
+│   ├── Interfaces/
+│   │   ├── ITool.cs
+│   │   ├── IToolRegistry.cs
+│   │   ├── IAuditService.cs
+│   │   ├── IAuditQueryService.cs
+│   │   ├── IApprovalService.cs
+│   │   ├── IDependencyChecker.cs
+│   │   ├── IJwtService.cs
+│   │   ├── IStatusService.cs
+│   │   ├── IWorkspaceResolver.cs
+│   │   ├── IAppSettingsService.cs
+│   │   ├── IUserAdminService.cs
+│   │   ├── IProcessRunner.cs
+│   │   ├── IBrowserSessionManager.cs
+│   │   ├── ILmStudioClient.cs
+│   │   └── ISubAgentService.cs
+│   └── Implementation/
+│       ├── AppUptimeTracker.cs
+│       ├── AppVersionHolder.cs
+│       ├── AuditService.cs
+│       ├── AuditQueryService.cs
+│       ├── ApprovalService.cs
+│       ├── DependencyChecker.cs
+│       ├── PathHelper.cs
+│       ├── JwtService.cs
+│       ├── StatusService.cs
+│       ├── WorkspaceResolver.cs
+│       ├── AppSettingsService.cs
+│       ├── UserAdminService.cs
+│       ├── ProcessRunner.cs
+│       ├── BrowserSessionManager.cs
+│       ├── LmStudioClient.cs
+│       ├── SubAgentService.cs
+│       ├── ToolRegistry.cs
+│       └── Tools/
+│           ├── FileSystem/                              (13 инструментов)
+│           ├── CodeExecution/                           (3 инструмента)
+│           ├── Web/                                     (3 инструмента)
+│           ├── Git/                                     (7 инструментов)
+│           ├── GitHub/                                  (7 инструментов)
+│           ├── Browser/                                 (4 инструмента)
+│           ├── SubAgent/                                (1 инструмент)
+│           └── Utils/                                   (2 инструмента)
+│
+├── IIChatTools.API/                                     (netcoreapp3.1)
+│   ├── Program.cs
+│   ├── Startup.cs
+│   ├── AppVersion.cs
+│   ├── appsettings.json
+│   ├── appsettings.Development.json
+│   ├── Controllers/
+│   │   ├── HomeController.cs
+│   │   ├── AuthController.cs
+│   │   ├── ToolsController.cs
+│   │   ├── ApprovalsController.cs
+│   │   ├── AdminController.cs
+│   │   └── StatusController.cs
+│   ├── DTO/
+│   │   └── ExecuteToolRequest.cs
+│   ├── ViewModels/
+│   │   ├── LoginViewModel.cs
+│   │   └── RegisterViewModel.cs
+│   ├── Resources/
+│   │   ├── SharedResources.cs
+│   │   ├── SharedResources.resx
+│   │   └── SharedResources.ru.resx
+│   ├── Views/
+│   │   ├── _ViewStart.cshtml
+│   │   ├── _ViewImports.cshtml
+│   │   ├── Auth/ (Login, Register)
+│   │   ├── Home/ (Index, Status, Admin, Test, Error)
+│   │   └── Shared/ (_Layout, _LoginPartial, _ApprovalModal, _ValidationScriptsPartial)
+│   └── wwwroot/
+│       ├── css/site.css
+│       └── js/
+│           ├── main.js
+│           └── modules/ (api, ui, status, approvals, admin, test)
+│
+└── IIChatTools.Tests/                                  (netcoreapp3.1)
+    ├── UnitTests/
+    │   ├── LocalizationSyncTests.cs
+    │   └── PathHelperTests.cs
+    └── IntegrationTests/
+        ├── TestDbContextFactory.cs
+        ├── ApprovalServiceTests.cs
+        └── ToolRegistryTests.cs

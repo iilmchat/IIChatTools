@@ -1,0 +1,143 @@
+6. Полная архитектура проекта
+6.1. Слои
+text
+┌───────────────────────────────────────────────────────────────────────┐
+│                       LM Studio (LLM) :8034                            │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ HTTP (OpenAI-совместимый API)
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                        IIChatTools.API (netcoreapp3.1)                 │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │ Контроллеры: Home, Auth, Tools, Approvals, Admin, Status         │  │
+│  │ Razor Views: Index, Status, Admin, Test, Login, Register, Error  │  │
+│  │ ES-модули: api, ui, status, approvals, admin, test               │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  Program.cs — миграции, SeedData, sync настроек, graceful shutdown    │
+│  Startup.cs — DI + middleware + регистрация 39 инструментов           │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ DI (Scoped/Singleton)
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    IIChatTools.Services (netstandard2.1)              │
+│                                                                       │
+│  ┌────────────────────────┐   ┌──────────────────────────────────┐   │
+│  │ ToolRegistry (39)      │   │ Инфраструктурные сервисы:        │   │
+│  │ ─ FileSystem      (13) │   │  • AuditService / AuditQuery     │   │
+│  │ ─ CodeExecution    (3) │   │  • ApprovalService               │   │
+│  │ ─ Web              (3) │   │  • AppSettingsService            │   │
+│  │ ─ Git              (7) │   │  • UserAdminService              │   │
+│  │ ─ GitHub           (7) │   │  • JwtService                    │   │
+│  │ ─ Browser          (4) │   │  • StatusService                 │   │
+│  │ ─ SubAgent         (1) │   │  • WorkspaceResolver             │   │
+│  │ ─ Utils            (2) │   │  • ProcessRunner                 │   │
+│  └────────────────────────┘   │  • BrowserSessionManager         │   │
+│                                │  • LmStudioClient                │   │
+│                                │  • SubAgentService               │   │
+│                                │  • DependencyChecker             │   │
+│                                │  • PathHelper (static)           │   │
+│                                └──────────────────────────────────┘   │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ EF Core
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    IIChatTools.Data (MSSQL, netstandard2.1)           │
+│  • ApplicationUser + Identity (Roles: Admin, User)                    │
+│  • AuditLog        • AppSetting       • PendingAction                 │
+│  • AgentState      • MemoryEntry                                      │
+└───────────────────────────────────────────────────────────────────────┘
+6.2. Поток вызова инструмента
+text
+LLM → POST /api/tools/execute { toolName, arguments }
+       │
+       ▼
+   ToolsController
+       │
+       ├─► 1. Проверка IToolRegistry.GetDescriptor
+       │
+       ├─► 2. Проверка IApprovalService.IsWhitelistedAsync
+       │
+       ├─► 3. Если RequiresApprovalByDefault && !whitelisted:
+       │       ├─ Без approvalId → создать PendingAction,
+       │       │   вернуть { requiresApproval: true, actionId }
+       │       └─ С approvalId → проверить статус (Approved?)
+       │
+       ├─► 4. IWorkspaceResolver.GetWorkspacePathAsync(userId)
+       │
+       ├─► 5. IToolRegistry.ExecuteAsync(toolName, context, args)
+       │       └─► ITool.ExecuteAsync(context, args)
+       │
+       ├─► 6. IAuditService.LogActionAsync (Success/Error, Duration)
+       │
+       └─► 7. Вернуть { success, data, message }
+6.3. Поток суб-агента
+text
+Главный LLM → consult_secondary_agent(task, maxSteps, autoDebug)
+       │
+       ▼
+   ConsultSecondaryAgentTool
+       │
+       ▼
+   SubAgentService.ExecuteTaskAsync
+       │
+       ├─► 1. Создать AgentState в БД (CurrentStep = 0)
+       │
+       ├─► 2. Сформировать system + user messages
+       │
+       ├─► 3. Список tools без consult_secondary_agent
+       │
+       ├─► 4. Цикл до maxSteps:
+       │       ├─ POST LM Studio /v1/chat/completions
+       │       ├─ Если tool_calls → выполнить каждый через ToolRegistry
+       │       │   (с той же проверкой approval и безопасности)
+       │       ├─ Обновить AgentState.CurrentStep
+       │       └─ Если финальный текст → break
+       │
+       ├─► 5. Если autoDebug → RunReviewerAsync (агент-рецензент)
+       │
+       ├─► 6. Сохранить снимок в AgentState.CodeSnapshotJson
+       │
+       └─► 7. Вернуть SubAgentTaskResult главному агенту
+6.4. Принципы архитектуры
+Принцип	Реализация
+Слоистость	Data → Services → API. Services не зависит от API (разрыв через AppVersionHolder).
+Расширяемость	Новый инструмент = 1 класс, реализующий ITool + 1 строка регистрации в Startup.cs.
+DI через конструктор	Все сервисы и инструменты внедряются через конструктор. IServiceProvider не используется напрямую.
+Cross-cutting	ILogger (технические события), IAuditService (действия пользователей), IApprovalService (подтверждения).
+Безопасность	PathHelper.TryGetSafeFullPath, ProcessStartInfo.ArgumentList, whitelist команд, лимиты, таймауты, TTL-сессии.
+Async/Await	Все I/O-методы с суффиксом Async. CancellationToken прокидывается через всю цепочку.
+Локализация	SharedResources.resx + SharedResources.ru.resx, синхронизация проверяется тестом LocalizationSyncTests.
+Версионирование	AppVersion.Current (API) + AppVersionHolder (Services).
+Мультипользовательность	Изоляция workspace ({RootPath}/users/{userId}), проверка владельца ресурсов.
+Подтверждения	Все критичные инструменты генерируют PendingAction; клиент опрашивает /api/approvals/pending.
+ES-модули	Клиентский JS полностью модульный, точка входа main.js, namespace window.IIChatTools.
+6.5. Сводная таблица сервисов DI
+Сервис	Время жизни	Назначение
+AppDbContext	Scoped	EF Core + Identity
+AppUptimeTracker	Singleton	Время старта приложения
+IBrowserSessionManager	Singleton	Долгоживущие сессии PuppeteerSharp
+IProcessRunner	Singleton	Безопасный запуск процессов
+IDependencyChecker	Scoped	Проверка git/gh/python/node
+IAuditService / IAuditQueryService	Scoped	Аудит (запись / чтение)
+IApprovalService	Scoped	Подтверждения
+IJwtService	Scoped	JWT-генерация
+IStatusService	Scoped	Статистика
+IWorkspaceResolver	Scoped	Путь workspace пользователя
+IAppSettingsService	Scoped	CRUD настроек
+IUserAdminService	Scoped	CRUD пользователей
+ILmStudioClient	Scoped	HTTP-клиент LM Studio
+ISubAgentService	Scoped	Оркестратор суб-агента
+IToolRegistry	Scoped	Реестр инструментов
+ITool (39 шт.)	Scoped	Инструменты
+6.6. Итоговый объём по группам
+Группа	Кол-во	Требуют подтверждения
+Файловая система	13	7
+Выполнение кода	3	3
+Веб	3	0
+Git	7	4
+GitHub	7	2
+Браузер	4	1
+Суб-агент	1	1
+Утилиты	2	0
+Итого	40	18

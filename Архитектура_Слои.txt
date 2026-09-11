@@ -1,0 +1,46 @@
+┌───────────────────────────────────────────────────────────────────────┐
+│                       LM Studio (LLM) :8034                            │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ HTTP (OpenAI-совместимый API)
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                        IIChatTools.API (netcoreapp3.1)                 │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │ Контроллеры: Home, Auth, Tools, Approvals, Admin, Status         │  │
+│  │ Razor Views: Index, Status, Admin, Test, Login, Register, Error  │  │
+│  │ ES-модули: api, ui, status, approvals, admin, test               │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  Program.cs — миграции, SeedData, sync настроек, graceful shutdown    │
+│  Startup.cs — DI + middleware + регистрация 39 инструментов           │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ DI (Scoped/Singleton)
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    IIChatTools.Services (netstandard2.1)              │
+│                                                                       │
+│  ┌────────────────────────┐   ┌──────────────────────────────────┐   │
+│  │ ToolRegistry (39)      │   │ Инфраструктурные сервисы:        │   │
+│  │ ─ FileSystem      (13) │   │  • AuditService / AuditQuery     │   │
+│  │ ─ CodeExecution    (3) │   │  • ApprovalService               │   │
+│  │ ─ Web              (3) │   │  • AppSettingsService            │   │
+│  │ ─ Git              (7) │   │  • UserAdminService              │   │
+│  │ ─ GitHub           (7) │   │  • JwtService                    │   │
+│  │ ─ Browser          (4) │   │  • StatusService                 │   │
+│  │ ─ SubAgent         (1) │   │  • WorkspaceResolver             │   │
+│  │ ─ Utils            (2) │   │  • ProcessRunner                 │   │
+│  └────────────────────────┘   │  • BrowserSessionManager         │   │
+│                                │  • LmStudioClient                │   │
+│                                │  • SubAgentService               │   │
+│                                │  • DependencyChecker             │   │
+│                                │  • PathHelper (static)           │   │
+│                                └──────────────────────────────────┘   │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ EF Core
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    IIChatTools.Data (MSSQL, netstandard2.1)           │
+│  • ApplicationUser + Identity (Roles: Admin, User)                    │
+│  • AuditLog        • AppSetting       • PendingAction                 │
+│  • AgentState      • MemoryEntry                                      │
+└───────────────────────────────────────────────────────────────────────┘
