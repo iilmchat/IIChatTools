@@ -16,10 +16,11 @@
                         <select id="tool-select" class="form-select">
                             <option value="">— @Localizer["Инструмент не выбран."] —</option>
                         </select>
+                        <div class="form-text" id="tool-description"></div>
                     </div>
                     <div class="mb-3">
                         <label for="tool-params" class="form-label">@Localizer["Параметры (JSON)"]</label>
-                        <textarea id="tool-params" class="form-control font-monospace" rows="8">{}</textarea>
+                        <textarea id="tool-params" class="form-control font-monospace" rows="10">{}</textarea>
                     </div>
                     <button id="btn-execute" class="btn btn-primary w-100">@Localizer["Выполнить"]</button>
                 </div>
@@ -27,9 +28,22 @@
         </div>
         <div class="col-md-7">
             <div class="card shadow-sm">
-                <div class="card-header">@Localizer["Результат"]</div>
-                <pre id="tool-result" class="m-0 p-3 bg-light" style="max-height: 60vh; overflow: auto;">—</pre>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>@Localizer["Результат"]</span>
+                    <span id="exec-status" class="badge bg-secondary">—</span>
+                </div>
+                <pre id="tool-result" class="m-0 p-3 bg-light" style="max-height: 65vh; overflow: auto;">—</pre>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Модальное окно подтверждения -->
+<partial name="_ApprovalModal" />
+
+@section Scripts {
+    <script type="module">
+        import { initTestPage } from '/js/modules/test.js';
+        initTestPage();
+    </script>
+}

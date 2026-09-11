@@ -1,0 +1,32 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+<div class="modal fade" id="approvalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Localizer["Запрос на выполнение действия"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">@Localizer["Инструмент требует подтверждения перед выполнением."]</p>
+                <dl class="row">
+                    <dt class="col-sm-3">@Localizer["Инструмент"]</dt>
+                    <dd class="col-sm-9" id="approval-tool-name">—</dd>
+                    <dt class="col-sm-3">@Localizer["Параметры вызова"]</dt>
+                    <dd class="col-sm-9">
+                        <pre id="approval-params" class="bg-light p-2 mb-0" style="max-height: 200px; overflow: auto;">—</pre>
+                    </dd>
+                    <dt class="col-sm-3">@Localizer["Подтверждение"]</dt>
+                    <dd class="col-sm-9">
+                        <small class="text-muted" id="approval-countdown">—</small>
+                    </dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger" id="approval-reject">@Localizer["Отклонить"]</button>
+                <button type="button" class="btn btn-success" id="approval-approve">@Localizer["Подтвердить"]</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -130,6 +130,11 @@ namespace IIChatTools.API
             services.AddScoped<ITool, GetFileMetadataTool>();
             services.AddScoped<ITool, FuzzyFindLocalFilesTool>();
 
+            // Административные сервисы
+            services.AddScoped<IAppSettingsService, AppSettingsService>();
+            services.AddScoped<IUserAdminService, UserAdminService>();
+            services.AddScoped<IAuditQueryService, AuditQueryService>();
+
             // 6. Политики авторизации
             services.AddAuthorization(options =>
             {

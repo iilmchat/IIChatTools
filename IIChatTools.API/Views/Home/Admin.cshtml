@@ -30,18 +30,130 @@
         </li>
     </ul>
 
-    <div class="tab-content border border-top-0 p-3">
+    <div class="tab-content border border-top-0 p-3 bg-white">
+        <!-- Вкладка: Пользователи -->
         <div class="tab-pane fade show active" id="pane-users" role="tabpanel">
-            <p class="text-muted small">@Localizer["Загрузка"]…</p>
+            <div class="d-flex justify-content-between mb-2">
+                <button id="btn-add-user" class="btn btn-primary btn-sm">@Localizer["Добавить пользователя"]</button>
+                <button id="btn-refresh-users" class="btn btn-outline-secondary btn-sm">@Localizer["Обновить"]</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>@Localizer["Электронная почта"]</th>
+                            <th>@Localizer["Полное имя"]</th>
+                            <th>@Localizer["Роли"]</th>
+                            <th>@Localizer["Активен"]</th>
+                            <th>@Localizer["Дата регистрации"]</th>
+                            <th>@Localizer["Действия"]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody">
+                        <tr><td colspan="7" class="text-center text-muted">@Localizer["Загрузка"]…</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
+
+        <!-- Вкладка: Настройки -->
         <div class="tab-pane fade" id="pane-settings" role="tabpanel">
-            <p class="text-muted small">@Localizer["Загрузка"]…</p>
+            <div class="d-flex justify-content-between mb-2">
+                <button id="btn-add-setting" class="btn btn-primary btn-sm">@Localizer["Создать"]</button>
+                <button id="btn-refresh-settings" class="btn btn-outline-secondary btn-sm">@Localizer["Обновить"]</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>@Localizer["Категория"]</th>
+                            <th>@Localizer["Ключ"]</th>
+                            <th>@Localizer["Значение"]</th>
+                            <th>@Localizer["Тип"]</th>
+                            <th>@Localizer["По умолчанию"]</th>
+                            <th>@Localizer["Действия"]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="settings-tbody">
+                        <tr><td colspan="6" class="text-center text-muted">@Localizer["Загрузка"]…</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
+
+        <!-- Вкладка: Белый список -->
         <div class="tab-pane fade" id="pane-whitelist" role="tabpanel">
-            <p class="text-muted small">@Localizer["Загрузка"]…</p>
+            <div class="row g-3">
+                <div class="col-md-7">
+                    <h6>@Localizer["Инструменты, не требующие подтверждения"]</h6>
+                    <ul class="list-group" id="whitelist-list">
+                        <li class="list-group-item text-muted">@Localizer["Загрузка"]…</li>
+                    </ul>
+                </div>
+                <div class="col-md-5">
+                    <h6>@Localizer["Добавить в белый список"]</h6>
+                    <select id="whitelist-tool-select" class="form-select mb-2">
+                        <option value="">@Localizer["Выбор инструмента"]</option>
+                    </select>
+                    <button id="btn-add-whitelist" class="btn btn-primary btn-sm w-100">@Localizer["Добавить в белый список"]</button>
+                </div>
+            </div>
         </div>
+
+        <!-- Вкладка: Аудит -->
         <div class="tab-pane fade" id="pane-audit" role="tabpanel">
-            <p class="text-muted small">@Localizer["Загрузка"]…</p>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="input-group input-group-sm" style="max-width: 300px;">
+                    <input type="text" id="audit-tool-filter" class="form-control" placeholder="@Localizer["Инструмент"]" />
+                    <button id="btn-audit-filter" class="btn btn-outline-secondary">@Localizer["Поиск"]</button>
+                </div>
+                <button id="btn-refresh-audit" class="btn btn-outline-secondary btn-sm">@Localizer["Обновить"]</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>@Localizer["Пользователь"]</th>
+                            <th>@Localizer["Инструмент"]</th>
+                            <th>@Localizer["СтатусЗаписи"]</th>
+                            <th>@Localizer["Длительность"]</th>
+                            <th>@Localizer["Дата"]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-tbody">
+                        <tr><td colspan="6" class="text-center text-muted">@Localizer["Загрузка"]…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center" id="audit-pagination"></ul>
+            </nav>
         </div>
     </div>
 </div>
+
+<!-- Универсальное модальное окно редактирования -->
+<div class="modal fade" id="adminModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adminModalTitle">@Localizer["Редактировать"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="adminModalBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Отмена"]</button>
+                <button type="button" class="btn btn-primary" id="adminModalSave">@Localizer["Сохранить"]</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module">
+        import { initAdminPage } from '/js/modules/admin.js';
+        initAdminPage();
+    </script>
+}
