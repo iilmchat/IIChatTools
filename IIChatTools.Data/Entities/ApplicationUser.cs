@@ -1,34 +1,37 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Identity;
 
 namespace IIChatTools.Data.Entities
 {
     /// <summary>
-    /// Пользователь системы с расширенными полями
+    /// Пользователь системы с расширенными полями.
+    /// Наследует IdentityUser{int} — идентификатор типа int.
     /// </summary>
     public class ApplicationUser : IdentityUser<int>
     {
         /// <summary>
-        /// Полное имя пользователя
+        /// Полное имя пользователя.
         /// </summary>
         public string FullName { get; set; }
 
         /// <summary>
-        /// Активен ли пользователь
+        /// Признак активности пользователя.
         /// </summary>
         public bool IsActive { get; set; } = true;
 
         /// <summary>
-        /// Дата регистрации
+        /// Дата регистрации пользователя (UTC).
         /// </summary>
         public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
-        /// Навигационное свойство для аудита
+        /// Навигационное свойство: записи аудита, связанные с пользователем.
         /// </summary>
         public virtual ICollection<AuditLog> AuditLogs { get; set; }
 
         /// <summary>
-        /// Навигационное свойство для действий на подтверждении
+        /// Навигационное свойство: запросы на подтверждение, инициированные пользователем.
         /// </summary>
         public virtual ICollection<PendingAction> PendingActions { get; set; }
     }

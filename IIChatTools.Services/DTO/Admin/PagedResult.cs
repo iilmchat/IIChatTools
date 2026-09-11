@@ -6,7 +6,7 @@ namespace IIChatTools.Services.DTO
     /// Обёртка для постраничного результата.
     /// </summary>
     /// <typeparam name="T">Тип элементов</typeparam>
-    public class PagedResult<T>
+    public class PagedResult1<T>
     {
         /// <summary>
         /// Элементы текущей страницы.

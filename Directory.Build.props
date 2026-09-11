@@ -30,6 +30,9 @@
     <PuppeteerSharpVersion>2.0.4</PuppeteerSharpVersion>
     <XunitVersion>2.7.0</XunitVersion>
     <MoqVersion>4.20.70</MoqVersion>
+
+    <RuntimeNativeOpenSslVersion>4.3.0</RuntimeNativeOpenSslVersion>    
+     <PuppeteerSharpVersion>6.0.0</PuppeteerSharpVersion>
   </PropertyGroup>
 
 </Project>

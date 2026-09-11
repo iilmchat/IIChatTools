@@ -1,3 +1,5 @@
+using System;
+
 namespace IIChatTools.Data.Entities
 {
     /// <summary>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace IIChatTools.Services.Implementation
