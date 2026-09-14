@@ -1,9 +1,12 @@
 @using Microsoft.AspNetCore.Identity
 @using IIChatTools.Data.Entities
 @using Microsoft.AspNetCore.Mvc.Localization
+@using IIChatTools.API.Resources
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
-@inject IViewLocalizer Localizer
+@inject IStringLocalizer<SharedResources> Localizer
+
+
 
 <ul class="navbar-nav">
     @if (SignInManager.IsSignedIn(User))

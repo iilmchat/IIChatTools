@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
@@ -7,6 +7,7 @@ using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace IIChatTools.API.Controllers
@@ -27,7 +28,7 @@ namespace IIChatTools.API.Controllers
         private readonly IApprovalService _approvalService;
         private readonly IAuditService _auditService;
         private readonly ILogger<AdminController> _logger;
-        private readonly IStringLocalizer<AdminController> _localizer;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
         /// <summary>
         /// Создаёт экземпляр контроллера.
@@ -40,7 +41,7 @@ namespace IIChatTools.API.Controllers
             IApprovalService approvalService,
             IAuditService auditService,
             ILogger<AdminController> logger,
-            IStringLocalizer<AdminController> localizer)
+            IStringLocalizer<SharedResources> localizer)
         {
             _userAdminService = userAdminService ?? throw new ArgumentNullException(nameof(userAdminService));
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
@@ -51,7 +52,6 @@ namespace IIChatTools.API.Controllers
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         }
-
         // ============ ПОЛЬЗОВАТЕЛИ ============
 
         /// <summary>

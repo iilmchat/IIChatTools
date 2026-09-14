@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace IIChatTools.API.Controllers
@@ -16,7 +17,7 @@ namespace IIChatTools.API.Controllers
     {
         private readonly IStatusService _statusService;
         private readonly ILogger<HomeController> _logger;
-        private readonly IStringLocalizer<HomeController> _localizer;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
         /// <summary>
         /// Создаёт экземпляр контроллера.
@@ -27,7 +28,7 @@ namespace IIChatTools.API.Controllers
         public HomeController(
             IStatusService statusService,
             ILogger<HomeController> logger,
-            IStringLocalizer<HomeController> localizer)
+            IStringLocalizer<SharedResources> localizer)
         {
             _statusService = statusService ?? throw new ArgumentNullException(nameof(statusService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -92,6 +93,35 @@ namespace IIChatTools.API.Controllers
             ViewData["Title"] = _localizer["Ошибка"];
             ViewData["RequestId"] = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
             return View();
+        }
+
+        /// <summary>
+        /// Устанавливает культуру пользователя через cookie и возвращает на исходную страницу.
+        /// </summary>
+        /// <param name="culture">Код культуры (ru, en)</param>
+        /// <param name="returnUrl">URL возврата</param>
+        /// <returns>Редирект</returns>
+        [HttpGet("/set-language")]
+        public IActionResult SetLanguage(string culture, string returnUrl = "/")
+        {
+            var supported = new[] { "ru", "en" };
+            if (string.IsNullOrWhiteSpace(culture) || System.Array.IndexOf(supported, culture) < 0)
+                culture = "en";
+
+            Response.Cookies.Append(
+                Microsoft.AspNetCore.Localization.CookieRequestCultureProvider.DefaultCookieName,
+                Microsoft.AspNetCore.Localization.CookieRequestCultureProvider.MakeCookieValue(
+                    new Microsoft.AspNetCore.Localization.RequestCulture(culture, culture)),
+                new Microsoft.AspNetCore.Http.CookieOptions
+                {
+                    Expires = System.DateTimeOffset.UtcNow.AddYears(1),
+                    IsEssential = true
+                });
+
+            if (string.IsNullOrWhiteSpace(returnUrl) || !Url.IsLocalUrl(returnUrl))
+                returnUrl = "/";
+
+            return Redirect(returnUrl);
         }
     }
 }

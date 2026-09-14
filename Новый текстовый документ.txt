@@ -1,0 +1,43 @@
+$proxyAddress = "http://222.1.20.1:8080"
+$proxyUser = "proxy_user"
+$proxyPass = "CHANGE_ME"
+$outputDir = "G:\AI\IIChatTools\LocalPackages"
+
+# Создаём папку, если её нет
+if (!(Test-Path $outputDir)) { New-Item -ItemType Directory -Path $outputDir | Out-Null }
+
+$missing = @(
+    @("xunit.extensibility.core", "2.4.2"),
+    @("xunit.extensibility.execution", "2.4.2")
+)
+
+foreach ($pkg in $missing) {
+    $id = $pkg[0]
+    $ver = $pkg[1]
+    $outFile = Join-Path $outputDir "$id.$ver.nupkg"
+    $url = "https://www.nuget.org/api/v2/package/$id/$ver"
+
+    Write-Host "Downloading $id $ver ..." -ForegroundColor Green
+
+    $curlArgs = @(
+        "-s", "-L",
+        "--ssl-no-revoke",
+        "--proxy-basic",
+        "-U", "$proxyUser`:$proxyPass",
+        "--proxy", $proxyAddress,
+        "-o", $outFile,
+        $url
+    )
+    & curl.exe @curlArgs
+
+    if ((Test-Path $outFile) -and (Get-Item $outFile).Length -gt 1000) {
+        $bytes = [System.IO.File]::ReadAllBytes($outFile)
+        if ($bytes[0] -eq 0x50 -and $bytes[1] -eq 0x4B) {
+            Write-Host "  -> OK: $id.$ver.nupkg" -ForegroundColor DarkGreen
+        } else {
+            Write-Host "  -> Bad file, not a nupkg" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "  -> FAILED" -ForegroundColor Red
+    }
+}

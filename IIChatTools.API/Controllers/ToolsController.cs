@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.API.DTO;
@@ -8,6 +8,7 @@ using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -27,7 +28,7 @@ namespace IIChatTools.API.Controllers
         private readonly IAuditService _auditService;
         private readonly IWorkspaceResolver _workspaceResolver;
         private readonly ILogger<ToolsController> _logger;
-        private readonly IStringLocalizer<ToolsController> _localizer;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
         /// <summary>
         /// Создаёт экземпляр контроллера.
@@ -38,7 +39,7 @@ namespace IIChatTools.API.Controllers
             IAuditService auditService,
             IWorkspaceResolver workspaceResolver,
             ILogger<ToolsController> logger,
-            IStringLocalizer<ToolsController> localizer)
+            IStringLocalizer<SharedResources> localizer)
         {
             _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
             _approvalService = approvalService ?? throw new ArgumentNullException(nameof(approvalService));

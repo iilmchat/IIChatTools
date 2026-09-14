@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.API.ViewModels;
@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace IIChatTools.API.Controllers
@@ -26,7 +27,7 @@ namespace IIChatTools.API.Controllers
         private readonly IJwtService _jwtService;
         private readonly IAuditService _auditService;
         private readonly ILogger<AuthController> _logger;
-        private readonly IStringLocalizer<AuthController> _localizer;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
         /// <summary>
         /// Создаёт экземпляр контроллера.
@@ -37,7 +38,7 @@ namespace IIChatTools.API.Controllers
             IJwtService jwtService,
             IAuditService auditService,
             ILogger<AuthController> logger,
-            IStringLocalizer<AuthController> localizer)
+            IStringLocalizer<SharedResources> localizer)
         {
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _signInManager = signInManager ?? throw new ArgumentNullException(nameof(signInManager));

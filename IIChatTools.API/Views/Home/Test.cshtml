@@ -1,5 +1,6 @@
-@using Microsoft.AspNetCore.Mvc.Localization
-@inject IViewLocalizer Localizer
+@using Microsoft.Extensions.Localization
+@using IIChatTools.API.Resources
+@inject IStringLocalizer<SharedResources> Localizer
 @{
     ViewData["Title"] = Localizer["Тест"];
 }

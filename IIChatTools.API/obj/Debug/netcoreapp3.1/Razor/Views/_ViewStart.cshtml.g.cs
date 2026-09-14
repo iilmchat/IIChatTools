@@ -28,13 +28,27 @@ using IIChatTools.API.ViewModels;
 #nullable disable
 #nullable restore
 #line 3 "G:\AI\IIChatTools\IIChatTools.API\Views\_ViewImports.cshtml"
+using IIChatTools.API.Resources;
+
+#line default
+#line hidden
+#nullable disable
+#nullable restore
+#line 4 "G:\AI\IIChatTools\IIChatTools.API\Views\_ViewImports.cshtml"
 using Microsoft.AspNetCore.Mvc.Localization;
 
 #line default
 #line hidden
 #nullable disable
+#nullable restore
+#line 5 "G:\AI\IIChatTools\IIChatTools.API\Views\_ViewImports.cshtml"
+using Microsoft.Extensions.Localization;
+
+#line default
+#line hidden
+#nullable disable
     [global::Microsoft.AspNetCore.Razor.Hosting.RazorSourceChecksumAttribute(@"SHA1", @"c0cb7f826af1de6ea245782a012ca2e0f93097b2", @"/Views/_ViewStart.cshtml")]
-    [global::Microsoft.AspNetCore.Razor.Hosting.RazorSourceChecksumAttribute(@"SHA1", @"7baddf2d0ab9228273d4a412acbb297779db7986", @"/Views/_ViewImports.cshtml")]
+    [global::Microsoft.AspNetCore.Razor.Hosting.RazorSourceChecksumAttribute(@"SHA1", @"0ff9ce10447b6e05b12267d7f00e37a6fb0925cc", @"/Views/_ViewImports.cshtml")]
     public class Views__ViewStart : global::Microsoft.AspNetCore.Mvc.Razor.RazorPage<dynamic>
     {
         #pragma warning disable 1998

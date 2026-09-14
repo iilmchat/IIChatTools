@@ -22,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Linq;
 
 namespace IIChatTools.API
 {
@@ -96,12 +97,14 @@ namespace IIChatTools.API
                 });
 
             // ============ 4. MVC + локализация ============
+            
             services.AddLocalization(options => options.ResourcesPath = "Resources");
             services.AddControllersWithViews()
                 .AddNewtonsoftJson()
                 .AddViewLocalization()
                 .AddDataAnnotationsLocalization();
 
+            /*
             services.Configure<RequestLocalizationOptions>(options =>
             {
                 var supportedCultures = new[] { "en", "ru" };
@@ -109,7 +112,22 @@ namespace IIChatTools.API
                        .AddSupportedCultures(supportedCultures)
                        .AddSupportedUICultures(supportedCultures);
             });
+            */
+            services.Configure<RequestLocalizationOptions>(options =>
+            {
+                var supportedCultures = new[] { "en", "ru" };
 
+                options.DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture("en", "en");
+                options.SupportedCultures = supportedCultures
+                    .Select(c => new System.Globalization.CultureInfo(c)).ToList();
+                options.SupportedUICultures = options.SupportedCultures;
+
+                options.RequestCultureProviders.Clear();
+                options.RequestCultureProviders.Add(new Microsoft.AspNetCore.Localization.QueryStringRequestCultureProvider());
+                options.RequestCultureProviders.Add(new Microsoft.AspNetCore.Localization.CookieRequestCultureProvider());
+                options.RequestCultureProviders.Add(new Microsoft.AspNetCore.Localization.AcceptLanguageHeaderRequestCultureProvider());
+            });
+            
             // ============ 5. HttpClient ============
             services.AddHttpClient();
 

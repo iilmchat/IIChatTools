@@ -1,0 +1,66 @@
+Часть 6. Обновлённый анализ к v1.1
+Сильные стороны v1.0
+40 инструментов покрывают 90% типичных задач LLM-агента
+
+Мультипользовательность, роли, аудит, подтверждения
+
+Гибридная БД снимает порог входа (не нужен SQL Server)
+
+Локализация RU/EN с автотестом синхронизации
+
+Суб-агенты с авто-отладкой
+
+Расширяемая архитектура
+
+Критичные проблемы
+#	Проблема	Влияние
+1	.NET Core 3.1 — EOL (декабрь 2022)	Уязвимости, нет обновлений безопасности
+2	Polling вместо real-time	Задержка до 5 сек, лишние SELECT'ы
+3	Нет rate limiting	Один пользователь забивает LM Studio
+4	Нет метрик и health checks	Не готово к production-мониторингу
+5	Нет retention аудита	БД растёт бесконечно
+6	Настройки не hot-reload	Изменения в админке требуют перезапуска
+План v1.1 — рекомендуемый порядок
+Обязательно (must-have):
+
+.NET 8 LTS (критично, 3–5 дней)
+
+Rate limiting (AddRateLimiter, per-user)
+
+Health checks + метрики Prometheus
+
+SignalR вместо polling
+
+Retention-политика аудита
+
+Hot-reload настроек через IOptionsMonitor
+
+Расширение тестов (unit + integration, цель ≥70%)
+
+Docker + docker-compose
+
+Developer Guide, API Reference, Security Guide
+
+Желательно (should-have):
+
+Стриминг ответов LM Studio (SSE)
+
+Chat UI с историей сессий
+
+RAG (Qdrant/pgvector + /v1/embeddings)
+
+2FA для Admin
+
+Мультиязычная валидация форм
+
+Отложить до v1.2:
+
+MCP-совместимость
+
+Матрица tool-policy per-role
+
+HMAC-подпись AuditLog
+
+Helm chart для K8s
+
+Оценка v1.1: 7–9 недель (обязательная часть) + 4–5 недель (желательная) = 3–3.5 месяца.
