@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace IIChatTools.API.Controllers
@@ -18,7 +19,7 @@ namespace IIChatTools.API.Controllers
     {
         private readonly IStatusService _statusService;
         private readonly ILogger<StatusController> _logger;
-        private readonly IStringLocalizer<StatusController> _localizer;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
         /// <summary>
         /// Создаёт экземпляр контроллера.
@@ -29,7 +30,7 @@ namespace IIChatTools.API.Controllers
         public StatusController(
             IStatusService statusService,
             ILogger<StatusController> logger,
-            IStringLocalizer<StatusController> localizer)
+            IStringLocalizer<SharedResources> localizer)
         {
             _statusService = statusService ?? throw new ArgumentNullException(nameof(statusService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));

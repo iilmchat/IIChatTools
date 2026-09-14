@@ -492,3 +492,4 @@ G:\AI\IIChatTools\IIChatTools.Tests\bin\Debug\netcoreapp3.1\runtimes\win-arm\nat
 G:\AI\IIChatTools\IIChatTools.Tests\bin\Debug\netcoreapp3.1\runtimes\win-arm64\native\e_sqlite3.dll
 G:\AI\IIChatTools\IIChatTools.Tests\bin\Debug\netcoreapp3.1\runtimes\win-x64\native\e_sqlite3.dll
 G:\AI\IIChatTools\IIChatTools.Tests\bin\Debug\netcoreapp3.1\runtimes\win-x86\native\e_sqlite3.dll
+G:\AI\IIChatTools\IIChatTools.Tests\bin\Debug\netcoreapp3.1\Properties\launchSettings.json

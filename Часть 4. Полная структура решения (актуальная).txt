@@ -1,0 +1,83 @@
+IIChatTools.sln
+├── Directory.Build.props                      ← Общие свойства MSBuild и версии пакетов
+├── global.json                                 ← SDK 3.1.201
+├── NuGet.Config                                ← Источники пакетов (nuget.org + LocalPackages)
+├── .gitignore                                  ← Исключения для Git
+├── README.md                                   ← Документация
+│
+├── IIChatTools.Data/                           (netstandard2.1)
+│   ├── AppDbContext.cs
+│   ├── SeedData.cs
+│   ├── Entities/
+│   │   ├── BaseEntity.cs
+│   │   ├── ApplicationUser.cs
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   └── Migrations/
+│
+├── IIChatTools.Services/                       (netstandard2.1)
+│   ├── DTO/
+│   │   ├── ToolResult.cs, ToolDescriptor.cs, ToolParameterDescriptor.cs
+│   │   ├── ToolExecutionContext.cs, StatusSnapshot.cs, PagedResult.cs
+│   │   ├── Admin/ (UserListDto, UserEditDto, SettingDto, WhitelistEntryDto)
+│   │   ├── Browser/ (BrowserSessionInfo)
+│   │   └── SubAgent/ (SubAgentTaskRequest, SubAgentTaskResult, SubAgentStep)
+│   ├── Extensions/
+│   │   ├── JObjectExtensions.cs
+│   │   └── ProcessExtensions.cs                ← WaitForExitAsync, KillSafe
+│   ├── Interfaces/                              (17 интерфейсов)
+│   └── Implementation/
+│       ├── AppUptimeTracker.cs, AppVersionHolder.cs
+│       ├── AuditService.cs, AuditQueryService.cs
+│       ├── CompositeAuditService.cs            ← Гибридный аудит (БД + файл)
+│       ├── FileAuditService.cs                 ← JSONL с ротацией
+│       ├── ApprovalService.cs, JwtService.cs
+│       ├── AppSettingsService.cs, UserAdminService.cs
+│       ├── StatusService.cs, WorkspaceResolver.cs
+│       ├── DependencyChecker.cs, ProcessRunner.cs
+│       ├── BrowserSessionManager.cs
+│       ├── LmStudioClient.cs, SubAgentService.cs
+│       ├── PathHelper.cs
+│       ├── ToolRegistry.cs
+│       └── Tools/
+│           ├── FileSystem/ (13 инструментов)
+│           ├── CodeExecution/ (3 инструмента)
+│           ├── Web/ (3 инструмента)
+│           ├── Git/ (7 инструментов + BaseGitTool)
+│           ├── GitHub/ (7 инструментов + BaseGhTool)
+│           ├── Browser/ (4 инструмента)
+│           ├── SubAgent/ (1 инструмент)
+│           └── Utils/ (2 инструмента)
+│
+├── IIChatTools.API/                            (netcoreapp3.1)
+│   ├── Program.cs, Startup.cs, AppVersion.cs
+│   ├── appsettings.json, appsettings.Development.json
+│   ├── Extensions/
+│   │   └── DbContextOptionsExtensions.cs       ← Выбор провайдера БД
+│   ├── Controllers/ (Home, Auth, Tools, Approvals, Admin, Status)
+│   ├── DTO/ExecuteToolRequest.cs
+│   ├── ViewModels/ (Login, Register)
+│   ├── Resources/
+│   │   ├── SharedResources.cs
+│   │   ├── SharedResources.resx                ← EN
+│   │   └── SharedResources.ru.resx             ← RU
+│   ├── Views/
+│   │   ├── _ViewStart, _ViewImports
+│   │   ├── Auth/ (Login, Register)
+│   │   ├── Home/ (Index, Status, Admin, Test, Error)
+│   │   └── Shared/ (_Layout, _LoginPartial, _ApprovalModal, _ValidationScriptsPartial)
+│   └── wwwroot/
+│       ├── css/site.css
+│       └── js/
+│           ├── main.js
+│           └── modules/ (api, ui, status, approvals, admin, test)
+│
+└── IIChatTools.Tests/                          (netcoreapp3.1)
+    ├── UnitTests/ (LocalizationSyncTests, PathHelperTests)
+    └── IntegrationTests/
+        ├── TestDbContextFactory.cs
+        ├── ApprovalServiceTests.cs
+        └── ToolRegistryTests.cs

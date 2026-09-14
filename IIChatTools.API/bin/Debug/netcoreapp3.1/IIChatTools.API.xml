@@ -31,7 +31,7 @@
             Доступен только пользователям с ролью Admin.
             </summary>
         </member>
-        <member name="M:IIChatTools.API.Controllers.AdminController.#ctor(IIChatTools.Services.Interfaces.IUserAdminService,IIChatTools.Services.Interfaces.IAppSettingsService,IIChatTools.Services.Interfaces.IAuditQueryService,IIChatTools.Services.Interfaces.IToolRegistry,IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.AdminController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.AdminController})">
+        <member name="M:IIChatTools.API.Controllers.AdminController.#ctor(IIChatTools.Services.Interfaces.IUserAdminService,IIChatTools.Services.Interfaces.IAppSettingsService,IIChatTools.Services.Interfaces.IAuditQueryService,IIChatTools.Services.Interfaces.IToolRegistry,IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.AdminController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Resources.SharedResources})">
             <summary>
             Создаёт экземпляр контроллера.
             </summary>
@@ -199,7 +199,7 @@
             API управления запросами на подтверждение действий.
             </summary>
         </member>
-        <member name="M:IIChatTools.API.Controllers.ApprovalsController.#ctor(IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.ApprovalsController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.ApprovalsController})">
+        <member name="M:IIChatTools.API.Controllers.ApprovalsController.#ctor(IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.ApprovalsController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Resources.SharedResources})">
             <summary>
             Создаёт экземпляр контроллера.
             </summary>
@@ -248,7 +248,7 @@
             Первый зарегистрированный пользователь получает роль Admin.
             </summary>
         </member>
-        <member name="M:IIChatTools.API.Controllers.AuthController.#ctor(Microsoft.AspNetCore.Identity.UserManager{IIChatTools.Data.Entities.ApplicationUser},Microsoft.AspNetCore.Identity.SignInManager{IIChatTools.Data.Entities.ApplicationUser},IIChatTools.Services.Interfaces.IJwtService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.AuthController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.AuthController})">
+        <member name="M:IIChatTools.API.Controllers.AuthController.#ctor(Microsoft.AspNetCore.Identity.UserManager{IIChatTools.Data.Entities.ApplicationUser},Microsoft.AspNetCore.Identity.SignInManager{IIChatTools.Data.Entities.ApplicationUser},IIChatTools.Services.Interfaces.IJwtService,IIChatTools.Services.Interfaces.IAuditService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.AuthController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Resources.SharedResources})">
             <summary>
             Создаёт экземпляр контроллера.
             </summary>
@@ -300,7 +300,7 @@
             Контроллер Razor-страниц административного интерфейса.
             </summary>
         </member>
-        <member name="M:IIChatTools.API.Controllers.HomeController.#ctor(IIChatTools.Services.Interfaces.IStatusService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.HomeController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.HomeController})">
+        <member name="M:IIChatTools.API.Controllers.HomeController.#ctor(IIChatTools.Services.Interfaces.IStatusService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.HomeController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Resources.SharedResources})">
             <summary>
             Создаёт экземпляр контроллера.
             </summary>
@@ -338,12 +338,20 @@
             </summary>
             <returns>Razor-представление</returns>
         </member>
+        <member name="M:IIChatTools.API.Controllers.HomeController.SetLanguage(System.String,System.String)">
+            <summary>
+            Устанавливает культуру пользователя через cookie и возвращает на исходную страницу.
+            </summary>
+            <param name="culture">Код культуры (ru, en)</param>
+            <param name="returnUrl">URL возврата</param>
+            <returns>Редирект</returns>
+        </member>
         <member name="T:IIChatTools.API.Controllers.StatusController">
             <summary>
             API статуса и статистики. Используется для polling со страницы статуса.
             </summary>
         </member>
-        <member name="M:IIChatTools.API.Controllers.StatusController.#ctor(IIChatTools.Services.Interfaces.IStatusService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.StatusController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.StatusController})">
+        <member name="M:IIChatTools.API.Controllers.StatusController.#ctor(IIChatTools.Services.Interfaces.IStatusService,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.StatusController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Resources.SharedResources})">
             <summary>
             Создаёт экземпляр контроллера.
             </summary>
@@ -363,7 +371,7 @@
             Интегрирован с системой подтверждения действий.
             </summary>
         </member>
-        <member name="M:IIChatTools.API.Controllers.ToolsController.#ctor(IIChatTools.Services.Interfaces.IToolRegistry,IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,IIChatTools.Services.Interfaces.IWorkspaceResolver,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.ToolsController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Controllers.ToolsController})">
+        <member name="M:IIChatTools.API.Controllers.ToolsController.#ctor(IIChatTools.Services.Interfaces.IToolRegistry,IIChatTools.Services.Interfaces.IApprovalService,IIChatTools.Services.Interfaces.IAuditService,IIChatTools.Services.Interfaces.IWorkspaceResolver,Microsoft.Extensions.Logging.ILogger{IIChatTools.API.Controllers.ToolsController},Microsoft.Extensions.Localization.IStringLocalizer{IIChatTools.API.Resources.SharedResources})">
             <summary>
             Создаёт экземпляр контроллера.
             </summary>

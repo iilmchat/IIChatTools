@@ -736,6 +736,19 @@
             Реализация сервиса аудита
             </summary>
         </member>
+        <member name="T:IIChatTools.Services.Implementation.BrowserLocator">
+            <summary>
+            Определяет путь к исполняемому файлу Chromium-совместимого браузера.
+            Приоритет: явный путь из конфигурации → Edge → Chrome.
+            </summary>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserLocator.Resolve(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Возвращает путь к исполняемому файлу браузера.
+            </summary>
+            <param name="configuration">Конфигурация приложения</param>
+            <returns>Полный путь к EXE или null, если браузер не найден</returns>
+        </member>
         <member name="T:IIChatTools.Services.Implementation.BrowserSessionManager">
             <summary>
             Менеджер браузерных сессий PuppeteerSharp.
@@ -766,10 +779,16 @@
         </member>
         <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.EnsureBrowserAsync(System.Threading.CancellationToken)">
             <summary>
-            Ленивая инициализация браузера.
+            Ленивая инициализация браузера через системный Edge/Chrome.
             </summary>
             <param name="cancellationToken">Токен отмены</param>
             <returns>Асинхронная задача</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.BuildChromiumArgs">
+            <summary>
+            Формирует аргументы запуска Chromium с учётом прокси.
+            </summary>
+            <returns>Массив аргументов</returns>
         </member>
         <member name="M:IIChatTools.Services.Implementation.BrowserSessionManager.CloseHolderAsync(IIChatTools.Services.Implementation.BrowserSessionManager.SessionHolder)">
             <summary>
@@ -1135,7 +1154,8 @@
         </member>
         <member name="T:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool">
             <summary>
-            Инструмент: однократное открытие страницы (stateless).
+            Инструмент: однократное открытие страницы (stateless) с возвратом HTML и текста.
+            Использует системный Chromium-совместимый браузер (Edge/Chrome).
             </summary>
         </member>
         <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool})">
@@ -1158,12 +1178,23 @@
         <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.ExecuteAsync(IIChatTools.Services.DTO.ToolExecutionContext,Newtonsoft.Json.Linq.JObject)">
             <inheritdoc />
         </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.BuildChromiumArgs">
+            <summary>
+            Формирует аргументы запуска Chromium с учётом прокси.
+            </summary>
+            <returns>Массив аргументов</returns>
+        </member>
+        <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.TrySetProxyAuthAsync(PuppeteerSharp.Page)">
+            <summary>
+            Устанавливает Basic-Auth для прокси на странице.
+            </summary>
+            <param name="page">Страница PuppeteerSharp</param>
+            <returns>Асинхронная задача</returns>
+        </member>
         <member name="M:IIChatTools.Services.Implementation.Tools.Browser.BrowserOpenPageTool.SafeGetTitleAsync(PuppeteerSharp.Page)">
             <summary>
             Безопасно получает заголовок страницы.
             </summary>
-            <param name="page">Страница</param>
-            <returns>Заголовок или null</returns>
         </member>
         <member name="T:IIChatTools.Services.Implementation.Tools.Browser.BrowserSessionCloseTool">
             <summary>

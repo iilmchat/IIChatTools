@@ -64,8 +64,27 @@ namespace IIChatTools.Services.Implementation
                 throw new InvalidOperationException(
                     $"Достигнут лимит одновременных сессий для пользователя ({maxSessionsPerUser})");
 
+            /*
             var sessionId = Guid.NewGuid().ToString("N");
             var page = await _browser.NewPageAsync();
+            await page.SetViewportAsync(new ViewPortOptions { Width = 1280, Height = 800 });
+            */
+
+            var sessionId = Guid.NewGuid().ToString("N");
+            var page = await _browser.NewPageAsync();
+
+            // Подписка на запрос авторизации прокси
+            var proxyUser = _configuration["Browser:ProxyUsername"];
+            var proxyPass = _configuration["Browser:ProxyPassword"];
+            if (!string.IsNullOrWhiteSpace(proxyUser) && !string.IsNullOrWhiteSpace(proxyPass))
+            {
+                await page.AuthenticateAsync(new Credentials
+                {
+                    Username = proxyUser,
+                    Password = proxyPass
+                });
+            }
+
             await page.SetViewportAsync(new ViewPortOptions { Width = 1280, Height = 800 });
 
             var defaultTimeout = GetPageTimeoutMs();
@@ -172,7 +191,7 @@ namespace IIChatTools.Services.Implementation
         // -------- Внутренние --------
 
         /// <summary>
-        /// Ленивая инициализация браузера.
+        /// Ленивая инициализация браузера через системный Edge/Chrome.
         /// </summary>
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Асинхронная задача</returns>
@@ -187,20 +206,20 @@ namespace IIChatTools.Services.Implementation
                 if (_browser != null && _browser.IsConnected)
                     return;
 
-                _logger.LogInformation("Инициализация PuppeteerSharp...");
-                //await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
-                await new BrowserFetcher().DownloadAsync();
+                // Ищем локальный Edge/Chrome — не используем BrowserFetcher (он не умеет прокси)
+                var executablePath = BrowserLocator.Resolve(_configuration);
+                if (string.IsNullOrEmpty(executablePath))
+                    throw new InvalidOperationException(
+                        "Не найден Chromium-совместимый браузер (Edge или Chrome). " +
+                        "Укажите путь в Browser:ExecutablePath.");
+
+                _logger.LogInformation("Инициализация PuppeteerSharp с браузером: {Path}", executablePath);
 
                 _browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
                     Headless = GetHeadless(),
-                    Args = new[]
-                    {
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox",
-                        "--disable-dev-shm-usage",
-                        "--disable-gpu"
-                    }
+                    ExecutablePath = executablePath,
+                    Args = BuildChromiumArgs()
                 });
 
                 _logger.LogInformation("PuppeteerSharp инициализирован");
@@ -209,6 +228,39 @@ namespace IIChatTools.Services.Implementation
             {
                 _browserInitLock.Release();
             }
+        }
+
+        /// <summary>
+        /// Формирует аргументы запуска Chromium с учётом прокси.
+        /// </summary>
+        /// <returns>Массив аргументов</returns>
+        private string[] BuildChromiumArgs()
+        {
+            var args = new System.Collections.Generic.List<string>
+            {
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            };
+
+            if (string.Equals(_configuration["Browser:IgnoreCertificateErrors"], "true", StringComparison.OrdinalIgnoreCase))
+                args.Add("--ignore-certificate-errors");
+
+            var proxy = _configuration["Browser:ProxyServer"];
+            if (!string.IsNullOrWhiteSpace(proxy))
+            {
+                var normalized = proxy.Trim();
+                if (!normalized.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !normalized.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+                    !normalized.StartsWith("socks", StringComparison.OrdinalIgnoreCase))
+                {
+                    normalized = "http://" + normalized;
+                }
+                args.Add($"--proxy-server={normalized}");
+            }
+
+            return args.ToArray();
         }
 
         /// <summary>

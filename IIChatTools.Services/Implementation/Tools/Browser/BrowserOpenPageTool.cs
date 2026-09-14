@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
@@ -12,7 +12,8 @@ using PuppeteerSharp;
 namespace IIChatTools.Services.Implementation.Tools.Browser
 {
     /// <summary>
-    /// Инструмент: однократное открытие страницы (stateless).
+    /// Инструмент: однократное открытие страницы (stateless) с возвратом HTML и текста.
+    /// Использует системный Chromium-совместимый браузер (Edge/Chrome).
     /// </summary>
     public class BrowserOpenPageTool : ITool
     {
@@ -61,20 +62,31 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
             var timeout = arguments.GetInt("timeoutSeconds", 30);
             if (timeout <= 0 || timeout > 120) timeout = 30;
 
+            // Ищем локальный браузер (Edge/Chrome)
+            var executablePath = BrowserLocator.Resolve(_configuration);
+            if (string.IsNullOrEmpty(executablePath))
+                return ToolResult.Fail(
+                    "Не найден Chromium-совместимый браузер (Edge или Chrome). " +
+                    "Укажите путь в Browser:ExecutablePath.");
+
             PuppeteerSharp.Browser browser = null;
             Page page = null;
             try
             {
-                //await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
-                await new BrowserFetcher().DownloadAsync();
-
-                browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                var launchOptions = new LaunchOptions
                 {
-                    Headless = !string.Equals(_configuration["Security:BrowserHeadless"], "false", StringComparison.OrdinalIgnoreCase),
-                    Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu" }
-                });
+                    Headless = !string.Equals(_configuration["Security:BrowserHeadless"], "false", StringComparison.OrdinalIgnoreCase)
+                               && !string.Equals(_configuration["Browser:Headless"], "false", StringComparison.OrdinalIgnoreCase),
+                    ExecutablePath = executablePath,
+                    Args = BuildChromiumArgs()
+                };
 
+                browser = await Puppeteer.LaunchAsync(launchOptions);
                 page = await browser.NewPageAsync();
+
+                // Авторизация на прокси (Basic Auth)
+                await TrySetProxyAuthAsync(page);
+
                 page.DefaultNavigationTimeout = timeout * 1000;
 
                 var resp = await page.GoToAsync(uri.ToString());
@@ -112,11 +124,65 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
         }
 
         /// <summary>
+        /// Формирует аргументы запуска Chromium с учётом прокси.
+        /// </summary>
+        /// <returns>Массив аргументов</returns>
+        private string[] BuildChromiumArgs()
+        {
+            var args = new List<string>
+            {
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            };
+
+            if (string.Equals(_configuration["Browser:IgnoreCertificateErrors"], "true", StringComparison.OrdinalIgnoreCase))
+                args.Add("--ignore-certificate-errors");
+
+            var proxy = _configuration["Browser:ProxyServer"];
+            if (!string.IsNullOrWhiteSpace(proxy))
+            {
+                var normalized = proxy.Trim();
+                if (!normalized.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !normalized.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+                    !normalized.StartsWith("socks", StringComparison.OrdinalIgnoreCase))
+                {
+                    normalized = "http://" + normalized;
+                }
+                args.Add($"--proxy-server={normalized}");
+            }
+
+            return args.ToArray();
+        }
+
+        /// <summary>
+        /// Устанавливает Basic-Auth для прокси на странице.
+        /// </summary>
+        /// <param name="page">Страница PuppeteerSharp</param>
+        /// <returns>Асинхронная задача</returns>
+        private async Task TrySetProxyAuthAsync(Page page)
+        {
+            var user = _configuration["Browser:ProxyUsername"];
+            var pass = _configuration["Browser:ProxyPassword"];
+            if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
+                return;
+
+            try
+            {
+                await page.AuthenticateAsync(new Credentials { Username = user, Password = pass });
+                _logger.LogInformation("Установлена авторизация на прокси для пользователя {User}", user);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Не удалось установить авторизацию на прокси");
+            }
+        }
+
+        /// <summary>
         /// Безопасно получает заголовок страницы.
         /// </summary>
-        /// <param name="page">Страница</param>
-        /// <returns>Заголовок или null</returns>
-        private static async Task<string> SafeGetTitleAsync(Page page)  // ← было IPage
+        private static async Task<string> SafeGetTitleAsync(Page page)
         {
             try { return page?.IsClosed == false ? await page.GetTitleAsync() : null; }
             catch { return null; }

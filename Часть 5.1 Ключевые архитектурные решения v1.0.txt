@@ -1,0 +1,12 @@
+Ключевые архитектурные решения v1.0
+Решение	Обоснование
+Слоистость Data → Services → API	Чистое разделение, разрыв зависимости Services↔API через AppVersionHolder
+Гибридная БД	SqlServer для production, Sqlite для локального запуска, InMemory для тестов
+CompositeAuditService	Одновременная запись в БД и/или JSONL-файл — независимость от наличия SQL Server
+DI через конструктор везде	Тестируемость, отсутствие ServiceLocator
+ToolRegistry + ITool	Новый инструмент = 1 класс + 1 строка регистрации
+Func<ISubAgentService>	Разрыв DI-цикла SubAgent↔ToolRegistry
+PathHelper + ArgumentList	Защита от path traversal и command injection
+PendingAction + polling	Компромисс безопасности и UX без WebSocket
+IStringLocalizer<SharedResources>	Единая точка локализации для всего UI
+AppVersionHolder	Разрыв зависимости Services→API

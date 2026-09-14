@@ -1,5 +1,6 @@
-@using Microsoft.AspNetCore.Mvc.Localization
-@inject IViewLocalizer Localizer
+@using Microsoft.Extensions.Localization
+@using IIChatTools.API.Resources
+@inject IStringLocalizer<SharedResources> Localizer
 
 <div class="modal fade" id="approvalModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
