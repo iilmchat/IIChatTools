@@ -12,12 +12,16 @@ namespace IIChatTools.Services.Implementation.Tools.Git
 {
     /// <summary>
     /// Инструмент: просмотр различий (git diff) между рабочей директорией и индексом/HEAD.
+    /// Поддерживает работу в подкаталогах через параметр path.
     /// </summary>
     public class GitDiffTool : BaseGitTool
     {
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GitDiffTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +34,9 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         public override string Name => "git_diff";
 
         /// <inheritdoc />
-        public override string Description => "Показывает разницу между рабочей директорией и индексом, либо между коммитами.";
+        public override string Description =>
+            "Показывает разницу между рабочей директорией и индексом, либо между коммитами. " +
+            "Параметр path указывает каталог репозитория, filePath — файл внутри него.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
@@ -38,24 +44,50 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "path", Type = "string", Description = "Относительный путь к файлу/каталогу (опционально).", Required = false },
-            new ToolParameterDescriptor { Name = "staged", Type = "bool", Description = "Показать staged-изменения (--cached).", Required = false, Default = false },
-            new ToolParameterDescriptor { Name = "fromRef", Type = "string", Description = "Коммит/ветка начала диапазона (опционально).", Required = false },
-            new ToolParameterDescriptor { Name = "toRef", Type = "string", Description = "Коммит/ветка конца диапазона (опционально).", Required = false }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "filePath",
+                Type = "string",
+                Description = "Относительный путь к файлу/каталогу внутри репозитория (опционально).",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "staged",
+                Type = "bool",
+                Description = "Показать staged-изменения (--cached).",
+                Required = false,
+                Default = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "fromRef",
+                Type = "string",
+                Description = "Коммит/ветка начала диапазона (опционально).",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "toRef",
+                Type = "string",
+                Description = "Коммит/ветка конца диапазона (опционально).",
+                Required = false
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGitContextAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGitContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
-            var pathArg = arguments.GetString("path");
+            var filePath = arguments.GetString("filePath");
             var staged = arguments.GetBool("staged");
             var fromRef = arguments.GetString("fromRef");
             var toRef = arguments.GetString("toRef");
 
-            // Валидация refs (защита от инъекций и случайных опций)
             if (!IsValidRef(fromRef) || !IsValidRef(toRef))
                 return ToolResult.Fail("Некорректная ссылка (ref)");
 
@@ -67,30 +99,28 @@ namespace IIChatTools.Services.Implementation.Tools.Git
 
                 if (!string.IsNullOrWhiteSpace(fromRef))
                 {
-                    args.Add(toRef ?? "HEAD");
-                    if (!string.IsNullOrWhiteSpace(toRef)) args.Add(fromRef);
-                    else args.Add(fromRef);
-                    // Порядок: diff <toRef> <fromRef> означает "что изменилось от fromRef к toRef"
-                    // Перестроим корректно:
-                    args.Clear();
-                    args.Add("diff");
-                    args.Add("--no-color");
-                    if (staged) args.Add("--cached");
                     args.Add(fromRef);
-                    if (!string.IsNullOrWhiteSpace(toRef)) args.Add(toRef);
+                    if (!string.IsNullOrWhiteSpace(toRef))
+                        args.Add(toRef);
                 }
-
-                if (!string.IsNullOrWhiteSpace(pathArg))
+                else if (!string.IsNullOrWhiteSpace(toRef))
                 {
-                    if (!PathHelper.TryGetSafeFullPath(pathArg, context.WorkspaceRoot, out _))
-                        return ToolResult.Fail("Недопустимый путь");
-                    args.Add("--");
-                    args.Add(pathArg);
+                    args.Add(toRef);
                 }
 
-                var result = await RunGitAsync(context, args);
+                if (!string.IsNullOrWhiteSpace(filePath))
+                {
+                    if (!PathHelper.TryGetSafeFullPath(filePath, workingDir, out _))
+                        return ToolResult.Fail("Недопустимый путь файла");
+
+                    args.Add("--");
+                    args.Add(filePath);
+                }
+
+                var result = await RunGitInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"git diff завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"git diff завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 return ToolResult.Ok(new
                 {

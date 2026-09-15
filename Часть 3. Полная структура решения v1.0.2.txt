@@ -1,0 +1,130 @@
+IIChatTools.sln
+├── Directory.Build.props                        ← Версии пакетов, общие свойства MSBuild
+├── global.json                                   ← SDK 3.1.201
+├── NuGet.Config                                  ← nuget.org + LocalPackages
+├── .gitignore
+├── README.md
+├── download-libs.ps1                             ← Загрузка bootstrap/jquery через прокси
+├── docs/
+│   └── KNOWN_ISSUES.md                           ← Реестр проблем (KI-001..009)
+│
+├── IIChatTools.Data/                             (netstandard2.1)
+│   ├── AppDbContext.cs
+│   ├── SeedData.cs
+│   ├── Entities/
+│   │   ├── BaseEntity.cs                         ← Id, CreatedAt, UpdatedAt
+│   │   ├── ApplicationUser.cs                    ← IdentityUser<int> + FullName/IsActive
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   └── Migrations/
+│
+├── IIChatTools.Services/                         (netstandard2.1)
+│   ├── DTO/
+│   │   ├── ToolResult.cs, ToolDescriptor.cs
+│   │   ├── ToolParameterDescriptor.cs, ToolExecutionContext.cs
+│   │   ├── StatusSnapshot.cs, PagedResult.cs
+│   │   ├── Admin/ (UserListDto, UserEditDto, SettingDto, WhitelistEntryDto)
+│   │   ├── Browser/ (BrowserSessionInfo)
+│   │   └── SubAgent/ (SubAgentTaskRequest, SubAgentTaskResult, SubAgentStep)
+│   ├── Extensions/
+│   │   ├── JObjectExtensions.cs                  ← GetString/GetInt/GetBool/GetStringArray
+│   │   └── ProcessExtensions.cs                  ← WaitForExitAsync, KillSafe
+│   ├── Interfaces/                                (17 интерфейсов)
+│   │   ├── ITool.cs, IToolRegistry.cs
+│   │   ├── IAuditService.cs, IAuditQueryService.cs
+│   │   ├── IFileAuditService.cs                  ← NEW: JSONL audit
+│   │   ├── IApprovalService.cs, IJwtService.cs
+│   │   ├── IStatusService.cs, IWorkspaceResolver.cs
+│   │   ├── IAppSettingsService.cs, IUserAdminService.cs
+│   │   ├── IDependencyChecker.cs, IProcessRunner.cs
+│   │   ├── IBrowserSessionManager.cs
+│   │   ├── ILmStudioClient.cs
+│   │   └── ISubAgentService.cs
+│   └── Implementation/
+│       ├── AppUptimeTracker.cs, AppVersionHolder.cs
+│       ├── AuditService.cs, AuditQueryService.cs
+│       ├── CompositeAuditService.cs              ← NEW: БД + файл
+│       ├── FileAuditService.cs                   ← NEW: JSONL с ротацией
+│       ├── ApprovalService.cs, JwtService.cs
+│       ├── AppSettingsService.cs, UserAdminService.cs
+│       ├── StatusService.cs, WorkspaceResolver.cs
+│       ├── DependencyChecker.cs, ProcessRunner.cs
+│       ├── BrowserLocator.cs                     ← NEW: Edge/Chrome locator
+│       ├── BrowserSessionManager.cs
+│       ├── LmStudioClient.cs, SubAgentService.cs
+│       ├── PathHelper.cs
+│       ├── ToolRegistry.cs
+│       └── Tools/
+│           ├── FileSystem/                       (13 инструментов)
+│           ├── CodeExecution/                    (3 инструмента)
+│           ├── Web/                              (3 инструмента)
+│           │   ├── WebSearchTool.cs
+│           │   ├── WikipediaSearchTool.cs        ← User-Agent fix
+│           │   └── FetchWebContentTool.cs
+│           ├── Git/                              (7 инструментов + BaseGitTool)
+│           │   ├── BaseGitTool.cs                ← Path + RunGitInDirAsync
+│           │   └── Git*Tool.cs                   (7 файлов с path)
+│           ├── GitHub/                            (7 инструментов + BaseGhTool)
+│           │   ├── BaseGhTool.cs                 ← Path + RunGhInDirAsync
+│           │   ├── GhAuthStatusTool.cs           ← Без path (глобальная)
+│           │   └── Gh*Tool.cs                    (6 файлов с path)
+│           ├── Browser/                          (4 инструмента)
+│           │   ├── BrowserOpenPageTool.cs        ← Edge + proxy + UA
+│           │   ├── BrowserSessionOpenTool.cs
+│           │   ├── BrowserSessionControlTool.cs
+│           │   └── BrowserSessionCloseTool.cs
+│           ├── SubAgent/                         (1 инструмент)
+│           │   └── ConsultSecondaryAgentTool.cs  ← Func<ISubAgentService> — разрыв DI-цикла
+│           └── Utils/                            (2 инструмента)
+│
+├── IIChatTools.API/                              (netcoreapp3.1)
+│   ├── Program.cs                                ← ConfigureDefaultProxy + миграции по провайдеру
+│   ├── Startup.cs                                ← DI + HttpClientFactoryOptions + 40 инструментов
+│   ├── AppVersion.cs                             ← 1.0.2
+│   ├── appsettings.json                          ← Database:Provider = SqlServer
+│   ├── appsettings.Development.json              ← Sqlite + Browser:Proxy*
+│   ├── Extensions/
+│   │   └── DbContextOptionsExtensions.cs         ← Выбор провайдера БД
+│   ├── Controllers/
+│   │   ├── HomeController.cs
+│   │   ├── AuthController.cs
+│   │   ├── ToolsController.cs
+│   │   ├── ApprovalsController.cs
+│   │   ├── AdminController.cs
+│   │   └── StatusController.cs
+│   ├── DTO/ExecuteToolRequest.cs
+│   ├── ViewModels/ (Login, Register)
+│   ├── Resources/ (SharedResources.cs, .resx, .ru.resx)
+│   ├── Views/
+│   │   ├── _ViewStart, _ViewImports              ← IStringLocalizer<SharedResources>
+│   │   ├── Auth/ (Login, Register)
+│   │   ├── Home/ (Index, Status, Admin, Test, Error)
+│   │   └── Shared/ (_Layout, _LoginPartial, _ApprovalModal, _ValidationScriptsPartial)
+│   └── wwwroot/
+│       ├── css/site.css
+│       ├── lib/                                  ← Локальные bootstrap/jquery
+│       │   ├── bootstrap/dist/{css,js}/
+│       │   ├── jquery/dist/
+│       │   ├── jquery-validation/dist/
+│       │   └── jquery-validation-unobtrusive/dist/
+│       └── js/
+│           ├── main.js
+│           └── modules/
+│               ├── api.js
+│               ├── ui.js
+│               ├── status.js
+│               ├── approvals.js
+│               ├── admin.js
+│               └── test.js                       ← Визуализация PNG
+│
+└── IIChatTools.Tests/                            (netcoreapp3.1)
+    ├── UnitTests/
+    │   ├── LocalizationSyncTests.cs
+    │   └── PathHelperTests.cs
+    └── IntegrationTests/
+        ├── TestDbContextFactory.cs
+        ├── ApprovalServiceTests.cs
+        └── ToolRegistryTests.cs

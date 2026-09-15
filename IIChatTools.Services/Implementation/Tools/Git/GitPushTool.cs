@@ -18,6 +18,9 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GitPushTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +33,8 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         public override string Name => "git_push";
 
         /// <inheritdoc />
-        public override string Description => "Отправляет локальные коммиты в удалённый репозиторий.";
+        public override string Description =>
+            "Отправляет локальные коммиты в удалённый репозиторий.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => true;
@@ -38,16 +42,38 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "remote", Type = "string", Description = "Имя remote (по умолчанию origin).", Required = false, Default = "origin" },
-            new ToolParameterDescriptor { Name = "branch", Type = "string", Description = "Имя ветки (по умолчанию текущая).", Required = false },
-            new ToolParameterDescriptor { Name = "setUpstream", Type = "bool", Description = "Установить upstream (-u).", Required = false, Default = false }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "remote",
+                Type = "string",
+                Description = "Имя remote (по умолчанию origin).",
+                Required = false,
+                Default = "origin"
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "branch",
+                Type = "string",
+                Description = "Имя ветки (по умолчанию текущая).",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "setUpstream",
+                Type = "bool",
+                Description = "Установить upstream (-u).",
+                Required = false,
+                Default = false
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGitContextAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGitContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var remote = arguments.GetString("remote", "origin");
             var branch = arguments.GetString("branch");
@@ -65,9 +91,10 @@ namespace IIChatTools.Services.Implementation.Tools.Git
                 args.Add(remote);
                 if (!string.IsNullOrWhiteSpace(branch)) args.Add(branch);
 
-                var result = await RunGitAsync(context, args);
+                var result = await RunGitInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"git push завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"git push завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 return ToolResult.Ok(new
                 {

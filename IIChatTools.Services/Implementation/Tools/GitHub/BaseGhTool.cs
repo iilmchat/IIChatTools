@@ -1,15 +1,43 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.Extensions;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Implementation.Tools.GitHub
 {
     /// <summary>
+    /// Результат проверки контекста GitHub-инструмента.
+    /// Содержит рабочий каталог при успехе или ошибку.
+    /// </summary>
+    public class GhContextValidationResult
+    {
+        /// <summary>
+        /// Рабочий каталог (абсолютный путь).
+        /// Заполнен только при успешной валидации.
+        /// </summary>
+        public string WorkingDir { get; set; }
+
+        /// <summary>
+        /// Результат с ошибкой (null при успехе).
+        /// </summary>
+        public ToolResult Error { get; set; }
+
+        /// <summary>
+        /// Признак успешной валидации.
+        /// </summary>
+        public bool IsSuccess => Error == null;
+    }
+
+    /// <summary>
     /// Базовый класс для всех инструментов GitHub CLI.
+    /// Поддерживает работу в подкаталогах через параметр path.
     /// </summary>
     public abstract class BaseGhTool : ITool
     {
@@ -58,7 +86,18 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public abstract IReadOnlyList<ToolParameterDescriptor> Parameters { get; }
 
         /// <inheritdoc />
-        public abstract Task<ToolResult> ExecuteAsync(ToolExecutionContext context, Newtonsoft.Json.Linq.JObject arguments);
+        public abstract Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments);
+
+        /// <summary>
+        /// Описание общего параметра path для GitHub-инструментов.
+        /// </summary>
+        protected static ToolParameterDescriptor PathParameter => new ToolParameterDescriptor
+        {
+            Name = "path",
+            Type = "string",
+            Description = "Относительный путь к каталогу репозитория внутри workspace (по умолчанию корень workspace).",
+            Required = false
+        };
 
         /// <summary>
         /// Возвращает таймаут для gh-команд (по умолчанию 90 секунд).
@@ -85,20 +124,104 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         }
 
         /// <summary>
-        /// Запускает gh-команду.
+        /// Разрешает рабочий каталог из аргументов (параметр path) и проверяет наличие .git.
         /// </summary>
         /// <param name="context">Контекст выполнения</param>
-        /// <param name="args">Аргументы gh (без слова "gh")</param>
-        /// <returns>Результат выполнения</returns>
-        protected async Task<ProcessResult> RunGhAsync(ToolExecutionContext context, IReadOnlyList<string> args)
+        /// <param name="arguments">Аргументы вызова</param>
+        /// <param name="workingDir">Результирующий абсолютный путь каталога</param>
+        /// <param name="error">Сообщение об ошибке</param>
+        /// <returns>true, если каталог валиден</returns>
+        protected bool TryResolveWorkingDirectory(
+            ToolExecutionContext context,
+            JObject arguments,
+            out string workingDir,
+            out string error)
         {
+            workingDir = null;
+            error = null;
+
+            if (context == null)
+            {
+                error = "Контекст выполнения не задан";
+                return false;
+            }
+
+            var pathArg = arguments?.GetString("path");
+
+            if (string.IsNullOrWhiteSpace(pathArg))
+            {
+                workingDir = context.WorkspaceRoot;
+            }
+            else
+            {
+                if (!PathHelper.TryGetSafeFullPath(pathArg, context.WorkspaceRoot, out var safePath))
+                {
+                    error = "Недопустимый путь или выход за пределы рабочего пространства";
+                    return false;
+                }
+
+                if (!Directory.Exists(safePath))
+                {
+                    error = $"Каталог не найден: {pathArg}";
+                    return false;
+                }
+
+                workingDir = safePath;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Запускает gh-команду в указанной рабочей директории.
+        /// </summary>
+        /// <param name="workingDir">Рабочая директория</param>
+        /// <param name="args">Аргументы gh (без слова "gh")</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Результат выполнения</returns>
+        /// <exception cref="ArgumentNullException">Если args равен null</exception>
+        protected async Task<ProcessResult> RunGhInDirAsync(
+            string workingDir,
+            IReadOnlyList<string> args,
+            CancellationToken cancellationToken)
+        {
+            if (args == null) throw new ArgumentNullException(nameof(args));
+
             return await ProcessRunner.RunAsync(
                 "gh",
                 args,
-                context.WorkspaceRoot,
+                workingDir,
                 GetGhTimeoutSeconds(),
                 GetMaxOutputBytes(),
-                context.CancellationToken);
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Проверяет доступность gh и разрешает рабочий каталог.
+        /// </summary>
+        /// <param name="context">Контекст</param>
+        /// <param name="arguments">Аргументы</param>
+        /// <returns>Результат валидации</returns>
+        protected async Task<GhContextValidationResult> ValidateGhContextAsync(
+            ToolExecutionContext context,
+            JObject arguments)
+        {
+            var result = new GhContextValidationResult();
+
+            if (!await EnsureGhAvailableAsync(context))
+            {
+                result.Error = ToolResult.Fail("GitHub CLI (gh) не установлен в системе");
+                return result;
+            }
+
+            if (!TryResolveWorkingDirectory(context, arguments, out var workingDir, out var error))
+            {
+                result.Error = ToolResult.Fail(error);
+                return result;
+            }
+
+            result.WorkingDir = workingDir;
+            return result;
         }
 
         /// <summary>
@@ -116,18 +239,6 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
                 64 * 1024,
                 context.CancellationToken);
             return result.ExitCode == 0;
-        }
-
-        /// <summary>
-        /// Проверяет наличие gh. При отсутствии возвращает ToolResult с ошибкой.
-        /// </summary>
-        /// <param name="context">Контекст</param>
-        /// <returns>ToolResult с ошибкой или null</returns>
-        protected async Task<ToolResult> ValidateGhAsync(ToolExecutionContext context)
-        {
-            if (!await EnsureGhAvailableAsync(context))
-                return ToolResult.Fail("GitHub CLI (gh) не установлен в системе");
-            return null;
         }
     }
 }

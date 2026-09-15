@@ -11,6 +11,7 @@ namespace IIChatTools.Services.Implementation.Tools.Git
 {
     /// <summary>
     /// Инструмент: получение статуса Git-репозитория.
+    /// Поддерживает работу в подкаталогах через параметр path.
     /// </summary>
     public class GitStatusTool : BaseGitTool
     {
@@ -32,26 +33,36 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         public override string Name => "git_status";
 
         /// <inheritdoc />
-        public override string Description => "Возвращает статус Git-репозитория (branch, изменения, staged, untracked).";
+        public override string Description =>
+            "Возвращает статус Git-репозитория (branch, изменения, staged, untracked). " +
+            "Параметр path позволяет указать подкаталог с репозиторием.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
 
         /// <inheritdoc />
-        public override IReadOnlyList<ToolParameterDescriptor> Parameters => Array.Empty<ToolParameterDescriptor>();
+        public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
+        {
+            PathParameter
+        };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGitContextAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGitContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             try
             {
-                // Короткий формат: branch + список изменений
-                var shortResult = await RunGitAsync(context, new[] { "status", "--porcelain=v1", "--branch" });
+                var shortResult = await RunGitInDirAsync(
+                    workingDir,
+                    new[] { "status", "--porcelain=v1", "--branch" },
+                    context.CancellationToken);
+
                 if (shortResult.ExitCode != 0)
-                    return ToolResult.Fail($"git status завершился с кодом {shortResult.ExitCode}: {shortResult.StdErr}");
+                    return ToolResult.Fail(
+                        $"git status завершился с кодом {shortResult.ExitCode}: {shortResult.StdErr}");
 
                 var lines = (shortResult.StdOut ?? string.Empty)
                     .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);

@@ -1,0 +1,688 @@
+IIChatTools v1.0.2 — Фиксация, архитектура и переход к v1.1
+Часть 1. Обновлённые правила оформления и ведения проекта
+Дополняем наши правила новым обязательным пунктом про KNOWN_ISSUES.md.
+
+📋 Правила оформления и документирования (актуальная версия)
+#	Правило	Требование
+1	Комментарии	Русский язык, включая XML-документацию
+2	XML-doc	Обязательна для всех public классов, интерфейсов, методов, свойств. Теги: <summary>, <param>, <returns>, <exception>
+3	Именование	Публичные члены — PascalCase; приватные поля — _camelCase; локальные — camelCase
+4	DI	Только через конструктор, без ServiceLocator
+5	Async	Все I/O-методы — с суффиксом Async
+6	Исключения	Контроллеры: try-catch → { success, data, message }. Сервисы: throw с осмысленным сообщением
+7	Логирование	ILogger — техника; IAuditService — действия пользователей
+8	Безопасность	Пути — PathHelper.TryGetSafeFullPath; CLI — ArgumentList; лимиты размеров
+9	Версионирование	AppVersion.Current при изменении API
+10	Known Issues	Любая найденная проблема, ограничение или наблюдение — фиксируется в docs/KNOWN_ISSUES.md с уникальным номером KI-XXX, приоритетом, статусом и файлами. Даже если это «не баг» — запись нужна для истории.
+11	Локализация	Новые UI-строки — в оба файла .resx (RU+EN); синхронизация проверяется тестом LocalizationSyncTests
+12	Инструменты	Новый инструмент = 1 класс + 1 строка регистрации в Startup.cs в соответствующей группе; параметры описываются через ToolParameterDescriptor
+Приоритеты и статусы для KNOWN_ISSUES.md
+Приоритет	Значение
+🔴 Critical	Блокирует работу, уязвимость, потеря данных
+🟠 High	Заметная проблема функционала или UX
+🟡 Medium	Косметика, улучшение
+🟢 Low	Пожелание на будущее
+Статус	Значение
+Open	Зафиксирована, не исправлена
+In Progress	В работе
+Fixed	Исправлена (указать версию и дату)
+Documented	Не баг — осознанное ограничение, задокументировано
+Deferred	Отложена на более позднюю версию
+Won't Fix	Не будет исправляться (с обоснованием)
+Часть 2. Фиксация v1.0.2
+2.1. Обновление версии в коде
+IIChatTools.API/AppVersion.cs:
+
+csharp
+public const string Current = "1.0.2";
+public const string ProductName = "IIChatTools";
+public const string Copyright = "© 2026 RuChating (iilmchat) · IIChatTools v1.0.2";
+Directory.Build.props:
+
+xml
+<Version>1.0.2</Version>
+<Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0.2</Copyright>
+2.2. Фиксация в Git
+powershell
+cd G:\AI\IIChatTools
+git add .
+git commit -m "v1.0.2 — full test suite fixes
+
+Исправлено:
+- KI-002: 407 proxy для веб-инструментов (HttpClientFactoryOptions + WebProxy credentials)
+- KI-003: 403 Wikipedia (реалистичный User-Agent)
+- KI-004: git-инструменты не работали в подкаталогах (параметр path)
+- KI-006: gh-инструменты не работали в подкаталогах (параметр path)
+
+Документировано:
+- KI-007: gh issue create не создаёт метки автоматически
+- KI-008: хрупкость git-истории при манипуляциях
+- KI-009: ERR_CONNECTION_RESET на SSO-сайтах
+
+Улучшено:
+- test.js: визуализация PNG-скриншотов с кнопками
+- browser: --remote-allow-origins, --proxy-bypass-list, реалистичный UA
+- HttpClient.DefaultProxy для ClientWebSocket (PuppeteerSharp)
+- PuppeteerSharp 7.1.0
+"
+git tag -a v1.0.2 -m "Release v1.0.2 — fully tested (40 tools, local deps, proxy support)"
+2.3. Итоговый KNOWN_ISSUES.md
+Путь: docs/KNOWN_ISSUES.md
+
+markdown
+# Известные проблемы IIChatTools
+
+Файл ведётся с версии 1.0 (сентябрь 2026).
+Формат: `KI-XXX` — название, приоритет, статус, файлы.
+
+## Исправленные
+
+### KI-002 — 407 Proxy Authentication Required для веб-инструментов
+- **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.0.2
+- **Файлы:** `IIChatTools.API/Startup.cs`
+- **Решение:** `HttpClientFactoryOptions.HttpMessageHandlerBuilderActions` + `WebProxy.Credentials`.
+
+### KI-003 — 403 Forbidden от Wikipedia API
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.0.2
+- **Файлы:** `WikipediaSearchTool.cs`
+- **Решение:** User-Agent `IIChatTools/1.0 (https://github.com/RuChating/IIChatTools; iilmchat@localhost)`.
+
+### KI-004 — Git-инструменты не поддерживали подкаталоги
+- **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.0.2
+- **Файлы:** `BaseGitTool.cs` + 7 `Git*Tool.cs`
+- **Решение:** Параметр `path` + `GitContextValidationResult` + `RunGitInDirAsync`.
+- **API-изменения:** `git_diff.path` → `filePath`; `git_log.path` → `filePath`; `git_add.paths` → `files`; `git_checkout.paths` → `files`.
+
+### KI-006 — gh-инструменты не поддерживали подкаталоги
+- **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.0.2
+- **Файлы:** `BaseGhTool.cs` + 6 `Gh*Tool.cs`
+- **Решение:** Параметр `path` + `GhContextValidationResult` + `RunGhInDirAsync`.
+
+## Документированные (не баги)
+
+### KI-001 — Неинформативное сообщение при отклонении действия
+- **Приоритет:** 🟡 Medium | **Статус:** Open | **Запланировано:** v1.0.3
+- **Файлы:** `test.js`, `approvals.js`
+- **Решение:** Показывать причину отклонения в поле «Результат».
+
+### KI-005 — Неявный `git add -A` при пустом списке файлов
+- **Приоритет:** 🟠 High | **Статус:** Documented
+- **Файлы:** `GitAddTool.cs`
+- **Причина:** Пустой `files` трактуется как `-A`. Документировано в описании инструмента.
+
+### KI-007 — gh issue create требует заранее созданные метки
+- **Приоритет:** 🟢 Low | **Статус:** Documented
+- **Причина:** Ограничение `gh` CLI. Метки должны быть созданы заранее.
+
+### KI-008 — Хрупкость git-истории при манипуляциях
+- **Приоритет:** 🟢 Low | **Статус:** Resolved
+- **Причина:** `--allow-unrelated-histories` + `reset --hard` + пересоздание веток → расхождение историй.
+- **Решение:** Чистый `git clone` восстанавливает целостность.
+
+### KI-009 — ERR_CONNECTION_RESET на сайтах с SSO
+- **Приоритет:** 🟡 Medium | **Статус:** Documented
+- **Причина:** Kinopoisk и подобные сайты требуют SSO-редирект, Chromium через прокси сбрасывает соединение.
+- **Решение:** Использовать нейтральные сайты. Инъекция cookies — v1.1.
+Часть 3. Полная структура решения v1.0.2
+text
+IIChatTools.sln
+├── Directory.Build.props                        ← Версии пакетов, общие свойства MSBuild
+├── global.json                                   ← SDK 3.1.201
+├── NuGet.Config                                  ← nuget.org + LocalPackages
+├── .gitignore
+├── README.md
+├── download-libs.ps1                             ← Загрузка bootstrap/jquery через прокси
+├── docs/
+│   └── KNOWN_ISSUES.md                           ← Реестр проблем (KI-001..009)
+│
+├── IIChatTools.Data/                             (netstandard2.1)
+│   ├── AppDbContext.cs
+│   ├── SeedData.cs
+│   ├── Entities/
+│   │   ├── BaseEntity.cs                         ← Id, CreatedAt, UpdatedAt
+│   │   ├── ApplicationUser.cs                    ← IdentityUser<int> + FullName/IsActive
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   └── Migrations/
+│
+├── IIChatTools.Services/                         (netstandard2.1)
+│   ├── DTO/
+│   │   ├── ToolResult.cs, ToolDescriptor.cs
+│   │   ├── ToolParameterDescriptor.cs, ToolExecutionContext.cs
+│   │   ├── StatusSnapshot.cs, PagedResult.cs
+│   │   ├── Admin/ (UserListDto, UserEditDto, SettingDto, WhitelistEntryDto)
+│   │   ├── Browser/ (BrowserSessionInfo)
+│   │   └── SubAgent/ (SubAgentTaskRequest, SubAgentTaskResult, SubAgentStep)
+│   ├── Extensions/
+│   │   ├── JObjectExtensions.cs                  ← GetString/GetInt/GetBool/GetStringArray
+│   │   └── ProcessExtensions.cs                  ← WaitForExitAsync, KillSafe
+│   ├── Interfaces/                                (17 интерфейсов)
+│   │   ├── ITool.cs, IToolRegistry.cs
+│   │   ├── IAuditService.cs, IAuditQueryService.cs
+│   │   ├── IFileAuditService.cs                  ← NEW: JSONL audit
+│   │   ├── IApprovalService.cs, IJwtService.cs
+│   │   ├── IStatusService.cs, IWorkspaceResolver.cs
+│   │   ├── IAppSettingsService.cs, IUserAdminService.cs
+│   │   ├── IDependencyChecker.cs, IProcessRunner.cs
+│   │   ├── IBrowserSessionManager.cs
+│   │   ├── ILmStudioClient.cs
+│   │   └── ISubAgentService.cs
+│   └── Implementation/
+│       ├── AppUptimeTracker.cs, AppVersionHolder.cs
+│       ├── AuditService.cs, AuditQueryService.cs
+│       ├── CompositeAuditService.cs              ← NEW: БД + файл
+│       ├── FileAuditService.cs                   ← NEW: JSONL с ротацией
+│       ├── ApprovalService.cs, JwtService.cs
+│       ├── AppSettingsService.cs, UserAdminService.cs
+│       ├── StatusService.cs, WorkspaceResolver.cs
+│       ├── DependencyChecker.cs, ProcessRunner.cs
+│       ├── BrowserLocator.cs                     ← NEW: Edge/Chrome locator
+│       ├── BrowserSessionManager.cs
+│       ├── LmStudioClient.cs, SubAgentService.cs
+│       ├── PathHelper.cs
+│       ├── ToolRegistry.cs
+│       └── Tools/
+│           ├── FileSystem/                       (13 инструментов)
+│           ├── CodeExecution/                    (3 инструмента)
+│           ├── Web/                              (3 инструмента)
+│           │   ├── WebSearchTool.cs
+│           │   ├── WikipediaSearchTool.cs        ← User-Agent fix
+│           │   └── FetchWebContentTool.cs
+│           ├── Git/                              (7 инструментов + BaseGitTool)
+│           │   ├── BaseGitTool.cs                ← Path + RunGitInDirAsync
+│           │   └── Git*Tool.cs                   (7 файлов с path)
+│           ├── GitHub/                            (7 инструментов + BaseGhTool)
+│           │   ├── BaseGhTool.cs                 ← Path + RunGhInDirAsync
+│           │   ├── GhAuthStatusTool.cs           ← Без path (глобальная)
+│           │   └── Gh*Tool.cs                    (6 файлов с path)
+│           ├── Browser/                          (4 инструмента)
+│           │   ├── BrowserOpenPageTool.cs        ← Edge + proxy + UA
+│           │   ├── BrowserSessionOpenTool.cs
+│           │   ├── BrowserSessionControlTool.cs
+│           │   └── BrowserSessionCloseTool.cs
+│           ├── SubAgent/                         (1 инструмент)
+│           │   └── ConsultSecondaryAgentTool.cs  ← Func<ISubAgentService> — разрыв DI-цикла
+│           └── Utils/                            (2 инструмента)
+│
+├── IIChatTools.API/                              (netcoreapp3.1)
+│   ├── Program.cs                                ← ConfigureDefaultProxy + миграции по провайдеру
+│   ├── Startup.cs                                ← DI + HttpClientFactoryOptions + 40 инструментов
+│   ├── AppVersion.cs                             ← 1.0.2
+│   ├── appsettings.json                          ← Database:Provider = SqlServer
+│   ├── appsettings.Development.json              ← Sqlite + Browser:Proxy*
+│   ├── Extensions/
+│   │   └── DbContextOptionsExtensions.cs         ← Выбор провайдера БД
+│   ├── Controllers/
+│   │   ├── HomeController.cs
+│   │   ├── AuthController.cs
+│   │   ├── ToolsController.cs
+│   │   ├── ApprovalsController.cs
+│   │   ├── AdminController.cs
+│   │   └── StatusController.cs
+│   ├── DTO/ExecuteToolRequest.cs
+│   ├── ViewModels/ (Login, Register)
+│   ├── Resources/ (SharedResources.cs, .resx, .ru.resx)
+│   ├── Views/
+│   │   ├── _ViewStart, _ViewImports              ← IStringLocalizer<SharedResources>
+│   │   ├── Auth/ (Login, Register)
+│   │   ├── Home/ (Index, Status, Admin, Test, Error)
+│   │   └── Shared/ (_Layout, _LoginPartial, _ApprovalModal, _ValidationScriptsPartial)
+│   └── wwwroot/
+│       ├── css/site.css
+│       ├── lib/                                  ← Локальные bootstrap/jquery
+│       │   ├── bootstrap/dist/{css,js}/
+│       │   ├── jquery/dist/
+│       │   ├── jquery-validation/dist/
+│       │   └── jquery-validation-unobtrusive/dist/
+│       └── js/
+│           ├── main.js
+│           └── modules/
+│               ├── api.js
+│               ├── ui.js
+│               ├── status.js
+│               ├── approvals.js
+│               ├── admin.js
+│               └── test.js                       ← Визуализация PNG
+│
+└── IIChatTools.Tests/                            (netcoreapp3.1)
+    ├── UnitTests/
+    │   ├── LocalizationSyncTests.cs
+    │   └── PathHelperTests.cs
+    └── IntegrationTests/
+        ├── TestDbContextFactory.cs
+        ├── ApprovalServiceTests.cs
+        └── ToolRegistryTests.cs
+Часть 4. Полная архитектура v1.0.2
+4.1. Слои
+text
+┌───────────────────────────────────────────────────────────────────────┐
+│                       LM Studio (LLM) :8034                            │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ HTTP (OpenAI-совместимый API)
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                        IIChatTools.API (netcoreapp3.1)                 │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │ Контроллеры: Home, Auth, Tools, Approvals, Admin, Status         │  │
+│  │ Razor Views (RU/EN через IStringLocalizer<SharedResources>)      │  │
+│  │ ES-модули: api, ui, status, approvals, admin, test               │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  Program.cs:                                                          │
+│    ConfigureDefaultProxy()  ← HttpClient.DefaultProxy + NO_PROXY      │
+│    Условные миграции (SqlServer → Migrate; Sqlite/InMemory → Ensure)  │
+│                                                                       │
+│  Startup.cs:                                                          │
+│    AddAppDbContext (провайдер из конфига)                             │
+│    Configure<HttpClientFactoryOptions> ← прокси с credentials         │
+│    Регистрация 40 инструментов по группам                             │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ DI
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    IIChatTools.Services (netstandard2.1)              │
+│                                                                       │
+│  ┌────────────────────────┐   ┌──────────────────────────────────┐   │
+│  │ ToolRegistry (40)      │   │ Cross-cutting services:          │   │
+│  │ ─ FileSystem      (13) │   │  • CompositeAuditService         │   │
+│  │ ─ CodeExecution    (3) │   │  • FileAuditService (JSONL)      │   │
+│  │ ─ Web              (3) │   │  • ApprovalService               │   │
+│  │ ─ Git              (7) │   │  • AppSettingsService            │   │
+│  │ ─ GitHub           (7) │   │  • UserAdminService              │   │
+│  │ ─ Browser          (4) │   │  • JwtService                    │   │
+│  │ ─ SubAgent         (1) │   │  • StatusService                 │   │
+│  │ ─ Utils            (2) │   │  • WorkspaceResolver             │   │
+│  └────────────────────────┘   │  • ProcessRunner                 │   │
+│                                │  • BrowserLocator                │   │
+│                                │  • BrowserSessionManager         │   │
+│                                │  • LmStudioClient                │   │
+│                                │  • SubAgentService               │   │
+│                                │  • DependencyChecker             │   │
+│                                │  • PathHelper (static)           │   │
+│                                └──────────────────────────────────┘   │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ EF Core
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│              IIChatTools.Data (EF Core + Identity)                    │
+│              Провайдеры: SqlServer / Sqlite / InMemory                │
+│  • ApplicationUser + Identity (Roles: Admin, User)                    │
+│  • AuditLog      • AppSetting      • PendingAction                    │
+│  • AgentState    • MemoryEntry                                        │
+└───────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ (опционально, независимо от БД)
+                                  ▼
+                        ┌────────────────────────┐
+                        │  logs/audit/*.jsonl    │
+                        │  (JSONL, ротация)      │
+                        └────────────────────────┘
+4.2. Ключевые архитектурные решения
+#	Решение	Обоснование
+1	Слоистость Data → Services → API	Чистое разделение; Services не зависит от API через AppVersionHolder
+2	Гибридная БД (SqlServer/Sqlite/InMemory)	Не требует SQL Server от пользователя
+3	CompositeAuditService	Аудит в БД и/или файл (JSONL) независимо
+4	DI через конструктор везде	Тестируемость, отсутствие ServiceLocator
+5	ToolRegistry + ITool	Новый инструмент = 1 класс + 1 строка регистрации
+6	Func<ISubAgentService>	Разрыв DI-цикла SubAgent ↔ ToolRegistry
+7	path в git/gh инструментах	Работа с несколькими репозиториями в workspace
+8	GitContextValidationResult / GhContextValidationResult	Обход запрета out в async-методах
+9	HttpClient.DefaultProxy + NO_PROXY	Единственный способ заставить ClientWebSocket использовать прокси с bypass loopback в .NET Core 3.1
+10	HttpClientFactoryOptions.HttpMessageHandlerBuilderActions	Единственный способ передать прокси с credentials в IHttpClientFactory на 3.1
+11	BrowserLocator	Автоопределение Edge/Chrome — не используем BrowserFetcher
+12	--remote-allow-origins=*	Обход блокировки WebSocket в Chromium 111+
+13	--proxy-bypass-list=<-loopback>	Обход прокси для WS-соединения с самим Chromium
+14	Реалистичный User-Agent	Обход блокировки headless на сайтах
+15	PuppeteerSharp 7.1.0	Исправления совместимости с современными Chromium
+16	IStringLocalizer<SharedResources>	Единая точка локализации интерфейса
+17	PendingAction + polling	Компромисс безопасности и UX без WebSocket
+18	KNOWN_ISSUES.md	Реестр проблем и решений
+4.3. Поток вызова браузерного инструмента
+text
+ToolRegistry.ExecuteAsync("browser_open_page")
+   ↓
+BrowserOpenPageTool
+   ├─→ BrowserLocator.Resolve (найти Edge/Chrome)
+   ├─→ Puppeteer.LaunchAsync
+   │     Args:
+   │       --no-sandbox
+   │       --remote-allow-origins=*
+   │       --proxy-server=http://222.1.20.1:8080
+   │       --proxy-bypass-list=<-loopback>
+   │       --ignore-certificate-errors
+   │
+   ├─→ page.SetUserAgentAsync (реалистичный Chrome UA)
+   ├─→ page.AuthenticateAsync (Basic Auth для прокси)
+   ├─→ page.GoToAsync (через прокси → сайт)
+   ├─→ page.GetContentAsync + EvaluateExpressionAsync
+   └─→ ToolResult.Ok({ url, title, text, htmlLength })
+4.4. Сводная таблица DI
+Сервис	Lifetime	Роль
+AppDbContext	Scoped	EF Core + Identity
+AppUptimeTracker	Singleton	Время старта
+IBrowserSessionManager	Singleton	Долгоживущий PuppeteerSharp
+IProcessRunner	Singleton	Запуск процессов
+IFileAuditService	Singleton	JSONL-аудит
+IAuditService	Scoped	Composite (БД + файл)
+IAuditQueryService	Scoped	Чтение аудита
+IApprovalService	Scoped	Подтверждения
+IJwtService	Scoped	JWT
+IStatusService	Scoped	Статистика
+IWorkspaceResolver	Scoped	Путь workspace
+IAppSettingsService	Scoped	Настройки
+IUserAdminService	Scoped	Пользователи
+IDependencyChecker	Scoped	Проверка CLI
+ILmStudioClient	Scoped	HTTP к LM Studio
+ISubAgentService	Scoped	Оркестратор суб-агента
+Func<ISubAgentService>	Scoped	Разрыв цикла
+IToolRegistry	Scoped	Реестр 40 инструментов
+ITool (40 шт.)	Scoped	Каждый инструмент
+4.5. Итог по инструментам
+Группа	Кол-во	Подтверждение
+Файловая система	13	7
+Выполнение кода	3	3
+Веб	3	0
+Git	7	4
+GitHub	7	2
+Браузер	4	1
+Суб-агент	1	1
+Утилиты	2	0
+Итого	40	18
+Часть 5. Анализ к версии 1.1
+5.1. Что сделано в v1.0.2 (сильные стороны)
+40 инструментов, все протестированы
+
+Мультипользовательская админка с ролями, аудитом, подтверждениями
+
+Гибридная БД + файловый аудит
+
+Локализация RU/EN с автотестом
+
+Суб-агенты с авто-отладкой
+
+Браузерная автоматизация через прокси (корпоративные сети)
+
+Расширяемая архитектура
+
+Реестр известных проблем (KI)
+
+5.2. Критичные проблемы для v1.1
+#	Проблема	Приоритет
+1	.NET Core 3.1 снят с поддержки (декабрь 2022)	🔴 Критично
+2	Polling для подтверждений (задержка до 5 с)	🟠 Высокий
+3	Нет rate limiting — один пользователь забивает LM Studio	🟠 Высокий
+4	Нет метрик и health checks	🟠 Высокий
+5	Аудит растёт бесконечно	🟠 Высокий
+6	Настройки не hot-reload	🟡 Средний
+7	Нет стриминга ответов LM Studio	🟠 Высокий
+8	Нет Chat UI	🟠 Высокий
+9	Нет RAG	🟡 Средний
+10	Тестов мало (4 файла)	🟠 Высокий
+5.3. План v1.1 — рекомендуемый порядок
+Обязательно (must-have, 7–9 недель):
+
+.NET 8 LTS — критично, поскольку 3.1 EOL (3–5 дней)
+
+Rate limiting — AddRateLimiter, per-user (2 дня)
+
+Health checks + метрики Prometheus (3 дня)
+
+SignalR вместо polling (5–7 дней)
+
+Retention-политика аудита — BackgroundService (2 дня)
+
+Hot-reload настроек через IOptionsMonitor (3 дня)
+
+Расширение тестов (unit + integration, ≥70% coverage) (10 дней)
+
+Docker + docker-compose + GitHub Actions (4 дня)
+
+Документация (Developer Guide, API Reference, Security Guide) (3 дня)
+
+Желательно (should-have, 4–5 недель):
+
+Стриминг ответов LM Studio (SSE) — 5 дней
+
+Chat UI с историей — 10–15 дней
+
+RAG (Qdrant + эмбеддинги) — 10–15 дней
+
+2FA для Admin — 3 дня
+
+Отложить до v1.2:
+
+MCP-совместимость (stdio + SSE)
+
+Матрица tool-policy per-role
+
+HMAC-подпись AuditLog
+
+Helm chart для K8s
+
+Шифрование секретных AppSetting
+
+5.4. Улучшения UX из KI (быстрые фиксы)
+KI-001: причина отклонения в поле «Результат» (2 часа)
+
+KI-005: явное поведение git_add при пустом files (1 час)
+
+KI-009: инъекция cookies в браузерные сессии (1 день)
+
+Часть 6. Промт для нового чата
+Скопируйте этот блок в начало нового диалога:
+
+📋 Промт для продолжения работы над IIChatTools (v1.1)
+text
+Ты — ведущий архитектор и разработчик проекта IIChatTools.
+Мы продолжаем разработку. Ниже — контекст, правила и текущая задача.
+
+## Контекст проекта
+
+IIChatTools v1.0.2 — веб-приложение .NET Core 3.1 + EF Core,
+предоставляющее локальной LLM (LM Studio, OpenAI-совместимый API на :8034)
+40 инструментов: файловая система, выполнение кода, веб-поиск,
+браузерная автоматизация (PuppeteerSharp + Edge/Chrome через прокси),
+Git/GitHub, суб-агенты, утилиты.
+
+Ключевые компоненты v1.0.2:
+- 4 проекта: Data (netstandard2.1), Services (netstandard2.1), API (netcoreapp3.1), Tests
+- Гибридная БД: SqlServer / Sqlite / InMemory (Database:Provider в конфиге)
+- CompositeAuditService: БД + JSONL-файл (logs/audit/)
+- Мультипользовательность: роли Admin/User, первый = Admin
+- Подтверждения: PendingAction + polling /api/approvals/pending
+- Суб-агенты: ISubAgentService + Func<ISubAgentService> (разрыв DI-цикла)
+- Локализация: SharedResources.resx + IStringLocalizer<SharedResources>
+- Аутентификация: cookie (Razor) + JWT (API)
+- Git-инструменты: параметр `path` (каталог репо) + `filePath` (файл)
+- GitHub-инструменты: параметр `path` для работы в подкаталогах
+- Браузер: Edge + --remote-allow-origins=* + --proxy-bypass-list=<-loopback>
+        + HttpClient.DefaultProxy для ClientWebSocket
+- PuppeteerSharp 7.1.0
+- Локальные библиотеки (bootstrap/jquery) в wwwroot/lib/
+
+## Правила оформления (ОБЯЗАТЕЛЬНО)
+
+1. Все комментарии и XML-документация — на русском
+2. XML-doc обязателен для всех public классов/методов/свойств:
+   <summary>, <param>, <returns>, <exception>
+3. DI только через конструктор
+4. Все I/O-методы — с суффиксом Async
+5. Публичные члены — PascalCase, приватные поля — _camelCase
+6. Контроллеры: try-catch → { success, data, message }
+7. Сервисы: throw с осмысленным сообщением, не гасить стек
+8. ILogger — технические логи; IAuditService — действия пользователей
+9. Все пути — через PathHelper.TryGetSafeFullPath
+10. CLI — только через ProcessStartInfo.ArgumentList
+11. Версионирование — обновлять AppVersion.Current
+12. Copyright: © 2026 RuChating (iilmchat) · IIChatTools v1.0.2
+13. **Любая найденная проблема/ограничение → фиксируется в docs/KNOWN_ISSUES.md
+    с номером KI-XXX, приоритетом (🔴/🟠/🟡/🟢), статусом и файлами.**
+14. **Новые UI-строки — в оба .resx (RU + EN).** Тест
+    LocalizationSyncTests проверит синхронность.
+15. **Новый инструмент = 1 класс + 1 строка регистрации** в Startup.cs
+    в соответствующей группе (RegisterFileSystemTools, etc.).
+
+## Текущее состояние
+
+- Все 40 инструментов протестированы (кроме пары мест в группе 6/7)
+- Известные проблемы зафиксированы в docs/KNOWN_ISSUES.md:
+  - KI-001: сообщение при отклонении (Open, v1.0.3)
+  - KI-005: implicit git add -A (Documented)
+  - KI-007: gh issue labels (Documented)
+  - KI-008: хрупкость git-истории (Resolved)
+  - KI-009: ERR_CONNECTION_RESET на SSO (Documented)
+- Все остальные KI (002, 003, 004, 006) — Fixed в v1.0.2
+
+## Задача v1.1
+
+Начать с обновления до .NET 8 LTS (критично, .NET Core 3.1 EOL декабрь 2022).
+
+Порядок (по приоритету):
+1. Обновление до .NET 8 LTS — .csproj, global.json, NuGet-пакеты, Program.cs (top-level)
+2. Rate limiting (AddRateLimiter)
+3. Health checks + метрики Prometheus
+4. SignalR вместо polling
+5. Retention аудита (BackgroundService)
+6. Hot-reload настроек через IOptionsMonitor
+7. Расширение тестов (≥70%)
+8. Docker + docker-compose + CI/CD
+9. Документация (Developer Guide, API Reference, Security Guide)
+10. Стриминг ответов LM Studio (SSE)
+11. Chat UI с историей
+12. RAG с Qdrant + эмбеддинги
+
+## Формат работы
+
+- Полные файлы с XML-документацией на русском
+- Путь к файлу в начале каждого блока кода
+- При изменении существующего файла — полная версия
+- Новые NuGet-пакеты — с версиями и указанием проекта
+- Сводка в конце блока: что сделано / что проверить
+- Новые проблемы → KI-XXX в docs/KNOWN_ISSUES.md
+- Новые UI-строки → оба .resx
+- Новый инструмент → 1 класс + 1 строка регистрации
+- Обновление AppVersion.Current при изменении API
+
+## Источники
+
+Исходники переданы в чат (см. раздел "Как передать исходники" ниже).
+Структура и архитектура описаны в разделе "Структура решения".
+
+Начинаем с [укажи задачу — например, «обновление до .NET 8 LTS»].
+Часть 7. Как передать исходники в новый чат
+Вариант A (рекомендую) — Git-репозиторий
+Если у вас есть публичный Git-репозиторий (или self-hosted с публичным URL):
+
+powershell
+cd G:\AI\IIChatTools
+git remote add origin https://github.com/iilmchat/IIChatTools.git
+git push -u origin master --tags
+В новом чате: «Изучи структуру проекта по https://github.com/...» — большинство современных чатов смогут открыть публичный репозиторий.
+
+⚠️ Приватный репозиторий недоступен для большинства чатов. Для приватного используйте вариант B.
+
+Вариант B — Zip-архив
+powershell
+cd G:\AI\IIChatTools
+# Создаём архив, исключая bin/obj/Data/logs
+$temp = "G:\AI\IIChatTools-export"
+Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
+robocopy "G:\AI\IIChatTools" $temp /E `
+    /XD bin obj .git .vs .idea Data logs Workspace `
+    /XF *.db *.db-shm *.db-wal *.user *.suo
+
+Compress-Archive -Path "$temp\*" -DestinationPath "IIChatTools-v1.0.2-src.zip" -CompressionLevel Optimal
+Remove-Item $temp -Recurse -Force
+Размер архива: ~1–2 МБ без библиотек, ~5 МБ с ними.
+
+Загрузите в облако (Google Drive, Яндекс.Диск, WeTransfer) — дайте ссылку новому чату. Если чат поддерживает загрузку файлов — загрузите zip напрямую.
+
+Вариант C — Постепенно, по файлам (если A и B невозможны)
+Минимальный стартовый набор (примерно 15 файлов, ~150 КБ):
+
+Промт (см. выше)
+
+README.md, Directory.Build.props, global.json, NuGet.Config, .gitignore
+
+Все 4 .csproj
+
+IIChatTools.Data/Entities/* (7 файлов)
+
+AppDbContext.cs, SeedData.cs
+
+Program.cs, Startup.cs, AppVersion.cs
+
+appsettings.json, appsettings.Development.json
+
+docs/KNOWN_ISSUES.md
+
+Затем — по запросу:
+
+Interfaces/* (17 файлов)
+
+DTO/* (13 файлов)
+
+Implementation/* (кроме Tools) — 15 файлов
+
+Tools/FileSystem/* (13)
+
+Tools/CodeExecution/* (3)
+
+Tools/Web/* (3)
+
+Tools/Git/* (8)
+
+Tools/GitHub/* (8)
+
+Tools/Browser/* (4)
+
+Tools/SubAgent/* (1)
+
+Tools/Utils/* (2)
+
+Controllers/* (6)
+
+Views/**/* (~15)
+
+wwwroot/js/**/* (~10)
+
+Resources/* (3)
+
+Tests/**/* (4)
+
+Стратегия передачи: пришлите один блок с путями + содержимым — примерно по 5–10 файлов за сообщение. Это ~30–40 сообщений для полной передачи. Долго, но надёжно.
+
+Практическая рекомендация
+Для v1.1 используйте вариант A — публичный Git-репозиторий. Это даст новому чату возможность читать актуальные файлы и возвращаться к ним при необходимости. Если проект должен оставаться приватным — вариант B (zip через облако).
+
+Часть 8. Промежуточный итог
+Что зафиксировано в v1.0.2:
+
+✅ 40 инструментов протестированы и работают
+
+✅ Гибридная БД и файловый аудит
+
+✅ Браузерная автоматизация через прокси
+
+✅ Git/GitHub работают в подкаталогах
+
+✅ Локализация RU/EN
+
+✅ Реестр проблем KNOWN_ISSUES.md с 9 записями
+
+✅ Обновлённые правила (12 пунктов)
+
+✅ Полная структура и архитектура
+
+✅ Анализ к v1.1 с приоритизацией
+
+✅ Промт для нового чата
+
+✅ Способы передачи исходников
+
+Готов к переходу к v1.1. Начните с обновления до .NET 8 — это критично, поскольку .NET Core 3.1 официально не поддерживается с декабря 2022 года, и в нём есть неисправленные уязвимости.
+
+Если что-то из фиксации нужно уточнить (например, команды Git или содержимое конкретных файлов) — скажите, дополню. Удачи с v1.1! 🚀

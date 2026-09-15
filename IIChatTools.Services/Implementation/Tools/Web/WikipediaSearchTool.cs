@@ -62,6 +62,13 @@ namespace IIChatTools.Services.Implementation.Tools.Web
             try
             {
                 var client = _httpClientFactory.CreateClient();
+
+                // Wikipedia требует информативный User-Agent с контактом разработчика.
+                // Без этого запрос блокируется с 403 (политика User-Agent).
+                // https://meta.wikimedia.org/wiki/User-Agent_policy
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "IIChatTools/1.0 (https://github.com/RuChating/IIChatTools; iilmchat@localhost)");
+
                 var url = $"https://{lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch={HttpUtility.UrlEncode(query)}&format=json&srlimit={limit}";
                 var json = await client.GetStringAsync(url);
 

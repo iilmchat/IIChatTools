@@ -18,6 +18,9 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GitCheckoutTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +33,8 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         public override string Name => "git_checkout";
 
         /// <inheritdoc />
-        public override string Description => "Переключает ветку или восстанавливает файлы из указанного коммита.";
+        public override string Description =>
+            "Переключает ветку или восстанавливает файлы из указанного коммита.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => true;
@@ -38,16 +42,37 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "target", Type = "string", Description = "Ветка или ref (например, main, feature/x, HEAD~1).", Required = true },
-            new ToolParameterDescriptor { Name = "createBranch", Type = "bool", Description = "Создать новую ветку (git checkout -b).", Required = false, Default = false },
-            new ToolParameterDescriptor { Name = "paths", Type = "array", Description = "Опционально: восстановить только указанные пути.", Required = false }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "target",
+                Type = "string",
+                Description = "Ветка или ref (например, main, feature/x, HEAD~1).",
+                Required = true
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "createBranch",
+                Type = "bool",
+                Description = "Создать новую ветку (git checkout -b).",
+                Required = false,
+                Default = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "files",
+                Type = "array",
+                Description = "Опционально: восстановить только указанные пути.",
+                Required = false
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGitContextAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGitContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var target = arguments.GetString("target");
             if (string.IsNullOrWhiteSpace(target))
@@ -56,7 +81,7 @@ namespace IIChatTools.Services.Implementation.Tools.Git
                 return ToolResult.Fail("Некорректное имя ветки/ref");
 
             var createBranch = arguments.GetBool("createBranch");
-            var paths = arguments.GetStringArray("paths");
+            var files = arguments.GetStringArray("files");
 
             try
             {
@@ -65,20 +90,24 @@ namespace IIChatTools.Services.Implementation.Tools.Git
                 if (createBranch) args.Add("-b");
                 args.Add(target);
 
-                if (paths.Count > 0)
+                if (files.Count > 0)
                 {
                     args.Add("--");
-                    foreach (var p in paths)
+                    foreach (var f in files)
                     {
-                        if (!PathHelper.TryGetSafeFullPath(p, context.WorkspaceRoot, out _))
-                            return ToolResult.Fail($"Недопустимый путь: {p}");
-                        args.Add(p);
+                        if (string.IsNullOrWhiteSpace(f)) continue;
+
+                        if (!PathHelper.TryGetSafeFullPath(f, workingDir, out _))
+                            return ToolResult.Fail($"Недопустимый путь файла: {f}");
+
+                        args.Add(f);
                     }
                 }
 
-                var result = await RunGitAsync(context, args);
+                var result = await RunGitInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"git checkout завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"git checkout завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 return ToolResult.Ok(new
                 {

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
@@ -18,6 +19,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GhViewCommentsTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +34,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public override string Name => "gh_view_comments";
 
         /// <inheritdoc />
-        public override string Description => "Возвращает комментарии к issue или pull request по номеру.";
+        public override string Description =>
+            "Возвращает комментарии к issue или pull request по номеру. " +
+            "Параметр path указывает каталог репозитория внутри workspace.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
@@ -38,15 +44,30 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "number", Type = "integer", Description = "Номер issue или PR.", Required = true },
-            new ToolParameterDescriptor { Name = "type", Type = "string", Description = "issue | pr (по умолчанию issue).", Required = false, Default = "issue" }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "number",
+                Type = "integer",
+                Description = "Номер issue или PR.",
+                Required = true
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "type",
+                Type = "string",
+                Description = "issue | pr (по умолчанию issue).",
+                Required = false,
+                Default = "issue"
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGhAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGhContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var number = arguments.GetInt("number");
             var type = arguments.GetString("type", "issue");
@@ -65,9 +86,10 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
                     "--json", "comments"
                 };
 
-                var result = await RunGhAsync(context, args);
+                var result = await RunGhInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"gh view завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"gh view завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 var comments = new List<object>();
                 try

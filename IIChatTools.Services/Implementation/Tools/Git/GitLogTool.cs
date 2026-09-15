@@ -18,6 +18,9 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GitLogTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +33,8 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         public override string Name => "git_log";
 
         /// <inheritdoc />
-        public override string Description => "Возвращает последние N коммитов в формате: hash, автор, дата, сообщение.";
+        public override string Description =>
+            "Возвращает последние N коммитов в формате: hash, автор, дата, сообщение.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
@@ -38,20 +42,35 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "limit", Type = "integer", Description = "Количество коммитов (1–200, по умолчанию 20).", Required = false, Default = 20 },
-            new ToolParameterDescriptor { Name = "path", Type = "string", Description = "Ограничить историю файлом/каталогом.", Required = false }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "limit",
+                Type = "integer",
+                Description = "Количество коммитов (1–200, по умолчанию 20).",
+                Required = false,
+                Default = 20
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "filePath",
+                Type = "string",
+                Description = "Ограничить историю указанным файлом/каталогом внутри репозитория.",
+                Required = false
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGitContextAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGitContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var limit = arguments.GetInt("limit", 20);
             if (limit <= 0 || limit > 200) limit = 20;
 
-            var pathArg = arguments.GetString("path");
+            var filePath = arguments.GetString("filePath");
 
             try
             {
@@ -63,17 +82,19 @@ namespace IIChatTools.Services.Implementation.Tools.Git
                     $"-n{limit}"
                 };
 
-                if (!string.IsNullOrWhiteSpace(pathArg))
+                if (!string.IsNullOrWhiteSpace(filePath))
                 {
-                    if (!PathHelper.TryGetSafeFullPath(pathArg, context.WorkspaceRoot, out _))
-                        return ToolResult.Fail("Недопустимый путь");
+                    if (!PathHelper.TryGetSafeFullPath(filePath, workingDir, out _))
+                        return ToolResult.Fail("Недопустимый путь файла");
+
                     args.Add("--");
-                    args.Add(pathArg);
+                    args.Add(filePath);
                 }
 
-                var result = await RunGitAsync(context, args);
+                var result = await RunGitInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"git log завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"git log завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 var commits = new List<object>();
                 var lines = (result.StdOut ?? string.Empty)
