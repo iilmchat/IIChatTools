@@ -81,9 +81,24 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
                     Args = BuildChromiumArgs()
                 };
 
+                _logger.LogInformation("Запуск Chromium с аргументами: {Args}", string.Join(" ", launchOptions.Args));
+                _logger.LogInformation("Используется браузер: {Path}", executablePath);
                 browser = await Puppeteer.LaunchAsync(launchOptions);
                 page = await browser.NewPageAsync();
 
+                // Устанавливаем реалистичный User-Agent, чтобы обойти блокировку headless
+                var userAgent = _configuration["Browser:UserAgent"];
+                if (string.IsNullOrWhiteSpace(userAgent))
+                {
+                    userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                                "Chrome/120.0.0.0 Safari/537.36";
+                }
+                await page.SetUserAgentAsync(userAgent);
+                await page.SetViewportAsync(new ViewPortOptions { Width = 1920, Height = 1080 });
+                await page.EvaluateExpressionOnNewDocumentAsync(@"
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                ");
                 // Авторизация на прокси (Basic Auth)
                 await TrySetProxyAuthAsync(page);
 
@@ -134,7 +149,8 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
-                "--disable-gpu"
+                "--disable-gpu",
+                "--remote-allow-origins=*"   // критично для новых версий Chromium
             };
 
             if (string.Equals(_configuration["Browser:IgnoreCertificateErrors"], "true", StringComparison.OrdinalIgnoreCase))
@@ -151,6 +167,9 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
                     normalized = "http://" + normalized;
                 }
                 args.Add($"--proxy-server={normalized}");
+                args.Add("--proxy-bypass-list=<-loopback>");
+                args.Add("--disable-blink-features=AutomationControlled");
+                args.Add("--window-size=1920,1080");
             }
 
             return args.ToArray();

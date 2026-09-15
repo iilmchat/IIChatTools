@@ -35,7 +35,7 @@
 
 
     <RuntimeNativeOpenSslVersion>4.3.0</RuntimeNativeOpenSslVersion>    
-    <PuppeteerSharpVersion>6.0.0</PuppeteerSharpVersion>
+    <PuppeteerSharpVersion>7.1.0</PuppeteerSharpVersion>
   </PropertyGroup>
 
 </Project>

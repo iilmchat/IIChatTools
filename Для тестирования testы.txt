@@ -1,0 +1,302 @@
+ Группа 2. Выполнение кода (3 инструмента)
+2.1. run_javascript — Node.js
+Требует подтверждения: Да
+Параметры: { "code": "console.log(2 + 2)" }
+
+#	Тест	Ожидаемый результат
+1	Простой код	{ stdout: "4\n", exitCode: 0 }
+2	Синтаксическая ошибка	{ stderr: "...", exitCode: 1 }
+3	Бесконечный цикл + timeoutSeconds: 5	{ success: false, message: "превысило таймаут" }
+4	console.log с большим выводом	truncated: true
+5	Отключение в настройках Security:EnableCodeExecution: false	{ success: false, message: "Выполнение кода отключено" }
+2.2. run_python — Python
+Требует подтверждения: Да
+Параметры: { "code": "print(sum(range(100)))" }
+
+#	Тест	Ожидаемый результат
+1	Простой код	{ stdout: "4950\n", exitCode: 0 }
+2	Импорт модуля import os; print(os.getcwd())	Путь workspace
+3	Синтаксическая ошибка	{ exitCode: 1, stderr: "..." }
+4	Таймаут	Отказ
+2.3. execute_command — shell-команды (whitelist)
+Требует подтверждения: Да
+Параметры: { "command": "git", "args": ["--version"] }
+
+#	Тест	Ожидаемый результат
+1	git --version	{ stdout: "git version ..." }
+2	node --version	{ stdout: "v24.19.0" }
+3	dir (не в whitelist)	{ success: false, message: "не входит в белый список" }
+4	rm -rf / (не в whitelist)	Отказ
+5	Пустая команда	Отказ
+6	Таймаут timeoutSeconds: 5 на длинной команде	Отказ
+🌐 Группа 3. Веб-инструменты (3 инструмента)
+3.1. web_search — DuckDuckGo
+Требует подтверждения: Нет
+Параметры: { "query": "IIChatTools github", "limit": 5 }
+
+#	Тест	Ожидаемый результат
+1	Обычный запрос	{ count: 5, results: [...] }
+2	Пустой query	Отказ
+3	limit > 30	Обрезается до 30
+4	Запрос на русском	Результаты на русском
+⚠️ Возможна блокировка DuckDuckGo через прокси. Если падает — проверьте логи, возможно нужен другой поисковик.
+
+3.2. wikipedia_search — Wikipedia API
+Требует подтверждения: Нет
+Параметры: { "query": "C#", "language": "ru", "limit": 3 }
+
+#	Тест	Ожидаемый результат
+1	Обычный поиск	{ count: 3, results: [...] }
+2	language: "en"	Результаты на английском
+3	Несуществующий язык	Фолбэк на ru
+4	Несуществующий термин	{ count: 0 }
+3.3. fetch_web_content — загрузка контента
+Требует подтверждения: Нет
+Параметры: { "url": "https://metanit.com/", "extractText": true }
+
+#	Тест	Ожидаемый результат
+1	Обычный URL	{ title, text, textLength }
+2	extractText: false	Возвращает HTML
+3	Некорректный URL "not-a-url"	Отказ
+4	ftp://example.com	Отказ (только http/https)
+5	Недоступный домен	Ошибка загрузки
+🔀 Группа 4. Git (7 инструментов)
+Подготовка: Создайте в workspace тестовый репозиторий:
+
+powershell
+cd C:\IIChatToolsWorkspace\users\1
+mkdir git-test; cd git-test
+git init
+"init" | Out-File README.md
+git add .; git commit -m "Initial"
+4.1. git_status
+Требует подтверждения: Нет
+
+#	Тест	Ожидаемый результат
+1	Чистый репозиторий	{ branch: "master"/"main", changedCount: 0 }
+2	После изменения файла	changedCount: 1
+3	Не в репозитории	{ success: false, message: "не найден Git-репозиторий" }
+4.2. git_diff
+Требует подтверждения: Нет
+Параметры: { "path": "README.md" }
+
+#	Тест	Ожидаемый результат
+1	После изменения	Diff в stdout
+2	Некорректный ref "--dangerous"	Отказ (валидация)
+3	staged: true	Показывает staged-изменения
+4.3. git_log
+Требует подтверждения: Нет
+Параметры: { "limit": 5 }
+
+#	Тест	Ожидаемый результат
+1	Один коммит	{ count: 1, commits: [{ hash, authorName, dateIso, subject }] }
+2	limit: 200	Работает
+4.4. git_add
+Требует подтверждения: Да
+Параметры: { "paths": ["new.txt"] }
+
+#	Тест	Ожидаемый результат
+1	Добавление файла	{ added: true }, файл в staged
+2	all: true	Все изменения в staged
+3	Path traversal	Отказ
+4.5. git_commit
+Требует подтверждения: Да
+Параметры: { "message": "Test commit", "addAll": true }
+
+#	Тест	Ожидаемый результат
+1	Обычный коммит	{ committed: true, hash: "..." }
+2	Пустое сообщение	Отказ
+3	Сообщение > 4000 символов	Отказ
+4	Нет изменений для коммита	{ success: false } (git вернёт ошибку)
+4.6. git_checkout
+Требует подтверждения: Да
+Параметры: { "target": "master", "createBranch": false }
+
+#	Тест	Ожидаемый результат
+1	Переключение на существующую ветку	Успех
+2	createBranch: true с новым именем	Ветка создана
+3	Некорректный ref "--force"	Отказ
+4.7. git_push
+Требует подтверждения: Да
+Параметры: { "remote": "origin", "branch": "master" }
+
+#	Тест	Ожидаемый результат
+1	Без remote	Ошибка (нет remote) — норм, у нас локальный репо
+2	Некорректное имя remote "-x"	Отказ
+Полноценный тест push возможен только с реальным remote. Для локального теста — проверить, что инструмент корректно вызывает git push и обрабатывает ошибки.
+
+🐙 Группа 5. GitHub CLI (7 инструментов)
+Подготовка: gh auth login через прокси. Проверьте: gh auth status.
+
+5.1. gh_auth_status
+Требует подтверждения: Нет
+
+#	Тест	Ожидаемый результат
+1	Авторизован	{ authenticated: true }
+2	Не авторизован	{ authenticated: false }
+5.2. gh_create_issue
+Требует подтверждения: Да
+Параметры: { "title": "Test issue", "body": "Test body" }
+
+#	Тест	Ожидаемый результат
+1	В репозитории с remote	{ created: true, url: "..." }
+2	Заголовок > 500	Отказ
+3	Не в git-репо	Ошибка gh
+5.3. gh_list_issues
+Требует подтверждения: Нет
+Параметры: { "state": "open", "limit": 10 }
+
+#	Тест	Ожидаемый результат
+1	Открытые issues	{ count: N, issues: [...] }
+2	state: "all"	Все issues
+3	Невалидный state	Фолбэк на open
+5.4. gh_view_comments
+Требует подтверждения: Нет
+Параметры: { "number": 1, "type": "issue" }
+
+#	Тест	Ожидаемый результат
+1	Существующий номер	{ count: N, comments: [...] }
+2	Некорректный номер 0	Отказ
+5.5. gh_create_pr
+Требует подтверждения: Да
+Параметры: { "title": "PR title", "body": "body", "base": "main", "head": "feature" }
+
+#	Тест	Ожидаемый результат
+1	Корректные данные	{ created: true, url }
+2	Некорректное имя ветки "--bad"	Отказ
+5.6. gh_list_prs
+Требует подтверждения: Нет
+Параметры: { "state": "open" }
+
+#	Тест	Ожидаемый результат
+1	Открытые PR	{ count, prs: [...] }
+5.7. gh_view_pr_diff
+Требует подтверждения: Нет
+Параметры: { "number": 1 }
+
+#	Тест	Ожидаемый результат
+1	Существующий PR	{ diff: "..." }
+2	Несуществующий номер	Отказ gh
+🌐 Группа 6. Браузер (4 инструмента)
+6.1. browser_open_page — stateless
+Требует подтверждения: Нет
+Параметры: { "url": "https://metanit.com/", "timeoutSeconds": 30 }
+
+#	Тест	Ожидаемый результат
+1	Внешний сайт	{ title, text, textLength }, status 200
+2	URL без схемы "google.com"	Отказ
+3	file:///etc/passwd	Отказ (только http/https)
+4	Недоступный домен	Ошибка таймаута
+5	Проверка UA	Title сайта адекватный, а не «Доступ запрещён»
+6.2. browser_session_open
+Требует подтверждения: Нет
+Параметры: { "initialUrl": "https://example.com" }
+
+#	Тест	Ожидаемый результат
+1	Открытие сессии	{ sessionId: "abc...", currentUrl, currentTitle }
+2	Лимит сессий (откройте 4 подряд)	4-я → ошибка «Достигнут лимит»
+3	Сессия для другого пользователя	Изоляция (недоступна)
+6.3. browser_session_control
+Требует подтверждения: Да
+Параметры: { "sessionId": "...", "command": "goto", "url": "https://metanit.com/" }
+
+Проверьте все команды:
+
+Команда	Тест	Ожидаемый результат
+goto	Переход на URL	{ url, title, status }
+click	Клик по селектору "a"	{ clicked: "a" }
+type	Ввод в поле "input"	{ typed: N }
+wait_for_selector	Ожидание "body"	{ found: "body" }
+evaluate	"document.title"	{ result: "..." }
+get_content	Получить HTML	{ htmlLength, html }
+screenshot	Скриншот	{ format: "png", base64 }
+get_url	Текущий URL	{ url, title }
+go_back	Назад	{ url }
+go_forward	Вперёд	{ url }
+reload	Обновить	{ url, title }
+Негативные тесты:
+
+Несуществующий sessionId → «Сессия не найдена»
+
+Сессия другого пользователя → «Доступ запрещён»
+
+Неизвестная команда → «Неизвестная команда»
+
+evaluate со скриптом > 20 000 символов → отказ
+
+6.4. browser_session_close
+Требует подтверждения: Нет
+Параметры: { "sessionId": "..." }
+
+#	Тест	Ожидаемый результат
+1	Закрытие существующей	{ closed: true }
+2	Повторное закрытие	«Сессия не найдена»
+3	Сессия другого пользователя	Отказ
+🤖 Группа 7. Суб-агент (1 инструмент)
+7.1. consult_secondary_agent
+Требует подтверждения: Да
+Параметры:
+
+json
+{
+  "task": "Напиши файл config.json с полями name, version",
+  "maxSteps": 5,
+  "autoDebug": false
+}
+#	Тест	Ожидаемый результат
+1	Простая задача	{ sessionId, finalAnswer, completed: true, steps }
+2	Проверка AgentStates в БД	Сессия сохранена с CodeSnapshotJson
+3	maxSteps: 30	Работает
+4	maxSteps: 100	Обрезается до 30
+5	Пустая задача	Отказ
+6	Задача > 8000 символов	Отказ
+7	autoDebug: true	Поле debugReview заполнено
+8	Попытка рекурсии (суб-агент вызывает consult_secondary_agent)	Инструмент отсутствует в списке tools
+9	LM Studio недоступен	{ success: false, message: "Ошибка взаимодействия с LM Studio" }
+Проверка защиты от рекурсии: в логе LM Studio при запуске суб-агента убедитесь, что инструмент consult_secondary_agent не входит в tools.
+
+🛠 Группа 8. Утилиты (2 инструмента)
+8.1. get_system_info
+Требует подтверждения: Нет
+
+#	Тест	Ожидаемый результат
+1	Вызов	{ osDescription, osArchitecture, frameworkDescription, machineName, processorCount, workspaceRoot }
+2	workspaceRoot совпадает	Да, ...\users\1
+8.2. save_memory
+Требует подтверждения: Нет
+Параметры: { "key": "last_project", "value": "IIChatTools", "type": "string" }
+
+#	Тест	Ожидаемый результат
+1	Сохранение	{ saved: true, key, type }
+2	Повторное сохранение того же ключа	Обновление значения
+3	Ключ > 200 символов	Отказ
+4	Значение > 100 000 символов	Отказ
+5	Проверка БД	Запись в MemoryEntries с UserId
+🧪 Межсистемные проверки
+А. Система подтверждений
+#	Тест	Ожидаемый результат
+1	Модалка с countdown 5:00	Появляется для инструментов с RequiresApprovalByDefault: true
+2	Истечение таймаута	Через 5 минут — «Время подтверждения истекло»
+3	Одновременные 2 запроса	Оба показываются независимо
+4	Whitelist: добавьте save_file в /admin → белый список	Больше не требует подтверждения
+5	Whitelist: уберите	Снова требует подтверждения
+Б. Аудит
+#	Тест	Ожидаемый результат
+1	Все вызовы в /admin → Аудит	Каждое действие с ToolName, UserId, Status, DurationMs
+2	Пагинация	Работает
+3	Фильтр по инструменту	Работает
+4	Файловый аудит (Audit:ToFile: true)	Появляется logs/audit/audit-YYYY-MM-DD.jsonl
+5	Проверка содержимого JSONL	Каждая строка — валидный JSON
+В. Локализация
+#	Тест	Ожидаемый результат
+1	RU → EN → RU	Все тексты переключаются
+2	Cookie сохраняется	После перезапуска язык сохраняется
+3	Валидация форм	Сообщения на выбранном языке
+Г. Роли и безопасность
+#	Тест	Ожидаемый результат
+1	Первый пользователь = Admin	Роль Admin в БД
+2	Второй пользователь = User	Роль User
+3	User → /admin	403 / редирект на логин
+4	User вызывает delete_path	Требует подтверждения самого себя
+5	Admin может удалить User	Работает
+6	Нельзя удалить самого себя	Ошибка «Нельзя удалить самого себя»

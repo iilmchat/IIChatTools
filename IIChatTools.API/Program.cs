@@ -28,6 +28,12 @@ namespace IIChatTools.API
         /// <returns>Асинхронная задача</returns>
         public static async Task Main(string[] args)
         {
+            // Настраиваем прокси для .NET (влияет на ClientWebSocket в PuppeteerSharp,
+            // а также на стандартные HttpClient, если они не настроены явно).
+            // Локальные адреса должны идти напрямую, иначе WebSocket-соединение
+            // PuppeteerSharp ↔ Chromium упадёт с 403 от корпоративного прокси.
+            ConfigureDefaultProxy();
+
             var host = CreateHostBuilder(args).Build();
 
             try
@@ -57,6 +63,68 @@ namespace IIChatTools.API
                     var logger = host.Services.GetService<ILogger<Program>>();
                     logger?.LogWarning(stopEx, "Ошибка при остановке хоста");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Настраивает прокси по умолчанию для .NET с исключением loopback-адресов.
+        /// Учитывает, что в .NET Core 3.1 ClientWebSocket читает HttpClient.DefaultProxy,
+        /// а не WebRequest.DefaultWebProxy.
+        /// </summary>
+        private static void ConfigureDefaultProxy()
+        {
+            var proxyUrl = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY")
+                        ?? "http://222.1.20.1:8080";
+            var proxyUser = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY_USER")
+                            ?? "proxy_user";
+            var proxyPass = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY_PASS")
+                            ?? "CHANGE_ME";
+
+            try
+            {
+                // 1) HTTP-прокси для HttpClient и ClientWebSocket (используется PuppeteerSharp)
+                var httpProxy = new System.Net.Http.HttpClientHandler
+                {
+                    Proxy = new System.Net.WebProxy(proxyUrl, true)
+                    {
+                        BypassList = new[]
+                        {
+                            @"localhost",
+                            @"127\.0\.0\.1",
+                            @"::1",
+                            @".*\.local"
+                        },
+                        BypassProxyOnLocal = true,
+                        Credentials = !string.IsNullOrWhiteSpace(proxyUser)
+                            ? new System.Net.NetworkCredential(proxyUser, proxyPass)
+                            : null
+                    },
+                    UseProxy = true
+                };
+
+                // Устанавливаем глобальный прокси для HttpClient
+                System.Net.Http.HttpClient.DefaultProxy = httpProxy.Proxy;
+
+                // 2) То же для старого WebRequest (на случай legacy-кода)
+                System.Net.WebRequest.DefaultWebProxy = new System.Net.WebProxy(proxyUrl, true)
+                {
+                    BypassList = new[]
+                    {
+                        @"localhost",
+                        @"127\.0\.0\.1",
+                        @"::1"
+                    },
+                    BypassProxyOnLocal = true,
+                    Credentials = !string.IsNullOrWhiteSpace(proxyUser)
+                        ? new System.Net.NetworkCredential(proxyUser, proxyPass)
+                        : null
+                };
+
+                Console.WriteLine($"[INFO] Прокси настроен: {proxyUrl} (bypass: localhost, 127.0.0.1)");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[WARN] Не удалось настроить прокси: {ex.Message}");
             }
         }
 

@@ -794,14 +794,14 @@
           "lib/netstandard2.0/Newtonsoft.Json.dll": {}
         }
       },
-      "PuppeteerSharp/6.0.0": {
+      "PuppeteerSharp/7.1.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.AspNetCore.WebUtilities": "2.0.2",
+          "Microsoft.AspNetCore.WebUtilities": "2.2.0",
           "Microsoft.Bcl.AsyncInterfaces": "1.1.0",
           "Microsoft.Extensions.Logging": "2.0.2",
           "Newtonsoft.Json": "10.0.3",
-          "SharpZipLib": "1.3.1"
+          "SharpZipLib": "1.3.3"
         },
         "compile": {
           "lib/netstandard2.0/PuppeteerSharp.dll": {}
@@ -1016,13 +1016,13 @@
           }
         }
       },
-      "SharpZipLib/1.3.1": {
+      "SharpZipLib/1.3.3": {
         "type": "package",
         "compile": {
-          "lib/netstandard2.0/ICSharpCode.SharpZipLib.dll": {}
+          "lib/netstandard2.1/ICSharpCode.SharpZipLib.dll": {}
         },
         "runtime": {
-          "lib/netstandard2.0/ICSharpCode.SharpZipLib.dll": {}
+          "lib/netstandard2.1/ICSharpCode.SharpZipLib.dll": {}
         }
       },
       "System.AppContext/4.3.0": {
@@ -3547,16 +3547,16 @@
         "packageIcon.png"
       ]
     },
-    "PuppeteerSharp/6.0.0": {
-      "sha512": "wJIQH1qIVqC7iS+RrnfDfK4uQLqrMvWLxbMFXGDrClQGf7LKA4BDpZVPd/0hYtWjYJcsAs9UCn826VUxtD3yxw==",
+    "PuppeteerSharp/7.1.0": {
+      "sha512": "5of/D4JmIbEr75hEa3J8Z82R+wfyWsiDkAFQzTXYRvf67HscLGVzxpIhVElg6uy2C5hkBi+/S7ryXWh/fsVdaQ==",
       "type": "package",
-      "path": "puppeteersharp/6.0.0",
+      "path": "puppeteersharp/7.1.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "lib/netstandard2.0/PuppeteerSharp.dll",
         "lib/netstandard2.0/PuppeteerSharp.xml",
-        "puppeteersharp.6.0.0.nupkg.sha512",
+        "puppeteersharp.7.1.0.nupkg.sha512",
         "puppeteersharp.nuspec"
       ]
     },
@@ -3847,10 +3847,10 @@
         "version.txt"
       ]
     },
-    "SharpZipLib/1.3.1": {
-      "sha512": "/iMph6bLdKzDhwM/vkAo4BU8z5QQnyodlkZon3XRMtRmVuWv5Rph1kaDmd9XjrQxjPJPuLquTSrkEoSPq/flVw==",
+    "SharpZipLib/1.3.3": {
+      "sha512": "N8+hwhsKZm25tDJfWpBSW7EGhH/R7EMuiX+KJ4C4u+fCWVc1lJ5zg1u3S1RPPVYgTqhx/C3hxrqUpi6RwK5+Tg==",
       "type": "package",
-      "path": "sharpziplib/1.3.1",
+      "path": "sharpziplib/1.3.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -3861,7 +3861,10 @@
         "lib/netstandard2.0/ICSharpCode.SharpZipLib.dll",
         "lib/netstandard2.0/ICSharpCode.SharpZipLib.pdb",
         "lib/netstandard2.0/ICSharpCode.SharpZipLib.xml",
-        "sharpziplib.1.3.1.nupkg.sha512",
+        "lib/netstandard2.1/ICSharpCode.SharpZipLib.dll",
+        "lib/netstandard2.1/ICSharpCode.SharpZipLib.pdb",
+        "lib/netstandard2.1/ICSharpCode.SharpZipLib.xml",
+        "sharpziplib.1.3.3.nupkg.sha512",
         "sharpziplib.nuspec"
       ]
     },
@@ -8104,7 +8107,7 @@
       "Microsoft.Extensions.Options >= 3.1.32",
       "Microsoft.IdentityModel.Tokens >= 6.35.0",
       "Newtonsoft.Json >= 13.0.3",
-      "PuppeteerSharp >= 6.0.0",
+      "PuppeteerSharp >= 7.1.0",
       "System.IdentityModel.Tokens.Jwt >= 6.35.0"
     ]
   },
@@ -8182,7 +8185,7 @@
           },
           "PuppeteerSharp": {
             "target": "Package",
-            "version": "[6.0.0, )"
+            "version": "[7.1.0, )"
           },
           "System.IdentityModel.Tokens.Jwt": {
             "target": "Package",
@@ -8207,17 +8210,5 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\3.1.202\\RuntimeIdentifierGraph.json"
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1603",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Microsoft.Extensions.Primitives 2.0.0 зависит от System.Runtime.CompilerServices.Unsafe (>= 4.4.0), но System.Runtime.CompilerServices.Unsafe 4.4.0 не найден. Использовано наилучшее приближенное соответствие System.Runtime.CompilerServices.Unsafe 4.5.0.",
-      "libraryId": "System.Runtime.CompilerServices.Unsafe",
-      "targetGraphs": [
-        ".NETStandard,Version=v2.1"
-      ]
-    }
-  ]
+  }
 }

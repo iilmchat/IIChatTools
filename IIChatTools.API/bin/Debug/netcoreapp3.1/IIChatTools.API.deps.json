@@ -1320,18 +1320,18 @@
           "lib/netstandard2.0/Newtonsoft.Json.Bson.dll": {}
         }
       },
-      "PuppeteerSharp/6.0.0": {
+      "PuppeteerSharp/7.1.0": {
         "dependencies": {
           "Microsoft.AspNetCore.WebUtilities": "2.2.0",
           "Microsoft.Bcl.AsyncInterfaces": "1.1.1",
           "Microsoft.Extensions.Logging": "3.1.32",
           "Newtonsoft.Json": "13.0.3",
-          "SharpZipLib": "1.3.1"
+          "SharpZipLib": "1.3.3"
         },
         "runtime": {
           "lib/netstandard2.0/PuppeteerSharp.dll": {
-            "assemblyVersion": "6.0.0.0",
-            "fileVersion": "6.0.0.0"
+            "assemblyVersion": "7.1.0.0",
+            "fileVersion": "7.1.0.0"
           }
         },
         "compile": {
@@ -1378,15 +1378,15 @@
           }
         }
       },
-      "SharpZipLib/1.3.1": {
+      "SharpZipLib/1.3.3": {
         "runtime": {
-          "lib/netstandard2.0/ICSharpCode.SharpZipLib.dll": {
-            "assemblyVersion": "1.3.1.9",
-            "fileVersion": "1.3.1.9"
+          "lib/netstandard2.1/ICSharpCode.SharpZipLib.dll": {
+            "assemblyVersion": "1.3.3.11",
+            "fileVersion": "1.3.3.11"
           }
         },
         "compile": {
-          "lib/netstandard2.0/ICSharpCode.SharpZipLib.dll": {}
+          "lib/netstandard2.1/ICSharpCode.SharpZipLib.dll": {}
         }
       },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.2": {
@@ -2167,7 +2167,7 @@
           "Microsoft.Extensions.Options": "3.1.32",
           "Microsoft.IdentityModel.Tokens": "6.35.0",
           "Newtonsoft.Json": "13.0.3",
-          "PuppeteerSharp": "6.0.0",
+          "PuppeteerSharp": "7.1.0",
           "System.IdentityModel.Tokens.Jwt": "6.35.0"
         },
         "runtime": {
@@ -4286,12 +4286,12 @@
       "path": "newtonsoft.json.bson/1.0.2",
       "hashPath": "newtonsoft.json.bson.1.0.2.nupkg.sha512"
     },
-    "PuppeteerSharp/6.0.0": {
+    "PuppeteerSharp/7.1.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-wJIQH1qIVqC7iS+RrnfDfK4uQLqrMvWLxbMFXGDrClQGf7LKA4BDpZVPd/0hYtWjYJcsAs9UCn826VUxtD3yxw==",
-      "path": "puppeteersharp/6.0.0",
-      "hashPath": "puppeteersharp.6.0.0.nupkg.sha512"
+      "sha512": "sha512-5of/D4JmIbEr75hEa3J8Z82R+wfyWsiDkAFQzTXYRvf67HscLGVzxpIhVElg6uy2C5hkBi+/S7ryXWh/fsVdaQ==",
+      "path": "puppeteersharp/7.1.0",
+      "hashPath": "puppeteersharp.7.1.0.nupkg.sha512"
     },
     "runtime.native.System/4.3.0": {
       "type": "package",
@@ -4328,12 +4328,12 @@
       "path": "runtime.win-x86.runtime.native.system.data.sqlclient.sni/4.4.0",
       "hashPath": "runtime.win-x86.runtime.native.system.data.sqlclient.sni.4.4.0.nupkg.sha512"
     },
-    "SharpZipLib/1.3.1": {
+    "SharpZipLib/1.3.3": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-/iMph6bLdKzDhwM/vkAo4BU8z5QQnyodlkZon3XRMtRmVuWv5Rph1kaDmd9XjrQxjPJPuLquTSrkEoSPq/flVw==",
-      "path": "sharpziplib/1.3.1",
-      "hashPath": "sharpziplib.1.3.1.nupkg.sha512"
+      "sha512": "sha512-N8+hwhsKZm25tDJfWpBSW7EGhH/R7EMuiX+KJ4C4u+fCWVc1lJ5zg1u3S1RPPVYgTqhx/C3hxrqUpi6RwK5+Tg==",
+      "path": "sharpziplib/1.3.3",
+      "hashPath": "sharpziplib.1.3.3.nupkg.sha512"
     },
     "SQLitePCLRaw.bundle_e_sqlite3/2.1.2": {
       "type": "package",

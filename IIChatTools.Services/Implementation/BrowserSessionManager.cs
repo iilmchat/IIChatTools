@@ -73,6 +73,19 @@ namespace IIChatTools.Services.Implementation
             var sessionId = Guid.NewGuid().ToString("N");
             var page = await _browser.NewPageAsync();
 
+            var userAgent = _configuration["Browser:UserAgent"];
+            if (string.IsNullOrWhiteSpace(userAgent))
+            {
+                userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                            "Chrome/120.0.0.0 Safari/537.36";
+            }
+            await page.SetUserAgentAsync(userAgent);
+            await page.SetViewportAsync(new ViewPortOptions { Width = 1920, Height = 1080 });
+            await page.EvaluateExpressionOnNewDocumentAsync(@"
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            ");
+
             // Подписка на запрос авторизации прокси
             var proxyUser = _configuration["Browser:ProxyUsername"];
             var proxyPass = _configuration["Browser:ProxyPassword"];
@@ -214,7 +227,7 @@ namespace IIChatTools.Services.Implementation
                         "Укажите путь в Browser:ExecutablePath.");
 
                 _logger.LogInformation("Инициализация PuppeteerSharp с браузером: {Path}", executablePath);
-
+                _logger.LogInformation("Используется браузер: {Path}", executablePath);
                 _browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
                     Headless = GetHeadless(),
@@ -236,12 +249,13 @@ namespace IIChatTools.Services.Implementation
         /// <returns>Массив аргументов</returns>
         private string[] BuildChromiumArgs()
         {
-            var args = new System.Collections.Generic.List<string>
+            var args = new List<string>
             {
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
-                "--disable-gpu"
+                "--disable-gpu",
+                "--remote-allow-origins=*"   // критично для новых версий Chromium
             };
 
             if (string.Equals(_configuration["Browser:IgnoreCertificateErrors"], "true", StringComparison.OrdinalIgnoreCase))
@@ -258,6 +272,9 @@ namespace IIChatTools.Services.Implementation
                     normalized = "http://" + normalized;
                 }
                 args.Add($"--proxy-server={normalized}");
+                args.Add("--proxy-bypass-list=<-loopback>");
+                args.Add("--disable-blink-features=AutomationControlled");
+                args.Add("--window-size=1920,1080");
             }
 
             return args.ToArray();
