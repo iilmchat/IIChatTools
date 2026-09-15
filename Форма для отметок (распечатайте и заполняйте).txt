@@ -1,0 +1,47 @@
+Группа 1. Файловая система
+[ ] 1.1 list_directory          [ ] 1.6 delete_path
+[ ] 1.2 change_directory        [ ] 1.7 replace_text_in_file
+[ ] 1.3 make_directory          [ ] 1.8 delete_files_by_pattern
+[ ] 1.4 read_file               [ ] 1.9 move_file
+[ ] 1.5 save_file               [ ] 1.10 copy_file
+[ ] 1.11 find_files             [ ] 1.12 get_file_metadata
+[ ] 1.13 fuzzy_find_local_files
+
+Группа 2. Выполнение кода
+[ ] 2.1 run_javascript
+[ ] 2.2 run_python
+[ ] 2.3 execute_command
+
+Группа 3. Веб
+[ ] 3.1 web_search
+[ ] 3.2 wikipedia_search
+[ ] 3.3 fetch_web_content
+
+Группа 4. Git
+[ ] 4.1 git_status          [ ] 4.5 git_commit
+[ ] 4.2 git_diff            [ ] 4.6 git_checkout
+[ ] 4.3 git_log             [ ] 4.7 git_push
+[ ] 4.4 git_add
+
+Группа 5. GitHub
+[ ] 5.1 gh_auth_status      [ ] 5.5 gh_create_pr
+[ ] 5.2 gh_create_issue     [ ] 5.6 gh_list_prs
+[ ] 5.3 gh_list_issues      [ ] 5.7 gh_view_pr_diff
+[ ] 5.4 gh_view_comments
+
+Группа 6. Браузер
+[ ] 6.1 browser_open_page
+[ ] 6.2 browser_session_open
+[ ] 6.3 browser_session_control (11 команд)
+[ ] 6.4 browser_session_close
+
+Группа 7. Суб-агент
+[ ] 7.1 consult_secondary_agent
+
+Группа 8. Утилиты
+[ ] 8.1 get_system_info
+[ ] 8.2 save_memory
+
+Межсистемные
+[ ] А. Подтверждения        [ ] В. Локализация
+[ ] Б. Аудит                [ ] Г. Роли и безопасность

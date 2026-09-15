@@ -469,6 +469,13 @@
             <param name="args">Аргументы командной строки</param>
             <returns>Асинхронная задача</returns>
         </member>
+        <member name="M:IIChatTools.API.Program.ConfigureDefaultProxy">
+            <summary>
+            Настраивает прокси по умолчанию для .NET с исключением loopback-адресов.
+            Учитывает, что в .NET Core 3.1 ClientWebSocket читает HttpClient.DefaultProxy,
+            а не WebRequest.DefaultWebProxy.
+            </summary>
+        </member>
         <member name="M:IIChatTools.API.Program.CreateHostBuilder(System.String[])">
             <summary>
             Создаёт построитель хоста с настройками логирования и Startup.
