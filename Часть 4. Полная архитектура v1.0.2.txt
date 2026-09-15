@@ -1,0 +1,136 @@
+Часть 4. Полная архитектура v1.0.2
+4.1. Слои
+text
+┌───────────────────────────────────────────────────────────────────────┐
+│                       LM Studio (LLM) :8034                            │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ HTTP (OpenAI-совместимый API)
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                        IIChatTools.API (netcoreapp3.1)                 │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │ Контроллеры: Home, Auth, Tools, Approvals, Admin, Status         │  │
+│  │ Razor Views (RU/EN через IStringLocalizer<SharedResources>)      │  │
+│  │ ES-модули: api, ui, status, approvals, admin, test               │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  Program.cs:                                                          │
+│    ConfigureDefaultProxy()  ← HttpClient.DefaultProxy + NO_PROXY      │
+│    Условные миграции (SqlServer → Migrate; Sqlite/InMemory → Ensure)  │
+│                                                                       │
+│  Startup.cs:                                                          │
+│    AddAppDbContext (провайдер из конфига)                             │
+│    Configure<HttpClientFactoryOptions> ← прокси с credentials         │
+│    Регистрация 40 инструментов по группам                             │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ DI
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    IIChatTools.Services (netstandard2.1)              │
+│                                                                       │
+│  ┌────────────────────────┐   ┌──────────────────────────────────┐   │
+│  │ ToolRegistry (40)      │   │ Cross-cutting services:          │   │
+│  │ ─ FileSystem      (13) │   │  • CompositeAuditService         │   │
+│  │ ─ CodeExecution    (3) │   │  • FileAuditService (JSONL)      │   │
+│  │ ─ Web              (3) │   │  • ApprovalService               │   │
+│  │ ─ Git              (7) │   │  • AppSettingsService            │   │
+│  │ ─ GitHub           (7) │   │  • UserAdminService              │   │
+│  │ ─ Browser          (4) │   │  • JwtService                    │   │
+│  │ ─ SubAgent         (1) │   │  • StatusService                 │   │
+│  │ ─ Utils            (2) │   │  • WorkspaceResolver             │   │
+│  └────────────────────────┘   │  • ProcessRunner                 │   │
+│                                │  • BrowserLocator                │   │
+│                                │  • BrowserSessionManager         │   │
+│                                │  • LmStudioClient                │   │
+│                                │  • SubAgentService               │   │
+│                                │  • DependencyChecker             │   │
+│                                │  • PathHelper (static)           │   │
+│                                └──────────────────────────────────┘   │
+└─────────────────────────────────┬─────────────────────────────────────┘
+                                  │ EF Core
+                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│              IIChatTools.Data (EF Core + Identity)                    │
+│              Провайдеры: SqlServer / Sqlite / InMemory                │
+│  • ApplicationUser + Identity (Roles: Admin, User)                    │
+│  • AuditLog      • AppSetting      • PendingAction                    │
+│  • AgentState    • MemoryEntry                                        │
+└───────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ (опционально, независимо от БД)
+                                  ▼
+                        ┌────────────────────────┐
+                        │  logs/audit/*.jsonl    │
+                        │  (JSONL, ротация)      │
+                        └────────────────────────┘
+4.2. Ключевые архитектурные решения
+#	Решение	Обоснование
+1	Слоистость Data → Services → API	Чистое разделение; Services не зависит от API через AppVersionHolder
+2	Гибридная БД (SqlServer/Sqlite/InMemory)	Не требует SQL Server от пользователя
+3	CompositeAuditService	Аудит в БД и/или файл (JSONL) независимо
+4	DI через конструктор везде	Тестируемость, отсутствие ServiceLocator
+5	ToolRegistry + ITool	Новый инструмент = 1 класс + 1 строка регистрации
+6	Func<ISubAgentService>	Разрыв DI-цикла SubAgent ↔ ToolRegistry
+7	path в git/gh инструментах	Работа с несколькими репозиториями в workspace
+8	GitContextValidationResult / GhContextValidationResult	Обход запрета out в async-методах
+9	HttpClient.DefaultProxy + NO_PROXY	Единственный способ заставить ClientWebSocket использовать прокси с bypass loopback в .NET Core 3.1
+10	HttpClientFactoryOptions.HttpMessageHandlerBuilderActions	Единственный способ передать прокси с credentials в IHttpClientFactory на 3.1
+11	BrowserLocator	Автоопределение Edge/Chrome — не используем BrowserFetcher
+12	--remote-allow-origins=*	Обход блокировки WebSocket в Chromium 111+
+13	--proxy-bypass-list=<-loopback>	Обход прокси для WS-соединения с самим Chromium
+14	Реалистичный User-Agent	Обход блокировки headless на сайтах
+15	PuppeteerSharp 7.1.0	Исправления совместимости с современными Chromium
+16	IStringLocalizer<SharedResources>	Единая точка локализации интерфейса
+17	PendingAction + polling	Компромисс безопасности и UX без WebSocket
+18	KNOWN_ISSUES.md	Реестр проблем и решений
+4.3. Поток вызова браузерного инструмента
+text
+ToolRegistry.ExecuteAsync("browser_open_page")
+   ↓
+BrowserOpenPageTool
+   ├─→ BrowserLocator.Resolve (найти Edge/Chrome)
+   ├─→ Puppeteer.LaunchAsync
+   │     Args:
+   │       --no-sandbox
+   │       --remote-allow-origins=*
+   │       --proxy-server=http://222.1.20.1:8080
+   │       --proxy-bypass-list=<-loopback>
+   │       --ignore-certificate-errors
+   │
+   ├─→ page.SetUserAgentAsync (реалистичный Chrome UA)
+   ├─→ page.AuthenticateAsync (Basic Auth для прокси)
+   ├─→ page.GoToAsync (через прокси → сайт)
+   ├─→ page.GetContentAsync + EvaluateExpressionAsync
+   └─→ ToolResult.Ok({ url, title, text, htmlLength })
+4.4. Сводная таблица DI
+Сервис	Lifetime	Роль
+AppDbContext	Scoped	EF Core + Identity
+AppUptimeTracker	Singleton	Время старта
+IBrowserSessionManager	Singleton	Долгоживущий PuppeteerSharp
+IProcessRunner	Singleton	Запуск процессов
+IFileAuditService	Singleton	JSONL-аудит
+IAuditService	Scoped	Composite (БД + файл)
+IAuditQueryService	Scoped	Чтение аудита
+IApprovalService	Scoped	Подтверждения
+IJwtService	Scoped	JWT
+IStatusService	Scoped	Статистика
+IWorkspaceResolver	Scoped	Путь workspace
+IAppSettingsService	Scoped	Настройки
+IUserAdminService	Scoped	Пользователи
+IDependencyChecker	Scoped	Проверка CLI
+ILmStudioClient	Scoped	HTTP к LM Studio
+ISubAgentService	Scoped	Оркестратор суб-агента
+Func<ISubAgentService>	Scoped	Разрыв цикла
+IToolRegistry	Scoped	Реестр 40 инструментов
+ITool (40 шт.)	Scoped	Каждый инструмент
+4.5. Итог по инструментам
+Группа	Кол-во	Подтверждение
+Файловая система	13	7
+Выполнение кода	3	3
+Веб	3	0
+Git	7	4
+GitHub	7	2
+Браузер	4	1
+Суб-агент	1	1
+Утилиты	2	0
+Итого	40	18

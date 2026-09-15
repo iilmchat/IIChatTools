@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
@@ -12,12 +13,16 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
 {
     /// <summary>
     /// Инструмент: создание Pull Request через gh.
+    /// Поддерживает работу в подкаталогах через параметр path.
     /// </summary>
     public class GhCreatePrTool : BaseGhTool
     {
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GhCreatePrTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +35,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public override string Name => "gh_create_pr";
 
         /// <inheritdoc />
-        public override string Description => "Создаёт Pull Request в GitHub из текущей ветки.";
+        public override string Description =>
+            "Создаёт Pull Request в GitHub из текущей ветки. " +
+            "Параметр path указывает каталог репозитория внутри workspace.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => true;
@@ -38,18 +45,51 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "title", Type = "string", Description = "Заголовок PR.", Required = true },
-            new ToolParameterDescriptor { Name = "body", Type = "string", Description = "Тело PR (Markdown).", Required = false },
-            new ToolParameterDescriptor { Name = "base", Type = "string", Description = "Целевая ветка (например, main).", Required = false },
-            new ToolParameterDescriptor { Name = "head", Type = "string", Description = "Исходная ветка (по умолчанию текущая).", Required = false },
-            new ToolParameterDescriptor { Name = "draft", Type = "bool", Description = "Создать как черновик.", Required = false, Default = false }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "title",
+                Type = "string",
+                Description = "Заголовок PR (максимум 500 символов).",
+                Required = true
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "body",
+                Type = "string",
+                Description = "Тело PR (Markdown, максимум 60 000 символов).",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "base",
+                Type = "string",
+                Description = "Целевая ветка (например, main).",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "head",
+                Type = "string",
+                Description = "Исходная ветка (по умолчанию текущая).",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "draft",
+                Type = "bool",
+                Description = "Создать как черновик.",
+                Required = false,
+                Default = false
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGhAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGhContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var title = arguments.GetString("title");
             var body = arguments.GetString("body");
@@ -89,9 +129,10 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
                 }
                 if (draft) args.Add("--draft");
 
-                var result = await RunGhAsync(context, args);
+                var result = await RunGhInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"gh pr create завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"gh pr create завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 return ToolResult.Ok(new
                 {

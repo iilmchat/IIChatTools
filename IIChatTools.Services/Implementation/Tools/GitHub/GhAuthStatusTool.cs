@@ -11,12 +11,17 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
 {
     /// <summary>
     /// Инструмент: проверка статуса авторизации в GitHub CLI.
+    /// Команда глобальная, не привязана к конкретному репозиторию,
+    /// поэтому параметр path не поддерживается.
     /// </summary>
     public class GhAuthStatusTool : BaseGhTool
     {
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GhAuthStatusTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -29,23 +34,31 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public override string Name => "gh_auth_status";
 
         /// <inheritdoc />
-        public override string Description => "Проверяет статус авторизации gh CLI и активный аккаунт.";
+        public override string Description =>
+            "Проверяет статус авторизации gh CLI и активный аккаунт.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
 
         /// <inheritdoc />
-        public override IReadOnlyList<ToolParameterDescriptor> Parameters => Array.Empty<ToolParameterDescriptor>();
+        public override IReadOnlyList<ToolParameterDescriptor> Parameters =>
+            Array.Empty<ToolParameterDescriptor>();
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGhAsync(context);
-            if (validation != null) return validation;
+            // Проверяем доступность gh CLI (без привязки к репозиторию)
+            if (!await EnsureGhAvailableAsync(context))
+                return ToolResult.Fail("GitHub CLI (gh) не установлен в системе");
 
             try
             {
-                var result = await RunGhAsync(context, new[] { "auth", "status" });
+                // Запускаем gh auth status в корне workspace.
+                // Команда не привязана к репозиторию, поэтому workingDir = WorkspaceRoot.
+                var result = await RunGhInDirAsync(
+                    context.WorkspaceRoot,
+                    new[] { "auth", "status" },
+                    context.CancellationToken);
 
                 return ToolResult.Ok(new
                 {

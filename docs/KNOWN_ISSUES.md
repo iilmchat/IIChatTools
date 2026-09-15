@@ -35,11 +35,89 @@
 
 ---
 
-### KI-002 — [ЗАПОЛНИТЬ В ПРОЦЕССЕ ТЕСТИРОВАНИЯ]
-
-*Продолжайте добавлять сюда новые найденные проблемы по мере тестирования.*
+### KI-002 — 407 Proxy Authentication Required для веб-инструментов
+- **Приоритет:** 🔴 Critical
+- **Статус:** Fixed
+- **Версия:** v1.0
+- **Обнаружено:** 2026-09-15
+- **Исправлено в:** v1.0.2 (2026-09-15)
+- **Где:** `web_search`, `wikipedia_search`, `fetch_web_content`
+- **Описание:** `IHttpClientFactory` не передавал учётные данные прокси. В .NET Core 3.1 `HttpClient.DefaultProxy` без `WebProxy.Credentials` не работает для клиентов из фабрики.
+- **Ожидаемое поведение:** Все веб-инструменты работают через прокси с Basic Auth.
+- **Файлы:**
+  - `IIChatTools.API/Startup.cs` — добавлен `ConfigurePrimaryHttpMessageHandler`
+- **Решение:** Явная регистрация `HttpClientHandler` с `WebProxy.Credentials` через `ConfigurePrimaryHttpMessageHandler`.
 
 ---
+
+### KI-003 — 403 Forbidden от Wikipedia API
+- **Приоритет:** 🟠 High
+- **Статус:** Fixed
+- **Версия:** v1.0
+- **Обнаружено:** 2026-09-15
+- **Исправлено в:** v1.0.2 (2026-09-15)
+- **Где:** `wikipedia_search`
+- **Описание:** Wikipedia блокировала запросы с дефолтным User-Agent .NET HttpClient. Согласно политике User-Agent (https://meta.wikimedia.org/wiki/User-Agent_policy), Wikipedia требует идентифицирующий клиент с контактом.
+- **Ожидаемое поведение:** `wikipedia_search` возвращает результаты.
+- **Файлы:**
+  - `IIChatTools.Services/Implementation/Tools/Web/WikipediaSearchTool.cs`
+- **Решение:** Установка явного User-Agent: `IIChatTools/1.0 (https://github.com/RuChating/IIChatTools; iilmchat@localhost)`.
+
+---
+
+### KI-004 — Git-инструменты не поддерживают работу в подкаталогах
+- **Приоритет:** 🟠 High
+- **Статус:** Open / Fixed (в зависимости от выбора)
+- **Версия:** v1.0
+- **Обнаружено:** 2026-09-15
+- **Где:** все `git_*` инструменты
+- **Описание:** Git-инструменты всегда работают в корне workspace, что делает невозможной работу с несколькими репозиториями или репозиториями во вложенных папках.
+- **Ожидаемое поведение:** Поддержка параметра `path` для указания каталога репозитория внутри workspace.
+- **Файлы:**
+  - `IIChatTools.Services/Implementation/Tools/Git/BaseGitTool.cs`
+  - `IIChatTools.Services/Implementation/Tools/Git/Git*.cs` (7 файлов)
+- **Решение:** Добавление параметра `path` и метода `TryResolveWorkingDirectory`.
+
+---
+
+### KI-006 — gh-инструменты не поддерживали работу в подкаталогах
+- **Приоритет:** 🔴 Critical
+- **Статус:** Fixed
+- **Версия:** v1.0
+- **Обнаружено:** 2026-09-15
+- **Исправлено в:** v1.0.2 (2026-09-15)
+- **Где:** все `gh_*` (кроме `gh_auth_status`)
+- **Решение:** Параметр `path` + `GhContextValidationResult` + `RunGhInDirAsync`.
+- **Файлы:** `BaseGhTool.cs`, 6 gh-инструментов.
+
+### KI-007 — gh issue create требует заранее созданные метки
+- **Приоритет:** 🟢 Low (ограничение gh)
+- **Статус:** Documented
+- **Версия:** v1.0
+- **Где:** `gh_create_issue`
+- **Описание:** `gh issue create --label test` требует, чтобы метка уже существовала. Это поведение самого gh CLI.
+- **Решение:** Задокументировано в описании инструмента. При необходимости — предварительно создавать метку через `gh label create` или веб-интерфейс.
+
+### KI-008 — Хрупкость истории git при работе с тестовым репозиторием
+- **Приоритет:** 🟢 Low (не баг, а особенность git)
+- **Статус:** Resolved
+- **Версия:** v1.0
+- **Обнаружено:** 2026-09-15
+- **Где:** процесс тестирования
+- **Описание:** При манипуляциях с `git pull --allow-unrelated-histories`, `git reset --hard`, пересоздании веток локально и на сервере легко получить расхождение историй. Это ведёт к `no history in common with master`.
+- **Решение:** Чистый `git clone` восстанавливает целостность истории.
+
+---
+
+### KI-009 — ERR_CONNECTION_RESET на сайтах с SSO-редиректами
+- **Приоритет:** 🟡 Medium
+- **Статус:** Documented (не баг)
+- **Версия:** v1.0
+- **Обнаружено:** 2026-09-15
+- **Где:** `browser_session_control` → `goto` на kinopoisk.ru
+- **Описание:** Kinopoisk (и подобные сайты) перенаправляют неавторизованных пользователей на SSO-провайдера (sso.passport.yandex.ru). Chromium через корпоративный прокси сбрасывает соединение на этом редиректе с `net::ERR_CONNECTION_RESET`.
+- **Диагностика:** `curl -I ...` через прокси успешно получает 302 на sso.passport.yandex.ru — значит, прокси работает, проблема в Chromium + SSO-цепочке.
+- **Решение:** Для headless-браузера использовать нейтральные сайты (metanit.com, example.com). Для сайтов с авторизацией — задача v1.1 (инъекция cookies).
 
 ## Исправленные проблемы
 

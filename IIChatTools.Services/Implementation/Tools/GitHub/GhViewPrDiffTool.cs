@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
@@ -12,12 +13,16 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
 {
     /// <summary>
     /// Инструмент: просмотр diff Pull Request.
+    /// Поддерживает работу в подкаталогах через параметр path.
     /// </summary>
     public class GhViewPrDiffTool : BaseGhTool
     {
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GhViewPrDiffTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +35,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public override string Name => "gh_view_pr_diff";
 
         /// <inheritdoc />
-        public override string Description => "Возвращает diff указанного Pull Request.";
+        public override string Description =>
+            "Возвращает diff указанного Pull Request. " +
+            "Параметр path указывает каталог репозитория внутри workspace.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
@@ -38,14 +45,22 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "number", Type = "integer", Description = "Номер PR.", Required = true }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "number",
+                Type = "integer",
+                Description = "Номер PR.",
+                Required = true
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGhAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGhContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var number = arguments.GetInt("number");
             if (number <= 0)
@@ -54,9 +69,10 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
             try
             {
                 var args = new List<string> { "pr", "diff", number.ToString() };
-                var result = await RunGhAsync(context, args);
+                var result = await RunGhInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"gh pr diff завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"gh pr diff завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 return ToolResult.Ok(new
                 {

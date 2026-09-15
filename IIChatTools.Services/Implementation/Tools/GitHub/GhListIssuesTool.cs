@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.Extensions;
@@ -13,12 +13,16 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
 {
     /// <summary>
     /// Инструмент: список issues репозитория через gh.
+    /// Поддерживает работу в подкаталогах через параметр path.
     /// </summary>
     public class GhListIssuesTool : BaseGhTool
     {
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GhListIssuesTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -31,7 +35,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public override string Name => "gh_list_issues";
 
         /// <inheritdoc />
-        public override string Description => "Возвращает список issues текущего репозитория с фильтрами состояния и метки.";
+        public override string Description =>
+            "Возвращает список issues текущего репозитория с фильтрами состояния и метки. " +
+            "Параметр path указывает каталог репозитория внутри workspace.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
@@ -39,16 +45,38 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "state", Type = "string", Description = "open | closed | all (по умолчанию open).", Required = false, Default = "open" },
-            new ToolParameterDescriptor { Name = "label", Type = "string", Description = "Фильтр по метке.", Required = false },
-            new ToolParameterDescriptor { Name = "limit", Type = "integer", Description = "Максимум (1–100, по умолчанию 20).", Required = false, Default = 20 }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "state",
+                Type = "string",
+                Description = "open | closed | all (по умолчанию open).",
+                Required = false,
+                Default = "open"
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "label",
+                Type = "string",
+                Description = "Фильтр по метке.",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "limit",
+                Type = "integer",
+                Description = "Максимум (1–100, по умолчанию 20).",
+                Required = false,
+                Default = 20
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGhAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGhContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var state = arguments.GetString("state", "open");
             var label = arguments.GetString("label");
@@ -74,9 +102,10 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
                     args.Add(label);
                 }
 
-                var result = await RunGhAsync(context, args);
+                var result = await RunGhInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"gh issue list завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"gh issue list завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 var issues = new List<object>();
                 try

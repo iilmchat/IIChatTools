@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
@@ -18,6 +19,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GhCreateIssueTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +34,10 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public override string Name => "gh_create_issue";
 
         /// <inheritdoc />
-        public override string Description => "Создаёт issue в текущем репозитории через GitHub CLI.";
+        public override string Description =>
+            "Создаёт issue в текущем репозитории через GitHub CLI. " +
+            "Параметр path указывает каталог репозитория внутри workspace. " +
+            "Метки (labels) должны быть созданы в репозитории заранее — gh не создаёт их автоматически.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => true;
@@ -38,6 +45,7 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
+            PathParameter,
             new ToolParameterDescriptor { Name = "title", Type = "string", Description = "Заголовок issue.", Required = true },
             new ToolParameterDescriptor { Name = "body", Type = "string", Description = "Тело issue (Markdown).", Required = false },
             new ToolParameterDescriptor { Name = "labels", Type = "array", Description = "Список меток.", Required = false }
@@ -46,8 +54,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGhAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGhContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var title = arguments.GetString("title");
             var body = arguments.GetString("body");
@@ -77,9 +86,39 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
                     args.Add(label);
                 }
 
-                var result = await RunGhAsync(context, args);
+                var result = await RunGhInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"gh issue create завершился с кодом {result.ExitCode}: {result.StdErr}");
+                {
+                    var stderr = result.StdErr ?? string.Empty;
+
+                    // Улучшаем сообщение для часто встречающихся ошибок gh
+                    if (stderr.Contains("could not add label", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return ToolResult.Fail(
+                            $"Не удалось создать issue: одна из указанных меток не существует в репозитории. " +
+                            $"Создайте метку заранее через веб-интерфейс GitHub или gh CLI, либо уберите параметр labels. " +
+                            $"Детали: {stderr.Trim()}");
+                    }
+
+                    if (stderr.Contains("no git remotes found", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return ToolResult.Fail(
+                            "Не удалось создать issue: у репозитория нет настроенного remote origin. " +
+                            "Проверьте параметр path — возможно, указан не тот каталог. " +
+                            $"Детали: {stderr.Trim()}");
+                    }
+
+                    if (stderr.Contains("not logged", StringComparison.OrdinalIgnoreCase) ||
+                        stderr.Contains("authentication", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return ToolResult.Fail(
+                            "Не удалось создать issue: gh CLI не авторизован. " +
+                            "Выполните 'gh auth login' или проверьте 'gh_auth_status'. " +
+                            $"Детали: {stderr.Trim()}");
+                    }
+
+                    return ToolResult.Fail($"gh issue create завершился с кодом {result.ExitCode}: {stderr}");
+                }
 
                 return ToolResult.Ok(new
                 {

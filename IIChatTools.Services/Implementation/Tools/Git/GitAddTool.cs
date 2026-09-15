@@ -18,6 +18,9 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GitAddTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -30,7 +33,8 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         public override string Name => "git_add";
 
         /// <inheritdoc />
-        public override string Description => "Добавляет указанные пути (или все изменения) в индекс Git.";
+        public override string Description =>
+            "Добавляет указанные пути (или все изменения) в индекс Git.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => true;
@@ -38,47 +42,67 @@ namespace IIChatTools.Services.Implementation.Tools.Git
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "paths", Type = "array", Description = "Список относительных путей. Пустой — добавить все.", Required = false },
-            new ToolParameterDescriptor { Name = "all", Type = "bool", Description = "Добавить все изменения (git add -A).", Required = false, Default = false }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "files",
+                Type = "array",
+                Description = "Список относительных путей файлов внутри репозитория. Пустой — добавить все.",
+                Required = false
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "all",
+                Type = "bool",
+                Description = "Добавить все изменения (git add -A).",
+                Required = false,
+                Default = false
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGitContextAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGitContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
-            var paths = arguments.GetStringArray("paths");
+            var files = arguments.GetStringArray("files");
             var all = arguments.GetBool("all");
 
             try
             {
                 var args = new List<string> { "add" };
 
-                if (all || paths.Count == 0)
+                if (all || files.Count == 0)
                 {
                     args.Add("-A");
                 }
                 else
                 {
-                    foreach (var p in paths)
+                    foreach (var f in files)
                     {
-                        if (!PathHelper.TryGetSafeFullPath(p, context.WorkspaceRoot, out _))
-                            return ToolResult.Fail($"Недопустимый путь: {p}");
+                        if (string.IsNullOrWhiteSpace(f))
+                            continue;
+
+                        if (!PathHelper.TryGetSafeFullPath(f, workingDir, out _))
+                            return ToolResult.Fail($"Недопустимый путь файла: {f}");
+
                         args.Add("--");
-                        args.Add(p);
+                        args.Add(f);
                     }
                 }
 
-                var result = await RunGitAsync(context, args);
+                var result = await RunGitInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"git add завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"git add завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 return ToolResult.Ok(new
                 {
                     added = true,
                     stdout = result.StdOut ?? string.Empty,
-                    paths = all ? new[] { "*" } : paths
+                    files = all ? new[] { "*" } : files
                 });
             }
             catch (Exception ex)

@@ -23,6 +23,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Linq;
+using System.Net;                          // WebProxy, NetworkCredential, DecompressionMethods
+using System.Net.Http;                     // HttpClientHandler
+using Microsoft.Extensions.Http;           // HttpClientFactoryOptions
 
 namespace IIChatTools.API
 {
@@ -128,8 +131,55 @@ namespace IIChatTools.API
                 options.RequestCultureProviders.Add(new Microsoft.AspNetCore.Localization.AcceptLanguageHeaderRequestCultureProvider());
             });
             
-            // ============ 5. HttpClient ============
+            // ============ 5. HttpClient с настройкой прокси ============
             services.AddHttpClient();
+
+            // Настраиваем прокси для всех клиентов, создаваемых IHttpClientFactory.
+            // В .NET Core 3.1 ConfigurePrimaryHttpMessageHandler недоступен через
+            // AddHttpClient() без имени, поэтому используем HttpClientFactoryOptions.
+            services.Configure<Microsoft.Extensions.Http.HttpClientFactoryOptions>(options =>
+            {
+                options.HttpMessageHandlerBuilderActions.Add(builder =>
+                {
+                    var handler = new System.Net.Http.HttpClientHandler
+                    {
+                        UseProxy = true,
+                        AllowAutoRedirect = true,
+                        AutomaticDecompression = System.Net.DecompressionMethods.GZip
+                                            | System.Net.DecompressionMethods.Deflate
+                    };
+
+                    // Явно передаём прокси с credentials — иначе IHttpClientFactory
+                    // не отправит Basic Auth на корпоративный прокси (407).
+                    var proxyUrl = Configuration["Browser:ProxyServer"];
+                    var proxyUser = Configuration["Browser:ProxyUsername"];
+                    var proxyPass = Configuration["Browser:ProxyPassword"];
+
+                    if (!string.IsNullOrWhiteSpace(proxyUrl))
+                    {
+                        var webProxy = new System.Net.WebProxy(proxyUrl)
+                        {
+                            BypassProxyOnLocal = true,
+                            BypassList = new[]
+                            {
+                                @"localhost",
+                                @"127\.0\.0\.1",
+                                @"::1",
+                                @".*\.local"
+                            }
+                        };
+
+                        if (!string.IsNullOrWhiteSpace(proxyUser))
+                        {
+                            webProxy.Credentials = new System.Net.NetworkCredential(proxyUser, proxyPass);
+                        }
+
+                        handler.Proxy = webProxy;
+                    }
+
+                    builder.PrimaryHandler = handler;
+                });
+            });
 
             // ============ 6. Инфраструктурные сервисы ============
             services.AddSingleton<AppUptimeTracker>();

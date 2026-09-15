@@ -13,12 +13,16 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
 {
     /// <summary>
     /// Инструмент: список Pull Request'ов текущего репозитория.
+    /// Поддерживает работу в подкаталогах через параметр path.
     /// </summary>
     public class GhListPrsTool : BaseGhTool
     {
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
+        /// <param name="processRunner">Исполнитель процессов</param>
+        /// <param name="configuration">Конфигурация</param>
+        /// <param name="logger">Логгер</param>
         public GhListPrsTool(
             IProcessRunner processRunner,
             IConfiguration configuration,
@@ -31,7 +35,9 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         public override string Name => "gh_list_prs";
 
         /// <inheritdoc />
-        public override string Description => "Возвращает список pull request'ов с фильтром по состоянию.";
+        public override string Description =>
+            "Возвращает список pull request'ов с фильтром по состоянию. " +
+            "Параметр path указывает каталог репозитория внутри workspace.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => false;
@@ -39,15 +45,31 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
         /// <inheritdoc />
         public override IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
-            new ToolParameterDescriptor { Name = "state", Type = "string", Description = "open | closed | merged | all (по умолчанию open).", Required = false, Default = "open" },
-            new ToolParameterDescriptor { Name = "limit", Type = "integer", Description = "Максимум (1–100, по умолчанию 20).", Required = false, Default = 20 }
+            PathParameter,
+            new ToolParameterDescriptor
+            {
+                Name = "state",
+                Type = "string",
+                Description = "open | closed | merged | all (по умолчанию open).",
+                Required = false,
+                Default = "open"
+            },
+            new ToolParameterDescriptor
+            {
+                Name = "limit",
+                Type = "integer",
+                Description = "Максимум (1–100, по умолчанию 20).",
+                Required = false,
+                Default = 20
+            }
         };
 
         /// <inheritdoc />
         public override async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
-            var validation = await ValidateGhAsync(context);
-            if (validation != null) return validation;
+            var validation = await ValidateGhContextAsync(context, arguments);
+            if (!validation.IsSuccess) return validation.Error;
+            var workingDir = validation.WorkingDir;
 
             var state = arguments.GetString("state", "open");
             var limit = arguments.GetInt("limit", 20);
@@ -66,9 +88,10 @@ namespace IIChatTools.Services.Implementation.Tools.GitHub
                     "--json", "number,title,state,author,headRefName,baseRefName,createdAt,url,isDraft"
                 };
 
-                var result = await RunGhAsync(context, args);
+                var result = await RunGhInDirAsync(workingDir, args, context.CancellationToken);
                 if (result.ExitCode != 0)
-                    return ToolResult.Fail($"gh pr list завершился с кодом {result.ExitCode}: {result.StdErr}");
+                    return ToolResult.Fail(
+                        $"gh pr list завершился с кодом {result.ExitCode}: {result.StdErr}");
 
                 var prs = new List<object>();
                 try
