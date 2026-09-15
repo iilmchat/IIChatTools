@@ -9,7 +9,7 @@ namespace IIChatTools.API
         /// <summary>
         /// Текущая версия приложения.
         /// </summary>
-        public const string Current = "1.0.0";
+        public const string Current = "1.0.2";
 
         /// <summary>
         /// Человекочитаемое наименование продукта.
@@ -19,6 +19,5 @@ namespace IIChatTools.API
         /// <summary>
         /// Информация об авторских правах.
         /// </summary>
-        public const string Copyright = "© 2026 RuChating (iilmchat) · IIChatTools v1.0";
-    }
+        public const string Copyright = "© 2026 RuChating (iilmchat) · IIChatTools v1.0.2";
 }
