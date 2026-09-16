@@ -25,7 +25,7 @@
     <EntityFrameworkSqliteVersion>3.1.32</EntityFrameworkSqliteVersion>    
     <MicrosoftAspNetCoreVersion>3.1.32</MicrosoftAspNetCoreVersion>
     <MicrosoftExtensionsVersion>3.1.32</MicrosoftExtensionsVersion>
-    <IdentityModelVersion>6.35.0</IdentityModelVersion>
+    <IdentityModelVersion>5.6.0</IdentityModelVersion>
     <NewtonsoftJsonVersion>13.0.3</NewtonsoftJsonVersion>
     <HtmlAgilityPackVersion>1.11.61</HtmlAgilityPackVersion>
     <PuppeteerSharpVersion>2.0.4</PuppeteerSharpVersion>
