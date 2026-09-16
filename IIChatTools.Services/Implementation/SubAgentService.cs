@@ -337,7 +337,9 @@ namespace IIChatTools.Services.Implementation
             return new JObject
             {
                 ["role"] = "assistant",
-                ["content"] = content ?? string.Empty,
+                ["content"] = string.IsNullOrEmpty(content)
+                    ? (JToken)JValue.CreateNull()
+                    : new JValue(content),
                 ["tool_calls"] = toolCalls
             };
         }
