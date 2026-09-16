@@ -114,3 +114,5 @@ PublishProfiles/
 *.orig
 *.swp
 *~
+# Workspace пользователя
+Workspace/
