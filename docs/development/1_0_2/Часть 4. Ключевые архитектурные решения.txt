@@ -1,0 +1,43 @@
+Ключевые архитектурные решения
+#	Решение	Обоснование
+1	Слоистость Data → Services → API	AppVersionHolder разрывает Services↔API
+2	Гибридная БД (SqlServer/Sqlite/InMemory)	Не требует SQL Server от пользователя
+3	CompositeAuditService	Аудит в БД и/или файл независимо
+4	DI через конструктор везде	Тестируемость, нет ServiceLocator
+5	ToolRegistry + ITool	Новый инструмент = 1 класс + 1 строка
+6	Func<ISubAgentService>	Разрыв DI-цикла SubAgent↔Registry
+7	path в git/gh инструментах	Несколько репозиториев в workspace
+8	*ValidationResult	Обход запрета out в async
+9	HttpClient.DefaultProxy	Прокси для ClientWebSocket
+10	HttpClientFactoryOptions	Прокси с credentials в IHttpClientFactory
+11	BrowserLocator	Автоопределение Edge/Chrome
+12	--remote-allow-origins=*	WebSocket в Chromium 111+
+13	--proxy-bypass-list=<-loopback>	WS-соединение напрямую
+14	Реалистичный User-Agent	Обход headless-детекции
+15	PuppeteerSharp 7.1.0	Совместимость с современными Chromium
+16	IStringLocalizer<SharedResources>	Единая точка локализации UI
+17	PendingAction + polling	Компромисс безопасности и UX
+18	KNOWN_ISSUES.md	Реестр проблем и решений
+19	.gitattributes	Нормализация LF/CRLF
+20	filter-repo + gc	Уменьшение .git с 154 МБ до 1.5 МБ
+Сводная таблица DI Lifetime
+Сервис	Lifetime	Роль
+AppDbContext	Scoped	EF Core + Identity
+AppUptimeTracker	Singleton	Время старта
+IBrowserSessionManager	Singleton	Долгоживущий PuppeteerSharp
+IProcessRunner	Singleton	Запуск процессов
+IFileAuditService	Singleton	JSONL-аудит
+IAuditService	Scoped	Composite (БД + файл)
+IAuditQueryService	Scoped	Чтение аудита
+IApprovalService	Scoped	Подтверждения
+IJwtService	Scoped	JWT
+IStatusService	Scoped	Статистика
+IWorkspaceResolver	Scoped	Путь workspace
+IAppSettingsService	Scoped	Настройки
+IUserAdminService	Scoped	Пользователи
+IDependencyChecker	Scoped	Проверка CLI
+ILmStudioClient	Scoped	HTTP к LM Studio
+ISubAgentService	Scoped	Оркестратор суб-агента
+Func<ISubAgentService>	Scoped	Разрыв DI-цикла
+IToolRegistry	Scoped	Реестр 40 инструментов
+ITool (40 шт.)	Scoped	Каждый инструмент

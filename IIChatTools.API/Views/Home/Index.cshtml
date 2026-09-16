@@ -1,12 +1,14 @@
 @using Microsoft.Extensions.Localization
 @using IIChatTools.API.Resources
+@using IIChatTools.API
+
 @inject IStringLocalizer<SharedResources> Localizer
 @{
     ViewData["Title"] = Localizer["Главная"];
 }
 
 <div class="container mt-4">
-    <h1 class="mb-3">@Localizer["Добро пожаловать в IIChatTools v1.0"]</h1>
+    <h1 class="mb-3">@string.Format(Localizer["WelcomeTitle"].Value, AppVersion.Current)</h1>
     <p class="text-muted">@Localizer["Управляйте инструментами, пользователями и настройками."]</p>
 
     <div class="row g-3 mt-3">
