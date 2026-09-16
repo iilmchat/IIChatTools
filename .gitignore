@@ -30,6 +30,9 @@ artifacts/
 # Восстановление NuGet
 **/[Pp]ackages/*
 !**/[Pp]ackages/build/
+**/[Ll]ocalPackages/*
+!**/[Ll]ocalPackages/build/
+
 
 # Публикация
 **/[Pp]ublish/
@@ -114,5 +117,12 @@ PublishProfiles/
 *.orig
 *.swp
 *~
-# Workspace ������������
+# Workspace — рабочая папка пользователей (не коммитим)
 Workspace/
+
+# Временный конфиг NuGet для наполнения LocalPackages (не коммитим)
+NuGet.Config.online
+
+# Локальный NuGet-источник для offline-сборки (не коммитится)
+LocalPackages/
+!LocalPackages/.gitkeep
