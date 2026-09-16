@@ -114,5 +114,12 @@ PublishProfiles/
 *.orig
 *.swp
 *~
-# Workspace ������������
+# Workspace ������������
 Workspace/
+
+# Временный конфиг NuGet для наполнения LocalPackages (не коммитим)
+NuGet.Config.online
+
+# Логи сборки
+*.build.log
+build.log

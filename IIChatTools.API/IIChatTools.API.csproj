@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <LangVersion>8.0</LangVersion>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <RootNamespace>IIChatTools.API</RootNamespace>
     <AssemblyName>IIChatTools.API</AssemblyName>
     <Nullable>disable</Nullable>
@@ -11,10 +11,10 @@
     <UserSecretsId>iichattools-api-secrets-2026</UserSecretsId>
     <Company>RuChating (iilmchat)</Company>
     <Product>IIChatTools</Product>
-    <Version>1.0.0</Version>
-    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0</Copyright>
+    <Version>1.1.0</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.1.0</Copyright>
     <Authors>RuChating</Authors>
-    <Description>Веб-приложение и API IIChatTools v1.0.</Description>
+    <Description>Веб-приложение и API IIChatTools v1.1.0.</Description>
 
     <!-- Настройки компиляции Razor (MSBuild-свойства, а не элементы!) -->
     <MvcRazorCompileOnPublish>true</MvcRazorCompileOnPublish>
@@ -29,25 +29,21 @@
 
   <ItemGroup>
     <!-- JWT аутентификация -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.32" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(MicrosoftAspNetCoreVersion)" />
 
     <!-- MVC + Razor + локализация -->
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.32" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.32" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="$(MicrosoftAspNetCoreVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="$(MicrosoftAspNetCoreVersion)" />
 
     <!-- EF Core Design для миграций из CLI -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.32">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="$(EFCoreVersion)">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
-    <!-- Логирование (встроенный ILogger) -->
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.32" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="3.1.32" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="3.1.32" />
-
+    <!-- Провайдеры БД -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EntityFrameworkSqliteVersion)" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EFCoreVersion)" />    
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EFCoreVersion)" />
   </ItemGroup>
 
   <ItemGroup>

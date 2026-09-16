@@ -1,0 +1,15 @@
+LLM → POST /api/tools/execute { toolName, arguments }
+      ↓
+ToolsController.ExecuteAsync
+  ↓
+1. Проверка IToolRegistry.GetDescriptor(toolName)
+2. Проверка IApprovalService.IsWhitelistedAsync(toolName)
+3. Если RequiresApprovalByDefault && !whitelisted:
+     - без approvalId → создать PendingAction,
+       вернуть { requiresApproval: true, actionId }
+     - с approvalId → проверить статус (Approved?)
+4. IWorkspaceResolver.GetWorkspacePathAsync(userId)
+5. IToolRegistry.ExecuteAsync(toolName, context, args)
+     → ITool.ExecuteAsync
+6. IAuditService.LogActionAsync (Composite: БД + файл)
+7. Вернуть { success, data, message }

@@ -1,41 +1,41 @@
 <Project>
 
   <!--
-    Общие свойства MSBuild для всех проектов решения IIChatTools.
+    Общие свойства MSBuild для всех проектов IIChatTools.
     Позволяет избежать дублирования метаданных и версий пакетов в каждом .csproj.
-    © 2026 RuChating (iilmchat) · IIChatTools v1.0
+    © 2026 RuChating (iilmchat) · IIChatTools v1.1.0
   -->
   <PropertyGroup>
     <!-- Метаданные продукта -->
     <Company>RuChating (iilmchat)</Company>
     <Product>IIChatTools</Product>
-    <Version>1.0.2</Version>
-    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.0.2</Copyright>
+    <Version>1.1.0</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.1.0</Copyright>
     <Authors>RuChating</Authors>
 
     <!-- Настройки компилятора -->
-    <LangVersion>8.0</LangVersion>
+    <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
 
-    <!-- Единые версии пакетов (используются через $(EFCoreVersion) и т.п. в .csproj) -->
-    <EFCoreVersion>3.1.32</EFCoreVersion>
-    <EntityFrameworkSqliteVersion>3.1.32</EntityFrameworkSqliteVersion>    
-    <MicrosoftAspNetCoreVersion>3.1.32</MicrosoftAspNetCoreVersion>
-    <MicrosoftExtensionsVersion>3.1.32</MicrosoftExtensionsVersion>
-    <IdentityModelVersion>6.35.0</IdentityModelVersion>
+    <!--
+      Единые версии пакетов.
+      Используются через $(EFCoreVersion) и т.п. в .csproj.
+      Все версии синхронизированы с .NET 10 LTS (10.0.x).
+    -->
+    <EFCoreVersion>10.0.4</EFCoreVersion>
+    <EntityFrameworkSqliteVersion>10.0.4</EntityFrameworkSqliteVersion>
+    <MicrosoftAspNetCoreVersion>10.0.4</MicrosoftAspNetCoreVersion>
+    <MicrosoftExtensionsVersion>10.0.4</MicrosoftExtensionsVersion>
+    <IdentityModelVersion>8.14.0</IdentityModelVersion>
     <NewtonsoftJsonVersion>13.0.3</NewtonsoftJsonVersion>
-    <HtmlAgilityPackVersion>1.11.61</HtmlAgilityPackVersion>
-    <PuppeteerSharpVersion>2.0.4</PuppeteerSharpVersion>
-    <XunitVersion>2.7.0</XunitVersion>
-    <MoqVersion>4.20.70</MoqVersion>
-
-
-
-    <RuntimeNativeOpenSslVersion>4.3.0</RuntimeNativeOpenSslVersion>    
+    <HtmlAgilityPackVersion>1.12.1</HtmlAgilityPackVersion>
     <PuppeteerSharpVersion>7.1.0</PuppeteerSharpVersion>
+    <XunitVersion>2.9.2</XunitVersion>
+    <XunitRunnerVisualStudioVersion>2.8.2</XunitRunnerVisualStudioVersion>
+    <MoqVersion>4.20.72</MoqVersion>
   </PropertyGroup>
 
 </Project>

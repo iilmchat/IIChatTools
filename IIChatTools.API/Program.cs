@@ -181,7 +181,7 @@ namespace IIChatTools.API
             try
             {
                 logger.LogInformation("=== IIChatTools v{Version} — запуск инициализации ===", AppVersion.Current);
-                logger.LogInformation("© {Copyright}", AppVersion.Copyright);
+                logger.LogInformation("{Copyright}", AppVersion.Copyright);
 
                 // Передаём версию в слой сервисов (разрыв зависимости Services → API)
                 AppVersionHolder.Current = AppVersion.Current;
