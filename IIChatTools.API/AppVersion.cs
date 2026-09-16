@@ -20,4 +20,5 @@ namespace IIChatTools.API
         /// Информация об авторских правах.
         /// </summary>
         public const string Copyright = "© 2026 RuChating (iilmchat) · IIChatTools v1.0.2";
+    }
 }
