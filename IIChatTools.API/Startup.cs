@@ -142,7 +142,8 @@ namespace IIChatTools.API
             
             // ============ 4. MVC + локализация ============
             
-            services.AddLocalization(options => options.ResourcesPath = "Resources");
+            //services.AddLocalization(options => options.ResourcesPath = "Resources");
+            services.AddLocalization(options => options.ResourcesPath = "");
             services.AddControllersWithViews()
                 .AddNewtonsoftJson()
                 .AddViewLocalization()

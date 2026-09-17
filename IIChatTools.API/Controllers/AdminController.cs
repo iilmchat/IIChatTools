@@ -69,7 +69,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения списка пользователей");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -85,13 +85,13 @@ namespace IIChatTools.API.Controllers
             {
                 var user = await _userAdminService.GetByIdAsync(id);
                 if (user == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
                 return Ok(new { success = true, data = user });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения пользователя {Id}", id);
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -106,7 +106,7 @@ namespace IIChatTools.API.Controllers
             try
             {
                 if (dto == null)
-                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."] });
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value  });
 
                 var created = await _userAdminService.CreateAsync(dto);
                 await LogAdminActionAsync("admin.user.create", created.Id);
@@ -131,11 +131,11 @@ namespace IIChatTools.API.Controllers
             try
             {
                 if (dto == null)
-                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."] });
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value  });
 
                 var updated = await _userAdminService.UpdateAsync(id, dto);
                 if (updated == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 await LogAdminActionAsync("admin.user.update", id);
                 return Ok(new { success = true, data = updated });
@@ -163,7 +163,7 @@ namespace IIChatTools.API.Controllers
 
                 var ok = await _userAdminService.DeleteAsync(id);
                 if (!ok)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 await LogAdminActionAsync("admin.user.delete", id);
                 return Ok(new { success = true });
@@ -191,7 +191,7 @@ namespace IIChatTools.API.Controllers
 
                 var ok = await _userAdminService.ResetPasswordAsync(id, request.NewPassword);
                 if (!ok)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 await LogAdminActionAsync("admin.user.reset_password", id);
                 return Ok(new { success = true });
@@ -218,7 +218,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения списка ролей");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -239,7 +239,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения настроек");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -277,7 +277,7 @@ namespace IIChatTools.API.Controllers
             {
                 var updated = await _settingsService.UpdateAsync(id, dto);
                 if (updated == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 await LogAdminActionAsync("admin.setting.update", id);
                 return Ok(new { success = true, data = updated });
@@ -301,7 +301,7 @@ namespace IIChatTools.API.Controllers
             {
                 var ok = await _settingsService.DeleteAsync(id);
                 if (!ok)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 await LogAdminActionAsync("admin.setting.delete", id);
                 return Ok(new { success = true });
@@ -325,7 +325,7 @@ namespace IIChatTools.API.Controllers
             {
                 var result = await _settingsService.ResetToDefaultAsync(id);
                 if (result == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 await LogAdminActionAsync("admin.setting.reset", id);
                 return Ok(new { success = true, data = result });
@@ -369,7 +369,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения белого списка");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -388,7 +388,7 @@ namespace IIChatTools.API.Controllers
 
                 var descriptor = _toolRegistry.GetDescriptor(request.ToolName);
                 if (descriptor == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 await UpdateWhitelistAsync(request.ToolName, add: true);
                 await LogAdminActionAsync("admin.whitelist.add", 0, request.ToolName);
@@ -466,7 +466,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения аудита");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
