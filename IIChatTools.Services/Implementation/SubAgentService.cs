@@ -102,7 +102,15 @@ namespace IIChatTools.Services.Implementation
             };
 
             // 3. Формируем список tools (исключая родительский инструмент)
-            var tools = BuildToolsForSubAgent(request.AllowedTools);
+            //var tools = BuildToolsForSubAgent(request.AllowedTools);
+            var effectiveAllowed = request.AllowedTools;
+            if (effectiveAllowed == null || effectiveAllowed.Count == 0)
+            {
+                effectiveAllowed = _configuration
+                    .GetSection("SubAgent:DefaultAllowedTools")
+                    .Get<IReadOnlyList<string>>();
+            }
+            var tools = BuildToolsForSubAgent(effectiveAllowed);
 
             // 4. Основной цикл
             var finalAnswer = string.Empty;
@@ -337,7 +345,9 @@ namespace IIChatTools.Services.Implementation
             return new JObject
             {
                 ["role"] = "assistant",
-                ["content"] = content ?? string.Empty,
+                ["content"] = string.IsNullOrEmpty(content)
+                    ? (JToken)JValue.CreateNull()
+                    : new JValue(content),
                 ["tool_calls"] = toolCalls
             };
         }
@@ -397,7 +407,7 @@ namespace IIChatTools.Services.Implementation
 
             foreach (var p in descriptor.Parameters)
             {
-                var propSchema = new JObject { ["type"] = p.Type ?? "string" };
+                var propSchema = new JObject { ["type"] = NormalizeSchemaType(p.Type) };
                 if (!string.IsNullOrWhiteSpace(p.Description))
                     propSchema["description"] = p.Description;
                 if (p.Default != null)
@@ -424,6 +434,55 @@ namespace IIChatTools.Services.Implementation
                     }
                 }
             };
+        }
+
+        /// <summary>
+        /// Приводит тип параметра к каноническому виду JSON Schema.
+        /// LM Studio / llama.cpp отказывается парсить схемы с нестандартными
+        /// типами ("bool", "int", "double") — принимает только
+        /// string / integer / number / boolean / array / object.
+        /// </summary>
+        private static string NormalizeSchemaType(string rawType)
+        {
+            if (string.IsNullOrWhiteSpace(rawType))
+                return "string";
+
+            switch (rawType.Trim().ToLowerInvariant())
+            {
+                case "string":
+                case "str":
+                case "text":
+                    return "string";
+
+                case "int":
+                case "int32":
+                case "int64":
+                case "long":
+                case "integer":
+                    return "integer";
+
+                case "float":
+                case "double":
+                case "decimal":
+                case "number":
+                    return "number";
+
+                case "bool":
+                case "boolean":
+                    return "boolean";
+
+                case "array":
+                case "list":
+                    return "array";
+
+                case "object":
+                case "dict":
+                    return "object";
+
+                default:
+                    // Неизвестное значение — безопасный fallback
+                    return "string";
+            }
         }
 
         /// <summary>
