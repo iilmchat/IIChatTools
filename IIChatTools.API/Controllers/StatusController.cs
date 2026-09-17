@@ -52,7 +52,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения снимка состояния");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
     }

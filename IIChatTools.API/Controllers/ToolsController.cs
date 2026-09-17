@@ -64,7 +64,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения списка инструментов");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
             }
         }
 
@@ -80,14 +80,14 @@ namespace IIChatTools.API.Controllers
             {
                 var descriptor = _toolRegistry.GetDescriptor(name);
                 if (descriptor == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 return Ok(new { success = true, data = descriptor });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения описания инструмента {Tool}", name);
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -104,7 +104,7 @@ namespace IIChatTools.API.Controllers
             try
             {
                 if (request == null || string.IsNullOrWhiteSpace(request.ToolName))
-                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."] });
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value  });
 
                 var descriptor = _toolRegistry.GetDescriptor(request.ToolName);
                 if (descriptor == null)
@@ -142,19 +142,19 @@ namespace IIChatTools.API.Controllers
                     // Если approvalId передан — проверяем его статус
                     var action = await _approvalService.GetByIdAsync(request.ApprovalId.Value);
                     if (action == null)
-                        return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                        return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                     if (action.UserId != userId && !User.IsInRole("Admin"))
-                        return Ok(new { success = false, message = _localizer["Доступ запрещён."] });
+                        return Ok(new { success = false, message = _localizer["Доступ запрещён."].Value  });
 
                     if (action.Status == "Rejected")
-                        return Ok(new { success = false, message = _localizer["Действие отклонено."] });
+                        return Ok(new { success = false, message = _localizer["Действие отклонено."].Value  });
 
                     if (action.Status == "Expired" || action.ExpiresAt <= DateTime.UtcNow)
-                        return Ok(new { success = false, message = _localizer["Действие истекло."] });
+                        return Ok(new { success = false, message = _localizer["Действие истекло."].Value  });
 
                     if (action.Status != "Approved")
-                        return Ok(new { success = false, message = _localizer["Действие ожидает подтверждения пользователя."] });
+                        return Ok(new { success = false, message = _localizer["Действие ожидает подтверждения пользователя."].Value  });
                 }
 
                 // Выполнение инструмента
@@ -193,7 +193,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка выполнения инструмента {Tool}", request?.ToolName);
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -211,10 +211,10 @@ namespace IIChatTools.API.Controllers
                 var action = await _approvalService.GetByIdAsync(actionId);
 
                 if (action == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 if (action.UserId != userId && !User.IsInRole("Admin"))
-                    return Ok(new { success = false, message = _localizer["Доступ запрещён."] });
+                    return Ok(new { success = false, message = _localizer["Доступ запрещён."].Value  });
 
                 // Автоматически помечаем как expired, если время истекло
                 var status = action.Status;
@@ -237,7 +237,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения статуса действия {ActionId}", actionId);
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 

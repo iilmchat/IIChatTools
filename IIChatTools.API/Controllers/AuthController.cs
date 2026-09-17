@@ -244,15 +244,15 @@ namespace IIChatTools.API.Controllers
             try
             {
                 if (model == null)
-                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."] });
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value  });
 
                 var user = await _userManager.FindByEmailAsync(model.Email);
                 if (user == null || !user.IsActive)
-                    return Ok(new { success = false, message = _localizer["Неверное имя пользователя или пароль."] });
+                    return Ok(new { success = false, message = _localizer["Неверное имя пользователя или пароль."].Value  });
 
                 var passwordValid = await _userManager.CheckPasswordAsync(user, model.Password);
                 if (!passwordValid)
-                    return Ok(new { success = false, message = _localizer["Неверное имя пользователя или пароль."] });
+                    return Ok(new { success = false, message = _localizer["Неверное имя пользователя или пароль."].Value  });
 
                 var roles = await _userManager.GetRolesAsync(user);
                 var token = await _jwtService.GenerateTokenAsync(user, roles);
@@ -272,7 +272,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка выдачи JWT-токена");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
     }

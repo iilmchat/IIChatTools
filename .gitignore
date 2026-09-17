@@ -130,3 +130,6 @@ LocalPackages/
 # Логи сборки
 *.build.log
 build.log
+
+# Локальные SQLite-БД (development)
+IIChatTools.API/Data/
