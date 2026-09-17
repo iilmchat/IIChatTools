@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -13,6 +15,7 @@ namespace IIChatTools.Services.Implementation
 {
     /// <summary>
     /// Реализация клиента LM Studio (OpenAI-совместимый API).
+    /// Поддерживает reasoning-модели (поле reasoning_content) и обычные модели.
     /// </summary>
     public class LmStudioClient : ILmStudioClient
     {
@@ -48,7 +51,7 @@ namespace IIChatTools.Services.Implementation
             var baseUrl = _configuration["LmStudio:BaseUrl"] ?? "http://localhost:8034";
             var model = _configuration["LmStudio:Model"] ?? "local-model";
             var temperature = GetDouble("LmStudio:Temperature", 0.7);
-            var maxTokens = GetInt("LmStudio:MaxTokens", 4096);
+            var maxTokens = GetInt("LmStudio:MaxTokens", 8192);
             var timeoutSeconds = GetInt("LmStudio:RequestTimeoutSeconds", 300);
 
             var payload = new JObject
@@ -73,13 +76,20 @@ namespace IIChatTools.Services.Implementation
                 var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 
-                var content = new StringContent(payload.ToString(Formatting.None), Encoding.UTF8, "application/json");
-                var response = await client.PostAsync(url, content, cancellationToken);
+                var content = new StringContent(
+                    payload.ToString(Formatting.None),
+                    Encoding.UTF8,
+                    "application/json");
 
+                var response = await client.PostAsync(url, content, cancellationToken);
                 var responseBody = await response.Content.ReadAsStringAsync();
+
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("LM Studio вернул {StatusCode}: {Body}", response.StatusCode, Truncate(responseBody, 500));
+                    _logger.LogWarning(
+                        "LM Studio вернул {StatusCode}: {Body}",
+                        response.StatusCode, Truncate(responseBody, 500));
+
                     throw new InvalidOperationException(
                         $"LM Studio вернул ошибку {(int)response.StatusCode}: {Truncate(responseBody, 500)}");
                 }
@@ -92,12 +102,34 @@ namespace IIChatTools.Services.Implementation
                 var message = choice["message"];
                 var finishReason = choice["finish_reason"]?.ToString();
 
-                return new ChatCompletionResponse
+                // Нормализуем tool_calls: пустой массив → null
+                JArray toolCalls = null;
+                if (message?["tool_calls"] is JArray rawToolCalls && rawToolCalls.Count > 0)
+                    toolCalls = rawToolCalls;
+
+                var result = new ChatCompletionResponse
                 {
                     Content = message?["content"]?.ToString(),
-                    ToolCalls = message?["tool_calls"] as JArray,
-                    FinishReason = finishReason
+                    ReasoningContent = message?["reasoning_content"]?.ToString(),
+                    ToolCalls = toolCalls,
+                    FinishReason = finishReason,
+                    Usage = ParseUsage(json["usage"] as JObject)
                 };
+
+                _logger.LogInformation(
+                    "LM Studio: model={Model}, finish={FinishReason}, " +
+                    "prompt={PromptTokens}, completion={CompletionTokens}, reasoning={ReasoningTokens}, " +
+                    "contentLen={ContentLen}, reasoningLen={ReasoningLen}, toolCalls={ToolCalls}",
+                    model,
+                    finishReason,
+                    result.Usage?.PromptTokens ?? 0,
+                    result.Usage?.CompletionTokens ?? 0,
+                    result.Usage?.ReasoningTokens ?? 0,
+                    result.Content?.Length ?? 0,
+                    result.ReasoningContent?.Length ?? 0,
+                    result.ToolCalls?.Count ?? 0);
+
+                return result;
             }
             catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -112,6 +144,55 @@ namespace IIChatTools.Services.Implementation
                 _logger.LogError(ex, "Ошибка при обращении к LM Studio: {Url}", url);
                 throw;
             }
+        }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyList<string>> GetModelIdsAsync(CancellationToken cancellationToken)
+        {
+            var baseUrl = _configuration["LmStudio:BaseUrl"] ?? "http://localhost:8034";
+            var timeoutSeconds = GetInt("LmStudio:RequestTimeoutSeconds", 300);
+            var url = baseUrl.TrimEnd('/') + "/v1/models";
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(Math.Min(timeoutSeconds, 30));
+
+                var responseBody = await client.GetStringAsync(url);
+                var json = JObject.Parse(responseBody);
+                var data = json["data"] as JArray;
+
+                if (data == null)
+                    return Array.Empty<string>();
+
+                return data
+                    .Select(x => x["id"]?.ToString())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка получения списка моделей LM Studio: {Url}", url);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Разбирает блок usage из ответа LM Studio.
+        /// </summary>
+        /// <param name="usage">JObject usage или null</param>
+        /// <returns>Объект с расходом токенов или null</returns>
+        private static ChatCompletionUsage ParseUsage(JObject usage)
+        {
+            if (usage == null) return null;
+
+            return new ChatCompletionUsage
+            {
+                PromptTokens = usage["prompt_tokens"]?.Value<int>() ?? 0,
+                CompletionTokens = usage["completion_tokens"]?.Value<int>() ?? 0,
+                TotalTokens = usage["total_tokens"]?.Value<int>() ?? 0,
+                ReasoningTokens = usage["completion_tokens_details"]?["reasoning_tokens"]?.Value<int>() ?? 0
+            };
         }
 
         /// <summary>
