@@ -1,4 +1,7 @@
 using System;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using IIChatTools.Data;
 using IIChatTools.Data.Entities;
@@ -13,19 +16,18 @@ using IIChatTools.Services.Implementation.Tools.Utils;
 using IIChatTools.Services.Implementation.Tools.Web;
 using IIChatTools.API.Extensions;
 using IIChatTools.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;              // ← добавить
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System.Linq;
-using System.Net;                          // WebProxy, NetworkCredential, DecompressionMethods
-using System.Net.Http;                     // HttpClientHandler
-using Microsoft.Extensions.Http;           // HttpClientFactoryOptions
 
 namespace IIChatTools.API
 {
@@ -82,23 +84,62 @@ namespace IIChatTools.API
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
 
-            // ============ 3. Аутентификация (JWT — именованная схема) ============
-            services.AddAuthentication()
-                .AddJwtBearer("JwtBearer", options =>
-                {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        ValidIssuer = Configuration["Jwt:Issuer"],
-                        ValidAudience = Configuration["Jwt:Audience"],
-                        IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
-                    };
-                });
+            // ============ 3. Аутентификация (JWT + Cookie) ============
+            // .NET Core 3.1: глобально отключаем маппинг длинных URI-имён claim'ов
+            // (role, name, nameidentifier) в короткие (role, unique_name, nameid).
+            System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler
+                .DefaultInboundClaimTypeMap.Clear();
 
+            // ВАЖНО: AddIdentity (выше) внутри себя вызывает AddAuthentication с
+            // DefaultAuthenticateScheme = Identity.Application и DefaultChallengeScheme = Identity.Application.
+            // Если эти поля не переопределить, authorize-middleware при проверке
+            // [Authorize(Policy=...)] будет аутентифицировать cookie, а не Bearer → 401.
+            services.AddAuthentication(options =>
+            {
+                options.DefaultScheme = "SmartScheme";
+                options.DefaultAuthenticateScheme = "SmartScheme";
+                options.DefaultChallengeScheme = "SmartScheme";
+            })
+            .AddPolicyScheme("SmartScheme", "Bearer or Cookie", options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                {
+                    var authorization = context.Request.Headers["Authorization"].FirstOrDefault();
+                    if (!string.IsNullOrEmpty(authorization) &&
+                        authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "JwtBearer";
+                    }
+                    return Microsoft.AspNetCore.Identity.IdentityConstants.ApplicationScheme;
+                };
+            })
+            .AddJwtBearer("JwtBearer", options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = Configuration["Jwt:Issuer"],
+                    ValidAudience = Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
+                };
+
+                options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+                {
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+                        return context.Response.WriteAsync(
+                            "{\"success\":false,\"message\":\"Unauthorized\"}");
+                    }
+                };
+            });
+            
             // ============ 4. MVC + локализация ============
             
             services.AddLocalization(options => options.ResourcesPath = "Resources");
