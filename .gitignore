@@ -123,3 +123,6 @@ NuGet.Config.online
 # Логи сборки
 *.build.log
 build.log
+
+# Локальный NuGet-источник для offline-сборки (не коммитится)
+LocalPackages/
