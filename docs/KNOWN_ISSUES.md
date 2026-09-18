@@ -152,22 +152,20 @@
 
 ---
 
-### KI-039 — Утечка прокси-credentials в git-истории
+### KI-039 — Утечка прокси-credentials и email автора в git-истории
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.1.1
-- **Обнаружено:** 2026-09-18
-- **Описание:** В git-истории (публичный репозиторий) в открытом виде хранились:
-  - Прокси-сервер: `http://proxy.example.local:8080`
-  - Логин: `proxy_user`
-  - Пароль: `CHANGE_ME`
-  Секреты присутствовали в: `appsettings.json`, `appsettings.Development.json`, `bin/Debug/netcoreapp3.1/appsettings.json`, `Program.cs`, `scripts/diagnostics/*.ps1`, `UPDATES/2/IIChatTools.API/appsettings.json`.
+- **Обнаружено:** 2026-09-18 | **Устранено:** 2026-09-18
+- **Описание:** В публичной истории git в открытом виде хранились реальные прокси-credentials (URL, логин, пароль) и email автора коммитов. Найдено в 13+ файлах: `appsettings*.json`, `Program.cs`, `scripts/setup/*.ps1`, `configs/NuGet*.Config`, `docs/development/*.txt`, `UPDATES/*`.
 - **Действия:**
-  1. **Сменён пароль** на прокси-сервере (обязательно до очистки).
+  1. Пароль прокси сменён на самом сервере (до очистки).
   2. Репозиторий сделан приватным на время очистки.
-  3. `git filter-repo --replace-text` — заменены все вхождения на плейсхолдеры.
-  4. `git push --force --all` + `--tags` — перезапись истории на GitHub.
-  5. **KI-036** — убран хардкод fallback из `Program.cs`.
-  6. Локальные секреты перенесены в User Secrets / env-переменные.
-- **Урок:** любые секреты — только через User Secrets / env / secret manager. Никогда — в `appsettings.json` даже как placeholder с реальным значением.
+  3. `git filter-repo --replace-text` + `--mailmap` + `--invert-paths`.
+  4. `git push --force --all` + `--force --tags`.
+  5. KI-036 — удалён хардкод fallback из `Program.cs` и скриптов.
+  6. Удалены: `UPDATES/`, `configs/NuGet1.Config`, `configs/NuGet111.Config`, `scripts/setup/download-*.ps1`, локальные SQLite-БД.
+  7. Секреты перенесены в User Secrets и `$env:IICHATTOOLS_PROXY*`.
+  8. GitHub Secret Scanning — «No secrets found».
+- **Урок:** секреты — только через User Secrets / env / secret manager. Регулярно прогонять `git log --all -p | grep ...` перед push.
 
 ---
 
@@ -250,6 +248,7 @@
 |--------|--------|
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
+| Fixed (v1.1.1) | 2 |    <!-- KI-036, KI-039 -->
 | Documented | 6 |
 | Open | 4 |
 | Deferred | 1 |
