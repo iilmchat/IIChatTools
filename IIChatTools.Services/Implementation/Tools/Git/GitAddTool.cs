@@ -12,6 +12,8 @@ namespace IIChatTools.Services.Implementation.Tools.Git
 {
     /// <summary>
     /// Инструмент: добавление файлов в индекс (git add).
+    /// Требует явного указания <c>files</c> или <c>all: true</c> — неявный
+    /// <c>git add -A</c> при пустом списке файлов запрещён (KI-005).
     /// </summary>
     public class GitAddTool : BaseGitTool
     {
@@ -34,7 +36,9 @@ namespace IIChatTools.Services.Implementation.Tools.Git
 
         /// <inheritdoc />
         public override string Description =>
-            "Добавляет указанные пути (или все изменения) в индекс Git.";
+            "Добавляет указанные пути в индекс Git. " +
+            "Для добавления ВСЕХ изменений требуется явно передать all: true. " +
+            "Пустой files без all: true недопустим — предотвращает случайный git add -A.";
 
         /// <inheritdoc />
         public override bool RequiresApprovalByDefault => true;
@@ -47,14 +51,16 @@ namespace IIChatTools.Services.Implementation.Tools.Git
             {
                 Name = "files",
                 Type = "array",
-                Description = "Список относительных путей файлов внутри репозитория. Пустой — добавить все.",
+                Description = "Список относительных путей файлов внутри репозитория. " +
+                              "Обязателен, если all != true. Пустой массив недопустим.",
                 Required = false
             },
             new ToolParameterDescriptor
             {
                 Name = "all",
                 Type = "bool",
-                Description = "Добавить все изменения (git add -A).",
+                Description = "Явно добавить все изменения (git add -A). " +
+                              "Взаимоисключающий с files. По умолчанию false.",
                 Required = false,
                 Default = false
             }
@@ -70,16 +76,39 @@ namespace IIChatTools.Services.Implementation.Tools.Git
             var files = arguments.GetStringArray("files");
             var all = arguments.GetBool("all");
 
+            var hasFiles = files != null && files.Count > 0;
+
+            // Взаимоисключающие параметры
+            if (all && hasFiles)
+            {
+                return ToolResult.Fail(
+                    "Параметры 'files' и 'all: true' взаимоисключающие. " +
+                    "Укажите либо список файлов, либо all: true, но не оба.");
+            }
+
+            // Пустой files без all: true — отказ (KI-005)
+            if (!all && !hasFiles)
+            {
+                return ToolResult.Fail(
+                    "Не указан список файлов. " +
+                    "Передайте 'files' (массив относительных путей) " +
+                    "или явно 'all: true' для добавления всех изменений.");
+            }
+
             try
             {
                 var args = new List<string> { "add" };
 
-                if (all || files.Count == 0)
+                if (all)
                 {
+                    // Явное намерение добавить все изменения
                     args.Add("-A");
                 }
                 else
                 {
+                    // Один `--` перед всем списком, затем — файлы
+                    args.Add("--");
+
                     foreach (var f in files)
                     {
                         if (string.IsNullOrWhiteSpace(f))
@@ -88,7 +117,6 @@ namespace IIChatTools.Services.Implementation.Tools.Git
                         if (!PathHelper.TryGetSafeFullPath(f, workingDir, out _))
                             return ToolResult.Fail($"Недопустимый путь файла: {f}");
 
-                        args.Add("--");
                         args.Add(f);
                     }
                 }

@@ -23,9 +23,10 @@
 ### Changed
 - **KI-037**: удалён legacy-ключ `ConnectionStrings:DefaultConnection`. Единственный источник строки SqlServer — `Database:SqlServerConnectionString`. Fallback в `DbContextOptionsExtensions` заменён на явную ошибку.
 - **KI-038**: `Workspace:RootPath` вынесен в User Secrets. `WorkspaceResolver` раскрывает env-переменные через `Environment.ExpandEnvironmentVariables`. Устранены мержи локальных путей.
+- **KI-005** (API-изменение): `git_add` теперь **требует явного** `all: true` для добавления всех изменений или непустой `files`. Устранён неявный `git add -A` при пустом `files`.
 
 ### Fixed
-- Н/Д
+- **KI-005**: `git_add` — исправлено формирование аргументов CLI: символ `--` теперь добавляется один раз перед списком файлов (а не перед каждым), предотвращая некорректный вызов при 2+ путях.
 
 ### Security
 - **KI-022**: обновлён `SQLitePCLRaw.bundle_e_sqlite3` до 2.1.13 (GHSA-2m69-gcr7-jv3q, High).
