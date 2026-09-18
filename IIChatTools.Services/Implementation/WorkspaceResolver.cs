@@ -30,17 +30,30 @@ namespace IIChatTools.Services.Implementation
         /// <inheritdoc />
         public Task<string> GetWorkspacePathAsync(int userId)
         {
-            var root = _configuration["Workspace:RootPath"];
-            if (string.IsNullOrWhiteSpace(root))
-                throw new InvalidOperationException("Не задан Workspace:RootPath в конфигурации");
+            var raw = _configuration["Workspace:RootPath"];
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                throw new InvalidOperationException(
+                    "Не задан Workspace:RootPath в конфигурации. " +
+                    "Задайте его в appsettings.Development.json или через User Secrets: " +
+                    "dotnet user-secrets set \"Workspace:RootPath\" \"<путь>\".");
+            }
 
-            var basePath = Path.GetFullPath(root);
+            // Раскрываем переменные окружения (%USERPROFILE% на Windows, $HOME на *nix).
+            // Это позволяет использовать кросс-платформенный placeholder
+            // %USERPROFILE%\IIChatToolsWorkspace в appsettings.Development.json
+            // как безопасный fallback для новых разработчиков.
+            var expanded = Environment.ExpandEnvironmentVariables(raw);
+
+            var basePath = Path.GetFullPath(expanded);
             var userPath = Path.Combine(basePath, "users", userId.ToString());
 
             if (!Directory.Exists(userPath))
             {
                 Directory.CreateDirectory(userPath);
-                _logger.LogInformation("Создано рабочее пространство {Path} для пользователя {UserId}", userPath, userId);
+                _logger.LogInformation(
+                    "Создано рабочее пространство {Path} для пользователя {UserId}",
+                    userPath, userId);
             }
 
             return Task.FromResult(userPath);

@@ -211,6 +211,25 @@ dotnet restore IIChatTools.sln --configfile NuGet.Config.online --force
 - `Logging:LogLevel:Default = "Debug"`;
 - `Jwt:Key` — тестовый, **не для прода**.
 
+Локальные пути и прокси-credentials **не коммитятся**. Храните их в User Secrets:
+```bash
+cd IIChatTools.API
+
+# Workspace — локальная песочница для файловых инструментов
+dotnet user-secrets set "Workspace:RootPath" "G:\AI\IIChatTools\Workspace"
+
+# Прокси (если используется)
+dotnet user-secrets set "Browser:ProxyServer"   "http://proxy.local:8080"
+dotnet user-secrets set "Browser:ProxyUsername" "<login>"
+dotnet user-secrets set "Browser:ProxyPassword" "<password>"
+```
+
+Проверка: `dotnet user-secrets list`.
+
+В `appsettings.Development.json` остаются **нейтральные placeholder**:
+- `Workspace:RootPath` — `%USERPROFILE%\IIChatToolsWorkspace` (раскрывается через `Environment.ExpandEnvironmentVariables`)
+- `Browser:ProxyServer` / `ProxyUsername` / `ProxyPassword` — `CHANGE_ME_VIA_USER_SECRETS`
+
 ---
 
 ## Миграции и запуск

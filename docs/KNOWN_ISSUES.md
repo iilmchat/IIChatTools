@@ -145,15 +145,16 @@
 ---
 
 ### KI-038 — Локальные пути разработчиков в `appsettings.Development.json`
-- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.1.x
-- **Файлы:** `IIChatTools.API/appsettings.Development.json`
-- **Обнаружено:** 2026-09-17
-- **Описание:** `Workspace:RootPath` содержит абсолютный путь, специфичный для машины разработчика (`D:\Projects\...` у одного, `G:\AI\...` у другого). При merge с `origin/main` путь был перезаписан на чужой → `list_directory` и все FS-инструменты падали с `IOException: Устройство не готово` (диск `D:` отсутствует).
-- **Решение (временное):** после merge откатили `RootPath` на локальный `G:\AI\IIChatTools\Workspace`.
-- **Решение (долгосрочное, v1.1.x):**
-  - Перенести `Workspace:RootPath` в **User Secrets** (`dotnet user-secrets set "Workspace:RootPath" "..."`).
-  - В `appsettings.Development.json` оставить нейтральный placeholder `%USERPROFILE%\IIChatToolsWorkspace`.
-  - Тот же подход — к `Browser:ProxyServer` и `Database:SqliteConnectionString`.
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
+- **Обнаружено:** 2026-09-17 | **Устранено:** 2026-09-18
+- **Файлы:** `IIChatTools.API/appsettings.Development.json`, `IIChatTools.Services/Implementation/WorkspaceResolver.cs`, `README.md`
+- **Описание:** `Workspace:RootPath` содержал абсолютный путь конкретной машины (`D:\Projects\...` у одного, `G:\AI\...` у другого). При merge с `origin/main` путь перезаписывался на чужой → `list_directory` и все FS-инструменты падали с `IOException: Устройство не готово`.
+- **Решение:**
+  - `Workspace:RootPath` вынесен в **User Secrets** (`dotnet user-secrets set "Workspace:RootPath" "G:\AI\IIChatTools\Workspace"`).
+  - В `appsettings.Development.json` — нейтральный placeholder `%USERPROFILE%\IIChatToolsWorkspace`.
+  - `WorkspaceResolver`: добавлено `Environment.ExpandEnvironmentVariables` (раскрытие env-переменных), улучшено сообщение об ошибке.
+  - `README.md`: инструкция по User Secrets для новых разработчиков.
+- **Результат:** локальные пути не коммитятся, мержи по ключу `Workspace:RootPath` больше не возникают.
 
 ---
 
@@ -253,15 +254,15 @@
 |--------|--------|
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
-| Fixed (v1.1.1) | 4 |
+| Fixed (v1.1.1) | 5 |
 | Documented | 6 |
-| Open | 3 |
+| Open | 2 |
 | Deferred | 0 |          <!-- было 1, -KI-022 -->
 | Resolved | 1 |
 | **Всего** | **33** |
 
-**«Расшифровка Open»:** KI-001, KI-005, KI-038.
-**«Fixed (v1.1.1)»:** KI-022, KI-036, KI-037, KI-039.
+**«Расшифровка Open»:** KI-001, KI-005.
+**«Fixed (v1.1.1)»:** KI-022, KI-036, KI-037, KI-038, KI-039.
 **«Deferred»:** KI-022.
 **«Documented»:** KI-007, KI-009, KI-032, KI-038 (и 2 устаревших).
 
