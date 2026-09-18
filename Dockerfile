@@ -44,12 +44,14 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
 # Копируем остальные исходники
 COPY . .
 
-# Publish только API (остальные проекты подключены через ProjectReference)
+# Publish только API (остальные проекты подключены через ProjectReference).
+# Без --no-restore: publish запустит restore повторно и докачает пакеты,
+# которых нет в кеше /root/.nuget/packages (например, транзитивные анализаторы,
+# появившиеся в новых версиях). Это защищает от NETSDK1064 в CI.
 RUN --mount=type=cache,target=/root/.nuget/packages \
     dotnet publish IIChatTools.API/IIChatTools.API.csproj \
         --configuration Release \
         --output /app/publish \
-        --no-restore \
         /p:UseAppHost=false
 
 # ============================================================
