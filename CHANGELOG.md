@@ -21,20 +21,41 @@
 - Н/Д
 
 ### Changed
-- **KI-037**: удалён legacy-ключ `ConnectionStrings:DefaultConnection`. Единственный источник строки SqlServer — `Database:SqlServerConnectionString`. Fallback в `DbContextOptionsExtensions` заменён на явную ошибку.
-- **KI-038**: `Workspace:RootPath` вынесен в User Secrets. `WorkspaceResolver` раскрывает env-переменные через `Environment.ExpandEnvironmentVariables`. Устранены мержи локальных путей.
-- **KI-005** (API-изменение): `git_add` теперь **требует явного** `all: true` для добавления всех изменений или непустой `files`. Устранён неявный `git add -A` при пустом `files`.
+- Н/Д
 
 ### Fixed
-- **KI-005**: `git_add` — исправлено формирование аргументов CLI: символ `--` теперь добавляется один раз перед списком файлов (а не перед каждым), предотвращая некорректный вызов при 2+ путях.
-- **KI-001**: на странице `/test` при отклонении действия в поле «Результат» теперь отображается **причина отклонения**, введённая пользователем. `requestApproval` возвращает `{ decision, reason }`; `ToolsController` при `Rejected` передаёт `data.rejectionReason`. Отмена диалога ввода причины (`Cancel`) больше не закрывает модалку — можно передумать.
+- Н/Д
 
 ### Security
-- **KI-022**: обновлён `SQLitePCLRaw.bundle_e_sqlite3` до 2.1.13 (GHSA-2m69-gcr7-jv3q, High).
+- Н/Д
 
 ---
 
 ## [1.1.1] — 2026-09-18
+
+### Changed
+- **KI-037**: удалён legacy-ключ `ConnectionStrings:DefaultConnection`. Единственный источник строки SqlServer — `Database:SqlServerConnectionString`. Fallback в `DbContextOptionsExtensions` заменён на явную ошибку.
+- **KI-038**: `Workspace:RootPath` вынесен в User Secrets. `WorkspaceResolver` раскрывает env-переменные через `Environment.ExpandEnvironmentVariables`. Устранены мержи локальных путей.
+- **KI-005** (API-изменение): `git_add` требует явного `all: true` для добавления всех изменений или непустой `files`. Устранён неявный `git add -A` при пустом `files`.
+
+### Fixed
+- **KI-001**: на `/test` при отклонении действия в поле «Результат» отображается причина отклонения. `requestApproval` возвращает `{ decision, reason }`; `ToolsController` при `Rejected` передаёт `data.rejectionReason`. Отмена диалога причины (`Cancel`) больше не вешает модалку.
+- **KI-005**: `git_add` — исправлено формирование CLI: `--` добавляется один раз перед списком файлов (а не перед каждым).
+
+### Security
+- **KI-022**: обновлён `SQLitePCLRaw.bundle_e_sqlite3` до 2.1.13 (GHSA-2m69-gcr7-jv3q, High).
+- **KI-036**: удалён хардкод прокси-credentials из `Program.cs` и скриптов. Значения — только через env/User Secrets.
+- **KI-039**: устранена утечка прокси-credentials и email автора в git-истории. `git filter-repo --replace-text` + `--mailmap` + `--invert-paths`, force-push всех веток и тегов. GitHub Secret Scanning: «No secrets found».
+
+### Removed
+- Папка `UPDATES/` (устаревшие копии).
+- Дубли `configs/NuGet1.Config`, `configs/NuGet111.Config`.
+- Ad-hoc скрипты `scripts/setup/download-missing*.ps1`, `downloader*.ps1`.
+- Локальные SQLite-БД `IIChatTools.API/Data/*.db` (не коммитились).
+
+---
+
+## [1.1.0] — 2026-09-18
 
 ### Security
 - **KI-039**: устранена утечка прокси-credentials и email автора в git-истории (публичный репозиторий).
