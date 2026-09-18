@@ -90,12 +90,29 @@ IIChatTools/
    ```
 
 **Наполнение `LocalPackages`** (для разработчиков с интернетом):
+
+Локальный источник `LocalPackages/` наполняется из глобального NuGet-кэша
+через три шага:
+
 ```bash
-# Временный NuGet.Config.online с nuget.org (не коммитится)
+# 1. Создать NuGet.Config.online (временный, не коммитится)
+pwsh -ExecutionPolicy Bypass -File scripts/setup/enable-online-restore.ps1
+
+# 2. Скачать все пакеты в глобальный кэш (~/.nuget/packages)
 dotnet restore IIChatTools.sln --configfile NuGet.Config.online --force
 
-# Затем скопировать .nupkg из дефолтного кэша в LocalPackages
-# (см. scripts/setup/fill-local-packages.ps1)
+# 3. Скопировать все .nupkg из глобального кэша в LocalPackages/
+pwsh -ExecutionPolicy Bypass -File scripts/setup/fill-local-packages.ps1
+```
+
+Для чистой пересборки `LocalPackages/` — с резервной копией:
+```bash
+pwsh -ExecutionPolicy Bypass -File scripts/setup/fill-local-packages.ps1 -Clean
+```
+
+Предварительный просмотр без копирования:
+```bash
+pwsh -ExecutionPolicy Bypass -File scripts/setup/fill-local-packages.ps1 -DryRun
 ```
 
 ---

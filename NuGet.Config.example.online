@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Шаблон NuGet.Config для online-restore.
+  НЕ КОММИТИТЬ реальный файл NuGet.Config.online — он в .gitignore.
+
+  Использование (см. scripts/setup/enable-online-restore.ps1):
+    Copy-Item NuGet.Config.example.online NuGet.Config.online
+    dotnet restore IIChatTools.sln --configfile NuGet.Config.online --force
+
+  Зачем нужен:
+    В корне репозитория лежит NuGet.Config с источником LocalPackages
+    (offline-режим для машин без интернета). При наполнении LocalPackages
+    (или при разработке на машине с интернетом) нужно временно разрешить
+    nuget.org в дополнение к LocalPackages.
+
+  Секреты (прокси-credentials) сюда НЕ добавлять — используйте
+  переменные окружения HTTP_PROXY / HTTPS_PROXY или dotnet nuget config.
+
+  © 2026 RuChating (iilmchat) · IIChatTools v1.1.1
+-->
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+    <add key="LocalPackages" value="LocalPackages" />
+  </packageSources>
+</configuration>

@@ -23,6 +23,8 @@
 - **README**: бейджи CI/Docker Publish, раздел «CI/CD».
 - **Health checks**: `/health/live` (liveness), `/health/ready` (БД + Workspace), `/health` (полный JSON-отчёт, включая LM Studio). Анонимные endpoints для Docker/k8s/monitoring. Реализованы кастомные проверки: `DatabaseHealthCheck`, `WorkspaceHealthCheck`, `LmStudioHealthCheck`.
 - `Dockerfile`: healthcheck переведён на `/health/live`.
+- **Scripts**: `scripts/setup/enable-online-restore.ps1` (создаёт `NuGet.Config.online` из шаблона), `scripts/setup/fill-local-packages.ps1` (наполняет `LocalPackages/` из глобального NuGet-кэша; параметры `-Clean`, `-DryRun`).
+- **Config**: `NuGet.Config.example.online` — шаблон онлайн-конфига (не коммитить реальный `NuGet.Config.online` — он в `.gitignore`).
 
 ### Changed
 - Н/Д
@@ -31,6 +33,7 @@
 - **KI-040**: `PathHelper` нормализует оба разделителя (`/` и `\`) до валидации пути. Устранён обход path-traversal через backslash на Linux. Также исправлены: сравнение путей (case-sensitive на Linux), обрезка завершающего разделителя (корень `/` больше не превращается в `""`). CI на Linux выявил проблему.
 - **Docker**: `Dockerfile` — используется предустановленный пользователь `app` из базового образа `dotnet/aspnet:10.0` (GID/UID 1000 уже существует с .NET 8). Ранее `groupadd` падал с `group 'app' already exists` в GitHub Actions.
 - **Docker**: убран флаг `--no-restore` из `dotnet publish` в `Dockerfile` — восстановление пакетов повторяется, что устраняет ошибку `NETSDK1064: Package Microsoft.CodeAnalysis.Analyzers was not found` в CI (устаревший кэш `/root/.nuget/packages`).
+- **KI-041**: в README и KNOWN_ISSUES упоминались файлы `NuGet.Config.online` и `scripts/setup/fill-local-packages.ps1`, которых не было в репозитории. Добавлены шаблон и оба скрипта; README обновлён.
 
 ### Security
 - **KI-040**: cross-platform обход `PathHelper.TryGetSafeFullPath` через `\` на Linux (потенциальный path traversal в FS/git/shell-инструментах).
