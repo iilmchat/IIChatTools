@@ -27,6 +27,7 @@
 - **Config**: `NuGet.Config.example.online` — шаблон онлайн-конфига (не коммитить реальный `NuGet.Config.online` — он в `.gitignore`).
 - **Rate limiting**: `AddAppRateLimiting` — политики `per-user`, `tools-execute` (строже для `/api/tools/execute`), `auth` (brute-force для `/auth/*`). JSON-ответ с `retryAfterSeconds` при 429. Health-эндпоинты исключены. Настройка через `RateLimiting` в `appsettings.json`.
 - **Rate limiting**: собственный `RateLimitingMiddleware` на базе `System.Threading.RateLimiting`. Политики: `per-user` (100/min), `tools-execute` (30/min для `/api/tools/execute`), `auth` (5/min для `/auth/*`). JSON-ответ 429 с `retryAfterSeconds`. `/health/*` исключены. Настройка через секцию `RateLimiting` в `appsettings.json`.
+- **Prometheus метрики**: `/metrics` (анонимный). Стандартные `http_requests_*`, `http_request_duration_seconds` (из `prometheus-net.AspNetCore 8.2.1`). Кастомные: `iichattools_tool_executions_total{tool_name,status}`, `iichattools_tool_execution_duration_seconds{tool_name}`, `iichattools_pending_approvals`, `iichattools_active_users`, `iichattools_audit_entries_total{status}`, `iichattools_lmstudio_requests_total{status}`. Gauge обновляются фоновым сервисом `MetricsRefreshBackgroundService` раз в 30 сек.
 
 ### Changed
 - `Startup.cs`: `app.UseRateLimiter()` после `UseAuthentication` (политики per-user видят `User`).

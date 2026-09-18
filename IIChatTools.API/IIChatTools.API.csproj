@@ -52,6 +52,9 @@
     -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="$(SQLitePCLRawVersion)" />    
 
+    <!-- Prometheus метрики (exporter + HTTP-middleware).
+         GA-версия 8.2.1 — совместима с .NET 10. -->
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
   </ItemGroup>
 
   <ItemGroup>

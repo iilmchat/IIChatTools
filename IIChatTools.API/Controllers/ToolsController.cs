@@ -11,6 +11,7 @@ using Microsoft.Extensions.Localization;
 using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using IIChatTools.API.Metrics;
 
 namespace IIChatTools.API.Controllers
 {
@@ -148,15 +149,25 @@ namespace IIChatTools.API.Controllers
                         return Ok(new { success = false, message = _localizer["Доступ запрещён."].Value  });
 
                     if (action.Status == "Rejected")
+                    {
+                        AppMetrics.ToolExecutionsTotal
+                            .WithLabels(request.ToolName, "Rejected")
+                            .Inc();
                         return Ok(new
                         {
                             success = false,
                             message = _localizer["Действие отклонено."].Value,
                             data = new { rejectionReason = action.RejectionReason }
                         });
+                    }
 
                     if (action.Status == "Expired" || action.ExpiresAt <= DateTime.UtcNow)
+                    {
+                        AppMetrics.ToolExecutionsTotal
+                            .WithLabels(request.ToolName, "Expired")
+                            .Inc();
                         return Ok(new { success = false, message = _localizer["Действие истекло."].Value  });
+                    }
 
                     if (action.Status != "Approved")
                         return Ok(new { success = false, message = _localizer["Действие ожидает подтверждения пользователя."].Value  });
@@ -176,6 +187,14 @@ namespace IIChatTools.API.Controllers
                 var result = await _toolRegistry.ExecuteAsync(request.ToolName, context, request.Arguments);
 
                 var durationMs = (DateTime.UtcNow.Ticks - startTicks) / TimeSpan.TicksPerMillisecond;
+
+                // Метрики Prometheus: счётчик + гистограмма
+                AppMetrics.ToolExecutionsTotal
+                    .WithLabels(request.ToolName, result.Success ? "Success" : "Error")
+                    .Inc();
+                AppMetrics.ToolExecutionDurationSeconds
+                    .WithLabels(request.ToolName)
+                    .Observe(durationMs / 1000.0);
 
                 await _auditService.LogActionAsync(new AuditLog
                 {

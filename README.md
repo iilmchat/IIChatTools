@@ -329,6 +329,49 @@ Per-user и per-IP лимиты запросов. Настраивается в 
 
 ---
 
+## Metrics
+
+Prometheus-метрики доступны по `/metrics` (публичный, без авторизации).
+
+```bash
+curl https://localhost:5001/metrics
+```
+Стандартные (prometheus-net):
+
+http_requests_received_total{method,code,controller,action,endpoint}
+
+http_request_duration_seconds{method,code,controller,action,endpoint}
+
+http_requests_in_progress{method}
+
+dotnet_collection_count_total{generation}
+
+process_* (CPU, memory)
+
+Кастомные IIChatTools:
+
+iichattools_tool_executions_total{tool_name,status} — Success / Error / Rejected / Expired
+
+iichattools_tool_execution_duration_seconds{tool_name}
+
+iichattools_pending_approvals — gauge (обновляется раз в 30 сек)
+
+iichattools_active_users — gauge (обновляется раз в 30 сек)
+
+iichattools_audit_entries_total{status}
+
+iichattools_lmstudio_requests_total{status}
+
+Prometheus scrape config:
+
+scrape_configs:
+  - job_name: 'iichattools'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['iichattools:8080']
+
+---
+
 ## Безопасность
 
 - **Пути** всегда проверяются через `PathHelper.TryGetSafeFullPath` (запрет выхода из workspace).

@@ -32,6 +32,8 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using IIChatTools.API.HealthChecks;
 using IIChatTools.API.RateLimiting;
+using IIChatTools.API.Metrics;
+using Prometheus;
 
 namespace IIChatTools.API
 {
@@ -90,6 +92,10 @@ namespace IIChatTools.API
             // Реализация через собственный middleware (см. RateLimitingMiddleware).
             // Регистрация только конфигурации; сам middleware подключается в Configure.
             services.Configure<RateLimitingOptions>(Configuration.GetSection("RateLimiting"));
+
+            // ============ 1.3. Metrics (Prometheus) ============
+            // Фоновый сервис обновляет gauge PendingApprovals/ActiveUsers.
+            services.AddHostedService<MetricsRefreshBackgroundService>();
 
             // ============ 2. Identity ============
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
@@ -332,15 +338,15 @@ namespace IIChatTools.API
 
             app.UseRouting();
 
-            // Rate limiting должен идти после UseRouting (чтобы видеть endpoint-метаданные
-            // с политиками), но до UseAuthentication (лимиты применяются и к анонимным).
-            // Политики, использующие UserId, читают claims, установленные UseAuthentication,
-            // поэтому оставляем UseRateLimiter ПОСЛЕ UseAuthentication.
-            app.UseAuthentication();
-            app.UseAuthorization();
-            //app.UseRateLimiter();
+            // Prometheus HTTP-метрики — как можно раньше, чтобы захватить все запросы,
+            // включая те, что отклонены rate-limiting (429).
+            app.UseHttpMetrics();
 
             // Rate limiting — собственный middleware (SDK 10.0.401 не даёт AddRateLimiter).
+            // Идёт ПОСЛЕ UseAuthentication, чтобы видеть User (claims), и ДО UseEndpoints.
+            // Health-эндпоинты исключены внутри middleware по префиксу /health/*.
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.UseMiddleware<RateLimitingMiddleware>();
 
             app.UseEndpoints(endpoints =>
@@ -350,6 +356,9 @@ namespace IIChatTools.API
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+                // Prometheus /metrics — публичный, без авторизации (для скрейпера).
+                endpoints.MapMetrics("/metrics");                    
 
                 // Health checks — анонимные, БЕЗ rate limiting.
                 endpoints.MapHealthChecks("/health/live", new HealthCheckOptions
