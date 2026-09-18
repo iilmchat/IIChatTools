@@ -148,7 +148,12 @@ namespace IIChatTools.API.Controllers
                         return Ok(new { success = false, message = _localizer["Доступ запрещён."].Value  });
 
                     if (action.Status == "Rejected")
-                        return Ok(new { success = false, message = _localizer["Действие отклонено."].Value  });
+                        return Ok(new
+                        {
+                            success = false,
+                            message = _localizer["Действие отклонено."].Value,
+                            data = new { rejectionReason = action.RejectionReason }
+                        });
 
                     if (action.Status == "Expired" || action.ExpiresAt <= DateTime.UtcNow)
                         return Ok(new { success = false, message = _localizer["Действие истекло."].Value  });

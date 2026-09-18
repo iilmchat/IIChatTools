@@ -178,9 +178,17 @@
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
-- **Приоритет:** 🟡 Medium | **Статус:** Open | **Запланировано:** v1.0.3
-- **Файлы:** `test.js`, `approvals.js`
-- **Решение:** Показывать причину отклонения в поле «Результат».
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
+- **Обнаружено:** 2026-09-16 | **Устранено:** 2026-09-18
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/test.js`, `IIChatTools.API/wwwroot/js/modules/approvals.js`, `IIChatTools.API/Controllers/ToolsController.cs`
+- **Описание:** На странице `/test` при отклонении действия в поле «Результат» отображалось только «Действие: rejected» — без указания причины, которую пользователь вводил в диалоге.
+- **Причина:** `requestApproval` в `approvals.js` возвращал только строку `'rejected'`, теряя введённую причину. `ToolsController` при `action.Status == "Rejected"` не передавал `rejectionReason` в ответ.
+- **Решение:**
+  - `requestApproval` возвращает объект `{ decision, reason }`.
+  - `test.js`: новая функция `renderApprovalOutcome` выводит причину в поле «Результат» (`data.rejectionReason`).
+  - `ToolsController`: при `Rejected` добавлен `data.rejectionReason`.
+  - UX-улучшение: `Cancel` в диалоге ввода причины больше не закрывает модалку — можно передумать.
+- **Результат:** причина отклонения видна в поле «Результат» на `/test`.
 
 ### KI-002 — 407 Proxy Authentication Required для веб-инструментов
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.0.2
@@ -262,15 +270,15 @@
 |--------|--------|
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
-| Fixed (v1.1.1) | 6 |
+| Fixed (v1.1.1) | 7 |
 | Documented | 6 |
-| Open | 1 |
+| Open | 0 |
 | Deferred | 0 |          <!-- было 1, -KI-022 -->
 | Resolved | 1 |
 | **Всего** | **33** |
 
-**«Расшифровка Open»:**  KI-001.
-**«Fixed (v1.1.1)»:** KI-022, KI-036, KI-037, KI-038, KI-039, KI-005.
+**«Расшифровка Open»:**  (пусто).
+**«Fixed (v1.1.1)»:** KI-001, KI-005, KI-022, KI-036, KI-037, KI-038, KI-039.
 **«Deferred»:** KI-022.
 **«Documented»:** KI-007, KI-009, KI-032, KI-038 (и 2 устаревших).
 

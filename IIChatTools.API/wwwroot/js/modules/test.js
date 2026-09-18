@@ -99,17 +99,15 @@ async function executeTool() {
         const first = await apiPost('/api/tools/execute', { toolName: name, arguments: args });
 
         if (first.success && first.data && first.data.requiresApproval) {
-            const decision = await requestApproval(
+            const approval = await requestApproval(
                 first.data.actionId,
                 first.data.toolName,
                 JSON.stringify(args),
                 new Date(first.data.expiresAt).getTime()
             );
 
-            if (decision !== 'approved') {
-                statusEl.textContent = decision;
-                statusEl.className = 'badge bg-secondary';
-                resultEl.textContent = `Действие: ${decision}`;
+            if (approval.decision !== 'approved') {
+                renderApprovalOutcome(approval, first.data.actionId);
                 return;
             }
 
@@ -129,6 +127,41 @@ async function executeTool() {
     } finally {
         btn.disabled = false;
     }
+}
+
+/**
+ * Отрисовывает результат отклонения или истечения запроса на подтверждение.
+ * Причина отклонения (если указана) выводится в поле «Результат».
+ * @param {{decision: string, reason?: string}} approval Решение пользователя
+ * @param {number} actionId Идентификатор действия (для справки)
+ */
+function renderApprovalOutcome(approval, actionId) {
+    const statusEl = document.getElementById('exec-status');
+    const resultEl = document.getElementById('tool-result');
+
+    const isExpired = approval.decision === 'expired';
+    statusEl.textContent = isExpired ? 'Истекло' : 'Отклонено';
+    statusEl.className = isExpired
+        ? 'badge bg-warning text-dark'
+        : 'badge bg-secondary';
+
+    const hasReason = approval.reason && approval.reason.trim().length > 0;
+    const reason = hasReason ? approval.reason.trim() : '(причина не указана)';
+
+    const message = isExpired
+        ? 'Время подтверждения истекло.'
+        : 'Действие отклонено пользователем.';
+
+    const payload = {
+        success: false,
+        message,
+        data: {
+            actionId,
+            decision: approval.decision,
+            rejectionReason: isExpired ? null : reason
+        }
+    };
+    resultEl.textContent = JSON.stringify(payload, null, 2);
 }
 
 /**
