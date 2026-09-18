@@ -94,9 +94,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Непривилегированный пользователь (UID/GID 1000)
-RUN groupadd --gid 1000 app \
-    && useradd --uid 1000 --gid 1000 --shell /usr/sbin/nologin --no-create-home --home-dir /app app
+# В .NET 8+ runtime-образах Microsoft уже создаёт пользователя app (UID/GID 1000).
+# Проверяем — если отсутствует, создаём (для совместимости с другими базовыми образами).
+RUN if ! id -u app >/dev/null 2>&1; then \
+        groupadd --gid 1000 app && \
+        useradd --uid 1000 --gid 1000 --shell /usr/sbin/nologin --no-create-home --home-dir /app app; \
+    fi
 
 # Копируем артефакты publish
 COPY --from=build --chown=app:app /app/publish ./

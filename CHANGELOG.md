@@ -27,6 +27,7 @@
 
 ### Fixed
 - **KI-040**: `PathHelper` нормализует оба разделителя (`/` и `\`) до валидации пути. Устранён обход path-traversal через backslash на Linux. Также исправлены: сравнение путей (case-sensitive на Linux), обрезка завершающего разделителя (корень `/` больше не превращается в `""`). CI на Linux выявил проблему.
+- **Docker**: `Dockerfile` — используется предустановленный пользователь `app` из базового образа `dotnet/aspnet:10.0` (GID/UID 1000 уже существует с .NET 8). Ранее `groupadd` падал с `group 'app' already exists` в GitHub Actions.
 
 ### Security
 - **KI-040**: cross-platform обход `PathHelper.TryGetSafeFullPath` через `\` на Linux (потенциальный path traversal в FS/git/shell-инструментах).
