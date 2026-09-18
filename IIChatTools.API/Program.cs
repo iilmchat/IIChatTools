@@ -73,12 +73,15 @@ namespace IIChatTools.API
         /// </summary>
         private static void ConfigureDefaultProxy()
         {
-            var proxyUrl = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY")
-                        ?? "http://222.1.20.1:8080";
-            var proxyUser = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY_USER")
-                            ?? "proxy_user";
-            var proxyPass = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY_PASS")
-                            ?? "CHANGE_ME";
+            var proxyUrl  = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY");
+            var proxyUser = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY_USER");
+            var proxyPass = Environment.GetEnvironmentVariable("IICHATTOOLS_PROXY_PASS");
+
+            if (string.IsNullOrWhiteSpace(proxyUrl))
+            {
+                Console.WriteLine("[INFO] Прокси не настроен (IICHATTOOLS_PROXY пуст)");
+                return;
+            }
 
             try
             {

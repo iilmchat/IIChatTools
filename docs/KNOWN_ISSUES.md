@@ -122,7 +122,7 @@
 - **Приоритет:** 🟠 High | **Статус:** Open | **Запланировано:** v1.1.x
 - **Файлы:** `IIChatTools.API/Program.cs` (метод `ConfigureDefaultProxy`)
 - **Обнаружено:** 2026-09-16 (при ревизии конфигурации)
-- **Описание:** Fallback-значения переменных окружения `IICHATTOOLS_PROXY` (`http://222.1.20.1:8080`), `IICHATTOOLS_PROXY_USER` (`proxy_user`), `IICHATTOOLS_PROXY_PASS` (`CHANGE_ME`) захардкожены в исходниках. Публичный репозиторий → утечка учётных данных.
+- **Описание:** Fallback-значения переменных окружения `IICHATTOOLS_PROXY` (`http://proxy.example.local:8080`), `IICHATTOOLS_PROXY_USER` (`proxy_user`), `IICHATTOOLS_PROXY_PASS` (`CHANGE_ME`) захардкожены в исходниках. Публичный репозиторий → утечка учётных данных.
 - **Решение:**
   - Убрать дефолтные значения (пустые строки).
   - Читать прокси только из env/User Secrets.
@@ -156,7 +156,7 @@
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.1.1
 - **Обнаружено:** 2026-09-18
 - **Описание:** В git-истории (публичный репозиторий) в открытом виде хранились:
-  - Прокси-сервер: `http://222.1.20.1:8080`
+  - Прокси-сервер: `http://proxy.example.local:8080`
   - Логин: `proxy_user`
   - Пароль: `CHANGE_ME`
   Секреты присутствовали в: `appsettings.json`, `appsettings.Development.json`, `bin/Debug/netcoreapp3.1/appsettings.json`, `Program.cs`, `scripts/diagnostics/*.ps1`, `UPDATES/2/IIChatTools.API/appsettings.json`.

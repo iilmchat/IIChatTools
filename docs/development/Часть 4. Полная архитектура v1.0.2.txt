@@ -93,7 +93,7 @@ BrowserOpenPageTool
    │     Args:
    │       --no-sandbox
    │       --remote-allow-origins=*
-   │       --proxy-server=http://222.1.20.1:8080
+   │       --proxy-server=http://proxy.example.local:8080
    │       --proxy-bypass-list=<-loopback>
    │       --ignore-certificate-errors
    │

@@ -7,7 +7,7 @@ BrowserOpenPageTool.ExecuteAsync
      --no-sandbox
      --remote-allow-origins=*           ← обход Chromium 111+
      --ignore-certificate-errors         ← MITM-прокси
-     --proxy-server=http://222.1.20.1:8080
+     --proxy-server=http://proxy.example.local:8080
      --proxy-bypass-list=<-loopback>    ← WS-соединение напрямую
 3. page.SetUserAgentAsync (Chrome 120)
 4. page.AuthenticateAsync (Basic Auth → прокси)
