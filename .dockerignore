@@ -1,0 +1,70 @@
+# ============================================================
+# Контекст сборки Docker — исключаем всё лишнее
+# ============================================================
+
+# --- Git ---
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# --- IDE ---
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# --- Build artifacts ---
+**/bin/
+**/obj/
+**/publish/
+*.log
+
+# --- NuGet (offline-инфраструктура) ---
+LocalPackages/
+NuGet.Config
+NuGet.Config.online
+NuGet.Config.local
+*.nupkg
+
+# --- Данные и логи ---
+Data/
+logs/
+Workspace/
+IIChatTools.API/Data/
+IIChatTools.API/logs/
+IIChatTools.API/Workspace/
+*.db
+*.db-shm
+*.db-wal
+
+# --- Тесты ---
+TestResults/
+*.trx
+*.coverage
+coverage*.xml
+coverage*.json
+
+# --- Документация и примеры (не нужны в образе) ---
+docs/development/archive/
+assets/
+*.md
+!README.md
+
+# --- Docker ---
+docker-compose*.yml
+.docker-data/
+.env
+.env.*
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Временные ---
+*.tmp
+*.bak
+~$*

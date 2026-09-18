@@ -1,0 +1,43 @@
+# ============================================================
+# IIChatTools — Dependabot
+# ============================================================
+# Еженедельно проверяет обновления NuGet-пакетов и GitHub Actions.
+# Автоматически создаёт PR с обновлениями.
+#
+# © 2026 RuChating (iilmchat) · IIChatTools v1.1.1
+# ============================================================
+
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - nuget
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      microsoft-extensions:
+        patterns:
+          - 'Microsoft.Extensions.*'
+      entity-framework:
+        patterns:
+          - 'Microsoft.EntityFrameworkCore*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: 'chore(ci)'

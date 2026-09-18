@@ -1,0 +1,99 @@
+# ============================================================
+# IIChatTools — Docker Publish
+# ============================================================
+# Собирает Docker-образ и публикует его в GitHub Container Registry.
+#
+# Триггеры:
+#   - push в main       → тег latest + sha-XXXXXXX
+#   - push тега v*      → тег vX.Y.Z + X.Y + X + latest
+#   - workflow_dispatch → ручной запуск
+#
+# Образ: ghcr.io/iilmchat/iichattools
+#
+# © 2026 RuChating (iilmchat) · IIChatTools v1.1.1
+# ============================================================
+
+name: Docker Publish
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from Directory.Build.props
+        id: version
+        run: |
+          version=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props | head -1)
+          if [ -z "$version" ]; then
+            echo "::error::Не удалось извлечь <Version> из Directory.Build.props"
+            exit 1
+          fi
+          echo "value=$version" >> $GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=IIChatTools
+            org.opencontainers.image.description=AI tool bridge for LM Studio
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
+            org.opencontainers.image.licenses=Proprietary
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            INSTALL_BROWSER=false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false

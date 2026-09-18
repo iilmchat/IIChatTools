@@ -1,4 +1,6 @@
 # IIChatTools v1.1.0
+[![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
+[![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
@@ -330,6 +332,65 @@ logs/audit/*.jsonl (JSONL, ротация)
 
 **Решение о слоях**: `AppVersionHolder` разрывает зависимость `Services` → `API`;
 `Func<ISubAgentService>` разрывает DI-цикл `SubAgent` ↔ `ToolRegistry`.
+
+---
+
+## CI/CD
+
+- **CI** (`ci.yml`) — build + test на каждый push в `main` / `feature/**` и на PR. Загружает coverage и test-results как артефакты.
+- **Docker Publish** (`docker-publish.yml`) — сборка образа при push в `main` и при создании тега `v*`. Образ публикуется в **GitHub Container Registry** (`ghcr.io/iilmchat/iichattools`).
+
+### Образы в ghcr.io
+
+```bash
+# Последняя версия из main
+docker pull ghcr.io/iilmchat/iichattools:latest
+
+# Конкретный релиз
+docker pull ghcr.io/iilmchat/iichattools:v1.1.1
+docker pull ghcr.io/iilmchat/iichattools:1.1.1
+docker pull ghcr.io/iilmchat/iichattools:1.1
+docker pull ghcr.io/iilmchat/iichattools:1
+
+Развёртывание на любом Linux-сервере с Docker:
+docker run -d \
+  --name iichattools \
+  -p 8080:8080 \
+  -e Jwt__Key="<ваш-секрет-≥32-символа>" \
+  -v iichattools-data:/app/Data \
+  -v iichattools-logs:/app/logs \
+  -v iichattools-workspace:/app/Workspace \
+  ghcr.io/iilmchat/iichattools:latest
+
+---
+
+## Шаг 1. Создать файлы
+
+В VS Code создайте 3 файла:
+
+| Путь | Назначение |
+|------|-----------|
+| `.github/workflows/ci.yml` | Build + test |
+| `.github/workflows/docker-publish.yml` | Docker-сборка + push в ghcr.io |
+| `.github/dependabot.yml` | Авто-обновления (опционально) |
+
+И обновить:
+- `.dockerignore` — добавить `NuGet.Config`
+- `README.md` — бейджи + раздел CI/CD
+
+---
+
+## Шаг 2. Локальная проверка (без Docker)
+
+```powershell
+cd G:\AI\IIChatTools
+
+# Всё так же работает локально
+dotnet build IIChatTools.sln -c Release
+dotnet test IIChatTools.sln -c Release
+
+# Проверить, что новые YAML-файлы не содержат ошибок (необязательно)
+# Можно через VS Code с расширением YAML
 
 ---
 
