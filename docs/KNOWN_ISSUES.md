@@ -152,6 +152,25 @@
 
 ---
 
+### KI-039 — Утечка прокси-credentials в git-истории
+- **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.1.1
+- **Обнаружено:** 2026-09-18
+- **Описание:** В git-истории (публичный репозиторий) в открытом виде хранились:
+  - Прокси-сервер: `http://222.1.20.1:8080`
+  - Логин: `proxy_user`
+  - Пароль: `CHANGE_ME`
+  Секреты присутствовали в: `appsettings.json`, `appsettings.Development.json`, `bin/Debug/netcoreapp3.1/appsettings.json`, `Program.cs`, `scripts/diagnostics/*.ps1`, `UPDATES/2/IIChatTools.API/appsettings.json`.
+- **Действия:**
+  1. **Сменён пароль** на прокси-сервере (обязательно до очистки).
+  2. Репозиторий сделан приватным на время очистки.
+  3. `git filter-repo --replace-text` — заменены все вхождения на плейсхолдеры.
+  4. `git push --force --all` + `--tags` — перезапись истории на GitHub.
+  5. **KI-036** — убран хардкод fallback из `Program.cs`.
+  6. Локальные секреты перенесены в User Secrets / env-переменные.
+- **Урок:** любые секреты — только через User Secrets / env / secret manager. Никогда — в `appsettings.json` даже как placeholder с реальным значением.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
