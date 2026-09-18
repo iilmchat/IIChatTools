@@ -61,13 +61,9 @@ namespace IIChatTools.API
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
 
-            /*
             // ============ 1. База данных ============
-            services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
-            */
-
-            // ============ 1. База данных ============
+            // Провайдер и строка подключения выбираются в DbContextOptionsExtensions
+            // на основе ключа Database:Provider (SqlServer / Sqlite / InMemory).
             services.AddAppDbContext(Configuration);
 
             // ============ 2. Identity ============

@@ -104,10 +104,6 @@ dotnet restore IIChatTools.sln --configfile NuGet.Config.online --force
 
 ```jsonc
 {
-  // Строка подключения по умолчанию (legacy; сохраняется для совместимости)
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=IIChatTools;Trusted_Connection=True;MultipleActiveResultSets=true"
-  },
 
   // Гибридная БД: выберите провайдер и укажите соответствующую строку
   "Database": {

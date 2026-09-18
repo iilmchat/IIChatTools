@@ -132,11 +132,15 @@
 - **Статус:** не блокер v1.1.0, но требует исправления до публичного релиза.
 
 ### KI-037 — Дублирование строк подключения
-- **Приоритет:** 🟢 Low | **Статус:** Open | **Запланировано:** v1.1.x
-- **Файлы:** `IIChatTools.API/appsettings.json`
-- **Обнаружено:** 2026-09-16
-- **Описание:** Два ключа содержат одну и ту же строку: `ConnectionStrings:DefaultConnection` и `Database:SqlServerConnectionString`. Неясно, какой из них приоритетный; при смене один может отстать от другого.
-- **Решение:** определить, какой ключ используется в коде (`AppDbContext`/`DbContextOptionsExtensions`), оставить только один; второй удалить. Обновить README и appsettings.
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.1.1
+- **Обнаружено:** 2026-09-16 | **Устранено:** 2026-09-18
+- **Файлы:** `IIChatTools.API/appsettings.json`, `IIChatTools.API/appsettings.Development.json`, `IIChatTools.API/Extensions/DbContextOptionsExtensions.cs`, `README.md`
+- **Описание:** Ключи `ConnectionStrings:DefaultConnection` и `Database:SqlServerConnectionString` содержали одну и ту же строку. Первый — legacy из .NET Core 3.1, читался как fallback через `??` (мёртвый код, т.к. второй ключ всегда задан).
+- **Решение:**
+  - Удалён `ConnectionStrings` из обоих `appsettings*.json`.
+  - `DbContextOptionsExtensions`: убран fallback `?? configuration.GetConnectionString("DefaultConnection")`; добавлена явная проверка `string.IsNullOrWhiteSpace` с `InvalidOperationException`.
+  - `README.md`: актуализирован пример конфига.
+- **Результат:** единственный источник строки — `Database:SqlServerConnectionString`. Неоднозначность устранена.
 
 ---
 
@@ -249,14 +253,15 @@
 |--------|--------|
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
-| Fixed (v1.1.1) | 3 |    <!-- KI-022, KI-036, KI-039 -->
+| Fixed (v1.1.1) | 4 |
 | Documented | 6 |
-| Open | 4 |
+| Open | 3 |
 | Deferred | 0 |          <!-- было 1, -KI-022 -->
 | Resolved | 1 |
 | **Всего** | **33** |
 
-**Расшифровка «Open»:** KI-001, KI-005, KI-036, KI-037.
+**«Расшифровка Open»:** KI-001, KI-005, KI-038.
+**«Fixed (v1.1.1)»:** KI-022, KI-036, KI-037, KI-039.
 **«Deferred»:** KI-022.
 **«Documented»:** KI-007, KI-009, KI-032, KI-038 (и 2 устаревших).
 

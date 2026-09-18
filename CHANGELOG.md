@@ -21,7 +21,7 @@
 - Н/Д
 
 ### Changed
-- Н/Д
+- **KI-037**: удалён legacy-ключ `ConnectionStrings:DefaultConnection`. Единственный источник строки SqlServer — `Database:SqlServerConnectionString`. Fallback в `DbContextOptionsExtensions` заменён на явную ошибку.
 
 ### Fixed
 - Н/Д

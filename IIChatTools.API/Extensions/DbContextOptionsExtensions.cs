@@ -13,13 +13,16 @@ namespace IIChatTools.API.Extensions
     public static class DbContextOptionsExtensions
     {
         /// <summary>
-        /// Регистрирует AppDbContext с провайдером, выбранным в конфигурации.
+        /// Регистрирует AppDbContext с провайдером, выбранным в конфигурации
+        /// (ключ <c>Database:Provider</c>).
         /// </summary>
         /// <param name="services">Коллекция сервисов</param>
-        /// <param name="configuration">Конфигурация</param>
-        /// <returns>Коллекция сервисов</returns>
-        /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
-        /// <exception cref="InvalidOperationException">Если провайдер не поддерживается</exception>
+        /// <param name="configuration">Конфигурация приложения</param>
+        /// <returns>Коллекция сервисов для цепочки вызовов</returns>
+        /// <exception cref="ArgumentNullException">Если <paramref name="services"/> или <paramref name="configuration"/> равен null</exception>
+        /// <exception cref="InvalidOperationException">
+        /// Если провайдер не поддерживается или не задана строка подключения для выбранного провайдера.
+        /// </exception>
         public static IServiceCollection AddAppDbContext(
             this IServiceCollection services,
             IConfiguration configuration)
@@ -34,10 +37,18 @@ namespace IIChatTools.API.Extensions
                 switch (provider.ToLowerInvariant())
                 {
                     case "sqlserver":
-                        options.UseSqlServer(
-                            configuration["Database:SqlServerConnectionString"]
-                            ?? configuration.GetConnectionString("DefaultConnection"));
+                    {
+                        var cs = configuration["Database:SqlServerConnectionString"];
+                        if (string.IsNullOrWhiteSpace(cs))
+                        {
+                            throw new InvalidOperationException(
+                                "Строка подключения SqlServer не задана. " +
+                                "Укажите ключ 'Database:SqlServerConnectionString' в appsettings.json " +
+                                "или в User Secrets (dotnet user-secrets set \"Database:SqlServerConnectionString\" \"...\").");
+                        }
+                        options.UseSqlServer(cs);
                         break;
+                    }
 
                     case "sqlite":
                     {
@@ -73,7 +84,7 @@ namespace IIChatTools.API.Extensions
         /// Возвращает признак того, что провайдер поддерживает миграции EF Core.
         /// Для InMemory миграции не применяются.
         /// </summary>
-        /// <param name="configuration">Конфигурация</param>
+        /// <param name="configuration">Конфигурация приложения</param>
         /// <returns>true — если нужно применять миграции</returns>
         public static bool ShouldApplyMigrations(this IConfiguration configuration)
         {
