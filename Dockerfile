@@ -123,8 +123,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production \
 
 EXPOSE 8080
 
-# Healthcheck временно на / — переключим на /health/live в v1.2 (Health checks)
+# Healthcheck через /health/live — публичный, без проверки БД (только процесс).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
-    CMD curl -fsS http://localhost:8080/ >/dev/null || exit 1
+    CMD curl -fsS http://localhost:8080/health/live >/dev/null || exit 1
 
 ENTRYPOINT ["dotnet", "IIChatTools.API.dll"]

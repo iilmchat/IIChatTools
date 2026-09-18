@@ -28,6 +28,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using IIChatTools.API.HealthChecks;
 
 namespace IIChatTools.API
 {
@@ -65,6 +68,21 @@ namespace IIChatTools.API
             // Провайдер и строка подключения выбираются в DbContextOptionsExtensions
             // на основе ключа Database:Provider (SqlServer / Sqlite / InMemory).
             services.AddAppDbContext(Configuration);
+
+            // ============ 1.1. Health checks ============
+            // /health/live  — процесс жив (без проверок)
+            // /health/ready — критические зависимости (БД + Workspace)
+            // /health       — полный отчёт (включая LM Studio)
+            services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "db", "ready" })
+                .AddCheck<WorkspaceHealthCheck>("workspace", tags: new[] { "workspace", "ready" })
+                .AddCheck<LmStudioHealthCheck>("lmstudio", tags: new[] { "external", "lmstudio" });
+
+            // Named HttpClient для health-check LM Studio (таймаут из конфигурации).
+            // Наследует HttpClientFactoryOptions (прокси из KI-002).
+            services.AddHttpClient("LmStudioHealth")
+                .ConfigureHttpClient(c => c.Timeout = System.TimeSpan.FromSeconds(
+                    Configuration.GetValue<int>("HealthChecks:LmStudio:TimeoutSeconds", 3)));
 
             // ============ 2. Identity ============
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
@@ -315,6 +333,24 @@ namespace IIChatTools.API
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+                // Health checks — анонимные, публичные (для Docker/k8s/monitoring).
+                endpoints.MapHealthChecks("/health/live", new HealthCheckOptions
+                {
+                    Predicate = _ => false,   // без проверок — только что приложение отвечает
+                    ResponseWriter = HealthCheckResponseWriter.WriteAsync
+                });
+
+                endpoints.MapHealthChecks("/health/ready", new HealthCheckOptions
+                {
+                    Predicate = check => check.Tags.Contains("ready"),
+                    ResponseWriter = HealthCheckResponseWriter.WriteAsync
+                });
+
+                endpoints.MapHealthChecks("/health", new HealthCheckOptions
+                {
+                    ResponseWriter = HealthCheckResponseWriter.WriteAsync
+                });
             });
         }
 

@@ -21,6 +21,8 @@
 - **Docker**: `Dockerfile` (multi-stage: SDK 10.0 → ASP.NET Runtime 10.0), `docker-compose.yml` (prod + опциональный SQL Server), `docker-compose.override.yml` (dev), `.dockerignore`, `.env.example`. Опциональный Chromium через build-arg `INSTALL_BROWSER`.
 - **CI/CD**: GitHub Actions workflows — `ci.yml` (build + test на push/PR + coverage artifacts), `docker-publish.yml` (сборка и публикация образа в ghcr.io на main/теги v*), `dependabot.yml` (еженедельные обновления NuGet + Actions).
 - **README**: бейджи CI/Docker Publish, раздел «CI/CD».
+- **Health checks**: `/health/live` (liveness), `/health/ready` (БД + Workspace), `/health` (полный JSON-отчёт, включая LM Studio). Анонимные endpoints для Docker/k8s/monitoring. Реализованы кастомные проверки: `DatabaseHealthCheck`, `WorkspaceHealthCheck`, `LmStudioHealthCheck`.
+- `Dockerfile`: healthcheck переведён на `/health/live`.
 
 ### Changed
 - Н/Д
