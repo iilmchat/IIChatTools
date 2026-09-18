@@ -13,13 +13,16 @@ using Microsoft.Extensions.Localization;
 using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 
+
 namespace IIChatTools.API.Controllers
 {
     /// <summary>
     /// Контроллер аутентификации: регистрация, вход, выход, выдача JWT.
     /// Первый зарегистрированный пользователь получает роль Admin.
     /// </summary>
+    [ApiController]
     [Route("auth")]
+
     public class AuthController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;

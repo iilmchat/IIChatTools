@@ -310,6 +310,25 @@ dotnet run --project IIChatTools.API
 
 ---
 
+## Rate Limiting
+
+Per-user и per-IP лимиты запросов. Настраивается в `appsettings.json` (секция `RateLimiting`).
+
+| Политика | Endpoint | По умолчанию |
+|----------|----------|--------------|
+| `tools-execute` | `POST /api/tools/execute` | 30 req/min |
+| `auth` | `/auth/login`, `/auth/register` | 5 req/min |
+| `per-user` | Остальные API | 100 req/min |
+| — | `/health/*` | без лимита |
+
+При превышении — `429 Too Many Requests` с JSON-ответом `{ success: false, message, retryAfterSeconds }`.
+
+Отключить: `RateLimiting:Enabled = false` в конфигурации.
+
+> **Реализация**: собственный `RateLimitingMiddleware` на базе `System.Threading.RateLimiting` (KI-042 — `Microsoft.AspNetCore.RateLimiting` недоступен в SDK 10.0.401).
+
+---
+
 ## Безопасность
 
 - **Пути** всегда проверяются через `PathHelper.TryGetSafeFullPath` (запрет выхода из workspace).

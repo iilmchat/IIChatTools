@@ -51,6 +51,7 @@
       EF Core Sqlite тянет уязвимую 2.1.11 → перекрываем на 2.1.13.
     -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="$(SQLitePCLRawVersion)" />    
+
   </ItemGroup>
 
   <ItemGroup>

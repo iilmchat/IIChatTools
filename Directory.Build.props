@@ -25,10 +25,13 @@
       Используются через $(EFCoreVersion) и т.п. в .csproj.
       Все версии синхронизированы с .NET 10 LTS (10.0.x).
     -->
-    <EFCoreVersion>10.0.4</EFCoreVersion>
-    <EntityFrameworkSqliteVersion>10.0.4</EntityFrameworkSqliteVersion>
-    <MicrosoftAspNetCoreVersion>10.0.4</MicrosoftAspNetCoreVersion>
-    <MicrosoftExtensionsVersion>10.0.4</MicrosoftExtensionsVersion>
+    <!-- Версии Microsoft-пакетов синхронизированы с ref-pack SDK 10.0.401 (10.0.12).
+         Это критично для Microsoft.AspNetCore.RateLimiting: DLL живёт только
+         в shared framework, и при mismatch версий не резолвится. -->
+    <EFCoreVersion>10.0.12</EFCoreVersion>
+    <EntityFrameworkSqliteVersion>10.0.12</EntityFrameworkSqliteVersion>
+    <MicrosoftAspNetCoreVersion>10.0.12</MicrosoftAspNetCoreVersion>
+    <MicrosoftExtensionsVersion>10.0.12</MicrosoftExtensionsVersion>
     <IdentityModelVersion>8.14.0</IdentityModelVersion>
     <NewtonsoftJsonVersion>13.0.3</NewtonsoftJsonVersion>
     <HtmlAgilityPackVersion>1.12.1</HtmlAgilityPackVersion>

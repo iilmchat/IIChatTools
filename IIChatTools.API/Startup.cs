@@ -31,6 +31,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using IIChatTools.API.HealthChecks;
+using IIChatTools.API.RateLimiting;
 
 namespace IIChatTools.API
 {
@@ -83,6 +84,12 @@ namespace IIChatTools.API
             services.AddHttpClient("LmStudioHealth")
                 .ConfigureHttpClient(c => c.Timeout = System.TimeSpan.FromSeconds(
                     Configuration.GetValue<int>("HealthChecks:LmStudio:TimeoutSeconds", 3)));
+
+
+            // ============ 1.2. Rate limiting ============
+            // Реализация через собственный middleware (см. RateLimitingMiddleware).
+            // Регистрация только конфигурации; сам middleware подключается в Configure.
+            services.Configure<RateLimitingOptions>(Configuration.GetSection("RateLimiting"));
 
             // ============ 2. Identity ============
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
@@ -325,32 +332,46 @@ namespace IIChatTools.API
 
             app.UseRouting();
 
+            // Rate limiting должен идти после UseRouting (чтобы видеть endpoint-метаданные
+            // с политиками), но до UseAuthentication (лимиты применяются и к анонимным).
+            // Политики, использующие UserId, читают claims, установленные UseAuthentication,
+            // поэтому оставляем UseRateLimiter ПОСЛЕ UseAuthentication.
             app.UseAuthentication();
             app.UseAuthorization();
+            //app.UseRateLimiter();
+
+            // Rate limiting — собственный middleware (SDK 10.0.401 не даёт AddRateLimiter).
+            app.UseMiddleware<RateLimitingMiddleware>();
 
             app.UseEndpoints(endpoints =>
             {
+                // Default route — все контроллеры, БЕЗ явной политики по умолчанию
+                // (политики применяются через атрибуты [EnableRateLimiting] на контроллерах).
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-                // Health checks — анонимные, публичные (для Docker/k8s/monitoring).
+                // Health checks — анонимные, БЕЗ rate limiting.
                 endpoints.MapHealthChecks("/health/live", new HealthCheckOptions
                 {
-                    Predicate = _ => false,   // без проверок — только что приложение отвечает
+                    Predicate = _ => false,
                     ResponseWriter = HealthCheckResponseWriter.WriteAsync
                 });
+                //.DisableRateLimiting();
 
                 endpoints.MapHealthChecks("/health/ready", new HealthCheckOptions
                 {
                     Predicate = check => check.Tags.Contains("ready"),
                     ResponseWriter = HealthCheckResponseWriter.WriteAsync
                 });
+                //.DisableRateLimiting();
+
 
                 endpoints.MapHealthChecks("/health", new HealthCheckOptions
                 {
                     ResponseWriter = HealthCheckResponseWriter.WriteAsync
                 });
+                //.DisableRateLimiting();
             });
         }
 

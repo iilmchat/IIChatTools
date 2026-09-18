@@ -206,6 +206,30 @@
 
 ---
 
+### KI-042 — Microsoft.AspNetCore.RateLimiting недоступен в SDK 10.0.401
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.1
+- **Обнаружено:** 2026-09-18 | **Устранено:** 2026-09-18
+- **Файлы:** `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs` (новый), `IIChatTools.API/RateLimiting/RateLimitingOptions.cs`, `IIChatTools.API/Startup.cs`, `Directory.Build.props`
+- **Описание:** При попытке использовать `services.AddRateLimiter()` / `app.UseRateLimiter()` сборка падала с `CS1061: IServiceCollection не содержит определения AddRateLimiter`. Диагностика:
+  - `Microsoft.AspNetCore.RateLimiting.dll` **есть** в ref-pack (`packs/Microsoft.AspNetCore.App.Ref/10.0.12/ref/net10.0/`, 34 KB).
+  - `FrameworkReference Microsoft.AspNetCore.App` — включён автоматически через `.Web` SDK (NETSDK1086).
+  - В `project.assets.json`: `"Microsoft.AspNetCore.RateLimiting": "(,10.0.32767]"` — framework-provided.
+  - Однако C#-компилятор **не видит** сборку — она отсутствует в compilation-time references.
+  - Отдельного NuGet-пакета `Microsoft.AspNetCore.RateLimiting` **не существует** (только preview-версии).
+- **Решение:** Собственная реализация `RateLimitingMiddleware` на базе `System.Threading.RateLimiting` (GA, доступен через shared framework без PackageReference). Политики определяются по пути запроса: `/auth/*` → строгая, `/api/tools/execute` → строгая, `/health/*` → без лимита, остальное → per-user. Атрибуты `[EnableRateLimiting]` не используются.
+
+---
+
+### KI-043 — Утечка памяти в RateLimitingMiddleware
+- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.2.x
+- **Обнаружено:** 2026-09-18
+- **Файлы:** `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`
+- **Описание:** `ConcurrentDictionary<string, FixedWindowRateLimiter>` в `RateLimitingMiddleware` хранит лимитеры по partition-key и **не очищает их** при истечении окна. При долгой работе с тысячами уникальных пользователей/IP → постепенный рост памяти.
+- **Решение (запланировано):** периодическая очистка через `Timer` (удалять лимитеры с истёкшим окном) или переход на `PartitionedRateLimiter` (если появится в следующих версиях SDK).
+- **Не блокер v1.1.1:** footprint одного лимитера мал, при десятках пользователей проблема не проявляется.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
