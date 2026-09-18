@@ -133,3 +133,9 @@ build.log
 
 # Локальные SQLite-БД (development)
 IIChatTools.API/Data/
+
+# === Docker ===
+.env
+.env.local
+.env.*.local
+.docker-data/

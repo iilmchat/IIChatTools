@@ -1,0 +1,35 @@
+# ============================================================
+# IIChatTools — override для локальной разработки
+# ============================================================
+# Docker Compose автоматически подхватывает этот файл при `docker compose up`.
+# Отличия от базового:
+#   - ASPNETCORE_ENVIRONMENT=Development
+#   - Debug-логи
+#   - Bind-mount на локальные каталоги (.docker-data) — удобно инспектировать БД/логи
+#   - Порт хоста 5000 (а не 8080)
+#
+# Перед первым запуском создать каталоги:
+#   mkdir .docker-data\Data, .docker-data\logs, .docker-data\Workspace
+#
+# © 2026 RuChating (iilmchat) · IIChatTools v1.1.1
+
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Logging__LogLevel__Default: Debug
+
+      Database__SqliteConnectionString: "Data Source=/app/Data/iichattools-dev.db"
+      Workspace__RootPath: /app/Workspace
+      Audit__LogDirectory: /app/logs/audit
+
+    ports:
+      - "5000:8080"
+
+    volumes:
+      # Bind-mount — БД, логи и Workspace хранятся на хосте в .docker-data
+      - ./.docker-data/Data:/app/Data
+      - ./.docker-data/logs:/app/logs
+      - ./.docker-data/Workspace:/app/Workspace
+      # Chromium-кеш оставляем в named volume (быстрее, не мусорит в репо)
+      - iichattools-puppeteer:/app/.puppeteer

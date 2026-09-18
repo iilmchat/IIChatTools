@@ -1,0 +1,90 @@
+# ============================================================
+# IIChatTools — базовый docker-compose (production-профиль)
+# ============================================================
+#
+# Быстрый старт:
+#   1. Скопировать .env.example в .env и задать JWT_KEY.
+#   2. docker compose up -d --build
+#   3. Открыть http://localhost:8080
+#
+# С SQL Server (опционально):
+#   Раскомментировать блок sqlserver и переключить Database__Provider.
+#
+# © 2026 RuChating (iilmchat) · IIChatTools v1.1.1
+
+name: iichattools
+
+services:
+  api:
+    image: ghcr.io/iilmchat/iichattools:${IICHATTOOLS_TAG:-v1.1.1}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # true → установить Chromium для браузерных инструментов (+~400 МБ)
+        INSTALL_BROWSER: ${INSTALL_BROWSER:-false}
+    container_name: iichattools-api
+    restart: unless-stopped
+
+    ports:
+      - "${IICHATTOOLS_PORT:-8080}:8080"
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+
+      # --- База данных ---
+      Database__Provider: Sqlite
+      Database__SqliteConnectionString: "Data Source=/app/Data/iichattools.db"
+
+      # Для SQL Server раскомментировать блок sqlserver ниже и заменить на:
+      # Database__Provider: SqlServer
+      # Database__SqlServerConnectionString: "Server=sqlserver;Database=IIChatTools;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+
+      # --- Workspace и логи ---
+      Workspace__RootPath: /app/Workspace
+      Audit__LogDirectory: /app/logs/audit
+
+      # --- JWT (обязательно) ---
+      Jwt__Key: ${JWT_KEY:?JWT_KEY не задан. Задайте в .env (≥32 символа)}
+
+      # --- Прокси (опционально) ---
+      IICHATTOOLS_PROXY: ${IICHATTOOLS_PROXY:-}
+      IICHATTOOLS_PROXY_USER: ${IICHATTOOLS_PROXY_USER:-}
+      IICHATTOOLS_PROXY_PASS: ${IICHATTOOLS_PROXY_PASS:-}
+
+    volumes:
+      - iichattools-data:/app/Data
+      - iichattools-logs:/app/logs
+      - iichattools-workspace:/app/Workspace
+      - iichattools-puppeteer:/app/.puppeteer
+
+    # depends_on:
+    #   - sqlserver
+
+  # ============================================================
+  # SQL Server — опциональный сервис
+  # ============================================================
+  # Раскомментировать для использования SQL Server вместо Sqlite.
+  # Требуется: MSSQL_SA_PASSWORD в .env.
+  # В сервисе api переключить Database__Provider на SqlServer.
+  #
+  # sqlserver:
+  #   image: mcr.microsoft.com/mssql/server:2022-latest
+  #   container_name: iichattools-sqlserver
+  #   restart: unless-stopped
+  #   environment:
+  #     ACCEPT_EULA: "Y"
+  #     MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD не задан}
+  #     MSSQL_PID: Developer
+  #   ports:
+  #     - "${MSSQL_PORT:-1433}:1433"
+  #   volumes:
+  #     - iichattools-mssql:/var/opt/mssql
+
+volumes:
+  iichattools-data:
+  iichattools-logs:
+  iichattools-workspace:
+  iichattools-puppeteer:
+  # iichattools-mssql:
