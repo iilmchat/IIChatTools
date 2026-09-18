@@ -1,0 +1,17 @@
+LLM → consult_secondary_agent(task, maxSteps, autoDebug)
+      ↓
+ConsultSecondaryAgentTool
+      ↓ (Func<ISubAgentService> разрывает DI-цикл)
+SubAgentService.ExecuteTaskAsync
+  ↓
+1. Создать AgentState в БД (CurrentStep=0)
+2. Сформировать system+user messages
+3. Список tools без consult_secondary_agent
+4. Цикл до maxSteps:
+     - POST LM Studio /v1/chat/completions
+     - Если tool_calls → выполнить через ToolRegistry
+     - Обновить AgentState.CurrentStep
+     - Если финальный текст → break
+5. Если autoDebug → RunReviewerAsync
+6. Сохранить CodeSnapshotJson
+7. Вернуть SubAgentTaskResult

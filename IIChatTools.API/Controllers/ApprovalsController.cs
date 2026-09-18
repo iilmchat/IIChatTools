@@ -64,7 +64,7 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения списка ожидающих действий");
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -82,15 +82,15 @@ namespace IIChatTools.API.Controllers
                 var action = await _approvalService.GetByIdAsync(id);
 
                 if (action == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value });
 
                 // Разрешаем только владельцу или администратору
                 if (action.UserId != userId && !User.IsInRole("Admin"))
-                    return Ok(new { success = false, message = _localizer["Доступ запрещён."] });
+                    return Ok(new { success = false, message = _localizer["Доступ запрещён."].Value  });
 
                 var ok = await _approvalService.ApproveAsync(id, userId);
                 if (!ok)
-                    return Ok(new { success = false, message = _localizer["Действие истекло."] });
+                    return Ok(new { success = false, message = _localizer["Действие истекло."].Value  });
 
                 await _auditService.LogActionAsync(new AuditLog
                 {
@@ -101,12 +101,12 @@ namespace IIChatTools.API.Controllers
                     DurationMs = 0
                 });
 
-                return Ok(new { success = true, message = _localizer["Действие подтверждено."] });
+                return Ok(new { success = true, message = _localizer["Действие подтверждено."].Value  });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка подтверждения действия {ActionId}", id);
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 
@@ -125,14 +125,14 @@ namespace IIChatTools.API.Controllers
                 var action = await _approvalService.GetByIdAsync(id);
 
                 if (action == null)
-                    return Ok(new { success = false, message = _localizer["Ресурс не найден."] });
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value  });
 
                 if (action.UserId != userId && !User.IsInRole("Admin"))
-                    return Ok(new { success = false, message = _localizer["Доступ запрещён."] });
+                    return Ok(new { success = false, message = _localizer["Доступ запрещён."].Value  });
 
                 var ok = await _approvalService.RejectAsync(id, userId, request?.Reason);
                 if (!ok)
-                    return Ok(new { success = false, message = _localizer["Действие истекло."] });
+                    return Ok(new { success = false, message = _localizer["Действие истекло."].Value  });
 
                 await _auditService.LogActionAsync(new AuditLog
                 {
@@ -143,12 +143,12 @@ namespace IIChatTools.API.Controllers
                     DurationMs = 0
                 });
 
-                return Ok(new { success = true, message = _localizer["Действие отклонено."] });
+                return Ok(new { success = true, message = _localizer["Действие отклонено."].Value  });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка отклонения действия {ActionId}", id);
-                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."] });
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
         }
 

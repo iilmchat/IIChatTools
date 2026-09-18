@@ -1,4 +1,4 @@
-﻿# Нормализация переводов строк: LF в репозитории для всех текстовых файлов.
+# Нормализация переводов строк: LF в репозитории для всех текстовых файлов.
 # Исключает предупреждения Git при checkout на Windows.
 # © 2026 RuChating (iilmchat) · IIChatTools v1.1.0
 
@@ -26,12 +26,6 @@
 *.txt       text eol=lf
 *.yml       text eol=lf
 *.yaml      text eol=lf
-*.ps1       text eol=lf
-*.psm1      text eol=lf
-*.psd1      text eol=lf
-*.sh        text eol=lf
-*.bat       text eol=crlf
-*.cmd       text eol=crlf
 *.ps1       text eol=lf
 *.sh        text eol=lf
 *.sql       text eol=lf

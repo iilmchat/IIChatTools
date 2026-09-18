@@ -1,0 +1,222 @@
+IIChatTools.sln
+├── .editorconfig                       ← Стиль кода (charset, indent, usings)
+├── .editorconfig.ini                   ← Доп. настройки
+├── .gitattributes                      ← Нормализация LF/CRLF
+├── .gitignore                          ← Исключения: bin/, obj/, Data/, logs/,
+│                                          Workspace/, LocalPackages/, *.nupkg,
+│                                          *.dll, *.exe, *.db, *.zip
+├── Directory.Build.props               ← Версии пакетов (EFCore 3.1.32,
+│                                          IdentityModel 6.35.0,
+│                                          PuppeteerSharp 7.1.0, ...)
+├── IIChatTools.sln
+├── README.md
+│
+├── assets/
+│   └── images/
+│       ├── screenshot.png
+│       ├── screenshot.b64
+│       └── Архитектура решения.png
+│
+├── configs/
+│   ├── global.json                     ← SDK 3.1.201
+│   ├── global1.json                    ← (архивный)
+│   ├── libman.json                     ← Клиентские библиотеки (план)
+│   ├── NuGet.Config                    ← nuget.org + LocalPackages
+│   ├── NuGet1.Config                   ← (архив)
+│   ├── NuGet111.Config                 ← (архив)
+│   └── NuGet_Good.Config               ← (архив)
+│
+├── docs/
+│   ├── KNOWN_ISSUES.md                 ← Реестр KI-001..014
+│   ├── architecture/
+│   │   ├── Полное дерево решения.txt
+│   │   ├── Полная архитектура проекта.txt
+│   │   ├── Архитектура_Слои.txt
+│   │   ├── Поток вызова инструмента.txt
+│   │   ├── Поток суб-агента.txt
+│   │   ├── Подробное описание компонентов.txt
+│   │   ├── Архитектура работы с суб-агентами.txt
+│   │   ├── Обновлённая архитектура (пользователи + подтверждения).txt
+│   │   └── ...
+│   ├── development/
+│   │   ├── Реализация IIChatTools v1.0 – Первая итерация.txt
+│   │   ├── Часть 3. Полная структура решения v1.0.2.txt
+│   │   ├── Часть 4. Полная архитектура v1.0.2.txt
+│   │   ├── Часть 5. Анализ к версии 1.1.txt
+│   │   ├── Часть 6. Обновлённый анализ к v1.1.txt
+│   │   ├── Часть 7. Промт для продолжения работы.txt
+│   │   ├── Часть 8. Как передать исходники.txt
+│   │   ├── IIChatTools v1.0.2 — Фиксация, архитектура, переход к v1.1.txt
+│   │   ├── Принципы безопасности, применённые в Спринте X.txt (×3)
+│   │   ├── Реорганизация структуры репозитория.txt
+│   │   └── archive/
+│   │       ├── Test.txt
+│   │       ├── Новый текстовый документ.txt
+│   │       ├── Новый текстовый документ (2).txt
+│   │       ├── long-value.json
+│   │       ├── Program.cs              ← старая версия из корня
+│   │       ├── Startup.cs              ← старая версия из корня
+│   │       ├── Выполните в Package Manager Console.txt
+│   │       └── ...
+│   ├── guides/
+│   │   ├── Правила оформления и документирования.txt
+│   │   ├── Особенности работы с PuppeteerSharp.txt
+│   │   └── Приоритеты и статусы для KNOWN_ISSUES.md.txt
+│   └── testing/
+│       ├── Для тестирования testы.txt
+│       └── Форма для отметок.txt
+│
+├── scripts/
+│   ├── README.md                       ← Описание скриптов
+│   ├── build/
+│   │   ├── create_full_structure.bat
+│   │   ├── create_full_structure8.bat
+│   │   ├── create_full_structure_1_0.bat
+│   │   ├── create_structure.bat
+│   │   ├── create_sprint8.ps1
+│   │   ├── create_structure_1_0.ps1
+│   │   ├── Команды для сборки и запуска.ps1
+│   │   └── Для запуска.sh
+│   ├── diagnostics/
+│   │   ├── get_files_today.bat
+│   │   ├── get_files_today_with_check.bat
+│   │   └── сгенерируйте строку из 201 символа.ps1
+│   ├── git/
+│   │   ├── Зафиксируйте в Git.ps1
+│   │   ├── Сделайте бэкап.ps1
+│   │   └── Вариант B — Zip-архив.ps1
+│   ├── migrations/
+│   │   ├── Миграции для SQLite.ps1
+│   │   └── Правильно использовать отдельные папки миграций.ps1
+│   └── setup/
+│       ├── download-libs.ps1           ← Загрузка bootstrap/jquery через прокси
+│       ├── download-missing.ps1
+│       ├── download-missing2.ps1
+│       ├── download-missing3.ps1
+│       ├── download-missing_proxy.ps1
+│       ├── download-missing_proxy2.ps1
+│       ├── download-packages.ps1
+│       ├── downloader2.ps1
+│       ├── downloader3.ps1
+│       ├── check-packages.ps1
+│       ├── Set-ExecutionPolicy.ps1
+│       ├── Установка CLI-инструмента.sh
+│       ├── Запуск downloaders.ps1
+│       └── Правильный запуск в PowerShell.ps1
+│
+├── IIChatTools.Data/                   (netstandard2.1)
+│   ├── AppDbContext.cs
+│   ├── SeedData.cs
+│   ├── Entities/
+│   │   ├── BaseEntity.cs               ← Id, CreatedAt, UpdatedAt
+│   │   ├── ApplicationUser.cs          ← IdentityUser<int> + FullName/IsActive
+│   │   ├── AuditLog.cs
+│   │   ├── AppSetting.cs
+│   │   ├── PendingAction.cs
+│   │   ├── AgentState.cs
+│   │   └── MemoryEntry.cs
+│   └── Migrations/
+│
+├── IIChatTools.Services/               (netstandard2.1)
+│   ├── DTO/
+│   │   ├── ToolResult.cs               ← Ok()/Fail()
+│   │   ├── ToolDescriptor.cs
+│   │   ├── ToolParameterDescriptor.cs
+│   │   ├── ToolExecutionContext.cs
+│   │   ├── StatusSnapshot.cs + RecentActionDto
+│   │   ├── PagedResult.cs
+│   │   ├── Admin/
+│   │   │   ├── UserListDto.cs, UserEditDto.cs
+│   │   │   ├── SettingDto.cs, WhitelistEntryDto.cs
+│   │   ├── Browser/
+│   │   │   └── BrowserSessionInfo.cs
+│   │   └── SubAgent/
+│   │       ├── SubAgentTaskRequest.cs
+│   │       ├── SubAgentTaskResult.cs
+│   │       └── SubAgentStep.cs
+│   ├── Extensions/
+│   │   ├── JObjectExtensions.cs        ← GetString/GetInt/GetBool/GetStringArray
+│   │   └── ProcessExtensions.cs        ← WaitForExitAsync, KillSafe
+│   ├── Interfaces/                     (17)
+│   │   ├── ITool.cs, IToolRegistry.cs
+│   │   ├── IAuditService.cs, IAuditQueryService.cs
+│   │   ├── IFileAuditService.cs
+│   │   ├── IApprovalService.cs, IJwtService.cs
+│   │   ├── IStatusService.cs, IWorkspaceResolver.cs
+│   │   ├── IAppSettingsService.cs, IUserAdminService.cs
+│   │   ├── IDependencyChecker.cs, IProcessRunner.cs
+│   │   ├── IBrowserSessionManager.cs
+│   │   ├── ILmStudioClient.cs
+│   │   └── ISubAgentService.cs
+│   └── Implementation/
+│       ├── AppUptimeTracker.cs, AppVersionHolder.cs
+│       ├── AuditService.cs, AuditQueryService.cs
+│       ├── CompositeAuditService.cs
+│       ├── FileAuditService.cs
+│       ├── ApprovalService.cs, JwtService.cs
+│       ├── AppSettingsService.cs, UserAdminService.cs
+│       ├── StatusService.cs, WorkspaceResolver.cs
+│       ├── DependencyChecker.cs, ProcessRunner.cs
+│       ├── BrowserLocator.cs
+│       ├── BrowserSessionManager.cs
+│       ├── LmStudioClient.cs, SubAgentService.cs
+│       ├── PathHelper.cs, ToolRegistry.cs
+│       └── Tools/
+│           ├── FileSystem/             (13 инструментов)
+│           ├── CodeExecution/          (3)
+│           ├── Web/                    (3)
+│           ├── Git/                    (7 + BaseGitTool)
+│           ├── GitHub/                 (7 + BaseGhTool)
+│           ├── Browser/                (4)
+│           ├── SubAgent/               (1)
+│           └── Utils/                  (2)
+│
+├── IIChatTools.API/                    (netcoreapp3.1)
+│   ├── Program.cs
+│   ├── Startup.cs
+│   ├── AppVersion.cs                   ← 1.0.2
+│   ├── appsettings.json
+│   ├── appsettings.Development.json
+│   ├── Extensions/
+│   │   └── DbContextOptionsExtensions.cs
+│   ├── Controllers/                    (6)
+│   │   ├── HomeController.cs, AuthController.cs
+│   │   ├── ToolsController.cs, ApprovalsController.cs
+│   │   ├── AdminController.cs, StatusController.cs
+│   ├── DTO/ExecuteToolRequest.cs
+│   ├── ViewModels/ (Login, Register)
+│   ├── Resources/
+│   │   ├── SharedResources.cs
+│   │   ├── SharedResources.resx        ← EN
+│   │   └── SharedResources.ru.resx     ← RU
+│   ├── Views/
+│   │   ├── _ViewStart.cshtml
+│   │   ├── _ViewImports.cshtml
+│   │   ├── Auth/ (Login.cshtml, Register.cshtml)
+│   │   ├── Home/ (Index, Status, Admin, Test, Error)
+│   │   └── Shared/
+│   │       ├── _Layout.cshtml
+│   │       ├── _LoginPartial.cshtml
+│   │       ├── _ApprovalModal.cshtml
+│   │       └── _ValidationScriptsPartial.cshtml
+│   └── wwwroot/
+│       ├── css/site.css
+│       ├── lib/                        ← bootstrap, jquery, validation
+│       └── js/
+│           ├── main.js
+│           └── modules/
+│               ├── api.js
+│               ├── ui.js
+│               ├── status.js
+│               ├── approvals.js
+│               ├── admin.js
+│               └── test.js
+│
+└── IIChatTools.Tests/                  (netcoreapp3.1)
+    ├── UnitTests/
+    │   ├── LocalizationSyncTests.cs
+    │   └── PathHelperTests.cs
+    └── IntegrationTests/
+        ├── TestDbContextFactory.cs
+        ├── ApprovalServiceTests.cs
+        └── ToolRegistryTests.cs

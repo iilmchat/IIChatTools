@@ -43,7 +43,7 @@
   <data name="СтатусЗаписи" xml:space="preserve"><value>Status</value></data>
 
   <!-- ===== Главная / Home ===== -->
-  <data name="Добро пожаловать в IIChatTools v1.0" xml:space="preserve"><value>Welcome to IIChatTools v1.0</value></data>
+  <data name="WelcomeTitle" xml:space="preserve"><value>Welcome to IIChatTools v{0}</value></data>
   <data name="Управляйте инструментами, пользователями и настройками." xml:space="preserve"><value>Manage tools, users and settings.</value></data>
   <data name="Статус системы" xml:space="preserve"><value>System Status</value></data>
   <data name="Администрирование" xml:space="preserve"><value>Administration</value></data>
@@ -195,5 +195,7 @@
   <data name="Некорректные данные запроса." xml:space="preserve"><value>Invalid request data.</value></data>
 
   <!-- ===== Футер ===== -->
-  <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v1.0</value></data>
+  <!-- Copyright формируется в AppVersion.Copyright и используется напрямую в _Layout;
+      ключ оставлен для совместимости, но с плейсхолдером версии -->
+  <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v{0}</value></data>
 </root>

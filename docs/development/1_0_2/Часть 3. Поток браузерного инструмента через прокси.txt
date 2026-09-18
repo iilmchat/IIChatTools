@@ -1,0 +1,17 @@
+BrowserOpenPageTool.ExecuteAsync
+  ↓
+1. BrowserLocator.Resolve(config)
+   → C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+2. Puppeteer.LaunchAsync
+   Args:
+     --no-sandbox
+     --remote-allow-origins=*           ← обход Chromium 111+
+     --ignore-certificate-errors         ← MITM-прокси
+     --proxy-server=http://222.1.20.1:8080
+     --proxy-bypass-list=<-loopback>    ← WS-соединение напрямую
+3. page.SetUserAgentAsync (Chrome 120)
+4. page.AuthenticateAsync (Basic Auth → прокси)
+5. page.GoToAsync(url)
+   ↓ HTTP через прокси → сайт
+6. page.GetContentAsync + EvaluateExpressionAsync
+7. ToolResult.Ok({ url, title, text, htmlLength })

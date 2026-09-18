@@ -1,9 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <RootNamespace>IIChatTools.Services</RootNamespace>
     <AssemblyName>IIChatTools.Services</AssemblyName>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <Company>RuChating (iilmchat)</Company>
+    <Product>IIChatTools</Product>
+    <Version>1.1.0</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.1.0</Copyright>
+    <Authors>RuChating</Authors>
     <Description>Бизнес-логика IIChatTools: инструменты, аудит, подтверждения, суб-агенты.</Description>
   </PropertyGroup>
 

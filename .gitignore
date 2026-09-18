@@ -126,3 +126,10 @@ NuGet.Config.online
 # Локальный NuGet-источник для offline-сборки (не коммитится)
 LocalPackages/
 !LocalPackages/.gitkeep
+
+# Логи сборки
+*.build.log
+build.log
+
+# Локальные SQLite-БД (development)
+IIChatTools.API/Data/

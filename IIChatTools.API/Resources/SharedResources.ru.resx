@@ -43,7 +43,7 @@
   <data name="СтатусЗаписи" xml:space="preserve"><value>Статус</value></data>
 
   <!-- ===== Главная ===== -->
-  <data name="Добро пожаловать в IIChatTools v1.0" xml:space="preserve"><value>Добро пожаловать в IIChatTools v1.0</value></data>
+  <data name="WelcomeTitle" xml:space="preserve"><value>Добро пожаловать в IIChatTools v{0}</value></data>
   <data name="Управляйте инструментами, пользователями и настройками." xml:space="preserve"><value>Управляйте инструментами, пользователями и настройками.</value></data>
   <data name="Статус системы" xml:space="preserve"><value>Статус системы</value></data>
   <data name="Администрирование" xml:space="preserve"><value>Администрирование</value></data>
@@ -195,5 +195,5 @@
   <data name="Некорректные данные запроса." xml:space="preserve"><value>Некорректные данные запроса.</value></data>
 
   <!-- ===== Футер ===== -->
-  <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v1.0</value></data>
+  <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v{0}</value></data>
 </root>
