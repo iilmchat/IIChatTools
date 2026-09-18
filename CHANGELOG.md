@@ -27,7 +27,7 @@
 - Н/Д
 
 ### Security
-- Н/Д
+- **KI-022**: обновлён `SQLitePCLRaw.bundle_e_sqlite3` до 2.1.13 (GHSA-2m69-gcr7-jv3q, High).
 
 ---
 

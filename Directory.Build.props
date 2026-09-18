@@ -36,6 +36,12 @@
     <XunitVersion>2.9.2</XunitVersion>
     <XunitRunnerVisualStudioVersion>2.8.2</XunitRunnerVisualStudioVersion>
     <MoqVersion>4.20.72</MoqVersion>
+    <!--
+      SQLitePCLRaw: явная версия для устранения GHSA-2m69-gcr7-jv3q (KI-022).
+      Ветка 2.1.x — совместима с EF Core Sqlite 10.0.4.
+      Источник: Directory.Build.props, значение используется в PackageReference.
+    -->
+    <SQLitePCLRawVersion>2.1.13</SQLitePCLRawVersion>    
   </PropertyGroup>
 
 </Project>

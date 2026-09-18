@@ -65,11 +65,12 @@
 - **Решение:** в `$PROFILE`: `chcp 65001`, `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`, `$OutputEncoding = ...`.
 
 ### KI-022 — NU1903: уязвимость в `SQLitePCLRaw.lib.e_sqlite3` 2.1.11
-- **Приоритет:** 🟠 High | **Статус:** Deferred | **Запланировано:** v1.1.x
-- **Файлы:** `IIChatTools.API/`, `IIChatTools.Tests/` (транзитивно через EF Core Sqlite)
-- **Описание:** Транзитивный пакет тянет версию с уязвимостью [GHSA-2m69-gcr7-jv3q](https://github.com/advisories/GHSA-2m69-gcr7-jv3q).
-- **Замечание:** Версия `SQLitePCLRaw.bundle_e_sqlite3 3.0.0` не существует. Правильный таргет — `SQLitePCLRaw.lib.e_sqlite3` ≥ 2.1.12, но нужно проверить доступность в `LocalPackages`.
-- **Статус:** отложено до стабилизации сборки; не блокер для v1.1.0.
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.1
+- **Обнаружено:** 2026-09-16 | **Устранено:** 2026-09-18
+- **Файлы:** `Directory.Build.props`, `IIChatTools.API/IIChatTools.API.csproj`, `IIChatTools.Tests/IIChatTools.Tests.csproj`
+- **Описание:** Транзитивный пакет EF Core Sqlite тянул `SQLitePCLRaw.lib.e_sqlite3 2.1.11` с уязвимостью [GHSA-2m69-gcr7-jv3q](https://github.com/advisories/GHSA-2m69-gcr7-jv3q).
+- **Решение:** Явное переопределение транзитивной зависимости через `SQLitePCLRaw.bundle_e_sqlite3` **2.1.13** в API и Tests. Версия вынесена в `Directory.Build.props` (`$(SQLitePCLRawVersion)`). `.nupkg` добавлены в `LocalPackages` для offline-сборки.
+- **Результат:** `dotnet list IIChatTools.sln package --vulnerable --include-transitive` — пусто.
 
 ### KI-030 — Двойной `©` в логе запуска
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.1.0
@@ -248,10 +249,10 @@
 |--------|--------|
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
-| Fixed (v1.1.1) | 2 |    <!-- KI-036, KI-039 -->
+| Fixed (v1.1.1) | 3 |    <!-- KI-022, KI-036, KI-039 -->
 | Documented | 6 |
 | Open | 4 |
-| Deferred | 1 |
+| Deferred | 0 |          <!-- было 1, -KI-022 -->
 | Resolved | 1 |
 | **Всего** | **33** |
 

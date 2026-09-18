@@ -44,6 +44,13 @@
     <!-- Провайдеры БД -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EntityFrameworkSqliteVersion)" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EFCoreVersion)" />
+    
+    <!--
+      KI-022: явное переопределение транзитивной зависимости SQLitePCLRaw
+      для устранения GHSA-2m69-gcr7-jv3q (High).
+      EF Core Sqlite тянет уязвимую 2.1.11 → перекрываем на 2.1.13.
+    -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="$(SQLitePCLRawVersion)" />    
   </ItemGroup>
 
   <ItemGroup>

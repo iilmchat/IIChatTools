@@ -41,6 +41,9 @@
     <!-- InMemory-провайдер для тестов БД -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EFCoreVersion)" />
 
+    <!-- См. KI-022: переопределение транзитивной зависимости SQLitePCLRaw. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="$(SQLitePCLRawVersion)" />    
+
     <!-- Для тестов ASP.NET Core (интеграционные) -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(MicrosoftAspNetCoreVersion)" />
   </ItemGroup>
