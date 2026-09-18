@@ -139,6 +139,19 @@
 
 ---
 
+### KI-038 — Локальные пути разработчиков в `appsettings.Development.json`
+- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.1.x
+- **Файлы:** `IIChatTools.API/appsettings.Development.json`
+- **Обнаружено:** 2026-09-17
+- **Описание:** `Workspace:RootPath` содержит абсолютный путь, специфичный для машины разработчика (`D:\Projects\...` у одного, `G:\AI\...` у другого). При merge с `origin/main` путь был перезаписан на чужой → `list_directory` и все FS-инструменты падали с `IOException: Устройство не готово` (диск `D:` отсутствует).
+- **Решение (временное):** после merge откатили `RootPath` на локальный `G:\AI\IIChatTools\Workspace`.
+- **Решение (долгосрочное, v1.1.x):**
+  - Перенести `Workspace:RootPath` в **User Secrets** (`dotnet user-secrets set "Workspace:RootPath" "..."`).
+  - В `appsettings.Development.json` оставить нейтральный placeholder `%USERPROFILE%\IIChatToolsWorkspace`.
+  - Тот же подход — к `Browser:ProxyServer` и `Database:SqliteConnectionString`.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -218,15 +231,15 @@
 |--------|--------|
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
-| Documented | 5 |
+| Documented | 6 |
 | Open | 4 |
 | Deferred | 1 |
 | Resolved | 1 |
-| **Всего** | **32** |
+| **Всего** | **33** |
 
 **Расшифровка «Open»:** KI-001, KI-005, KI-036, KI-037.
 **«Deferred»:** KI-022.
-**«Documented»:** KI-007, KI-009, KI-032 (и 2 устаревших).
+**«Documented»:** KI-007, KI-009, KI-032, KI-038 (и 2 устаревших).
 
 ---
 
