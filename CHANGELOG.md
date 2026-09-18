@@ -26,10 +26,10 @@
 - Н/Д
 
 ### Fixed
-- Н/Д
+- **KI-040**: `PathHelper` нормализует оба разделителя (`/` и `\`) до валидации пути. Устранён обход path-traversal через backslash на Linux. Также исправлены: сравнение путей (case-sensitive на Linux), обрезка завершающего разделителя (корень `/` больше не превращается в `""`). CI на Linux выявил проблему.
 
 ### Security
-- Н/Д
+- **KI-040**: cross-platform обход `PathHelper.TryGetSafeFullPath` через `\` на Linux (потенциальный path traversal в FS/git/shell-инструментах).
 
 ---
 

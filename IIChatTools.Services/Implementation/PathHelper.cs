@@ -6,11 +6,24 @@ namespace IIChatTools.Services.Implementation
     /// <summary>
     /// Вспомогательный класс для безопасной работы с путями.
     /// Предотвращает path traversal и выход за пределы workspace.
+    /// Кроссплатформенный: корректно обрабатывает оба разделителя ('/' и '\')
+    /// на любой ОС, устраняя обход через «чужой» разделитель (KI-040).
     /// </summary>
     public static class PathHelper
     {
         /// <summary>
+        /// Сравнение путей: на Windows — без учёта регистра (ФС регистронезависима),
+        /// на Linux — с учётом регистра (разные имена — разные пути).
+        /// </summary>
+        private static StringComparison PathComparison =>
+            OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+        /// <summary>
         /// Пытается получить безопасный абсолютный путь внутри workspace.
+        /// Разделители '/' и '\' нормализуются к текущей ОС до валидации,
+        /// что исключает path traversal через backslash на Linux.
         /// </summary>
         /// <param name="userPath">Путь, указанный пользователем (относительный или абсолютный)</param>
         /// <param name="workspaceRoot">Корневая директория рабочего пространства</param>
@@ -25,26 +38,27 @@ namespace IIChatTools.Services.Implementation
 
             try
             {
-                var root = Path.GetFullPath(workspaceRoot)
-                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var root = NormalizeFullPath(workspaceRoot);
 
                 string combined;
                 if (string.IsNullOrWhiteSpace(userPath))
                 {
                     combined = root;
                 }
-                else if (Path.IsPathRooted(userPath))
-                {
-                    combined = Path.GetFullPath(userPath);
-                }
                 else
                 {
-                    combined = Path.GetFullPath(Path.Combine(root, userPath));
+                    // Нормализуем оба разделителя ДО Path.GetFullPath —
+                    // это критично на Linux, где '\' не считается разделителем.
+                    var normalized = NormalizeSeparators(userPath);
+
+                    combined = Path.IsPathRooted(normalized)
+                        ? NormalizeFullPath(normalized)
+                        : NormalizeFullPath(Path.Combine(root, normalized));
                 }
 
                 // Проверяем, что combined либо равен root, либо начинается с root + разделитель
-                if (combined.Equals(root, StringComparison.OrdinalIgnoreCase) ||
-                    combined.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                if (combined.Equals(root, PathComparison) ||
+                    combined.StartsWith(root + Path.DirectorySeparatorChar, PathComparison))
                 {
                     safePath = combined;
                     return true;
@@ -68,16 +82,43 @@ namespace IIChatTools.Services.Implementation
             if (string.IsNullOrEmpty(fullPath) || string.IsNullOrEmpty(workspaceRoot))
                 return fullPath;
 
-            var root = Path.GetFullPath(workspaceRoot)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var root = NormalizeFullPath(workspaceRoot);
 
-            if (fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            if (fullPath.StartsWith(root, PathComparison))
             {
                 var rel = fullPath.Substring(root.Length)
                     .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 return rel.Replace('\\', '/');
             }
             return fullPath.Replace('\\', '/');
+        }
+
+        /// <summary>
+        /// Заменяет оба разделителя ('/' и '\') на DirectorySeparatorChar текущей ОС.
+        /// Это устраняет cross-platform обход: на Linux '\' перестаёт быть «обычным символом».
+        /// </summary>
+        /// <param name="path">Исходный путь</param>
+        /// <returns>Путь с нормализованными разделителями</returns>
+        private static string NormalizeSeparators(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return path;
+
+            var sep = Path.DirectorySeparatorChar;
+            return path.Replace('\\', sep).Replace('/', sep);
+        }
+
+        /// <summary>
+        /// Возвращает канонический абсолютный путь без завершающего разделителя.
+        /// Использует <see cref="Path.TrimEndingDirectorySeparator(string)"/>,
+        /// который корректно сохраняет корень ("/" остаётся "/", а не превращается в "").
+        /// </summary>
+        /// <param name="path">Путь для нормализации</param>
+        /// <returns>Канонический путь</returns>
+        private static string NormalizeFullPath(string path)
+        {
+            var full = Path.GetFullPath(path);
+            return Path.TrimEndingDirectorySeparator(full);
         }
     }
 }

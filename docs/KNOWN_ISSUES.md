@@ -175,6 +175,23 @@
 
 ---
 
+### KI-040 — Обход path-traversal через backslash на Linux
+- **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.1.1
+- **Обнаружено:** 2026-09-18 (CI на GitHub Actions, ubuntu-latest)
+- **Файлы:** `IIChatTools.Services/Implementation/PathHelper.cs`, `IIChatTools.Tests/UnitTests/PathHelperTests.cs`
+- **Описание:** `PathHelper.TryGetSafeFullPath` не нормализовал разделители путей. На Linux `\` — обычный символ в имени файла, а не разделитель, поэтому `..\Windows\System32` воспринимался как «файл с именем `..\Windows\System32`» и оставался внутри workspace. На Windows-машине разработки баг не проявлялся, но на Linux-развёртывании (Docker, прод) это потенциальный обход path-traversal в файловых, git- и shell-инструментах.
+- **Сопутствующие дефекты, обнаруженные при анализе:**
+  - `StringComparison.OrdinalIgnoreCase` использовался на всех платформах — на Linux `/workspace/Users` и `/workspace/users` считались одним путём (case-sensitive ФС).
+  - `TrimEnd(DirectorySeparatorChar, AltDirectorySeparatorChar)` превращал корень `/` в пустую строку на Linux.
+- **Решение:**
+  - `NormalizeSeparators`: оба разделителя (`/` и `\`) заменяются на `Path.DirectorySeparatorChar` текущей ОС **до** `Path.GetFullPath`.
+  - `PathComparison`: на Windows — `OrdinalIgnoreCase`, на Linux — `Ordinal`.
+  - `NormalizeFullPath`: использует `Path.TrimEndingDirectorySeparator` (корректно сохраняет корень `/`).
+  - Тесты расширены: 6 кейсов traversal (включая смешанные разделители), нормализация backslash, защита от обхода через префикс (`workspace-evil`).
+- **Результат:** PathHelper теперь корректен на Windows и Linux. CI на ubuntu-latest подтверждает.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -270,7 +287,7 @@
 |--------|--------|
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
-| Fixed (v1.1.1) | 7 |
+| Fixed (v1.1.1) | 8 |
 | Documented | 6 |
 | Open | 0 |
 | Deferred | 0 |          <!-- было 1, -KI-022 -->
@@ -278,7 +295,7 @@
 | **Всего** | **33** |
 
 **«Расшифровка Open»:**  (пусто).
-**«Fixed (v1.1.1)»:** KI-001, KI-005, KI-022, KI-036, KI-037, KI-038, KI-039.
+**«Fixed (v1.1.1)»:** KI-001, KI-005, KI-022, KI-036, KI-037, KI-038, KI-039, KI-040.
 **«Deferred»:** KI-022.
 **«Documented»:** KI-007, KI-009, KI-032, KI-038 (и 2 устаревших).
 
