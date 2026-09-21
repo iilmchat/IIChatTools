@@ -275,14 +275,12 @@ namespace IIChatTools.API
             services.AddScoped<IUserAdminService, UserAdminService>();
             services.AddSingleton<IProcessRunner, ProcessRunner>();
 
+            // ============ Chat service (v1.3) ============
+            services.AddScoped<IChatService, ChatService>();
+
             // ============ 7. Реестр инструментов ============
             services.AddScoped<IToolRegistry, ToolRegistry>();
 
-            /*
-            // ============ 8. Клиент LM Studio и суб-агент ============
-            services.AddScoped<ILmStudioClient, LmStudioClient>();
-            services.AddScoped<ISubAgentService, SubAgentService>();
-            */
             // ============ 8. Клиент LM Studio и суб-агент ============
             services.AddScoped<ILmStudioClient, LmStudioClient>();
             services.AddScoped<ISubAgentService, SubAgentService>();
