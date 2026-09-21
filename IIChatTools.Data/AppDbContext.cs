@@ -82,7 +82,7 @@ namespace IIChatTools.Data
 
                 // Индекс для sidebar (сортировка по UpdatedAt)
                 entity.HasIndex(e => new { e.UserId, e.UpdatedAt })
-                    .HasName("IX_Chats_UserId_UpdatedAt");
+                    .HasDatabaseName("IX_Chats_UserId_UpdatedAt");
             });
 
             // ============ ChatMessages ============
@@ -102,7 +102,7 @@ namespace IIChatTools.Data
 
                 // Индекс для загрузки истории чата
                 entity.HasIndex(e => new { e.ChatId, e.CreatedAt })
-                    .HasName("IX_ChatMessages_ChatId_CreatedAt");
+                    .HasDatabaseName("IX_ChatMessages_ChatId_CreatedAt");
             });                
         }
     }

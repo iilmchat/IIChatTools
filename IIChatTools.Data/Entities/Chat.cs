@@ -40,7 +40,7 @@ namespace IIChatTools.Data.Entities
         /// <summary>
         /// Дата последнего изменения (используется для сортировки в sidebar).
         /// </summary>
-        public DateTime UpdatedAt { get; set; }
+        public new DateTime UpdatedAt { get; set; }
 
         /// <summary>
         /// Все сообщения чата.
