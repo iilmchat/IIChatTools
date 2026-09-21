@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Generic;
+
+namespace IIChatTools.Services.DTO.Chat
+{
+    /// <summary>
+    /// Краткая информация о чате для списка в sidebar.
+    /// </summary>
+    public class ChatListItemDto
+    {
+        /// <summary>Идентификатор чата.</summary>
+        public int Id { get; set; }
+
+        /// <summary>Заголовок чата.</summary>
+        public string Title { get; set; }
+
+        /// <summary>Идентификатор модели LM Studio.</summary>
+        public string Model { get; set; }
+
+        /// <summary>Дата последнего изменения.</summary>
+        public DateTime UpdatedAt { get; set; }
+
+        /// <summary>Количество сообщений в чате.</summary>
+        public int MessageCount { get; set; }
+    }
+
+    /// <summary>
+    /// Детальная информация о чате с историей сообщений.
+    /// </summary>
+    public class ChatDetailDto
+    {
+        /// <summary>Идентификатор чата.</summary>
+        public int Id { get; set; }
+
+        /// <summary>Заголовок чата.</summary>
+        public string Title { get; set; }
+
+        /// <summary>Идентификатор модели LM Studio.</summary>
+        public string Model { get; set; }
+
+        /// <summary>Системный промпт (опционально).</summary>
+        public string SystemPrompt { get; set; }
+
+        /// <summary>Дата последнего изменения.</summary>
+        public DateTime UpdatedAt { get; set; }
+
+        /// <summary>История сообщений (сортировка по CreatedAt asc).</summary>
+        public List<ChatMessageDto> Messages { get; set; } = new List<ChatMessageDto>();
+    }
+
+    /// <summary>
+    /// Сообщение чата для API.
+    /// </summary>
+    public class ChatMessageDto
+    {
+        /// <summary>Идентификатор сообщения.</summary>
+        public int Id { get; set; }
+
+        /// <summary>Роль: <c>user</c>, <c>assistant</c>, <c>system</c>, <c>tool</c>.</summary>
+        public string Role { get; set; }
+
+        /// <summary>Текстовое содержимое.</summary>
+        public string Content { get; set; }
+
+        /// <summary>
+        /// Tool calls (если assistant вызвал инструменты).
+        /// JSON-строка формата OpenAI.
+        /// </summary>
+        public string ToolCallsJson { get; set; }
+
+        /// <summary>ID tool call (для role="tool").</summary>
+        public string ToolCallId { get; set; }
+
+        /// <summary>Имя инструмента (для role="tool").</summary>
+        public string ToolName { get; set; }
+
+        /// <summary>Дата создания сообщения.</summary>
+        public DateTime CreatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Запрос на создание нового чата.
+    /// </summary>
+    public class CreateChatRequest
+    {
+        /// <summary>Идентификатор модели LM Studio (обязательно).</summary>
+        public string Model { get; set; }
+
+        /// <summary>Опциональный заголовок чата. По умолчанию — «Новый чат».</summary>
+        public string Title { get; set; }
+    }
+
+    /// <summary>
+    /// Запрос на обновление метаданных чата.
+    /// Поля с <c>null</c> не изменяются.
+    /// </summary>
+    public class UpdateChatRequest
+    {
+        /// <summary>Новый заголовок (null = не менять).</summary>
+        public string Title { get; set; }
+
+        /// <summary>Новая модель (null = не менять).</summary>
+        public string Model { get; set; }
+
+        /// <summary>Новый системный промпт (null = не менять).</summary>
+        public string SystemPrompt { get; set; }
+    }
+}
