@@ -333,42 +333,39 @@ Per-user и per-IP лимиты запросов. Настраивается в 
 
 Prometheus-метрики доступны по `/metrics` (публичный, без авторизации).
 
-```bash
-curl https://localhost:5001/metrics
-```
-Стандартные (prometheus-net):
+Запрос:
 
-http_requests_received_total{method,code,controller,action,endpoint}
+    curl https://localhost:5001/metrics
 
-http_request_duration_seconds{method,code,controller,action,endpoint}
+**Стандартные** (prometheus-net):
 
-http_requests_in_progress{method}
+| Метрика | Тип | Labels |
+|---------|-----|--------|
+| http_requests_received_total | counter | method, code, controller, action, endpoint |
+| http_request_duration_seconds | histogram | method, code, controller, action, endpoint |
+| http_requests_in_progress | gauge | method |
+| dotnet_collection_count_total | counter | generation |
+| process_* | — | CPU, memory, virtual memory, working set |
 
-dotnet_collection_count_total{generation}
+**Кастомные IIChatTools**:
 
-process_* (CPU, memory)
+| Метрика | Тип | Labels | Описание |
+|---------|-----|--------|----------|
+| iichattools_tool_executions_total | counter | tool_name, status | Success / Error / Rejected / Expired |
+| iichattools_tool_execution_duration_seconds | histogram | tool_name | Длительность вызова инструмента |
+| iichattools_pending_approvals | gauge | — | Ожидающие подтверждения (обновляется раз в 30 сек) |
+| iichattools_active_users | gauge | — | Активные пользователи (обновляется раз в 30 сек) |
+| iichattools_audit_entries_total | counter | status | Записи аудита |
+| iichattools_lmstudio_requests_total | counter | status | Запросы к LM Studio |
+| iichattools_audit_cleanup_total | counter | target | Удалённые записи/файлы аудита (retention) |
 
-Кастомные IIChatTools:
+**Prometheus scrape config**:
 
-iichattools_tool_executions_total{tool_name,status} — Success / Error / Rejected / Expired
-
-iichattools_tool_execution_duration_seconds{tool_name}
-
-iichattools_pending_approvals — gauge (обновляется раз в 30 сек)
-
-iichattools_active_users — gauge (обновляется раз в 30 сек)
-
-iichattools_audit_entries_total{status}
-
-iichattools_lmstudio_requests_total{status}
-
-Prometheus scrape config:
-
-scrape_configs:
-  - job_name: 'iichattools'
-    metrics_path: '/metrics'
-    static_configs:
-      - targets: ['iichattools:8080']
+    scrape_configs:
+      - job_name: 'iichattools'
+        metrics_path: '/metrics'
+        static_configs:
+          - targets: ['iichattools:8080']
 
 ---
 
@@ -427,8 +424,8 @@ docker pull ghcr.io/iilmchat/iichattools:latest
 
 # Конкретный релиз
 docker pull ghcr.io/iilmchat/iichattools:v1.2.0
-docker pull ghcr.io/iilmchat/iichattools:1.1.1
-docker pull ghcr.io/iilmchat/iichattools:1.1
+docker pull ghcr.io/iilmchat/iichattools:1.2.0
+docker pull ghcr.io/iilmchat/iichattools:1.2
 docker pull ghcr.io/iilmchat/iichattools:1
 
 Развёртывание на любом Linux-сервере с Docker:
@@ -440,36 +437,6 @@ docker run -d \
   -v iichattools-logs:/app/logs \
   -v iichattools-workspace:/app/Workspace \
   ghcr.io/iilmchat/iichattools:latest
-
----
-
-## Шаг 1. Создать файлы
-
-В VS Code создайте 3 файла:
-
-| Путь | Назначение |
-|------|-----------|
-| `.github/workflows/ci.yml` | Build + test |
-| `.github/workflows/docker-publish.yml` | Docker-сборка + push в ghcr.io |
-| `.github/dependabot.yml` | Авто-обновления (опционально) |
-
-И обновить:
-- `.dockerignore` — добавить `NuGet.Config`
-- `README.md` — бейджи + раздел CI/CD
-
----
-
-## Шаг 2. Локальная проверка (без Docker)
-
-```powershell
-cd G:\AI\IIChatTools
-
-# Всё так же работает локально
-dotnet build IIChatTools.sln -c Release
-dotnet test IIChatTools.sln -c Release
-
-# Проверить, что новые YAML-файлы не содержат ошибок (необязательно)
-# Можно через VS Code с расширением YAML
 
 ---
 
