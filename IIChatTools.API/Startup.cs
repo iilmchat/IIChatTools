@@ -278,6 +278,9 @@ namespace IIChatTools.API
             // ============ Chat service (v1.3) ============
             services.AddScoped<IChatService, ChatService>();
 
+            // ============ Chat stream service (v1.3 Фаза 1.5) ============
+            services.AddScoped<IChatStreamService, ChatStreamService>();
+            
             // ============ 7. Реестр инструментов ============
             services.AddScoped<IToolRegistry, ToolRegistry>();
 
