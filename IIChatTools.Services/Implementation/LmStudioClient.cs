@@ -10,6 +10,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.IO;                    // StreamReader (можно писать полный путь, как в коде)
+using System.Runtime.CompilerServices;   // EnumeratorCancellation
 
 namespace IIChatTools.Services.Implementation
 {
@@ -143,6 +145,146 @@ namespace IIChatTools.Services.Implementation
             {
                 _logger.LogError(ex, "Ошибка при обращении к LM Studio: {Url}", url);
                 throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async IAsyncEnumerable<ChatCompletionChunk> ChatStreamAsync(
+            JArray messages,
+            JArray tools,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            if (messages == null) throw new ArgumentNullException(nameof(messages));
+
+            var baseUrl = _configuration["LmStudio:BaseUrl"] ?? "http://localhost:8034";
+            var model = _configuration["LmStudio:Model"] ?? "local-model";
+            var temperature = GetDouble("LmStudio:Temperature", 0.7);
+            var maxTokens = GetInt("LmStudio:MaxTokens", 8192);
+            var timeoutSeconds = GetInt("LmStudio:RequestTimeoutSeconds", 300);
+
+            var payload = new JObject
+            {
+                ["model"] = model,
+                ["messages"] = messages,
+                ["temperature"] = temperature,
+                ["max_tokens"] = maxTokens,
+                ["stream"] = true
+            };
+
+            if (tools != null && tools.Count > 0)
+            {
+                payload["tools"] = tools;
+                payload["tool_choice"] = "auto";
+            }
+
+            var url = baseUrl.TrimEnd('/') + "/v1/chat/completions";
+
+            _logger.LogInformation(
+                "LM Studio SSE-стрим: url={Url}, model={Model}, messages={MsgCount}, tools={ToolCount}",
+                url, model, messages.Count, tools?.Count ?? 0);
+
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
+            var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(
+                    payload.ToString(Formatting.None),
+                    Encoding.UTF8,
+                    "application/json")
+            };
+            request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
+            }
+            catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (TaskCanceledException)
+            {
+                throw new TimeoutException($"LM Studio не ответил за {timeoutSeconds} секунд");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errBody = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning(
+                    "LM Studio SSE вернул {StatusCode}: {Body}",
+                    response.StatusCode, Truncate(errBody, 500));
+                throw new InvalidOperationException(
+                    $"LM Studio вернул ошибку {(int)response.StatusCode}: {Truncate(errBody, 500)}");
+            }
+
+            // Читаем SSE-поток построчно
+            using (response)
+            using (var stream = await response.Content.ReadAsStreamAsync())
+            using (var reader = new System.IO.StreamReader(stream, Encoding.UTF8))
+            {
+                while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+                {
+                    string line;
+                    try
+                    {
+                        line = await reader.ReadLineAsync();
+                    }
+                    catch (Exception ex) when (!(ex is OperationCanceledException))
+                    {
+                        _logger.LogWarning(ex, "Ошибка чтения SSE-строки");
+                        break;
+                    }
+
+                    if (line == null) break;
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    // SSE-формат: "data: {...}" или "data: [DONE]"
+                    if (!line.StartsWith("data:", StringComparison.Ordinal))
+                        continue; // пропускаем "event:", "id:", "retry:" и пустые
+
+                    var jsonPart = line.Substring(5).Trim();
+                    if (jsonPart == "[DONE]")
+                    {
+                        yield return new ChatCompletionChunk { IsDone = true };
+                        yield break;
+                    }
+
+                    JObject chunk;
+                    try
+                    {
+                        chunk = JObject.Parse(jsonPart);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex, "Не удалось распарсить SSE-чанк: {Line}", Truncate(jsonPart, 200));
+                        continue;
+                    }
+
+                    var choice = chunk["choices"]?[0];
+                    if (choice == null) continue;
+
+                    var delta = choice["delta"];
+                    var finishReason = choice["finish_reason"]?.ToString();
+
+                    var result = new ChatCompletionChunk
+                    {
+                        DeltaContent = delta?["content"]?.ToString(),
+                        DeltaReasoning = delta?["reasoning_content"]?.ToString(),
+                        DeltaToolCall = delta?["tool_calls"]?[0] as JObject,
+                        FinishReason = finishReason,
+                        Usage = ParseUsage(chunk["usage"] as JObject),
+                        IsDone = !string.IsNullOrEmpty(finishReason)
+                    };
+
+                    yield return result;
+
+                    if (result.IsDone) yield break;
+                }
             }
         }
 

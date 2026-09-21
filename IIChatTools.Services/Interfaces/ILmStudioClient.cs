@@ -67,6 +67,43 @@ namespace IIChatTools.Services.Interfaces
     }
 
     /// <summary>
+    /// Один чанк SSE-стрима от LM Studio.
+    /// </summary>
+    public class ChatCompletionChunk
+    {
+        /// <summary>
+        /// Приращение текста (может быть null, если чанк содержит только tool_call или metadata).
+        /// </summary>
+        public string DeltaContent { get; set; }
+
+        /// <summary>
+        /// Приращение reasoning-текста (для reasoning-моделей).
+        /// </summary>
+        public string DeltaReasoning { get; set; }
+
+        /// <summary>
+        /// Инкрементальный tool_call (name/arguments могут приходить частями).
+        /// Null, если чанк не содержит tool_call.
+        /// </summary>
+        public JObject DeltaToolCall { get; set; }
+
+        /// <summary>
+        /// Причина завершения: "stop", "tool_calls", "length" (только в последнем чанке).
+        /// </summary>
+        public string FinishReason { get; set; }
+
+        /// <summary>
+        /// Информация о расходе токенов (только в последнем чанке, если LM Studio вернул).
+        /// </summary>
+        public ChatCompletionUsage Usage { get; set; }
+
+        /// <summary>
+        /// Признак последнего чанка (получен finish_reason или [DONE]).
+        /// </summary>
+        public bool IsDone { get; set; }
+    }
+
+    /// <summary>
     /// Клиент LM Studio (OpenAI-совместимый API /v1/chat/completions).
     /// </summary>
     public interface ILmStudioClient
@@ -86,6 +123,22 @@ namespace IIChatTools.Services.Interfaces
             JArray tools,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Стримит chat completion от LM Studio через SSE.
+        /// Возвращает поток чанков; каждый чанк содержит приращение текста и/или tool_call.
+        /// </summary>
+        /// <param name="messages">История сообщений (JArray, формат OpenAI)</param>
+        /// <param name="tools">Список инструментов (JArray) или null</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Асинхронный поток чанков</returns>
+        /// <exception cref="ArgumentNullException">Если messages равен null</exception>
+        /// <exception cref="TimeoutException">Если LM Studio не ответил</exception>
+        /// <exception cref="InvalidOperationException">Если LM Studio вернул ошибку</exception>
+        IAsyncEnumerable<ChatCompletionChunk> ChatStreamAsync(
+            JArray messages,
+            JArray tools,
+            CancellationToken cancellationToken);
+            
         /// <summary>
         /// Возвращает список идентификаторов моделей, доступных в LM Studio (/v1/models).
         /// </summary>
