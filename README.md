@@ -291,6 +291,11 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/approvals/{id}/reject` | Отклонить |
 | `GET` | `/api/status/snapshot` | Снимок состояния |
 | `*` | `/api/admin/*` | CRUD админки (только Admin) |
+| `GET` | `/api/chats` | Список чатов пользователя |
+| `GET` | `/api/chats/{id}?limit=50` | Чат с историей сообщений |
+| `POST` | `/api/chats` | Создать чат |
+| `PATCH` | `/api/chats/{id}` | Обновить title / model / systemPrompt |
+| `DELETE` | `/api/chats/{id}` | Удалить чат |
 
 ---
 
