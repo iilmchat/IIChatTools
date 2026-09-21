@@ -9,11 +9,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <UserSecretsId>iichattools-api-secrets-2026</UserSecretsId>
-    <Company>RuChating (iilmchat)</Company>
-    <Product>IIChatTools</Product>
-    <Version>1.1.0</Version>
-    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.1.0</Copyright>
-    <Authors>RuChating</Authors>
     <Description>Веб-приложение и API IIChatTools v1.1.0.</Description>
 
     <!-- Настройки компиляции Razor (MSBuild-свойства, а не элементы!) -->

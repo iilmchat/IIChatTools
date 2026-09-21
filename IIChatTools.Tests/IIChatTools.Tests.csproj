@@ -7,11 +7,6 @@
     <AssemblyName>IIChatTools.Tests</AssemblyName>
     <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
-    <Company>RuChating (iilmchat)</Company>
-    <Product>IIChatTools</Product>
-    <Version>1.1.0</Version>
-    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.1.0</Copyright>
-    <Authors>RuChating</Authors>
     <Description>Модульные и интеграционные тесты IIChatTools.</Description>
   </PropertyGroup>
 
