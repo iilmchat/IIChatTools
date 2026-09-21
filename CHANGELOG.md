@@ -18,13 +18,18 @@
 ## [Unreleased]
 
 ### Added
-- Н/Д
+- **Chat UI (v1.3 Фаза 1.1)**: сущности `Chat` и `ChatMessage` + миграция `AddChatAndChatMessages`. Таблицы `Chats`, `ChatMessages` в БД; индексы `IX_Chats_UserId_UpdatedAt`, `IX_ChatMessages_ChatId_CreatedAt`.
+- **ChatService (v1.3 Фаза 1.2)**: `IChatService` + `ChatService` — CRUD чатов и сообщений, проверка владения (`userId`), `DeleteOldChatsAsync` для retention.
+- **LM Studio SSE (v1.3 Фаза 1.3)**: `ILmStudioClient.ChatStreamAsync` — `IAsyncEnumerable<ChatCompletionChunk>` для стриминга. DTO `ChatCompletionChunk` (DeltaContent, DeltaReasoning, DeltaToolCall, FinishReason, Usage, IsDone). Парсер SSE-формата (`data: {...}`, `[DONE]`, tool_calls частями). Сохранён `CompleteAsync` для `SubAgentService`.
+- **Design doc v1.3**: `docs/development/v1.3/DESIGN.md` — Chat UI (sidebar, SSE, инлайн tool calls), API-контракты, схема данных, план работ.
+- **Unit-тесты**: 5 новых на парсинг SSE (`LmStudioSseParseTests`). Всего: **24/24**.
 
 ### Changed
 - Н/Д
 
 ### Fixed
-- Н/Д
+- **v1.3 Фаза 1.1**: warnings CS0108 (Chat.UpdatedAt скрывает BaseEntity.UpdatedAt — намеренно, `new`), CS0618 (HasName → HasDatabaseName в EF Core 10).
+- **v1.3 Фаза 1.3**: warnings CS1574 (cref ArgumentNullException и др. — добавлен `using System;`), CA2024 (reader.EndOfStream в async — заменён на проверку `line == null`).
 
 ### Security
 - Н/Д
@@ -82,30 +87,6 @@
 - Дубли `configs/NuGet1.Config`, `configs/NuGet111.Config`.
 - Ad-hoc скрипты `scripts/setup/download-missing*.ps1`, `downloader*.ps1`.
 - Локальные SQLite-БД `IIChatTools.API/Data/*.db` (не коммитились).
-
----
-
-## [1.1.0] — 2026-09-18
-
-### Security
-- **KI-039**: устранена утечка прокси-credentials и email автора в git-истории (публичный репозиторий).
-  - `git filter-repo --replace-text` + `--mailmap` + `--invert-paths`.
-  - Все ветки и теги перезаписаны через `git push --force`.
-  - GitHub Secret Scanning: «No secrets found».
-- **KI-036**: удалён хардкод прокси-credentials из `Program.cs` и скриптов.
-  - Значения читаются из `IICHATTOOLS_PROXY*` (env) или User Secrets.
-  - Fallback-значения убраны.
-
-### Fixed
-- **KI-037**: дедупликация строк подключения в `appsettings.json`.
-- **KI-038**: локальные пути → User Secrets (`Workspace:RootPath`).
-- **KI-005**: явное поведение `git_add` при пустом `files` (без `-A`).
-- **KI-001**: причина отклонения теперь отображается в поле «Результат» на `/test`.
-
-### Removed
-- Папка `UPDATES/` (устаревшие копии).
-- Дубли `configs/NuGet1.Config`, `configs/NuGet111.Config`.
-- Ad-hoc скрипты `scripts/setup/download-missing*.ps1`, `downloader*.ps1`.
 
 ---
 

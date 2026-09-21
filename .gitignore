@@ -139,3 +139,7 @@ IIChatTools.API/Data/
 .env.local
 .env.*.local
 .docker-data/
+
+# Continue.dev (VS Code AI extension)
+.continue/
+
