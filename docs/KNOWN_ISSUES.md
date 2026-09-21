@@ -274,6 +274,44 @@
 
 ---
 
+### KI-048 — Email автора коммитов в git-истории
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-21
+- **Файлы:** `git config` (локальный, не в репозитории)
+- **Описание:** На новой машине (`D:\Projects\IIChatTools`) `git config user.email` был не настроен — коммиты `9a21553`, `7161f63`, `b960611` ушли с реальным email автора (`avnikiforov2014@yandex.ru`). Аналогично KI-039 (утечка в истории), но менее критично (email автора, не учётные данные).
+- **Решение (выполнено):**
+  - `git config user.email "dev@example.local"`
+  - `git config user.name "IIChatTools Developer"`
+  - Применяется **только к новым коммитам** (старые `9a21553`, `7161f63`, `b960611` не переписаны — переписывание потребует `filter-repo`, не оправдано).
+- **Профилактика:** при клонировании репо на новой машине — проверять `git config user.email` **до** первого коммита. Обновить `README.md` (раздел «Разработка» → раздел про настройку).
+
+---
+
+### KI-049 — tokensIn / tokensOut = null в SSE-стриме
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-21
+- **Файлы:** `IIChatTools.Services/Implementation/LmStudioClient.cs` (ChatStreamAsync), `IIChatTools.Services/Implementation/ChatStreamService.cs`
+- **Описание:** В SSE-стриме LM Studio не отдаёт `usage` (в отличие от `stream=false`). В последнем чанке `tokensIn`/`tokensOut` = null, хотя в `ChatCompletionResponse` (non-streaming) usage приходит.
+- **Решение (запланировано):** Если LM Studio не отдаёт usage в stream-режиме — либо запрашивать usage отдельным вызовом (не оптимально), либо использовать `tiktoken` для подсчёта, либо оставить null (не критично для UX).
+- **Не блокер:** Chat UI работает без счётчика токенов.
+
+---
+
+### KI-050 — Rate limiting возвращает JSON на HTML-эндпоинты
+- **Приоритет:** 🟠 High | **Статус:** Open | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-21
+- **Файлы:** `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`, `IIChatTools.API/Controllers/AuthController.cs`, `IIChatTools.API/Views/Auth/Login.cshtml`
+- **Описание:** При превышении лимита на `/auth/login` пользователь в браузере получает сырой JSON `{"success":false,"message":"Слишком много запросов..."}`. Нет навигации, нет формы, только кнопка «Назад». Крайне плохой UX.
+- **Решение (запланировано):**
+  - В `RateLimitingMiddleware`: определять `Accept` header.
+  - Если `Accept` содержит `text/html` (браузер) → **redirect** на `/auth/login?error=ratelimit`.
+  - `AuthController.Login` (GET) — читать query-параметр, передавать в ViewData.
+  - `Login.cshtml` — показывать красный banner с текстом: «Слишком много попыток входа. Попробуйте через минуту».
+  - Если `Accept: application/json` (API-клиент) → оставить текущий JSON.
+- **Не блокер релиза:** Chat UI работает, но фикс нужен **до v1.3.0 финала**.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -370,8 +408,8 @@
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
-| Documented | 9 |
-| Open | 2 |      <!-- было 0, +KI-046, +KI-047 (Deferred) -->
+| Documented | 10 | <!--  +1 (KI-049) -->
+| Open | 3 |      <!-- было 0, +KI-046, +1 KI-050 +KI-047 (Deferred) -->
 | Deferred | 1 |  <!-- было 0 -->
 | Resolved | 1 |
 | **Всего** | **33** |
