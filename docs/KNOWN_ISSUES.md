@@ -249,6 +249,31 @@
 
 ---
 
+## v1.3.0 — Chat UI (в работе)
+
+### KI-046 — MessageCount в ChatListItemDto всегда 0
+- **Приоритет:** 🟢 Low | **Статус:** Open | **Запланировано:** v1.3.0
+- **Обнаружено:** 2026-09-21
+- **Файлы:** `IIChatTools.API/Controllers/ChatController.cs`, `IIChatTools.Services/Implementation/ChatService.cs`
+- **Описание:** В `ChatListItemDto.MessageCount` возвращается 0 (заглушка) — для sidebar не критично, но приятнее показывать число сообщений в чате.
+- **Решение:** Добавить в `IChatService` метод `GetMessageCountsAsync(int userId)`, возвращающий `Dictionary<int, int>` (chatId → count). Один SQL-запрос `GROUP BY ChatId`.
+- **Не блокер:** UI работает без счётчика.
+
+### KI-047 — Fallback PATCH/DELETE через POST для старых сетей
+- **Приоритет:** 🟡 Medium | **Статус:** Deferred | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-21
+- **Файлы:** `IIChatTools.API/Controllers/ChatController.cs` (и другие контроллеры с PATCH/DELETE)
+- **Описание:** Некоторые старые корпоративные прокси и браузеры могут блокировать HTTP-методы `PATCH` и `DELETE` (обрезка/трансформация в `GET`/`POST`). Основной Chat API использует REST-семантику (`POST` / `PATCH` / `DELETE`). В offline-сетях и старых браузерах это может привести к сбоям.
+- **Решение (запланировано):**
+  - Добавить «теневые» endpoints вида:
+    - `POST /api/chats/{id}/update` — эмуляция PATCH (принимает то же `UpdateChatRequest`)
+    - `POST /api/chats/{id}/delete` — эмуляция DELETE (тело пустое или с флагом подтверждения)
+  - Frontend: определять доступность метода (feature detection) и использовать fallback по необходимости.
+  - Основной REST-контракт **остаётся** — fallback только как резерв.
+- **Обоснование отсрочки:** не критично для текущих пользователей, но задача зафиксирована.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -346,8 +371,8 @@
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
 | Documented | 9 |
-| Open | 0 |
-| Deferred | 0 |          <!-- было 1, -KI-022 -->
+| Open | 2 |      <!-- было 0, +KI-046, +KI-047 (Deferred) -->
+| Deferred | 1 |  <!-- было 0 -->
 | Resolved | 1 |
 | **Всего** | **33** |
 

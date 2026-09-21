@@ -122,6 +122,124 @@ namespace IIChatTools.API.Controllers
         }
 
         /// <summary>
+        /// Создаёт новый чат.
+        /// </summary>
+        /// <param name="request">Параметры чата (модель обязательна)</param>
+        /// <returns>JSON { success, data: ChatListItemDto }</returns>
+        [HttpPost]
+        public async Task<IActionResult> CreateChatAsync([FromBody] CreateChatRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.Model))
+                {
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value });
+                }
+
+                var userId = GetCurrentUserId();
+
+                var chat = await _chatService.CreateChatAsync(userId, request.Model, request.Title);
+
+                var data = new ChatListItemDto
+                {
+                    Id = chat.Id,
+                    Title = chat.Title,
+                    Model = chat.Model,
+                    UpdatedAt = chat.UpdatedAt,
+                    MessageCount = 0
+                };
+
+                _logger.LogInformation("Создан чат {ChatId} для пользователя {UserId}", chat.Id, userId);
+
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка создания чата");
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
+        /// Обновляет метаданные чата (title / model / systemPrompt).
+        /// Поля с <c>null</c> не изменяются.
+        /// </summary>
+        /// <param name="id">Идентификатор чата</param>
+        /// <param name="request">Новые значения (null = не менять)</param>
+        /// <returns>JSON { success, data: ChatListItemDto }</returns>
+        [HttpPatch("{id:int}")]
+        public async Task<IActionResult> UpdateChatAsync(int id, [FromBody] UpdateChatRequest request)
+        {
+            try
+            {
+                if (request == null)
+                {
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value });
+                }
+
+                var userId = GetCurrentUserId();
+
+                var chat = await _chatService.UpdateChatAsync(
+                    id, userId,
+                    request.Title,
+                    request.Model,
+                    request.SystemPrompt);
+
+                if (chat == null)
+                {
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value });
+                }
+
+                var data = new ChatListItemDto
+                {
+                    Id = chat.Id,
+                    Title = chat.Title,
+                    Model = chat.Model,
+                    UpdatedAt = chat.UpdatedAt,
+                    MessageCount = 0
+                };
+
+                _logger.LogInformation("Обновлён чат {ChatId} пользователя {UserId}", id, userId);
+
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка обновления чата {ChatId}", id);
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
+        /// Удаляет чат со всеми сообщениями.
+        /// </summary>
+        /// <param name="id">Идентификатор чата</param>
+        /// <returns>JSON { success }</returns>
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteChatAsync(int id)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                var deleted = await _chatService.DeleteChatAsync(id, userId);
+                if (!deleted)
+                {
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value });
+                }
+
+                _logger.LogInformation("Удалён чат {ChatId} пользователя {UserId}", id, userId);
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка удаления чата {ChatId}", id);
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
         /// Извлекает идентификатор текущего пользователя из claims.
         /// </summary>
         /// <returns>Идентификатор пользователя</returns>
