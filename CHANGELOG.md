@@ -143,6 +143,7 @@
 - `CompositeAuditService` — аудит в БД + JSONL-файл (`logs/audit/`).
 - `.gitattributes` для нормализации LF/CRLF.
 - `Directory.Build.props` — централизованные версии пакетов.
+- **ChatStream DTO (v1.3 Фаза 1.5)**: `ChatStreamRequest` и `ChatStreamEvent` (start/delta/done/error) — типы для SSE-стриминга ответов LLM.
 
 ### Changed
 - Git-инструменты: параметр `path` (каталог репо) + `filePath` (файл) — KI-004.

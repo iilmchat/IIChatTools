@@ -1,0 +1,94 @@
+using System;
+
+namespace IIChatTools.Services.DTO.Chat
+{
+    /// <summary>
+    /// Запрос на стриминг ответа LLM.
+    /// </summary>
+    public class ChatStreamRequest
+    {
+        /// <summary>Идентификатор чата.</summary>
+        public int ChatId { get; set; }
+
+        /// <summary>Текст сообщения пользователя.</summary>
+        public string Message { get; set; }
+
+        /// <summary>
+        /// Использовать ли tool calling.
+        /// В v1.3 Фазе 1.5 игнорируется (всегда false) — включим в Фазе 1.6.
+        /// </summary>
+        public bool UseTools { get; set; }
+    }
+
+    /// <summary>
+    /// Одно SSE-событие стрима.
+    /// Формат сериализации: <c>event: {type}\ndata: {payload}\n\n</c>.
+    /// </summary>
+    public class ChatStreamEvent
+    {
+        /// <summary>
+        /// Тип события:
+        /// <list type="bullet">
+        ///   <item><c>start</c> — стрим начался, содержит ID user message</item>
+        ///   <item><c>delta</c> — приращение текста от LLM</item>
+        ///   <item><c>done</c> — стрим завершён, содержит ID assistant message</item>
+        ///   <item><c>error</c> — ошибка, содержит message</item>
+        /// </list>
+        /// </summary>
+        public string Type { get; set; }
+
+        /// <summary>Данные события (сериализуются в JSON).</summary>
+        public object Data { get; set; }
+
+        /// <summary>
+        /// Создаёт событие <c>start</c>.
+        /// </summary>
+        /// <param name="userMessageId">ID сохранённого user message</param>
+        /// <param name="chatId">ID чата</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent Start(int userMessageId, int chatId)
+            => new ChatStreamEvent
+            {
+                Type = "start",
+                Data = new { userMessageId, chatId }
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>delta</c>.
+        /// </summary>
+        /// <param name="text">Приращение текста</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent Delta(string text)
+            => new ChatStreamEvent
+            {
+                Type = "delta",
+                Data = new { text }
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>done</c>.
+        /// </summary>
+        /// <param name="assistantMessageId">ID сохранённого assistant message</param>
+        /// <param name="tokensIn">Токенов prompt (опционально)</param>
+        /// <param name="tokensOut">Токенов completion (опционально)</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent Done(int assistantMessageId, int? tokensIn = null, int? tokensOut = null)
+            => new ChatStreamEvent
+            {
+                Type = "done",
+                Data = new { assistantMessageId, tokensIn, tokensOut }
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>error</c>.
+        /// </summary>
+        /// <param name="message">Текст ошибки</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent Error(string message)
+            => new ChatStreamEvent
+            {
+                Type = "error",
+                Data = new { message }
+            };
+    }
+}
