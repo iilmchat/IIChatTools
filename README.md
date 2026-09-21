@@ -296,6 +296,7 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/chats` | Создать чат |
 | `PATCH` | `/api/chats/{id}` | Обновить title / model / systemPrompt |
 | `DELETE` | `/api/chats/{id}` | Удалить чат |
+| `POST` | `/api/chat/stream` | SSE-стриминг ответа LLM |
 
 ---
 
