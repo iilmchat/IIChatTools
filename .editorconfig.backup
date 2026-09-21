@@ -65,7 +65,7 @@ csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
 csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
 
 # ============================================================
-# Правила компилятора C# (технические ошибки)
+# Правила компилятора C# (технические)
 # ============================================================
 # Наши правила: 4.1, 4.3, 4.4, 4.5, 4.6, 4.7 из RULES.md
 # ============================================================
@@ -88,54 +88,30 @@ dotnet_diagnostic.CS0618.severity = warning
 # CS1574: XML comment cref not resolved
 dotnet_diagnostic.CS1574.severity = warning
 
-# ============================================================
-# Правила анализаторов .NET (CAxxxx) — ТОЛЬКО ПОЛЕЗНЫЕ
-# ============================================================
+# CS1591: Missing XML comment for public member
+# Отключено в .csproj через <NoWarn>, но фиксируем здесь для будущего
+dotnet_diagnostic.CS1591.severity = silent
 
-# --- Оставляем включёнными ---
+# ============================================================
+# Правила анализаторов .NET (CAxxxx)
+# ============================================================
 
 # CA2024: Do not use EndOfStream in async methods
 dotnet_diagnostic.CA2024.severity = warning
 
-# CA1854: Prefer TryGetValue over ContainsKey + indexer
-dotnet_diagnostic.CA1854.severity = suggestion
+# CA2007: Consider calling ConfigureAwait
+dotnet_diagnostic.CA2007.severity = none
 
-# CA1869: Cache and reuse JsonSerializerOptions instances
-dotnet_diagnostic.CA1869.severity = suggestion
+# CA1848: Use LoggerMessage delegates for performance
+dotnet_diagnostic.CA1848.severity = none
 
-# CA2016: Forward CancellationToken
-dotnet_diagnostic.CA2016.severity = suggestion
-
-# CA2211: Non-constant fields should not be visible
-dotnet_diagnostic.CA2211.severity = warning
-
-# --- Отключаем шумные стилевые/микрооптимизационные ---
-
-# CA1873: Logging argument evaluation (у нас не hot path, structured logging покрыт code review)
-dotnet_diagnostic.CA1873.severity = none
-
-# CA1861: Avoid constant arrays as arguments (стилевой, не критично)
-dotnet_diagnostic.CA1861.severity = none
-
-# CA1866: Use StartsWith(char) (микрооптимизация)
-dotnet_diagnostic.CA1866.severity = none
-
-# CA1822: Mark members as static (стилевой, не критично)
-dotnet_diagnostic.CA1822.severity = none
-
-# CA1845: Use span-based string.Concat (микрооптимизация)
-dotnet_diagnostic.CA1845.severity = none
-
-# CA1852: Seal internal types (стилевой)
-dotnet_diagnostic.CA1852.severity = none
-
-# CA1031: Do not catch general exception types (у нас осознанно)
+# CA1031: Do not catch general exception types
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1303: Do not pass literals as localized parameters
 dotnet_diagnostic.CA1303.severity = none
 
-# CA1062: Validate arguments of public methods (мы это делаем через throw new ArgumentNullException)
+# CA1062: Validate arguments of public methods
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1707: Identifiers should not contain underscores
@@ -144,23 +120,19 @@ dotnet_diagnostic.CA1707.severity = none
 # CA1716: Identifiers should not match keywords
 dotnet_diagnostic.CA1716.severity = none
 
-# CA2007: Consider calling ConfigureAwait (ASP.NET Core не требует)
-dotnet_diagnostic.CA2007.severity = none
-
-# CA1848: Use LoggerMessage delegates (perf совет, не критично)
-dotnet_diagnostic.CA1848.severity = none
-
-# SYSLIB1045: Use GeneratedRegexAttribute (когда дойдём до AOT — включим)
-dotnet_diagnostic.SYSLIB1045.severity = suggestion
-
 # ============================================================
-# Правила IDE (стиль кода в IDE) — как suggestion
+# Правила IDE (стиль кода в IDE)
 # ============================================================
 
-dotnet_diagnostic.IDE0055.severity = suggestion     # форматирование
-dotnet_diagnostic.IDE0065.severity = suggestion     # using outside namespace
-dotnet_diagnostic.IDE0005.severity = suggestion     # unnecessary using
-dotnet_diagnostic.IDE1006.severity = suggestion     # naming rules
+# --- Порядок using ---
+dotnet_diagnostic.IDE0065.severity = warning      # using outside namespace
+dotnet_diagnostic.IDE0005.severity = suggestion   # unnecessary using
+
+# --- Форматирование ---
+dotnet_diagnostic.IDE0055.severity = warning      # formatting
+
+# --- Async ---
+dotnet_diagnostic.IDE1006.severity = warning      # naming rule violation (Async suffix)
 
 # --- Expression bodies ---
 csharp_style_expression_bodied_methods = false:suggestion
@@ -168,7 +140,7 @@ csharp_style_expression_bodied_constructors = false:suggestion
 csharp_style_expression_bodied_properties = true:suggestion
 
 # --- Prefer braces ---
-csharp_prefer_braces = true:suggestion
+csharp_prefer_braces = true:warning
 
 # --- Avoid this. ---
 dotnet_style_qualification_for_field = false:suggestion
@@ -176,18 +148,20 @@ dotnet_style_qualification_for_property = false:suggestion
 dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_qualification_for_event = false:suggestion
 
-# --- Prefer predefined types ---
+# --- Prefer var ---
 dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
 dotnet_style_predefined_type_for_member_access = true:suggestion
 
 # ============================================================
-# Roslyn-анализаторы по категориям
-# ============================================================
-# ВАЖНО: не включаем Performance как warning — слишком шумно.
+# Roslyn-анализаторы (дополнительно)
 # ============================================================
 
+# Nullable reference types — включён в .csproj через <Nullable>enable</Nullable>
+# csharp_nullable_context = annotations
+
+# --- Уровни для нового кода (v1.3+) ---
 dotnet_analyzer_diagnostic.category-Style.severity = suggestion
-dotnet_analyzer_diagnostic.category-Performance.severity = none
+dotnet_analyzer_diagnostic.category-Performance.severity = warning
 dotnet_analyzer_diagnostic.category-Security.severity = warning
 
 # ============================================================

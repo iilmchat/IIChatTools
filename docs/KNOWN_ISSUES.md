@@ -312,6 +312,19 @@
 
 ---
 
+### KI-051 — Полезные анализаторы C# понижены до `suggestion`
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-21
+- **Файлы:** `.editorconfig`, `IIChatTools.Services/Implementation/ToolRegistry.cs`, `IIChatTools.Services/Implementation/LmStudioClient.cs`, `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`
+- **Описание:** Три анализатора дают 7 warnings в проекте, но это **полезные советы**, а не баги. Понижены до `suggestion`, чтобы правило «0 warnings» соблюдалось.
+  - **CA1854** — `ToolRegistry.cs:41` — `ContainsKey` + индексатор → `TryGetValue` (эффективнее).
+  - **CA2016** — `LmStudioClient.cs` (5 мест) — `cancellationToken` не передаётся в `ReadAsStringAsync`/`ReadAsStreamAsync`/`ReadLineAsync`/`GetStringAsync` (при отмене операции запрос продолжается).
+  - **CA1869** — `RateLimitingMiddleware.cs:113` — `JsonSerializerOptions` создаётся при каждом `OnRejected` (кэшировать в `static readonly`).
+- **Решение (запланировано):** Пройти по 7 местам, исправить код, вернуть `severity = warning`.
+- **Не блокер:** функциональность работает корректно, это оптимизации.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
