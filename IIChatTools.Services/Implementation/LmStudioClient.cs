@@ -227,7 +227,9 @@ namespace IIChatTools.Services.Implementation
             using (var stream = await response.Content.ReadAsStreamAsync())
             using (var reader = new System.IO.StreamReader(stream, Encoding.UTF8))
             {
-                while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+                // ReadLineAsync возвращает null в конце потока — используем это вместо EndOfStream
+                // (CA2024: не блокировать async-метод синхронным EndOfStream).
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     string line;
                     try
@@ -240,7 +242,7 @@ namespace IIChatTools.Services.Implementation
                         break;
                     }
 
-                    if (line == null) break;
+                    if (line == null) break;    // конец потока
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
                     // SSE-формат: "data: {...}" или "data: [DONE]"

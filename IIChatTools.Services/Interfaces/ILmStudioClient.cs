@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -138,7 +139,7 @@ namespace IIChatTools.Services.Interfaces
             JArray messages,
             JArray tools,
             CancellationToken cancellationToken);
-            
+
         /// <summary>
         /// Возвращает список идентификаторов моделей, доступных в LM Studio (/v1/models).
         /// </summary>
