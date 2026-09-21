@@ -11,7 +11,7 @@ using Microsoft.Extensions.Localization;
 using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using IIChatTools.API.Metrics;
+using IIChatTools.Services.Metrics;
 
 namespace IIChatTools.API.Controllers
 {

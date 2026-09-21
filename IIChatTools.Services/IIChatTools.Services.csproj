@@ -33,6 +33,10 @@
     <PackageReference Include="PuppeteerSharp" Version="$(PuppeteerSharpVersion)" />
     <PackageReference Include="HtmlAgilityPack" Version="$(HtmlAgilityPackVersion)" />
     <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+
+    <!-- Prometheus метрики (exporter + HTTP-middleware).
+         GA-версия 8.2.1 — совместима с .NET 10. -->
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />    
   </ItemGroup>
 
 </Project>

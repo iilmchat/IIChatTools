@@ -32,7 +32,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using IIChatTools.API.HealthChecks;
 using IIChatTools.API.RateLimiting;
-using IIChatTools.API.Metrics;
+using IIChatTools.API.BackgroundServices;   // вместо IIChatTools.API.Metrics
 using Prometheus;
 
 namespace IIChatTools.API
@@ -96,6 +96,10 @@ namespace IIChatTools.API
             // ============ 1.3. Metrics (Prometheus) ============
             // Фоновый сервис обновляет gauge PendingApprovals/ActiveUsers.
             services.AddHostedService<MetricsRefreshBackgroundService>();
+
+            // ============ 1.4. Audit retention ============
+            // BackgroundService: чистка AuditLogs и JSONL-файлов по retention policy.
+            services.AddHostedService<AuditRetentionService>();            
 
             // ============ 2. Identity ============
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>

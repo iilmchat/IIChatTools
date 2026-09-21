@@ -1,6 +1,6 @@
 using Prometheus;
 
-namespace IIChatTools.API.Metrics
+namespace IIChatTools.Services.Metrics
 {
     /// <summary>
     /// Реестр кастомных метрик Prometheus для IIChatTools.
@@ -60,5 +60,14 @@ namespace IIChatTools.API.Metrics
             "iichattools_lmstudio_requests_total",
             "Total number of LM Studio API requests.",
             new CounterConfiguration { LabelNames = new[] { "status" } });
+            
+        /// <summary>
+        /// Счётчик удалённых записей/файлов аудита (retention policy).
+        /// Labels: <c>target</c> = "database" | "file".
+        /// </summary>
+        public static readonly Counter AuditCleanupTotal = Prometheus.Metrics.CreateCounter(
+            "iichattools_audit_cleanup_total",
+            "Total number of audit records/files deleted by retention policy.",
+            new CounterConfiguration { LabelNames = new[] { "target" } });            
     }
 }

@@ -6,8 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using IIChatTools.Services.Metrics;
 
-namespace IIChatTools.API.Metrics
+namespace IIChatTools.API.BackgroundServices
 {
     /// <summary>
     /// Фоновый сервис: раз в 30 секунд обновляет gauge-метрики

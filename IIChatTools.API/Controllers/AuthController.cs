@@ -71,7 +71,7 @@ namespace IIChatTools.API.Controllers
         /// <returns>Редирект или представление с ошибками</returns>
         [HttpPost("login")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> LoginAsync(LoginViewModel model, string returnUrl = null)
+        public async Task<IActionResult> LoginAsync([FromForm] LoginViewModel model, string returnUrl = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
 
@@ -138,7 +138,7 @@ namespace IIChatTools.API.Controllers
         /// <returns>Редирект при успехе или представление с ошибками</returns>
         [HttpPost("register")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RegisterAsync(RegisterViewModel model)
+        public async Task<IActionResult> RegisterAsync([FromForm] RegisterViewModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
