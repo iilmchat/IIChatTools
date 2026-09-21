@@ -35,6 +35,12 @@ namespace IIChatTools.API.RateLimiting
         private readonly ConcurrentDictionary<string, FixedWindowRateLimiter> _limiters =
             new ConcurrentDictionary<string, FixedWindowRateLimiter>();
 
+        // Кэш JSON-опций — исправляет CA1869 (см. KI-051).
+        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        
         /// <summary>
         /// Создаёт middleware.
         /// </summary>
@@ -80,7 +86,18 @@ namespace IIChatTools.API.RateLimiting
             _currentContext.Value = context;
             try
             {
-                var policy = SelectPolicy(path, out var policyOptions, out var partitionKey);
+                var policy = SelectPolicy(
+                    path,
+                    context.Request.Method,
+                    out var policyOptions,
+                    out var partitionKey);
+
+                // null = политика не применяется (например, GET /auth/login)
+                if (policy == null)
+                {
+                    await _next(context);
+                    return;
+                }
 
                 var limiter = _limiters.GetOrAdd($"{policy}:{partitionKey}", _ =>
                     new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
@@ -100,20 +117,39 @@ namespace IIChatTools.API.RateLimiting
                         policy, partitionKey, context.Request.Method, path,
                         context.Connection.RemoteIpAddress);
 
+                    var retryAfter = policyOptions.WindowSeconds;
+
+                    // Проверяем Accept: HTML-браузер или API-клиент.
+                    // Браузер (форма) → 303 redirect на форму с баннером.
+                    // API (JSON) → 429 с JSON-ответом.
+                    var accept = context.Request.Headers["Accept"].ToString();
+                    var isHtmlRequest = accept.Contains("text/html", StringComparison.OrdinalIgnoreCase);
+
+                    if (isHtmlRequest)
+                    {
+                        // Редиректим на GET-версию того же пути + маркеры ошибки.
+                        // 303 See Other — корректно превращает POST в GET.
+                        var currentPath = context.Request.Path.Value ?? "/";
+                        var redirectUrl = $"{currentPath}?error=ratelimit&retryAfter={retryAfter}";
+
+                        context.Response.StatusCode = StatusCodes.Status303SeeOther;
+                        context.Response.Headers["Location"] = redirectUrl;
+                        return;
+                    }
+
+                    // API-клиент — JSON
                     context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                     context.Response.ContentType = "application/json; charset=utf-8";
+                    context.Response.Headers["Retry-After"] = retryAfter.ToString();
 
                     var payload = new
                     {
                         success = false,
                         message = "Слишком много запросов. Попробуйте позже.",
-                        retryAfterSeconds = policyOptions.WindowSeconds
+                        retryAfterSeconds = retryAfter
                     };
                     await context.Response.WriteAsync(
-                        JsonSerializer.Serialize(payload, new JsonSerializerOptions
-                        {
-                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                        }));
+                        JsonSerializer.Serialize(payload, JsonOptions));
                     return;
                 }
 
@@ -129,17 +165,32 @@ namespace IIChatTools.API.RateLimiting
         /// Определяет политику для пути и вычисляет ключ партиции.
         /// </summary>
         /// <param name="path">Путь запроса</param>
+        /// <param name="httpMethod">HTTP-метод (GET, POST и т. д.)</param>
         /// <param name="policyOptions">Возвращаемые параметры выбранной политики</param>
         /// <param name="partitionKey">Возвращаемый ключ партиции</param>
-        /// <returns>Имя политики</returns>
-        private string SelectPolicy(string path, out RateLimitPolicyOptions policyOptions, out string partitionKey)
+        /// <returns>Имя политики или <c>null</c>, если лимит не применяется</returns>
+        private string SelectPolicy(
+            string path,
+            string httpMethod,
+            out RateLimitPolicyOptions policyOptions,
+            out string partitionKey)
         {
             var userId = GetUserIdFromHttpContext();
             var ip = GetIpFromHttpContext();
 
-            // /auth/* — строгая, по IP
+            // /auth/* — строгая, по IP.
+            // ВАЖНО: только POST. GET-формы (login, register) не лимитируем,
+            // иначе после redirect на ?error=ratelimit возникнет цикл редиректов.
             if (path.StartsWith("/auth", StringComparison.OrdinalIgnoreCase))
             {
+                if (HttpMethods.IsGet(httpMethod) || HttpMethods.IsHead(httpMethod))
+                {
+                    // Форма открывается без лимита
+                    policyOptions = null;
+                    partitionKey = null;
+                    return null;
+                }
+
                 policyOptions = _options.Auth;
                 partitionKey = $"ip:{ip}";
                 return "auth";

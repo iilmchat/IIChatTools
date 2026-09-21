@@ -20,9 +20,7 @@ namespace IIChatTools.API.Controllers
     /// Контроллер аутентификации: регистрация, вход, выход, выдача JWT.
     /// Первый зарегистрированный пользователь получает роль Admin.
     /// </summary>
-    [ApiController]
     [Route("auth")]
-
     public class AuthController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -55,11 +53,21 @@ namespace IIChatTools.API.Controllers
         /// Отображает страницу входа.
         /// </summary>
         /// <param name="returnUrl">URL возврата после входа</param>
+        /// <param name="error">Маркер ошибки (например, <c>ratelimit</c> — сработал rate limit)</param>
+        /// <param name="retryAfter">Через сколько секунд можно повторить (при <c>error=ratelimit</c>)</param>
         /// <returns>Razor-представление</returns>
         [HttpGet("login")]
-        public IActionResult Login(string returnUrl = null)
+        public IActionResult Login(string returnUrl = null, string error = null, int? retryAfter = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
+
+            // KI-050: маркер "сработал rate limit" — приходит из RateLimitingMiddleware
+            if (!string.IsNullOrEmpty(error) && error.Equals("ratelimit", StringComparison.OrdinalIgnoreCase))
+            {
+                ViewData["RateLimitError"] = true;
+                ViewData["RetryAfter"] = retryAfter ?? 60;
+            }
+
             return View(new LoginViewModel());
         }
 
@@ -123,10 +131,19 @@ namespace IIChatTools.API.Controllers
         /// <summary>
         /// Отображает страницу регистрации.
         /// </summary>
+        /// <param name="error">Маркер ошибки (например, <c>ratelimit</c> — сработал rate limit)</param>
+        /// <param name="retryAfter">Через сколько секунд можно повторить (при <c>error=ratelimit</c>)</param>
         /// <returns>Razor-представление</returns>
         [HttpGet("register")]
-        public IActionResult Register()
+        public IActionResult Register(string error = null, int? retryAfter = null)
         {
+            // KI-050: маркер "сработал rate limit"
+            if (!string.IsNullOrEmpty(error) && error.Equals("ratelimit", StringComparison.OrdinalIgnoreCase))
+            {
+                ViewData["RateLimitError"] = true;
+                ViewData["RetryAfter"] = retryAfter ?? 60;
+            }
+
             return View(new RegisterViewModel());
         }
 

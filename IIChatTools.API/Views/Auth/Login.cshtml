@@ -10,6 +10,13 @@
     <div class="col-md-5">
         <div class="card shadow-sm">
             <div class="card-body">
+                @if (ViewData["RateLimitError"] != null && (bool)ViewData["RateLimitError"])
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <strong>@Localizer["Слишком много попыток входа."]</strong>
+                        @Localizer["Попробуйте снова через"] @ViewData["RetryAfter"] @Localizer["секунд."]
+                    </div>
+                }                
                 <h3 class="card-title mb-4">@Localizer["Вход"]</h3>
 
                 <form asp-controller="Auth" asp-action="Login" method="post">

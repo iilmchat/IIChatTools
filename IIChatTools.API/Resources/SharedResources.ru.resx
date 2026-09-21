@@ -196,4 +196,10 @@
 
   <!-- ===== Футер ===== -->
   <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v{0}</value></data>
+
+  <!-- ===== Rate limit (KI-050) ===== -->
+  <data name="Слишком много попыток входа." xml:space="preserve"><value>Слишком много попыток входа.</value></data>
+  <data name="Слишком много попыток регистрации." xml:space="preserve"><value>Слишком много попыток регистрации.</value></data>
+  <data name="Попробуйте снова через" xml:space="preserve"><value>Попробуйте снова через</value></data>
+  <data name="секунд." xml:space="preserve"><value>секунд.</value></data>  
 </root>

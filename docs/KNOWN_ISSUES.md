@@ -298,30 +298,29 @@
 ---
 
 ### KI-050 — Rate limiting возвращает JSON на HTML-эндпоинты
-- **Приоритет:** 🟠 High | **Статус:** Open | **Запланировано:** v1.3.x
-- **Обнаружено:** 2026-09-21
-- **Файлы:** `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`, `IIChatTools.API/Controllers/AuthController.cs`, `IIChatTools.API/Views/Auth/Login.cshtml`
-- **Описание:** При превышении лимита на `/auth/login` пользователь в браузере получает сырой JSON `{"success":false,"message":"Слишком много запросов..."}`. Нет навигации, нет формы, только кнопка «Назад». Крайне плохой UX.
-- **Решение (запланировано):**
-  - В `RateLimitingMiddleware`: определять `Accept` header.
-  - Если `Accept` содержит `text/html` (браузер) → **redirect** на `/auth/login?error=ratelimit`.
-  - `AuthController.Login` (GET) — читать query-параметр, передавать в ViewData.
-  - `Login.cshtml` — показывать красный banner с текстом: «Слишком много попыток входа. Попробуйте через минуту».
-  - Если `Accept: application/json` (API-клиент) → оставить текущий JSON.
-- **Не блокер релиза:** Chat UI работает, но фикс нужен **до v1.3.0 финала**.
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.3.0
+- **Обнаружено:** 2026-09-21 | **Устранено:** 2026-09-21
+- **Файлы:** `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`, `IIChatTools.API/Controllers/AuthController.cs`, `IIChatTools.API/Views/Auth/Login.cshtml`, `IIChatTools.API/Views/Auth/Register.cshtml`, `SharedResources.resx`, `SharedResources.ru.resx`
+- **Описание:** При превышении лимита на `/auth/login` пользователь в браузере получал сырой JSON `{"success":false,...}`. Нет навигации, нет формы, только кнопка «Назад».
+- **Решение:**
+  - `RateLimitingMiddleware`: проверка `Accept: text/html` (браузер) → **303 redirect** на GET-версию формы с query `?error=ratelimit&retryAfter=N`.
+  - API-клиенты (`Accept: application/json`) — прежний 429 JSON.
+  - `AuthController.Login/Register (GET)` — читают `error=ratelimit`, передают в `ViewData`.
+  - `Login.cshtml` / `Register.cshtml` — красный `alert-danger` с текстом.
+  - 4 ключа локализации в оба `.resx` (`LocalizationSyncTests` проверяет).
+- **Результат:** пользователь видит понятный баннер, форму, может попробовать снова через N секунд.
 
 ---
 
 ### KI-051 — Полезные анализаторы C# понижены до `suggestion`
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.3.x
+- **Приоритет:** 🟢 Low | **Статус:** In Progress | **Запланировано:** v1.3.x
 - **Обнаружено:** 2026-09-21
 - **Файлы:** `.editorconfig`, `IIChatTools.Services/Implementation/ToolRegistry.cs`, `IIChatTools.Services/Implementation/LmStudioClient.cs`, `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`
-- **Описание:** Три анализатора дают 7 warnings в проекте, но это **полезные советы**, а не баги. Понижены до `suggestion`, чтобы правило «0 warnings» соблюдалось.
-  - **CA1854** — `ToolRegistry.cs:41` — `ContainsKey` + индексатор → `TryGetValue` (эффективнее).
-  - **CA2016** — `LmStudioClient.cs` (5 мест) — `cancellationToken` не передаётся в `ReadAsStringAsync`/`ReadAsStreamAsync`/`ReadLineAsync`/`GetStringAsync` (при отмене операции запрос продолжается).
-  - **CA1869** — `RateLimitingMiddleware.cs:113` — `JsonSerializerOptions` создаётся при каждом `OnRejected` (кэшировать в `static readonly`).
-- **Решение (запланировано):** Пройти по 7 местам, исправить код, вернуть `severity = warning`.
-- **Не блокер:** функциональность работает корректно, это оптимизации.
+- **Описание:** Три анализатора дают warnings. Часть исправлена.
+  - ✅ **CA1869** — `RateLimitingMiddleware.cs:113` — `JsonSerializerOptions` теперь в `static readonly`. **Fixed.**
+  - ⏳ **CA1854** — `ToolRegistry.cs:41` — `ContainsKey` + индексатор → `TryGetValue`. Запланировано.
+  - ⏳ **CA2016** — `LmStudioClient.cs` (5 мест) — `cancellationToken` не передаётся в `ReadAsStringAsync` и др. Запланировано.
+- **Решение:** Продолжить починку, вернуть `severity = warning`.
 
 ---
 
@@ -421,6 +420,9 @@
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
+| Fixed (v1.3.0) | 1 |   <!-- +KI-050 -->
+| Open | 3 |             <!-- было 4, -KI-050 -->
+| In Progress | 1 |      <!-- +KI-051 -->
 | Documented | 10 | <!--  +1 (KI-049) -->
 | Open | 3 |      <!-- было 0, +KI-046, +1 KI-050 +KI-047 (Deferred) -->
 | Deferred | 1 |  <!-- было 0 -->

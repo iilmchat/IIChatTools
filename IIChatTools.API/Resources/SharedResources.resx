@@ -198,4 +198,10 @@
   <!-- Copyright формируется в AppVersion.Copyright и используется напрямую в _Layout;
       ключ оставлен для совместимости, но с плейсхолдером версии -->
   <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v{0}</value></data>
+  
+  <!-- ===== Rate limit (KI-050) ===== -->
+  <data name="Слишком много попыток входа." xml:space="preserve"><value>Too many login attempts.</value></data>
+  <data name="Слишком много попыток регистрации." xml:space="preserve"><value>Too many registration attempts.</value></data>
+  <data name="Попробуйте снова через" xml:space="preserve"><value>Please try again in</value></data>
+  <data name="секунд." xml:space="preserve"><value>seconds.</value></data>  
 </root>
