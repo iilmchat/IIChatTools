@@ -565,8 +565,12 @@ function renderMessage(msg) {
         toolCallsHtml = renderToolCallsFromJson(msg.toolCallsJson);
     }
 
+    // User-сообщения — plain text (пользователь пишет текст, а не Markdown).
+    // Assistant — полноценный Markdown-рендер.
     const contentHtml = msg.content
-        ? `<div class="chat-message-content chat-markdown">${renderMarkdown(msg.content)}</div>`
+        ? (isUser
+            ? `<div class="chat-message-content">${renderUserContent(msg.content)}</div>`
+            : `<div class="chat-message-content chat-markdown">${renderMarkdown(msg.content)}</div>`)
         : '';
 
     // Кнопка Copy — только если есть текстовый контент
@@ -634,12 +638,12 @@ function appendUserMessage(text) {
             <div class="chat-message-avatar">👤</div>
             <div class="chat-message-body">
                 <div class="chat-message-meta">Вы · ${escapeHtml(formatTime(now))}</div>
-                <div class="chat-message-content chat-markdown">${renderMarkdown(text)}</div>
+                <div class="chat-message-content">${renderUserContent(text)}</div>
                 ${renderMessageActions(text)}
             </div>
         </div>`;
     container.insertAdjacentHTML('beforeend', html);
-    enhanceCodeBlocks(container.lastElementChild);
+    // enhanceCodeBlocks для user не нужен — там plain text без <pre><code>
     scrollToBottom();
 }
 
@@ -855,6 +859,18 @@ function readUrlChatId() {
 }
 
 // ============ Markdown rendering (Фаза 2.1.4) ============
+
+/**
+ * Рендерит содержимое user-сообщения как plain text.
+ * Экранирует HTML, сохраняет переносы строк. Markdown НЕ применяется —
+ * пользователь пишет обычный текст (ChatGPT-style), а если он использует
+ * `**bold**` или ` ``` ` — они отображаются как есть.
+ * @param {string} text
+ * @returns {string} Безопасный HTML
+ */
+function renderUserContent(text) {
+    return escapeHtml(text || '').replace(/\n/g, '<br>');
+}
 
 /**
  * Рендерит Markdown в безопасный HTML через marked + DOMPurify.
