@@ -3,8 +3,13 @@
  * Отображает модальное окно, ожидает решения пользователя, отправляет решение на сервер.
  *
  * Используется в двух сценариях:
- *   1. /test         — старый flow через PendingActions: /api/approvals/{actionId}/...
- *   2. /chat         — новый flow через IChatApprovalCoordinator: /api/chat/approvals/{callId}/...
+ *   1. /test  — старый flow через PendingActions: /api/approvals/{actionId}/...
+ *   2. /chat  — новый flow через IChatApprovalCoordinator: /api/chat/approvals/{callId}/...
+ *
+ * Особенности UX:
+ *   - Модалку можно перетаскивать за заголовок (drag-and-drop).
+ *   - Закрытие крестиком (X) = Reject: автоматически отправляется reject на сервер.
+ *   - При Reject в /chat причина не запрашивается (см. Q6 Фазы 1.7).
  *
  * © 2026 RuChating (iilmchat) · IIChatTools v1.3
  */
@@ -84,7 +89,13 @@ function _showApprovalModal({ toolName, parametersJson, expiresAt, approveUrl, r
         const approveBtn = document.getElementById('approval-approve');
         const rejectBtn = document.getElementById('approval-reject');
 
-        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+        // backdrop: static — клик по фону не закрывает; keyboard: false — Escape не закрывает.
+        // Крестик остаётся как единственный способ закрыть без решения (но см. ниже: X = Reject).
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+            backdrop: 'static',
+            keyboard: false,
+        });
+
         let settled = false;
         let timer = null;
 
@@ -115,26 +126,40 @@ function _showApprovalModal({ toolName, parametersJson, expiresAt, approveUrl, r
         timer = setInterval(updateCountdown, 1000);
         updateCountdown();
 
+        /**
+         * Отправляет решение на сервер и резолвит promise.
+         * @param {'approve'|'reject'} action
+         * @param {string} [reason] — только для reject (в /test)
+         */
+        const sendDecision = async (action, reason = '') => {
+            const url = action === 'approve' ? approveUrl : rejectUrl;
+            const body = action === 'reject' && askReason ? { reason } : {};
+            try {
+                const res = await apiPost(url, body);
+                modal.hide();
+                if (!res.success) {
+                    const msg = res.message || 'Ошибка';
+                    toast(msg, 'error');
+                    resolve({ decision: 'rejected', reason: msg });
+                    return;
+                }
+                resolve(action === 'approve'
+                    ? { decision: 'approved' }
+                    : { decision: 'rejected', reason });
+            } catch (ex) {
+                modal.hide();
+                const msg = ex.message || 'Ошибка соединения';
+                toast(msg, 'error');
+                resolve({ decision: 'rejected', reason: msg });
+            }
+        };
+
         const onApprove = async () => {
             if (settled) return;
             settled = true;
             cleanup();
             approveBtn.disabled = rejectBtn.disabled = true;
-
-            try {
-                const res = await apiPost(approveUrl, {});
-                modal.hide();
-                if (!res.success) {
-                    toast(res.message || 'Ошибка подтверждения', 'error');
-                    resolve({ decision: 'rejected', reason: res.message || 'Ошибка подтверждения' });
-                    return;
-                }
-                resolve({ decision: 'approved' });
-            } catch (ex) {
-                modal.hide();
-                toast(ex.message || 'Ошибка подтверждения', 'error');
-                resolve({ decision: 'rejected', reason: ex.message || 'Ошибка подтверждения' });
-            }
+            await sendDecision('approve');
         };
 
         const onReject = async () => {
@@ -145,38 +170,117 @@ function _showApprovalModal({ toolName, parametersJson, expiresAt, approveUrl, r
             let reason = '';
             if (askReason) {
                 const raw = prompt('Причина отклонения (необязательно):', '');
-                if (raw === null) return;   // отмена диалога — модалка остаётся
+                if (raw === null) return;   // отмена диалога — модалка остаётся, settled = false
                 reason = raw.trim();
             }
 
             settled = true;
             cleanup();
             approveBtn.disabled = rejectBtn.disabled = true;
-
-            try {
-                const res = await apiPost(rejectUrl, askReason ? { reason } : {});
-                modal.hide();
-                if (!res.success) {
-                    toast(res.message || 'Ошибка отклонения', 'error');
-                    resolve({ decision: 'rejected', reason: res.message || 'Ошибка отклонения' });
-                    return;
-                }
-                resolve({ decision: 'rejected', reason });
-            } catch (ex) {
-                modal.hide();
-                toast(ex.message || 'Ошибка отклонения', 'error');
-                resolve({ decision: 'rejected', reason: ex.message || 'Ошибка отклонения' });
-            }
+            await sendDecision('reject', reason);
         };
 
         approveBtn.addEventListener('click', onApprove);
         rejectBtn.addEventListener('click', onReject);
 
-        // Восстанавливаем кнопки при следующем открытии модалки
-        modalEl.addEventListener('hidden.bs.modal', () => {
+        // При закрытии модалки (в т.ч. крестиком) — финализируем promise.
+        // Если решение уже принято (settled) — просто восстанавливаем UI.
+        // Если закрыли без решения (X) — считаем это Reject и отправляем на сервер,
+        // чтобы не оставить SSE-стрим висеть 5 минут.
+        const onHidden = () => {
+            // Восстанавливаем кнопки для следующего открытия
             approveBtn.disabled = rejectBtn.disabled = false;
-        });
+
+            if (settled) return;
+
+            settled = true;
+            cleanup();
+            // Огонь-и-забыли: reject на сервер, стрим продолжается, LLM получит ToolResult.Fail.
+            const reason = askReason ? 'Закрыто пользователем' : '';
+            sendDecision('reject', reason);
+        };
+        // once: true — снимается после первого закрытия; при повторном modal.show() добавляется заново.
+        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+
+        // Drag-and-drop по заголовку модалки
+        _makeDraggable(modalEl);
 
         modal.show();
     });
+}
+
+/**
+ * Делает модалку перетаскиваемой за заголовок (только для текущего экземпляра).
+ * При закрытии — стили сбрасываются (см. _resetModalDrag).
+ * @param {HTMLElement} modalEl
+ */
+function _makeDraggable(modalEl) {
+    const dialog = modalEl.querySelector('.modal-dialog');
+    const header = modalEl.querySelector('.modal-header');
+    if (!dialog || !header) return;
+
+    // Помечаем заголовок как «перетаскиваемый» (курсор move)
+    header.classList.add('approval-modal-draggable');
+
+    let dragging = false;
+    let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+    const onMouseDown = (e) => {
+        // Не перетаскивать, если пользователь кликнул по кнопке (X, Закрыть) или ссылке
+        if (e.target.closest('button, a, input, select, textarea')) return;
+        e.preventDefault();
+
+        const rect = dialog.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = rect.left;
+        startTop = rect.top;
+
+        // Переводим dialog в position:fixed (иначе Bootstrap transform:translate сломает координаты)
+        dialog.style.position = 'fixed';
+        dialog.style.margin = '0';
+        dialog.style.left = `${startLeft}px`;
+        dialog.style.top = `${startTop}px`;
+        dialog.style.width = `${rect.width}px`;
+        dialog.style.transform = 'none';
+        dialog.style.maxWidth = `${rect.width}px`;
+
+        dragging = true;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
+
+    const onMouseMove = (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        dialog.style.left = `${startLeft + dx}px`;
+        dialog.style.top = `${startTop + dy}px`;
+    };
+
+    const onMouseUp = () => {
+        dragging = false;
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    // Сбрасываем drag-стили при закрытии модалки
+    const resetDrag = () => {
+        dialog.style.position = '';
+        dialog.style.margin = '';
+        dialog.style.left = '';
+        dialog.style.top = '';
+        dialog.style.width = '';
+        dialog.style.transform = '';
+        dialog.style.maxWidth = '';
+        header.classList.remove('approval-modal-draggable');
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.userSelect = '';
+    };
+    modalEl.addEventListener('hidden.bs.modal', resetDrag, { once: true });
+
+    header.addEventListener('mousedown', onMouseDown);
 }

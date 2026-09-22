@@ -390,3 +390,17 @@
     max-height: 200px;
     transition: height .1s;
 }
+
+/* ============ Drag-and-drop модалки approval (v1.3 Фаза 2.0.4 fix) ============ */
+
+/* Курсор «move» для заголовка, когда он перетаскиваемый */
+.approval-modal-draggable {
+    cursor: move;
+    user-select: none;
+}
+
+/* Во время перетаскивания отключаем выделение текста глобально
+   (управляется через body.style.userSelect в JS, здесь — защита от случайных стилей) */
+body.approval-dragging {
+    user-select: none;
+}
