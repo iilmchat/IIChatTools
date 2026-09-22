@@ -86,8 +86,8 @@
     color: rgba(255, 255, 255, .75);
 }
 
-/* Кнопка удаления чата (появляется при hover / на активном) */
-.chat-list-item-delete {
+/* Кнопки действий в sidebar (edit, delete) — появляются при hover / на активном */
+.chat-list-item-action {
     flex-shrink: 0;
     width: 24px;
     height: 24px;
@@ -107,24 +107,35 @@
     transition: opacity .15s, background-color .15s, color .15s;
 }
 
-.chat-list-item:hover .chat-list-item-delete,
-.chat-list-item.active .chat-list-item-delete {
+.chat-list-item:hover .chat-list-item-action,
+.chat-list-item.active .chat-list-item-action {
     opacity: .7;
     visibility: visible;
 }
 
-.chat-list-item-delete:hover {
+.chat-list-item-action:hover {
     opacity: 1;
     background: rgba(0, 0, 0, .08);
+}
+
+.chat-list-item-edit:hover {
+    color: #0d6efd;
+}
+
+.chat-list-item-delete:hover {
     color: #dc3545;
 }
 
-.chat-list-item.active .chat-list-item-delete:hover {
+.chat-list-item.active .chat-list-item-action:hover {
     background: rgba(255, 255, 255, .25);
+}
+
+.chat-list-item.active .chat-list-item-edit:hover,
+.chat-list-item.active .chat-list-item-delete:hover {
     color: #fff;
 }
 
-.chat-list-item-delete:focus-visible {
+.chat-list-item-action:focus-visible {
     opacity: 1;
     outline: 2px solid #0d6efd;
     outline-offset: 1px;

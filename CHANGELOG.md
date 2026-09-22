@@ -58,7 +58,7 @@
   - Минимальное отображение tool calls (серые блоки с именем инструмента).
   - Автоскролл к последнему сообщению.
   - `chat.css` дополнен стилями сообщений и tool-блоков.
-  - **Chat UI — SSE-стриминг (v1.3 Фаза 2.0.3)**: `chat.js` умеет отправлять сообщения и стримить ответ:
+- **Chat UI — SSE-стриминг (v1.3 Фаза 2.0.3)**: `chat.js` умеет отправлять сообщения и стримить ответ:
   - `sendMessage()` — `POST /api/chat/stream` с `useTools: true`.
   - `readSseStream()` — чтение SSE через `fetch` + `ReadableStream`.
   - `handleSseEvent()` — обработка `start`/`delta`/`done`/`error`/`tool_call`/`tool_result`.
@@ -68,13 +68,19 @@
   - Enter — отправка, Shift+Enter — новая строка, автоувеличение textarea.
   - Локальное обновление `UpdatedAt` в sidebar после `done`.
   - `chat.css`: стили `chat-typing-indicator`, `chat-message-streaming`, `chat-message-error`, `chat-tool-result.success/error`.
-  - **Chat UI — Approvals (v1.3 Фаза 2.0.4)**: интеграция `_ApprovalModal` в чат.
+- **Chat UI — Approvals (v1.3 Фаза 2.0.4)**: интеграция `_ApprovalModal` в чат.
   - `approvals.js`: рефакторинг — общая логика вынесена в `_showApprovalModal({ approveUrl, rejectUrl, askReason })`.
   - Новый экспорт `requestChatApproval(callId, ...)` — для flow `/api/chat/approvals/{callId}/...` (без prompt причины, см. Q6 Фазы 1.7).
   - `requestApproval(actionId, ...)` — сохранён (обратная совместимость с `/test`).
   - `chat.js`: обработка SSE-события `tool_approval_required` — показ модалки (fire-and-forget, не блокирует SSE reader).
   - `chat.js`: `tool_approval_resolved` — логирование (UI-индикатор — v1.3.x).
   - Стрим продолжается автоматически после решения: `tool_approval_resolved` → `tool_result` → `delta` → `done`.
+- **Chat UI — переименование + авто-нумерация (v1.3 Фаза 2.0.5a)**:
+  - Кнопка ✏️ в sidebar рядом с 🗑 (появляется при hover / на активном чате).
+  - `renameChat(id)` — `prompt()` с текущим именем → `PATCH /api/chats/{id}` (`{ title }`). Пустое имя отклоняется; при совпадении с текущим — no-op.
+  - Локальное обновление `state.chats` + синхронизация с header для активного чата.
+  - `generateNextChatTitle()` — авто-нумерация «Новый чат», «Новый чат 2», «Новый чат 3», … (учитывает максимальный существующий N).
+  - `chat.css`: `.chat-list-item-delete` → `.chat-list-item-action` (общий класс для edit/delete), разные цвета hover (edit — синий, delete — красный).
 
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.

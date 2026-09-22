@@ -118,15 +118,23 @@ function renderChatList() {
                     <div class="chat-list-item-title">${title}</div>
                     <div class="chat-list-item-meta">${escapeHtml(formatRelativeDate(chat.updatedAt))}</div>
                 </div>
-                <button type="button" class="chat-list-item-delete"
-                        data-delete-id="${chat.id}" title="Удалить чат"
-                        aria-label="Удалить чат">🗑</button>
+                <button type="button"
+                        class="chat-list-item-action chat-list-item-edit"
+                        data-edit-id="${chat.id}"
+                        title="Переименовать"
+                        aria-label="Переименовать">✏️</button>
+                <button type="button"
+                        class="chat-list-item-action chat-list-item-delete"
+                        data-delete-id="${chat.id}"
+                        title="Удалить"
+                        aria-label="Удалить">🗑</button>
             </div>`;
     }).join('');
 
     listEl.querySelectorAll('[data-chat-id]').forEach(el => {
         el.addEventListener('click', (e) => {
-            if (e.target.closest('[data-delete-id]')) return;
+            // Игнорируем клики по кнопкам действий
+            if (e.target.closest('[data-delete-id]') || e.target.closest('[data-edit-id]')) return;
             e.preventDefault();
             selectChat(parseInt(el.dataset.chatId, 10));
         });
@@ -137,6 +145,14 @@ function renderChatList() {
             e.preventDefault();
             e.stopPropagation();
             deleteChat(parseInt(btn.dataset.deleteId, 10));
+        });
+    });
+
+    listEl.querySelectorAll('[data-edit-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            renameChat(parseInt(btn.dataset.editId, 10));
         });
     });
 }
@@ -153,7 +169,7 @@ async function createChat() {
     try {
         const res = await apiPost('/api/chats', {
             model: state.defaultModel,
-            title: 'Новый чат',
+            title: generateNextChatTitle(),
         });
 
         if (!res.success) {
@@ -215,6 +231,86 @@ async function deleteChat(chatId) {
     } catch (ex) {
         toast(ex.message || 'Ошибка удаления чата', 'error');
     }
+}
+
+// ============ Переименование чата (Фаза 2.0.5a) ============
+
+/**
+ * Переименовывает чат через prompt(). Пустое имя — отклоняется.
+ * @param {number} chatId Идентификатор чата
+ */
+async function renameChat(chatId) {
+    const chat = state.chats.find(c => c.id === chatId);
+    if (!chat) return;
+
+    const currentTitle = chat.title || '';
+    const raw = prompt('Новое имя чата:', currentTitle);
+    if (raw === null) return;   // отмена
+
+    const newTitle = raw.trim();
+    if (!newTitle) {
+        toast('Имя не может быть пустым', 'warning');
+        return;
+    }
+    if (newTitle === currentTitle) return;   // без изменений
+
+    try {
+        const res = await fetch(`/api/chats/${chatId}`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: newTitle }),
+        }).then(r => r.json());
+
+        if (!res.success) {
+            toast(res.message || 'Ошибка переименования', 'error');
+            return;
+        }
+
+        // Локальное обновление
+        chat.title = newTitle;
+        renderChatList();
+
+        // Синхронизация header, если это активный чат
+        if (state.activeChatId === chatId && state.activeChat) {
+            state.activeChat.title = newTitle;
+            renderChatHeader(state.activeChat);
+        }
+
+        toast('Чат переименован', 'success');
+    } catch (ex) {
+        toast(ex.message || 'Ошибка переименования', 'error');
+    }
+}
+
+// ============ Авто-нумерация «Новый чат N» (Фаза 2.0.5c) ============
+
+/**
+ * Генерирует имя для нового чата по аналогии с ChatGPT:
+ * «Новый чат», «Новый чат 2», «Новый чат 3», ...
+ * Учитывает существующие чаты (максимальный N + 1).
+ * @returns {string} Имя нового чата
+ */
+function generateNextChatTitle() {
+    const re = /^Новый чат(?:\s+(\d+))?$/;
+    let hasBase = false;
+    let maxN = 1;
+
+    for (const c of state.chats) {
+        const m = re.exec(c.title || '');
+        if (!m) continue;
+        if (m[1]) {
+            const n = parseInt(m[1], 10);
+            if (Number.isFinite(n) && n > maxN) maxN = n;
+        } else {
+            hasBase = true;
+        }
+    }
+
+    // Первый чат — «Новый чат» (без номера)
+    if (!hasBase && maxN === 1) return 'Новый чат';
+    // Последующие — «Новый чат N»
+    return `Новый чат ${maxN + 1}`;
 }
 
 // ============ SSE — отправка сообщения ============
