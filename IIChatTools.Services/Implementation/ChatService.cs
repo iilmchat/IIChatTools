@@ -235,5 +235,25 @@ namespace IIChatTools.Services.Implementation
 
             return chatCount;
         }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyDictionary<int, int>> GetMessageCountsAsync(
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            // Используем Contains по Id чатов пользователя — портируемо на SQL Server/SQLite/InMemory.
+            var chatIds = _dbContext.Chats
+                .Where(c => c.UserId == userId)
+                .Select(c => c.Id);
+
+            var counts = await _dbContext.ChatMessages
+                .AsNoTracking()
+                .Where(m => chatIds.Contains(m.ChatId))
+                .GroupBy(m => m.ChatId)
+                .Select(g => new { ChatId = g.Key, Count = g.Count() })
+                .ToListAsync(cancellationToken);
+
+            return counts.ToDictionary(x => x.ChatId, x => x.Count);
+        }
     }
 }

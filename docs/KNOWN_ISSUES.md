@@ -266,13 +266,13 @@
 
 ---
 
-### KI-046 — MessageCount в ChatListItemDto всегда 0
-- **Приоритет:** 🟢 Low | **Статус:** Open | **Запланировано:** v1.3.0
-- **Обнаружено:** 2026-09-21
-- **Файлы:** `IIChatTools.API/Controllers/ChatController.cs`, `IIChatTools.Services/Implementation/ChatService.cs`
-- **Описание:** В `ChatListItemDto.MessageCount` возвращается 0 (заглушка) — для sidebar не критично, но приятнее показывать число сообщений в чате.
-- **Решение:** Добавить в `IChatService` метод `GetMessageCountsAsync(int userId)`, возвращающий `Dictionary<int, int>` (chatId → count). Один SQL-запрос `GROUP BY ChatId`.
-- **Не блокер:** UI работает без счётчика.
+### KI-046 — MessageCount в ChatListItemDto — реализовано в v1.3.0
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.0 Фаза 2.0.6a
+- **Обнаружено:** 2026-09-21 | **Устранено:** 2026-09-22
+- **Файлы:** `IIChatTools.API/Controllers/ChatController.cs`, `IIChatTools.Services/Implementation/ChatService.cs`, `IIChatTools.Services/Interfaces/IChatService.cs`
+- **Описание:** В `ChatListItemDto.MessageCount` возвращался 0 (заглушка).
+- **Решение:** Добавлен метод `IChatService.GetMessageCountsAsync(int userId)`, возвращающий `IReadOnlyDictionary<int, int>` (chatId → count). Один SQL-запрос с `GROUP BY ChatId` (через `Contains` по Id чатов пользователя — портируемо на SQL Server/SQLite/InMemory). `ChatController.GetChatsAsync` совмещает результат с `GetUserChatsAsync` через `TryGetValue`.
+- **Проверено:** `GET /api/chats` возвращает `messageCount > 0` для чатов с историей.
 
 ---
 

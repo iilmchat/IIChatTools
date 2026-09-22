@@ -52,6 +52,7 @@ namespace IIChatTools.API.Controllers
             {
                 var userId = GetCurrentUserId();
                 var chats = await _chatService.GetUserChatsAsync(userId);
+                var counts = await _chatService.GetMessageCountsAsync(userId);
 
                 var data = chats.Select(c => new ChatListItemDto
                 {
@@ -59,8 +60,7 @@ namespace IIChatTools.API.Controllers
                     Title = c.Title,
                     Model = c.Model,
                     UpdatedAt = c.UpdatedAt,
-                    // MessageCount = 0 до реализации отдельного метода подсчёта (см. KI-046).
-                    MessageCount = 0
+                    MessageCount = counts.TryGetValue(c.Id, out var cnt) ? cnt : 0
                 }).ToList();
 
                 return Ok(new { success = true, data });

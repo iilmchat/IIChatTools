@@ -106,5 +106,16 @@ namespace IIChatTools.Services.Interfaces
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Количество удалённых чатов</returns>
         Task<int> DeleteOldChatsAsync(int retentionDays, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Возвращает количество сообщений для каждого чата пользователя.
+        /// Один SQL-запрос с GROUP BY — используется для sidebar (KI-046).
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Словарь chatId → количество сообщений (чаты без сообщений отсутствуют)</returns>
+        Task<IReadOnlyDictionary<int, int>> GetMessageCountsAsync(
+            int userId,
+            CancellationToken cancellationToken = default);
     }
 }
