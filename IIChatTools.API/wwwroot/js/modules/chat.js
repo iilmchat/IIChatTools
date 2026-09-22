@@ -80,6 +80,8 @@ function bindEvents() {
     const messagesEl = document.getElementById('chat-messages');
     if (messagesEl) {
         messagesEl.addEventListener('scroll', onMessagesScroll);
+        // Делегированный обработчик кнопок действий с сообщением (Copy)
+        messagesEl.addEventListener('click', onMessageActionClick);
     }
 
     // Динамически создаём кнопку «↓ Вниз» (не трогаем Razor)
@@ -566,6 +568,11 @@ function renderMessage(msg) {
         ? `<div class="chat-message-content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>`
         : '';
 
+    // Кнопка Copy — только если есть текстовый контент
+    const actionsHtml = msg.content
+        ? renderMessageActions(msg.content)
+        : '';
+
     return `
         <div class="chat-message ${isUser ? 'user' : 'assistant'}">
             <div class="chat-message-avatar">${avatar}</div>
@@ -573,6 +580,7 @@ function renderMessage(msg) {
                 <div class="chat-message-meta">${roleLabel} · ${escapeHtml(formatTime(msg.createdAt))}</div>
                 ${toolCallsHtml}
                 ${contentHtml}
+                ${actionsHtml}
             </div>
         </div>`;
 }
@@ -626,6 +634,7 @@ function appendUserMessage(text) {
             <div class="chat-message-body">
                 <div class="chat-message-meta">Вы · ${escapeHtml(formatTime(now))}</div>
                 <div class="chat-message-content">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
+                ${renderMessageActions(text)}
             </div>
         </div>`;
     container.insertAdjacentHTML('beforeend', html);
@@ -653,6 +662,7 @@ function appendAssistantBubble() {
                 <div class="chat-typing-indicator" data-typing hidden>
                     <span></span><span></span><span></span>
                 </div>
+                ${renderMessageActions('')}
             </div>
         </div>`;
 
@@ -686,6 +696,12 @@ function appendDelta(bubble, text) {
     // Накопление текста + сохранение в dataset для финализации
     el.dataset.raw = (el.dataset.raw || '') + text;
     el.innerHTML = escapeHtml(el.dataset.raw).replace(/\n/g, '<br>');
+
+    // Синхронизация текста для Copy (кнопка может быть нажата во время стрима)
+    const actionsEl = bubble.querySelector('.chat-message-actions');
+    if (actionsEl) {
+        actionsEl.dataset.copyText = el.dataset.raw;
+    }
 
     scrollToBottom();
 }
@@ -818,6 +834,109 @@ function readUrlChatId() {
     if (!raw) return null;
     const id = parseInt(raw, 10);
     return Number.isFinite(id) ? id : null;
+}
+
+// ============ Действия с сообщениями (Фаза 2.1.1 — Copy) ============
+
+/**
+ * Рендерит блок действий сообщения (Copy).
+ * @param {string} text Текст для копирования (пустой у streaming-bubble)
+ * @returns {string} HTML
+ */
+function renderMessageActions(text) {
+    const attr = escapeAttr(text || '');
+    return `
+        <div class="chat-message-actions" data-copy-text="${attr}">
+            <button type="button"
+                    class="chat-message-action"
+                    data-action="copy"
+                    title="Скопировать"
+                    aria-label="Скопировать сообщение">📋</button>
+        </div>`;
+}
+
+/**
+ * Делегированный обработчик клика по кнопкам действий в ленте сообщений.
+ * @param {MouseEvent} e
+ */
+async function onMessageActionClick(e) {
+    const btn = e.target.closest('[data-action="copy"]');
+    if (!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const actionsEl = btn.closest('.chat-message-actions');
+    const text = actionsEl?.dataset.copyText || '';
+
+    if (!text) {
+        toast('Нечего копировать', 'warning');
+        return;
+    }
+
+    try {
+        await copyToClipboard(text);
+        flashCopied(btn);
+    } catch (ex) {
+        console.error('[chat] Копирование не удалось:', ex);
+        toast('Не удалось скопировать', 'error');
+    }
+}
+
+/**
+ * Копирует текст в clipboard. Использует navigator.clipboard,
+ * fallback — execCommand('copy') через временный textarea (для HTTP).
+ * @param {string} text
+ * @returns {Promise<void>}
+ */
+async function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    // Fallback для HTTP / старых браузеров
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+    } finally {
+        document.body.removeChild(ta);
+    }
+}
+
+/**
+ * Кратковременно показывает ✅ на кнопке Copy.
+ * @param {HTMLElement} btn
+ */
+function flashCopied(btn) {
+    const original = btn.textContent;
+    btn.textContent = '✅';
+    btn.classList.add('copied');
+    btn.disabled = true;
+
+    setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove('copied');
+        btn.disabled = false;
+    }, 1500);
+}
+
+/**
+ * Экранирует текст для использования в HTML-атрибуте.
+ * Отличается от escapeHtml тем, что переносы строк кодируются как &#10;
+ * (браузер декодирует их обратно в \n при чтении через dataset).
+ * @param {string} text
+ * @returns {string}
+ */
+function escapeAttr(text) {
+    return escapeHtml(text || '').replace(/\n/g, '&#10;');
 }
 
 // ============ Утилиты ============

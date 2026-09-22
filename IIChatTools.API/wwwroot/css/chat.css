@@ -455,3 +455,60 @@ body.approval-dragging {
 .chat-scroll-down[hidden] {
     display: none !important;
 }
+
+/* ============ Действия с сообщением (Фаза 2.1.1 — Copy) ============ */
+
+.chat-message-actions {
+    display: flex;
+    gap: .25rem;
+    margin-top: .35rem;
+    opacity: 0;
+    transition: opacity .15s;
+}
+
+.chat-message:hover .chat-message-actions,
+.chat-message:focus-within .chat-message-actions {
+    opacity: 1;
+}
+
+.chat-message.user .chat-message-actions {
+    justify-content: flex-end;
+}
+
+.chat-message-action {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #dee2e6;
+    border-radius: .25rem;
+    background: #fff;
+    color: #6c757d;
+    font-size: .85rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+.chat-message-action:hover {
+    background: #f1f3f5;
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.chat-message-action:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 1px;
+}
+
+.chat-message-action:disabled {
+    cursor: default;
+}
+
+.chat-message-action.copied {
+    color: #198754;
+    border-color: #198754;
+    background: #d1e7dd;
+}
