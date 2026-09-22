@@ -83,6 +83,35 @@ namespace IIChatTools.Tests.IntegrationTests
         }
 
         /// <summary>
+        /// Fake-координатор подтверждений — мгновенно отдаёт заданное решение.
+        /// В тестах approval-инструментов возвращает Rejected, чтобы проверять
+        /// отрицательный сценарий без ожидания.
+        /// </summary>
+        private sealed class FakeApprovalCoordinator : IChatApprovalCoordinator
+        {
+            public ChatApprovalDecision NextDecision { get; set; } = ChatApprovalDecision.Rejected;
+
+            /// <summary>Счётчик вызовов WaitForDecisionAsync.</summary>
+            public int WaitCallCount { get; private set; }
+
+            /// <summary>Список callId, по которым было ожидание.</summary>
+            public List<string> WaitedCallIds { get; } = new List<string>();
+
+            public Task<ChatApprovalDecision> WaitForDecisionAsync(
+                string callId,
+                TimeSpan timeout,
+                CancellationToken cancellationToken = default)
+            {
+                WaitCallCount++;
+                WaitedCallIds.Add(callId);
+                return Task.FromResult(NextDecision);
+            }
+
+            public Task<bool> ResolveAsync(string callId, ChatApprovalDecision decision)
+                => Task.FromResult(true);
+        }
+
+        /// <summary>
         /// Реестр fake-инструментов: позволяет зарегистрировать инструменты
         /// с настраиваемыми Name/RequiresApprovalByDefault/Result.
         /// </summary>
@@ -174,8 +203,8 @@ namespace IIChatTools.Tests.IntegrationTests
 
             var effectiveRegistry = registry ?? new EmptyToolRegistry();
             var fakeResolver = new FakeWorkspaceResolver();
+            var fakeApproval = new FakeApprovalCoordinator();
 
-            // Пустая конфигурация с SubAgent:DefaultAllowedTools (для tool-calling тестов)
             var effectiveConfig = config ?? new ConfigurationBuilder().Build();
 
             var service = new ChatStreamService(
@@ -183,6 +212,7 @@ namespace IIChatTools.Tests.IntegrationTests
                 fakeLm,
                 effectiveRegistry,
                 fakeResolver,
+                fakeApproval,
                 effectiveConfig,
                 NullLogger<ChatStreamService>.Instance);
 
@@ -448,11 +478,28 @@ namespace IIChatTools.Tests.IntegrationTests
             Assert.Equal("save_file", toolCallDto.Name);
             Assert.True(toolCallDto.RequiresApproval);
 
-            // Assert: tool_result success=false + сообщение про подтверждение
+            // Assert: SSE-события approval
+            var approvalRequiredEvent = events.FirstOrDefault(e => e.Type == "tool_approval_required");
+            var approvalResolvedEvent = events.FirstOrDefault(e => e.Type == "tool_approval_resolved");
+            Assert.NotNull(approvalRequiredEvent);
+            Assert.NotNull(approvalResolvedEvent);
+
+            // Assert: approval_required
+            var approvalRequiredDto = (ChatApprovalRequiredDto)approvalRequiredEvent.Data;
+            Assert.Equal("call_2", approvalRequiredDto.Id);
+            Assert.Equal("save_file", approvalRequiredDto.Name);
+            Assert.NotNull(approvalRequiredDto.Arguments);
+
+            // Assert: approval_resolved
+            var approvalResolvedDto = (ChatApprovalResolvedDto)approvalResolvedEvent.Data;
+            Assert.Equal("call_2", approvalResolvedDto.Id);
+            Assert.Equal("rejected", approvalResolvedDto.Decision);
+
+            // Assert: tool_result success=false + сообщение про отклонение
             var toolResultEvent = events.First(e => e.Type == "tool_result");
             var toolResultDto = (ChatToolResultDto)toolResultEvent.Data;
             Assert.False(toolResultDto.Success);
-            Assert.Contains("Требуется подтверждение", toolResultDto.Message);
+            Assert.Contains("Пользователь отклонил", toolResultDto.Message);
 
             // Assert: 4 сообщения в БД
             var messages = await chatService.GetMessagesAsync(chatId, userId, 50);

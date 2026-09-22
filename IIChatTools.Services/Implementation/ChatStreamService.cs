@@ -36,6 +36,7 @@ namespace IIChatTools.Services.Implementation
         private readonly ILmStudioClient _lmStudioClient;
         private readonly IToolRegistry _toolRegistry;
         private readonly IWorkspaceResolver _workspaceResolver;
+        private readonly IChatApprovalCoordinator _approvalCoordinator;
         private readonly IConfiguration _configuration;
         private readonly ILogger<ChatStreamService> _logger;
 
@@ -46,6 +47,7 @@ namespace IIChatTools.Services.Implementation
         /// <param name="lmStudioClient">Клиент LM Studio (SSE)</param>
         /// <param name="toolRegistry">Реестр инструментов (для tool calling в чате)</param>
         /// <param name="workspaceResolver">Резолвер рабочего пространства пользователя</param>
+        /// <param name="approvalCoordinator">Координатор подтверждений tool call (Singleton)</param>
         /// <param name="configuration">Конфигурация приложения (для SubAgent:DefaultAllowedTools)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
@@ -54,6 +56,7 @@ namespace IIChatTools.Services.Implementation
             ILmStudioClient lmStudioClient,
             IToolRegistry toolRegistry,
             IWorkspaceResolver workspaceResolver,
+            IChatApprovalCoordinator approvalCoordinator,
             IConfiguration configuration,
             ILogger<ChatStreamService> logger)
         {
@@ -61,6 +64,7 @@ namespace IIChatTools.Services.Implementation
             _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
             _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
             _workspaceResolver = workspaceResolver ?? throw new ArgumentNullException(nameof(workspaceResolver));
+            _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -301,7 +305,7 @@ namespace IIChatTools.Services.Implementation
                     var descriptor = _toolRegistry.GetDescriptor(functionName);
                     var requiresApproval = descriptor?.RequiresApprovalByDefault ?? true;
 
-                    // SSE-событие: tool_call
+                    // SSE-событие: tool_call (requiresApproval → UI покажет модалку)
                     yield return ChatStreamEvent.ToolCall(new ChatToolCallDto
                     {
                         Id = callId,
@@ -310,23 +314,77 @@ namespace IIChatTools.Services.Implementation
                         RequiresApproval = requiresApproval
                     });
 
-                    // Выполнение (или fail для approval)
                     ToolResult toolResult;
+
                     if (requiresApproval)
                     {
-                        toolResult = ToolResult.Fail(
-                            "Требуется подтверждение пользователя. Функция доступна в v1.3 Фаза 1.7.");
+                        // Фаза 1.7 — ожидание решения пользователя (5 минут)
+                        var expiresAt = DateTime.UtcNow.AddMinutes(5);
+
+                        yield return ChatStreamEvent.ToolApprovalRequired(new ChatApprovalRequiredDto
+                        {
+                            Id = callId,
+                            Name = functionName,
+                            Arguments = args,
+                            ExpiresAt = expiresAt
+                        });
+
+                        _logger.LogInformation(
+                            "Ожидание approval: callId={CallId}, tool={Tool}, chatId={ChatId}",
+                            callId, functionName, request.ChatId);
+
+                        var decision = await _approvalCoordinator.WaitForDecisionAsync(
+                            callId,
+                            TimeSpan.FromMinutes(5),
+                            cancellationToken);
+
+                        yield return ChatStreamEvent.ToolApprovalResolved(new ChatApprovalResolvedDto
+                        {
+                            Id = callId,
+                            Decision = decision.ToString().ToLowerInvariant()
+                        });
+
+                        if (decision == ChatApprovalDecision.Approved)
+                        {
+                            // Пользователь подтвердил — выполняем
+                            var workspaceRoot = await _workspaceResolver.GetWorkspacePathAsync(userId);
+                            var execContext = new ToolExecutionContext
+                            {
+                                UserId = userId,
+                                WorkspaceRoot = workspaceRoot,
+                                ClientIp = null,
+                                CancellationToken = cancellationToken
+                            };
+
+                            try
+                            {
+                                toolResult = await _toolRegistry.ExecuteAsync(functionName, execContext, args);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Ошибка выполнения инструмента {Tool} после approval", functionName);
+                                toolResult = ToolResult.Fail($"Ошибка выполнения: {ex.Message}");
+                            }
+                        }
+                        else if (decision == ChatApprovalDecision.Expired)
+                        {
+                            toolResult = ToolResult.Fail(
+                                "Время подтверждения истекло (5 минут). Действие не выполнено.");
+                        }
+                        else
+                        {
+                            toolResult = ToolResult.Fail("Пользователь отклонил вызов инструмента.");
+                        }
                     }
                     else
                     {
-                        // Workspace — через резолвер (путь вида …/users/{userId})
+                        // Без approval — выполняем сразу
                         var workspaceRoot = await _workspaceResolver.GetWorkspacePathAsync(userId);
-
                         var execContext = new ToolExecutionContext
                         {
                             UserId = userId,
                             WorkspaceRoot = workspaceRoot,
-                            ClientIp = null,   // TODO: пробросить из Controller (низкий приоритет)
+                            ClientIp = null,
                             CancellationToken = cancellationToken
                         };
 
