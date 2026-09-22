@@ -105,6 +105,8 @@ async function loadChats() {
 
 /**
  * Отрисовывает список чатов в sidebar.
+ * Каждый элемент — div с role="button" (позволяет вкладывать кнопку удаления).
+ * Кнопка удаления появляется при hover / на активном чате.
  */
 function renderChatList() {
     const listEl = document.getElementById('chat-list');
@@ -120,22 +122,41 @@ function renderChatList() {
 
     listEl.innerHTML = state.chats.map(chat => {
         const isActive = chat.id === state.activeChatId;
+        const title = escapeHtml(chat.title || 'Без названия');
         return `
-            <a href="#" class="chat-list-item ${isActive ? 'active' : ''}"
-               data-chat-id="${chat.id}">
+            <div class="chat-list-item ${isActive ? 'active' : ''}"
+                 data-chat-id="${chat.id}"
+                 role="button"
+                 tabindex="0">
                 <div class="chat-list-item-body">
-                    <div class="chat-list-item-title">${escapeHtml(chat.title || 'Без названия')}</div>
+                    <div class="chat-list-item-title">${title}</div>
                     <div class="chat-list-item-meta">${escapeHtml(formatRelativeDate(chat.updatedAt))}</div>
                 </div>
-            </a>`;
+                <button type="button"
+                        class="chat-list-item-delete"
+                        data-delete-id="${chat.id}"
+                        title="Удалить чат"
+                        aria-label="Удалить чат">🗑</button>
+            </div>`;
     }).join('');
 
-    // Делегированный обработчик клика
+    // Клик по элементу → выбрать чат (кроме клика по кнопке удаления)
     listEl.querySelectorAll('[data-chat-id]').forEach(el => {
         el.addEventListener('click', (e) => {
+            if (e.target.closest('[data-delete-id]')) return;
             e.preventDefault();
             const id = parseInt(el.dataset.chatId, 10);
             selectChat(id);
+        });
+    });
+
+    // Клик по кнопке удаления → удалить чат
+    listEl.querySelectorAll('[data-delete-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = parseInt(btn.dataset.deleteId, 10);
+            deleteChat(id);
         });
     });
 }
