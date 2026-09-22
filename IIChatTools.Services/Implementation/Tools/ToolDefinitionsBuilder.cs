@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using IIChatTools.Services.DTO;
 using Newtonsoft.Json.Linq;
+using IIChatTools.Services.Implementation.Tools;
 
 namespace IIChatTools.Services.Implementation.Tools
 {

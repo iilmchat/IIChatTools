@@ -5,9 +5,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
+using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
+using IIChatTools.Services.Implementation.ChatTools;
+using IIChatTools.Services.Implementation.Tools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Implementation
@@ -20,28 +25,38 @@ namespace IIChatTools.Services.Implementation
     public class ChatStreamService : IChatStreamService
     {
         private const int MaxHistoryMessages = 50;
+        private const int MaxToolIterations = 5;
         private const string RoleUser = "user";
         private const string RoleAssistant = "assistant";
         private const string RoleSystem = "system";
+        private const string RoleTool = "tool";
+        private const string ParentToolName = "consult_secondary_agent";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;
+        private readonly IToolRegistry _toolRegistry;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<ChatStreamService> _logger;
-
         /// <summary>
         /// Создаёт сервис стриминга.
         /// </summary>
         /// <param name="chatService">Сервис CRUD чатов</param>
         /// <param name="lmStudioClient">Клиент LM Studio (SSE)</param>
+        /// <param name="toolRegistry">Реестр инструментов (для tool calling в чате)</param>
+        /// <param name="configuration">Конфигурация приложения (для SubAgent:DefaultAllowedTools)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatStreamService(
             IChatService chatService,
             ILmStudioClient lmStudioClient,
+            IToolRegistry toolRegistry,
+            IConfiguration configuration,
             ILogger<ChatStreamService> logger)
         {
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
+            _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -111,59 +126,265 @@ namespace IIChatTools.Services.Implementation
                 yield break;
             }
 
-            // 6. Открываем SSE-стрим от LM Studio
-            var assistantContent = new StringBuilder();
+            // 6. Формируем tools (10 инструментов из конфига SubAgent:DefaultAllowedTools)
+            JArray tools = null;
+            if (request.UseTools)
+            {
+                var allowed = _configuration
+                    .GetSection("SubAgent:DefaultAllowedTools")
+                    .Get<IReadOnlyList<string>>();
+
+                tools = ToolDefinitionsBuilder.Build(
+                    _toolRegistry.GetAllDescriptors(),
+                    allowedNames: allowed,
+                    excludeNames: new[] { ParentToolName });
+            }
+
+            // 7. Multi-turn loop (до MaxToolIterations итераций)
+            var allAssistantMessageIds = new List<int>();
+            var finalAssistantContent = new StringBuilder();
             int? tokensIn = null;
             int? tokensOut = null;
             Exception streamError = null;
 
-            var stream = _lmStudioClient.ChatStreamAsync(messages, null, cancellationToken);
-            var enumerator = stream.GetAsyncEnumerator(cancellationToken);
-            try
+            for (var iteration = 1; iteration <= MaxToolIterations && !cancellationToken.IsCancellationRequested; iteration++)
             {
-                while (true)
+                var accumulator = new ToolCallsAccumulator();
+                var textBuffer = new StringBuilder();
+                var iterator = _lmStudioClient.ChatStreamAsync(messages, tools, cancellationToken)
+                    .GetAsyncEnumerator(cancellationToken);
+
+                try
                 {
-                    ChatCompletionChunk chunk;
+                    while (true)
+                    {
+                        ChatCompletionChunk chunk;
+                        try
+                        {
+                            if (!await iterator.MoveNextAsync()) break;
+                            chunk = iterator.Current;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            streamError = ex;
+                            break;
+                        }
+
+                        if (chunk == null) continue;
+
+                        if (!string.IsNullOrEmpty(chunk.DeltaContent))
+                        {
+                            textBuffer.Append(chunk.DeltaContent);
+                            finalAssistantContent.Append(chunk.DeltaContent);
+                            yield return ChatStreamEvent.Delta(chunk.DeltaContent);
+                        }
+
+                        if (chunk.DeltaToolCall != null)
+                        {
+                            accumulator.Add(chunk.DeltaToolCall);
+                        }
+
+                        if (chunk.Usage != null)
+                        {
+                            tokensIn = chunk.Usage.PromptTokens;
+                            tokensOut = chunk.Usage.CompletionTokens;
+                        }
+
+                        if (chunk.IsDone) break;
+                    }
+                }
+                finally
+                {
+                    await iterator.DisposeAsync();
+                }
+
+                if (streamError != null) break;
+
+                var partialContent = textBuffer.ToString();
+
+                // LLM не вызвала tools — финальный ответ
+                if (!accumulator.HasToolCalls)
+                {
+                    ChatMessage finalMsg = null;
+                    string saveErr = null;
                     try
                     {
-                        if (!await enumerator.MoveNextAsync()) break;
-                        chunk = enumerator.Current;
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        _logger.LogInformation("Стрим отменён (chatId={ChatId})", request.ChatId);
-                        break;
+                        finalMsg = await _chatService.AddMessageAsync(
+                            request.ChatId, userId,
+                            new ChatMessage
+                            {
+                                Role = RoleAssistant,
+                                Content = partialContent,
+                                TokensIn = tokensIn,
+                                TokensOut = tokensOut
+                            },
+                            cancellationToken);
                     }
                     catch (Exception ex)
                     {
-                        streamError = ex;
-                        break;
+                        _logger.LogError(ex, "Ошибка сохранения assistant message");
+                        saveErr = "Ответ получен, но не сохранён";
                     }
 
-                    if (chunk == null) continue;
-
-                    if (!string.IsNullOrEmpty(chunk.DeltaContent))
+                    if (saveErr != null)
                     {
-                        assistantContent.Append(chunk.DeltaContent);
-                        // yield вне catch — допустимо
-                        yield return ChatStreamEvent.Delta(chunk.DeltaContent);
+                        yield return ChatStreamEvent.Error(saveErr);
+                        yield break;
                     }
 
-                    if (chunk.Usage != null)
-                    {
-                        tokensIn = chunk.Usage.PromptTokens;
-                        tokensOut = chunk.Usage.CompletionTokens;
-                    }
-
-                    if (chunk.IsDone) break;
+                    yield return ChatStreamEvent.Done(finalMsg.Id, tokensIn, tokensOut);
+                    yield break;
                 }
-            }
-            finally
-            {
-                await enumerator.DisposeAsync();
+
+                // LLM вызвала tools — сохраняем assistant с tool_calls
+                var completedCalls = accumulator.BuildCompletedCalls();
+                var toolCallsJson = new JArray(completedCalls).ToString(Formatting.None);
+
+                ChatMessage assistantWithTools = null;
+                try
+                {
+                    assistantWithTools = await _chatService.AddMessageAsync(
+                        request.ChatId, userId,
+                        new ChatMessage
+                        {
+                            Role = RoleAssistant,
+                            Content = partialContent,
+                            ToolCallsJson = toolCallsJson
+                        },
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Ошибка сохранения assistant message с tool_calls");
+                }
+
+                // Добавляем в messages для следующей итерации
+                messages.Add(new JObject
+                {
+                    ["role"] = RoleAssistant,
+                    ["content"] = string.IsNullOrEmpty(partialContent)
+                        ? (JToken)JValue.CreateNull()
+                        : new JValue(partialContent),
+                    ["tool_calls"] = new JArray(completedCalls)
+                });
+
+                // Выполняем каждый tool_call
+                foreach (var call in completedCalls)
+                {
+                    var callId = call["id"]?.ToString();
+                    var functionName = call["function"]?["name"]?.ToString();
+                    var argumentsRaw = call["function"]?["arguments"]?.ToString() ?? "{}";
+
+                    if (string.IsNullOrWhiteSpace(functionName)) continue;
+
+                    // Парсим аргументы
+                    JObject args;
+                    try
+                    {
+                        args = JObject.Parse(string.IsNullOrWhiteSpace(argumentsRaw) ? "{}" : argumentsRaw);
+                    }
+                    catch
+                    {
+                        args = new JObject();
+                    }
+
+                    // Определяем requiresApproval
+                    var descriptor = _toolRegistry.GetDescriptor(functionName);
+                    var requiresApproval = descriptor?.RequiresApprovalByDefault ?? true;
+
+                    // SSE-событие: tool_call
+                    yield return ChatStreamEvent.ToolCall(new ChatToolCallDto
+                    {
+                        Id = callId,
+                        Name = functionName,
+                        Arguments = args,
+                        RequiresApproval = requiresApproval
+                    });
+
+                    // Выполнение (или fail для approval)
+                    ToolResult toolResult;
+                    if (requiresApproval)
+                    {
+                        toolResult = ToolResult.Fail(
+                            "Требуется подтверждение пользователя. Функция доступна в v1.3 Фаза 1.7.");
+                    }
+                    else
+                    {
+                        var execContext = new ToolExecutionContext
+                        {
+                            UserId = userId,
+                            WorkspaceRoot = request.ChatId > 0 ? null : null, // TODO: из резолвера (Фаза 1.7)
+                            ClientIp = null,
+                            CancellationToken = cancellationToken
+                        };
+
+                        try
+                        {
+                            toolResult = await _toolRegistry.ExecuteAsync(functionName, execContext, args);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Ошибка выполнения инструмента {Tool} в чате", functionName);
+                            toolResult = ToolResult.Fail($"Ошибка выполнения: {ex.Message}");
+                        }
+                    }
+
+                    // SSE-событие: tool_result
+                    yield return ChatStreamEvent.ToolResult(new ChatToolResultDto
+                    {
+                        Id = callId,
+                        Name = functionName,
+                        Success = toolResult.Success,
+                        Content = toolResult.Data,
+                        Message = toolResult.Message
+                    });
+
+                    // Сохраняем tool message в БД
+                    try
+                    {
+                        await _chatService.AddMessageAsync(
+                            request.ChatId, userId,
+                            new ChatMessage
+                            {
+                                Role = RoleTool,
+                                Content = JsonConvert.SerializeObject(new
+                                {
+                                    success = toolResult.Success,
+                                    data = toolResult.Data,
+                                    message = toolResult.Message
+                                }),
+                                ToolCallId = callId,
+                                ToolName = functionName
+                            },
+                            cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Ошибка сохранения tool message");
+                    }
+
+                    // Добавляем в messages для следующей итерации
+                    messages.Add(new JObject
+                    {
+                        ["role"] = RoleTool,
+                        ["tool_call_id"] = callId ?? string.Empty,
+                        ["content"] = JsonConvert.SerializeObject(new
+                        {
+                            success = toolResult.Success,
+                            data = toolResult.Data,
+                            message = toolResult.Message
+                        })
+                    });
+                }
+
+                // Цикл повторяется: следующий stream с обновлёнными messages
             }
 
-            // 7. Обработка ошибок стрима
+            // 8. Обработка ошибок стрима
             if (streamError != null)
             {
                 _logger.LogError(streamError, "Ошибка стрима LM Studio (chatId={ChatId})", request.ChatId);
@@ -171,42 +392,29 @@ namespace IIChatTools.Services.Implementation
                 yield break;
             }
 
-            // 8. Сохраняем assistant message (ошибка → в переменную, yield после catch)
-            var fullContent = assistantContent.ToString();
-            ChatMessage assistantMsg = null;
-            string saveError = null;
+            // 9. Лимит итераций исчерпан (вариант B — «извинение»)
+            var limitMessage = "Извините, я достиг лимита вызовов инструментов. "
+                             + "Пожалуйста, переформулируйте задачу или задайте более конкретный вопрос.";
+
+            ChatMessage limitMsg = null;
             try
             {
-                assistantMsg = await _chatService.AddMessageAsync(
-                    request.ChatId,
-                    userId,
-                    new ChatMessage
-                    {
-                        Role = RoleAssistant,
-                        Content = fullContent,
-                        TokensIn = tokensIn,
-                        TokensOut = tokensOut
-                    },
+                limitMsg = await _chatService.AddMessageAsync(
+                    request.ChatId, userId,
+                    new ChatMessage { Role = RoleAssistant, Content = limitMessage },
                     cancellationToken);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка сохранения assistant message (chatId={ChatId})", request.ChatId);
-                saveError = "Ответ получен, но не сохранён";
+                _logger.LogError(ex, "Ошибка сохранения limit message");
             }
 
-            if (saveError != null)
+            yield return ChatStreamEvent.Delta(limitMessage);
+
+            if (limitMsg != null)
             {
-                yield return ChatStreamEvent.Error(saveError);
-                yield break;
+                yield return ChatStreamEvent.Done(limitMsg.Id, tokensIn, tokensOut);
             }
-
-            _logger.LogInformation(
-                "Стрим завершён: chatId={ChatId}, userMsgId={UserMsgId}, assistantMsgId={AssistantMsgId}, tokensIn={TokensIn}, tokensOut={TokensOut}, len={Len}",
-                request.ChatId, userMsg.Id, assistantMsg.Id, tokensIn, tokensOut, fullContent.Length);
-
-            // 9. Сигнализируем завершение
-            yield return ChatStreamEvent.Done(assistantMsg.Id, tokensIn, tokensOut);
         }
 
         /// <summary>
@@ -237,15 +445,35 @@ namespace IIChatTools.Services.Implementation
 
             foreach (var msg in history)
             {
-                // tool-сообщения пока не поддерживаем — Фаза 1.6
-                if (msg.Role == RoleUser || msg.Role == RoleAssistant || msg.Role == RoleSystem)
+                var obj = new JObject { ["role"] = msg.Role };
+
+                // Assistant с tool_calls — content может быть null
+                if (msg.Role == RoleAssistant && !string.IsNullOrEmpty(msg.ToolCallsJson))
                 {
-                    messages.Add(new JObject
+                    obj["content"] = string.IsNullOrEmpty(msg.Content)
+                        ? (JToken)JValue.CreateNull()
+                        : new JValue(msg.Content);
+                    try
                     {
-                        ["role"] = msg.Role,
-                        ["content"] = msg.Content ?? string.Empty
-                    });
+                        obj["tool_calls"] = JArray.Parse(msg.ToolCallsJson);
+                    }
+                    catch
+                    {
+                        // Битый JSON — пропускаем tool_calls
+                        obj["content"] = msg.Content ?? string.Empty;
+                    }
                 }
+                else if (msg.Role == RoleTool)
+                {
+                    obj["content"] = msg.Content ?? string.Empty;
+                    obj["tool_call_id"] = msg.ToolCallId ?? string.Empty;
+                }
+                else
+                {
+                    obj["content"] = msg.Content ?? string.Empty;
+                }
+
+                messages.Add(obj);
             }
 
             return messages;

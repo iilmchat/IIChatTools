@@ -10,6 +10,8 @@ using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
 using Xunit;
+using IIChatTools.Services.DTO;
+using Microsoft.Extensions.Configuration;
 
 namespace IIChatTools.Tests.IntegrationTests
 {
@@ -52,18 +54,37 @@ namespace IIChatTools.Tests.IntegrationTests
         /// </summary>
         private static (ChatStreamService Service, ChatService ChatService, int UserId, int ChatId, FakeLmStudioClient LmClient) CreateService(string model = "test-model")
         {
-            var db = TestDbContextFactory.Create();     // уже сидирует 3 пользователя (Id=1,2,3)
+            var db = TestDbContextFactory.Create();
             var chatService = new ChatService(db, NullLogger<ChatService>.Instance);
             var fakeLm = new FakeLmStudioClient();
+
+            // Пустой реестр инструментов — тесты на tool calling добавятся в A.2.4.
+            var emptyRegistry = new EmptyToolRegistry();
+
+            // Пустая конфигурация — UseTools=false в тестах A.1/A.2.1/A.2.2.
+            var config = new ConfigurationBuilder().Build();
+
             var service = new ChatStreamService(
                 chatService,
                 fakeLm,
+                emptyRegistry,
+                config,
                 NullLogger<ChatStreamService>.Instance);
 
-            // Создаём чат от имени пользователя Id=1
             var chat = chatService.CreateChatAsync(1, model, "Test Chat").GetAwaiter().GetResult();
 
             return (service, chatService, 1, chat.Id, fakeLm);
+        }
+
+        /// <summary>
+        /// Пустой реестр инструментов — для тестов, где tools не нужны.
+        /// </summary>
+        private sealed class EmptyToolRegistry : IToolRegistry
+        {
+            public IReadOnlyList<ToolDescriptor> GetAllDescriptors() => new List<ToolDescriptor>();
+            public ToolDescriptor GetDescriptor(string name) => null;
+            public Task<ToolResult> ExecuteAsync(string toolName, ToolExecutionContext context, JObject arguments)
+                => Task.FromResult(ToolResult.Fail("not implemented"));
         }
 
         [Fact]
