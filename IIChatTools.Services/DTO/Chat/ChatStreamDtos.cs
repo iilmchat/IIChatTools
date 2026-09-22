@@ -90,5 +90,30 @@ namespace IIChatTools.Services.DTO.Chat
                 Type = "error",
                 Data = new { message }
             };
+
+
+        /// <summary>
+        /// Создаёт событие <c>tool_call</c> — LLM вызывает инструмент.
+        /// </summary>
+        /// <param name="dto">Информация о вызове</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent ToolCall(ChatToolCallDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "tool_call",
+                Data = dto
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>tool_result</c> — результат выполнения инструмента.
+        /// </summary>
+        /// <param name="dto">Результат вызова</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent ToolResult(ChatToolResultDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "tool_result",
+                Data = dto
+            };            
     }
 }
