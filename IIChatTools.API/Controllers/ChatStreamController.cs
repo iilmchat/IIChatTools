@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;              // ← добавить
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace IIChatTools.API.Controllers
 {
@@ -99,6 +100,18 @@ namespace IIChatTools.API.Controllers
             _logger.LogInformation("SSE-стрим завершён: chatId={ChatId}", request.ChatId);
         }
 
+
+        /// <summary>
+        /// Настройки JSON-сериализации для SSE: camelCase, без BOM.
+        /// Единый стиль для всех типов событий (start/delta/done/tool_call/...).
+        /// </summary>
+        private static readonly JsonSerializerSettings SseJsonSettings = new JsonSerializerSettings
+        {
+            ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver(),
+            Formatting = Formatting.None,
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
         /// <summary>
         /// Записывает одно SSE-событие в ответ и делает flush.
         /// Формат: <c>event: {type}\ndata: {json}\n\n</c>.
@@ -110,7 +123,7 @@ namespace IIChatTools.API.Controllers
         {
             if (evt == null) return;
 
-            var json = JsonConvert.SerializeObject(evt.Data ?? new { }, Formatting.None);
+            var json = JsonConvert.SerializeObject(evt.Data ?? new { }, SseJsonSettings);
             var payload = $"event: {evt.Type}\ndata: {json}\n\n";
 
             try
