@@ -18,6 +18,7 @@ const state = {
     activeChatId: null,
     activeChat: null,
     isStreaming: false,   // блокировка отправки во время стрима
+    autoScroll: true,     // включён, пока пользователь у нижнего края
 };
 
 // ============ Инициализация ============
@@ -71,6 +72,29 @@ function bindEvents() {
 
     if (btnSend) {
         btnSend.addEventListener('click', sendMessage);
+    }
+
+    // === Скроллинг (Фаза 2.0.5b) ===
+
+    // Слушатель скролла на ленте сообщений — отслеживает позицию пользователя
+    const messagesEl = document.getElementById('chat-messages');
+    if (messagesEl) {
+        messagesEl.addEventListener('scroll', onMessagesScroll);
+    }
+
+    // Динамически создаём кнопку «↓ Вниз» (не трогаем Razor)
+    const mainEl = document.querySelector('.chat-main');
+    if (mainEl && !document.getElementById('chat-scroll-down')) {
+        const btn = document.createElement('button');
+        btn.id = 'chat-scroll-down';
+        btn.type = 'button';
+        btn.className = 'chat-scroll-down';
+        btn.title = 'Вниз';
+        btn.setAttribute('aria-label', 'Прокрутить вниз');
+        btn.innerHTML = '↓';
+        btn.hidden = true;
+        btn.addEventListener('click', () => scrollToBottom(true));
+        mainEl.appendChild(btn);
     }
 }
 
@@ -195,12 +219,14 @@ async function selectChat(chatId) {
 
     state.activeChatId = chatId;
     state.activeChat = res.data;
+    state.autoScroll = true;   // при переключении чата — прилипаем к низу
 
     updateUrl(chatId);
     renderChatList();
     renderChatHeader(res.data);
     renderMessages(res.data.messages || []);
     enableInput(true);
+    updateScrollDownButton();
 }
 
 async function deleteChat(chatId) {
@@ -756,6 +782,10 @@ function showEmptyState() {
             </div>`;
     }
 
+    // Кнопка «↓ Вниз» не нужна, если нет активного чата
+    const btn = document.getElementById('chat-scroll-down');
+    if (btn) btn.hidden = true;
+
     enableInput(false);
 }
 
@@ -792,20 +822,41 @@ function readUrlChatId() {
 // ============ Утилиты ============
 
 /**
- * Автоскролл. Если force === true — скроллим всегда.
- * Иначе — только если пользователь был около низа.
- * @param {boolean} [force=false]
+ * Скроллит ленту вниз.
+ * @param {boolean} [force=false] — если true, скроллит принудительно и включает autoScroll;
+ *                                  если false, скроллит только при включённом autoScroll.
  */
 function scrollToBottom(force = false) {
+    if (!force && !state.autoScroll) return;
+
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
-    const wasNearBottom = container.scrollTop + container.clientHeight
-        >= container.scrollHeight - 80;
+    container.scrollTop = container.scrollHeight;
+    state.autoScroll = true;
+    updateScrollDownButton();
+}
 
-    if (force || wasNearBottom) {
-        container.scrollTop = container.scrollHeight;
-    }
+/**
+ * Обработчик скролла: определяет, находится ли пользователь у нижнего края.
+ * Порог — 80px (как в ChatGPT).
+ */
+function onMessagesScroll() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    state.autoScroll = distanceFromBottom < 80;
+    updateScrollDownButton();
+}
+
+/**
+ * Показывает/скрывает кнопку «↓ Вниз» в зависимости от autoScroll.
+ */
+function updateScrollDownButton() {
+    const btn = document.getElementById('chat-scroll-down');
+    if (!btn) return;
+    btn.hidden = state.autoScroll;
 }
 
 function formatRelativeDate(iso) {
