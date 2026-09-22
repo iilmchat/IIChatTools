@@ -94,7 +94,6 @@
   <data name="Последние действия" xml:space="preserve"><value>Recent Actions</value></data>
   <data name="Инструмент" xml:space="preserve"><value>Tool</value></data>
   <data name="Длительность" xml:space="preserve"><value>Duration</value></data>
-  <!--<data name="Пользователь" xml:space="preserve"><value>User</value></data>-->
   <data name="Подключение к БД" xml:space="preserve"><value>Database Connection</value></data>
   <data name="Онлайн" xml:space="preserve"><value>Online</value></data>
   <data name="Оффлайн" xml:space="preserve"><value>Offline</value></data>
@@ -184,7 +183,7 @@
   <data name="Прочитать буфер обмена" xml:space="preserve"><value>Read Clipboard</value></data>
   <data name="Записать в буфер обмена" xml:space="preserve"><value>Write Clipboard</value></data>
 
-  <!-- ===== Ошибки ===== -->
+  <!-- ===== Ошибки / Errors ===== -->
   <data name="Обязательное поле" xml:space="preserve"><value>This field is required</value></data>
   <data name="Слишком длинное значение" xml:space="preserve"><value>Value is too long</value></data>
   <data name="Недопустимый путь" xml:space="preserve"><value>Invalid path</value></data>
@@ -194,14 +193,30 @@
   <data name="Ресурс не найден." xml:space="preserve"><value>Resource not found.</value></data>
   <data name="Некорректные данные запроса." xml:space="preserve"><value>Invalid request data.</value></data>
 
-  <!-- ===== Футер ===== -->
-  <!-- Copyright формируется в AppVersion.Copyright и используется напрямую в _Layout;
-      ключ оставлен для совместимости, но с плейсхолдером версии -->
+  <!-- ===== Футер / Footer ===== -->
   <data name="Copyright" xml:space="preserve"><value>© 2026 RuChating (iilmchat) · IIChatTools v{0}</value></data>
-  
+
   <!-- ===== Rate limit (KI-050) ===== -->
   <data name="Слишком много попыток входа." xml:space="preserve"><value>Too many login attempts.</value></data>
   <data name="Слишком много попыток регистрации." xml:space="preserve"><value>Too many registration attempts.</value></data>
   <data name="Попробуйте снова через" xml:space="preserve"><value>Please try again in</value></data>
-  <data name="секунд." xml:space="preserve"><value>seconds.</value></data>  
+  <data name="секунд." xml:space="preserve"><value>seconds.</value></data>
+
+  <!-- ===== Чат / Chat (v1.3 Фаза 2.0) ===== -->
+  <data name="Чат" xml:space="preserve"><value>Chat</value></data>
+  <data name="Новый чат" xml:space="preserve"><value>New chat</value></data>
+  <data name="Удалить чат" xml:space="preserve"><value>Delete chat</value></data>
+  <data name="Выберите чат или создайте новый" xml:space="preserve"><value>Select a chat or create a new one</value></data>
+  <data name="Введите сообщение…" xml:space="preserve"><value>Type a message…</value></data>
+  <data name="Отправить" xml:space="preserve"><value>Send</value></data>
+  <data name="Чат создан" xml:space="preserve"><value>Chat created</value></data>
+  <data name="Чат удалён" xml:space="preserve"><value>Chat deleted</value></data>
+  <data name="Ошибка создания чата" xml:space="preserve"><value>Failed to create chat</value></data>
+  <data name="Ошибка удаления чата" xml:space="preserve"><value>Failed to delete chat</value></data>
+  <data name="Не удалось загрузить чаты" xml:space="preserve"><value>Failed to load chats</value></data>
+  <data name="Не удалось загрузить чат" xml:space="preserve"><value>Failed to load chat</value></data>
+  <data name="Вы уверены, что хотите удалить чат?" xml:space="preserve"><value>Are you sure you want to delete this chat?</value></data>
+  <data name="Сообщение не может быть пустым" xml:space="preserve"><value>Message cannot be empty</value></data>
+  <data name="Ошибка отправки сообщения" xml:space="preserve"><value>Failed to send message</value></data>
+  <data name="Соединение прервано" xml:space="preserve"><value>Connection interrupted</value></data>
 </root>

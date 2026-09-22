@@ -1,0 +1,151 @@
+/* Стили страницы чата IIChatTools v1.3 */
+/* © 2026 RuChating (iilmchat) */
+
+/* ============ Контейнер ============ */
+
+.chat-container {
+    display: flex;
+    height: calc(100vh - 220px);
+    min-height: 500px;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    overflow: hidden;
+    background: #fff;
+}
+
+/* ============ Sidebar ============ */
+
+.chat-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: #f8f9fa;
+    border-right: 1px solid #dee2e6;
+}
+
+.chat-sidebar-header {
+    padding: .75rem;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+.chat-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: .5rem;
+}
+
+/* Элемент списка чатов */
+.chat-list-item {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    border-radius: .375rem;
+    cursor: pointer;
+    margin-bottom: .25rem;
+    transition: background-color .15s;
+    color: inherit;
+    text-decoration: none;
+}
+
+.chat-list-item:hover {
+    background: #e9ecef;
+    color: inherit;
+}
+
+.chat-list-item.active {
+    background: #0d6efd;
+    color: #fff;
+}
+
+.chat-list-item-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.chat-list-item-title {
+    font-weight: 500;
+    font-size: .9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-list-item-meta {
+    font-size: .7rem;
+    color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-list-item.active .chat-list-item-meta {
+    color: rgba(255, 255, 255, .75);
+}
+
+/* ============ Основная область ============ */
+
+.chat-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.chat-header {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+    background: #fff;
+}
+
+/* ============ Лента сообщений ============ */
+
+.chat-messages {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 1rem;
+    background: #fafbfc;
+    position: relative;
+}
+
+.chat-empty-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+}
+
+/* ============ Поле ввода ============ */
+
+.chat-input {
+    flex-shrink: 0;
+    padding: .75rem 1rem;
+    border-top: 1px solid #dee2e6;
+    background: #fff;
+}
+
+.chat-input textarea {
+    resize: none;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* ============ Адаптивность ============ */
+
+@media (max-width: 767.98px) {
+    .chat-container {
+        height: calc(100vh - 180px);
+    }
+
+    .chat-sidebar {
+        width: 200px;
+    }
+
+    .chat-sidebar .btn {
+        font-size: .8rem;
+    }
+}

@@ -1,0 +1,76 @@
+@using Microsoft.Extensions.Localization
+@using IIChatTools.API.Resources
+@inject IStringLocalizer<SharedResources> Localizer
+@{
+    ViewData["Title"] = Localizer["Чат"];
+}
+
+<div class="chat-container">
+    <!-- ===== Sidebar: список чатов ===== -->
+    <aside class="chat-sidebar">
+        <div class="chat-sidebar-header">
+            <button id="btn-new-chat" type="button" class="btn btn-primary btn-sm w-100">
+                + @Localizer["Новый чат"]
+            </button>
+        </div>
+        <div id="chat-list" class="chat-list">
+            <div class="text-muted text-center p-3 small">
+                @Localizer["Загрузка"]…
+            </div>
+        </div>
+    </aside>
+
+    <!-- ===== Основная область: сообщения + input ===== -->
+    <main class="chat-main">
+        <!-- Заголовок чата (скрыт, пока чат не выбран) -->
+        <div id="chat-header" class="chat-header d-none">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-truncate">
+                    <h6 id="chat-title" class="mb-0 text-truncate">—</h6>
+                    <small id="chat-model" class="text-muted">—</small>
+                </div>
+                <button id="btn-delete-chat" type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        title="@Localizer["Удалить чат"]">
+                    🗑
+                </button>
+            </div>
+        </div>
+
+        <!-- Лента сообщений -->
+        <div id="chat-messages" class="chat-messages">
+            <div id="chat-empty" class="chat-empty-state">
+                <div class="text-muted text-center">
+                    <div style="font-size: 3rem;">💬</div>
+                    <p class="mb-0">@Localizer["Выберите чат или создайте новый"]</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Поле ввода -->
+        <div class="chat-input">
+            <div class="input-group">
+                <textarea id="chat-input" class="form-control" rows="1"
+                          placeholder="@Localizer["Введите сообщение…"]"
+                          disabled></textarea>
+                <button id="btn-send" type="button" class="btn btn-primary" disabled>
+                    @Localizer["Отправить"]
+                </button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Модалка подтверждения tool call (используется с Фазы 1.7) -->
+<partial name="_ApprovalModal" />
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/chat.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script type="module">
+        import { initChatPage } from '/js/modules/chat.js';
+        initChatPage();
+    </script>
+}

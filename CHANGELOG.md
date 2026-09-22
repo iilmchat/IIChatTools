@@ -39,6 +39,13 @@
   - camelCase в SSE-событиях (единый стиль).
   - Smoke-тест end-to-end: `save_file` → approval_required → reject → tool_result(fail) → финал.
 - **Фаза 1.7 v1.3 закрыта.** Backend полностью готов к Chat UI.
+- **Chat UI — каркас страницы `/chat` (v1.3 Фаза 2.0.1)**: 
+  - `ChatViewController` + Razor-страница `Views/Chat/Index.cshtml`.
+  - Layout: sidebar (список чатов) + область сообщений + поле ввода.
+  - `wwwroot/css/chat.css` — стили чата.
+  - `wwwroot/js/modules/chat.js` — заглушка (инициализация без логики).
+  - `_Layout.cshtml`: пункт меню «Чат» + `@RenderSection("Styles")`.
+  - **Chat UI — локализация (v1.3 Фаза 2.0.1)**: 16 новых ключей в `SharedResources.resx` (EN) и `SharedResources.ru.resx` (RU). Ключи для страницы `/chat`: `Чат`, `Новый чат`, `Удалить чат`, `Выберите чат или создайте новый`, `Введите сообщение…`, `Отправить`. Резерв для Шагов 2.0.2–2.0.4 (sidebar CRUD, SSE-ошибки). Соответствует правилу 1.14.
 
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.

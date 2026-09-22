@@ -18,6 +18,9 @@
 
     <!-- Локальные стили -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <!-- Стили конкретной страницы (опционально) -->
+    @RenderSection("Styles", required: false)
 </head>
 <body>
     <header>
@@ -34,6 +37,9 @@
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">@Localizer["Главная"]</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" href="/chat">@Localizer["Чат"]</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-controller="Home" asp-action="Status">@Localizer["Статус"]</a>

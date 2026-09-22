@@ -94,7 +94,6 @@
   <data name="Последние действия" xml:space="preserve"><value>Последние действия</value></data>
   <data name="Инструмент" xml:space="preserve"><value>Инструмент</value></data>
   <data name="Длительность" xml:space="preserve"><value>Длительность</value></data>
-  <!--<data name="Пользователь" xml:space="preserve"><value>Пользователь</value></data>-->
   <data name="Подключение к БД" xml:space="preserve"><value>Подключение к БД</value></data>
   <data name="Онлайн" xml:space="preserve"><value>Онлайн</value></data>
   <data name="Оффлайн" xml:space="preserve"><value>Оффлайн</value></data>
@@ -201,5 +200,23 @@
   <data name="Слишком много попыток входа." xml:space="preserve"><value>Слишком много попыток входа.</value></data>
   <data name="Слишком много попыток регистрации." xml:space="preserve"><value>Слишком много попыток регистрации.</value></data>
   <data name="Попробуйте снова через" xml:space="preserve"><value>Попробуйте снова через</value></data>
-  <data name="секунд." xml:space="preserve"><value>секунд.</value></data>  
+  <data name="секунд." xml:space="preserve"><value>секунд.</value></data>
+
+  <!-- ===== Чат / Chat (v1.3 Фаза 2.0) ===== -->
+  <data name="Чат" xml:space="preserve"><value>Чат</value></data>
+  <data name="Новый чат" xml:space="preserve"><value>Новый чат</value></data>
+  <data name="Удалить чат" xml:space="preserve"><value>Удалить чат</value></data>
+  <data name="Выберите чат или создайте новый" xml:space="preserve"><value>Выберите чат или создайте новый</value></data>
+  <data name="Введите сообщение…" xml:space="preserve"><value>Введите сообщение…</value></data>
+  <data name="Отправить" xml:space="preserve"><value>Отправить</value></data>
+  <data name="Чат создан" xml:space="preserve"><value>Чат создан</value></data>
+  <data name="Чат удалён" xml:space="preserve"><value>Чат удалён</value></data>
+  <data name="Ошибка создания чата" xml:space="preserve"><value>Ошибка создания чата</value></data>
+  <data name="Ошибка удаления чата" xml:space="preserve"><value>Ошибка удаления чата</value></data>
+  <data name="Не удалось загрузить чаты" xml:space="preserve"><value>Не удалось загрузить чаты</value></data>
+  <data name="Не удалось загрузить чат" xml:space="preserve"><value>Не удалось загрузить чат</value></data>
+  <data name="Вы уверены, что хотите удалить чат?" xml:space="preserve"><value>Вы уверены, что хотите удалить чат?</value></data>
+  <data name="Сообщение не может быть пустым" xml:space="preserve"><value>Сообщение не может быть пустым</value></data>
+  <data name="Ошибка отправки сообщения" xml:space="preserve"><value>Ошибка отправки сообщения</value></data>
+  <data name="Соединение прервано" xml:space="preserve"><value>Соединение прервано</value></data>
 </root>
