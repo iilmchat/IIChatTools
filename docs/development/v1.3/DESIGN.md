@@ -608,3 +608,57 @@ v1.3 считается готовым, когда:
 - Фокус v1.3.0 — Chat UI + SSE + Tool calling.
 - SignalR — оптимизация (замена polling для `/api/approvals/pending`).
 - В v1.3.x — отдельная задача с дизайн-ревью.
+
+---
+
+## 14. Реализация (Фаза 2 «Chat UI» — Implemented 2026-09-22)
+
+**Статус документа:** Draft → **Implemented**
+**Дата закрытия Фазы 2:** 2026-09-22
+
+### 14.1. Что реализовано
+
+Все пункты § 9 «План работ → Фаза 2» закрыты.
+
+| Шаг | Коммит | Что |
+|-----|--------|-----|
+| 2.0.1 | `3f660fb` | Каркас `/chat`: `ChatViewController` + Razor + `chat.css` + локализация (16 ключей). |
+| 2.0.2a | `6902a18` | `GET /api/models` — список моделей LM Studio + default. |
+| 2.0.2b | `b9f3e7e`, `a69d5c4` | Sidebar: загрузка, создание, удаление, переключение, sync `?chatId=N`. |
+| 2.0.3 | `3a53bb5` | SSE-стриминг: `sendMessage`, `readSseStream`, `handleSseEvent`. |
+| 2.0.4 | `43b8aa1`, `a79c7ed` | Approvals: модалка, drag-and-drop, X = Reject. |
+| 2.0.5a | `168f8f1` | Переименование чатов (✏️) + авто-нумерация «Новый чат N». |
+| 2.0.5b | `e763b31` | ChatGPT-style скроллинг (кнопка «↓ Вниз», флаг `autoScroll`). |
+| 2.0.6a | — | KI-046: `MessageCount` в `/api/chats`. |
+
+### 14.2. Расхождения с Draft-версией DESIGN.md
+
+Реализация шла эволюционно — некоторые решения в Draft оказались неточными. Финальный вид:
+
+| Раздел DESIGN | Draft | Реализация |
+|---|---|---|
+| § 5.5 SSE-события | `event: message` + `{ delta }` | `event: delta` + `{ text }` |
+| § 5.5 Approvals | `event: tool_approval` + `{ actionId }` | `event: tool_approval_required` + `{ id, name, arguments, expiresAt }` |
+| § 5.5 Approve endpoint | — | `POST /api/chat/approvals/{callId}/approve` и `/reject` (не `/api/approvals/*`) |
+| § 5.5 SSE JSON | — | **camelCase** (через `CamelCasePropertyNamesContractResolver`) — иначе клиентский JS не найдёт `parsed.id` |
+| § 13.1 UI-селектор модели | Dropdown модели в header | Отложено в Фазу 2.1 (endpoint `/api/models` уже готов) |
+| § 13.2 Retention чатов | `ChatRetentionService` | Отложено в Фазу 2.1 (`ChatService.DeleteOldChatsAsync` уже есть) |
+| § 7 LmStudioClient | `IAsyncEnumerable<LmStudioStreamChunk>` | `IAsyncEnumerable<ChatCompletionChunk>` (имя DTO другое) |
+
+### 14.3. Что отложено в Фазу 2.1 (ChatGPT-like фичи)
+
+Приоритет по итогам обсуждения:
+
+| # | Фича | Приоритет |
+|---|------|-----------|
+| 1 | Копировать сообщение (📋 при hover) | 🟠 High |
+| 2 | Regenerate (перегенерировать последний ответ) | 🟠 High |
+| 3 | Стоп-кнопка (прервать стрим) | 🟡 Med |
+| 4 | AI-генерация заголовка из первого сообщения | 🟡 Med |
+| 5 | Edit user-сообщения + regenerate | 🟡 Med |
+| 6 | Поиск по чатам | 🟢 Low |
+| 7 | UI-селектор модели (из § 13.1) | 🟡 Med |
+| 8 | Retention чатов (из § 13.2) | 🟢 Low |
+| 9 | SignalR для approvals (из § 13.3) | 🟢 Low |
+| 10 | Метрики `iichattools_chat_*` | 🟢 Low |
+

@@ -360,6 +360,23 @@
 
 ---
 
+### KI-058 — UX модалки approval в чате: не drag, X подвешивал UI
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.3.0 Фаза 2.0.4
+- **Обнаружено:** 2026-09-22 (smoke-тест Chat UI) | **Устранено:** 2026-09-22
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/approvals.js`, `IIChatTools.API/wwwroot/css/chat.css`
+- **Описание:** Две UX-проблемы при первом smoke-тесте модалки approvals из чата:
+  1. **Модалку нельзя подвинуть** — при длинных JSON-параметрах закрывает ленту сообщений.
+  2. **Крестик (X) подвешивает UI** — модалка закрывается, но `promise` не resolve, reject на сервер не отправляется. SSE-стрим ждёт 5 минут (таймаут `IChatApprovalCoordinator`), input/btn-send остаются заблокированными.
+- **Решение:**
+  - **Drag-and-drop** по `.modal-header` (`position: fixed` на время drag, `cursor: move`, сброс стилей при `hidden.bs.modal`).
+  - **X = Reject:** при `hidden.bs.modal` без решения автоматически отправляется reject на сервер. В `/chat` — без причины (Q6 Фазы 1.7); в `/test` — с reason «Закрыто пользователем».
+  - **Fix утечки listener'ов:** `addEventListener('hidden.bs.modal', handler, { once: true })`.
+  - **`getOrCreateInstance`** вместо `new bootstrap.Modal(...)` — нет warning'ов при повторных открытиях.
+  - Рефакторинг: общий `sendDecision()` — убрано ~40 строк дублирования.
+- **Результат:** модалка перетаскивается; X корректно отправляет reject; стрим продолжается; input разблокируется.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -509,19 +526,18 @@
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
-| Fixed (v1.3.0) | 1 |   <!-- +KI-050 -->
-| Open | 3 |             <!-- было 4, -KI-050 -->
-| In Progress | 1 |      <!-- +KI-051 -->
-| Documented | 10 | <!--  +1 (KI-049) -->
-| Open | 3 |      <!-- было 0, +KI-046, +1 KI-050 +KI-047 (Deferred) -->
-| Deferred | 1 |  <!-- было 0 -->
-| Resolved | 1 |
-| **Всего** | **33** |
+| Fixed / Resolved (v1.3.0) | 4 |   <!-- KI-046, KI-050, KI-051, KI-058 -->
+| Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
+| Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049 -->
+| Deferred | 3 |                      <!-- KI-047, KI-052, KI-053 -->
+| Partially Fixed | 1 |               <!-- KI-057 -->
+| **Всего** | **47** |
 
-**«Fixed (v1.1.1)»:** KI-001, KI-005, KI-022, KI-036, KI-037, KI-038, KI-039, KI-040, KI-041, KI-042, KI-045.
-**«Open»:** (пусто).
-**«Deferred»:** (пусто).
-**«Documented»:** KI-007, KI-009, KI-032, KI-043, KI-044 (и 2 устаревших из v1.0.x).
+**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX).
+**Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
+**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream).
+**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).
+**Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 
 ---
 

@@ -19,11 +19,13 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 
 ## Ключевые возможности
 
+- **💬 Chat UI** — полноценный чат с LLM (как ChatGPT): sidebar с историей диалогов, стриминг SSE, переименование/удаление чатов, автоскролл, копирование, approvals прямо из чата.
 - **40 инструментов** для LLM (файловая система, код, веб, Git/GitHub, браузер, суб-агенты, утилиты).
+- **Tool calling в чате** — LLM сама вызывает инструменты в multi-turn loop (до 5 итераций).
+- **Approvals в чате** — mutating-инструменты требуют подтверждения через модалку (drag-and-drop, countdown, approve/reject).
 - **Суб-агенты** — делегирование многошаговых задач с авто-отладкой.
 - **Веб-админка** с полным CRUD (пользователи, настройки, белый список, аудит).
 - **Мультипользовательность** с ролями Admin/User, изоляцией workspace.
-- **Система подтверждений** — критичные действия требуют утверждения пользователем (polling).
 - **Локализация** RU/EN (интерфейс + сообщения).
 - **Гибридная БД**: SqlServer / Sqlite / InMemory (выбор через `Database:Provider`).
 - **Аудит** всех действий: БД + опциональный JSONL-файл (`logs/audit/`).
@@ -291,14 +293,15 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/approvals/{id}/reject` | Отклонить |
 | `GET` | `/api/status/snapshot` | Снимок состояния |
 | `*` | `/api/admin/*` | CRUD админки (только Admin) |
-| `GET` | `/api/chats` | Список чатов пользователя |
+| `GET` | `/api/chats` | Список чатов пользователя (с MessageCount) |
 | `GET` | `/api/chats/{id}?limit=50` | Чат с историей сообщений |
 | `POST` | `/api/chats` | Создать чат |
 | `PATCH` | `/api/chats/{id}` | Обновить title / model / systemPrompt |
 | `DELETE` | `/api/chats/{id}` | Удалить чат |
-| `POST` | `/api/chat/stream` | SSE-стриминг ответа LLM |
+| `POST` | `/api/chat/stream` | SSE-стриминг ответа LLM (tool calling) |
 | `POST` | `/api/chat/approvals/{callId}/approve` | Подтвердить вызов инструмента в чате |
 | `POST` | `/api/chat/approvals/{callId}/reject` | Отклонить вызов инструмента в чате |
+| `GET` | `/api/models` | Список моделей LM Studio (без embedding) |
 
 ---
 
@@ -315,6 +318,33 @@ dotnet run --project IIChatTools.API
 | Суб-агенты | 1 | 1 |
 | Утилиты | 2 | 0 |
 | **Итого** | **40** | **18** |
+
+---
+
+## Chat UI
+
+Полноценный чат-интерфейс (`/chat`) по аналогии с ChatGPT/DeepSeek:
+
+**Возможности:**
+- 📋 **Sidebar** — список чатов с относительными датами (`только что`, `5 мин назад`, `вчера`, `22.09`).
+- ➕ **Создание / переименование (✏️) / удаление (🗑)** чатов прямо в sidebar (кнопки по hover).
+- 🔢 **Авто-нумерация** новых чатов: «Новый чат», «Новый чат 2», «Новый чат 3», …
+- 🌊 **SSE-стриминг** ответа LLM — потоковая отрисовка с мигающим курсором.
+- 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций).
+- ✅ **Approvals** — mutating-инструменты требуют подтверждения:
+  - Модалка с именем инструмента, JSON-параметрами, countdown (5 минут).
+  - Drag-and-drop за заголовок.
+  - Approve/Reject; закрытие крестиком = Reject.
+- 📜 **Persistентная история** — все диалоги в БД.
+- ⬇️ **ChatGPT-style скроллинг** — кнопка «↓ Вниз», автоскролл отключается при ручной прокрутке вверх.
+- 💾 **Enter** — отправка, **Shift+Enter** — новая строка, автоувеличение textarea.
+- 🌐 **Локализация RU/EN**.
+
+**Точки входа:**
+- UI: `/chat`
+- API: `/api/chats`, `/api/chat/stream`, `/api/chat/approvals/*`, `/api/models`
+
+**Скриншоты** — в [docs/development/v1.3/DESIGN.md](docs/development/v1.3/DESIGN.md).
 
 ---
 
@@ -396,19 +426,22 @@ Prometheus-метрики доступны по `/metrics` (публичный, 
 LM Studio (LLM) :8034
       ↓ HTTP (OpenAI-совместимый API)
 IIChatTools.API  (net10.0)
-  ├── Controllers: Home, Auth, Tools, Approvals, Admin, Status
+  ├── Controllers: Home, Auth, Tools, Approvals, Admin, Status, Chat, ChatStream, ChatView, Models
   ├── Razor Views (RU/EN через IStringLocalizer<SharedResources>)
-  ├── ES-модули: api, ui, status, approvals, admin, test
+  ├── ES-модули: api, ui, status, approvals, admin, test, chat
   ├── Program.cs: ConfigureDefaultProxy + миграции по провайдеру
-  └── Startup.cs: DI + 40 инструментов
+  └── Startup.cs: DI + 40 инструментов + Chat services
       ↓ DI
 IIChatTools.Services  (net10.0)
   ├── ToolRegistry (40 инструментов, auto-discovery)
+  ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator (Singleton)
+  ├── LmStudioClient (SSE-стриминг + tool calling)
   ├── Cross-cutting services (аудит, подтверждения, workspace, браузер)
   └── Tools/ (8 групп)
       ↓ EF Core 10
 IIChatTools.Data  (net10.0)
   ├── ApplicationUser + Identity (Admin, User)
+  ├── Chat + ChatMessage (v1.3)
   └── AuditLog, AppSetting, PendingAction, AgentState, MemoryEntry
       ↓ (опционально)
 logs/audit/*.jsonl (JSONL, ротация)
@@ -455,7 +488,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 14/14 тестов проходят (unit + integration).
+**Статус**: 29/29 тестов проходят (unit + integration).
 
 ---
 
