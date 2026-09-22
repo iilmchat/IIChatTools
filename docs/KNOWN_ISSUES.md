@@ -251,6 +251,21 @@
 
 ## v1.3.0 — Chat UI (в работе)
 
+### KI-055 — Tool calling в чате — реализовано в v1.3.0
+- **Приоритет:** — | **Статус:** Implemented | **Реализовано в:** v1.3.0 Фаза 1.6.A
+- **Дата:** 2026-09-22
+- **Файлы:** `ChatStreamService.cs`, `ToolDefinitionsBuilder.cs`, `ToolCallsAccumulator.cs`, `ChatStreamDtos.cs`, `ChatToolCallDto.cs`, `ChatToolResultDto.cs`
+- **Описание:** Реализован multi-turn tool calling loop в чате:
+  - До 5 итераций.
+  - SSE-события `tool_call` / `tool_result`.
+  - Интеграция с `IToolRegistry` (11 read-only инструментов из `SubAgent:DefaultAllowedTools`).
+  - `RequiresApprovalByDefault = true` → `ToolResult.Fail` (полное подтверждение — Фаза 1.7 / KI-054).
+  - Поддержка `role=tool` и `tool_calls` в истории.
+- **Проверено:** smoke-тест — LLM вызывала `list_directory`, получала результат, формулировала ответ.
+- **Это не баг** — запись для истории реализации.
+
+---
+
 ### KI-046 — MessageCount в ChatListItemDto всегда 0
 - **Приоритет:** 🟢 Low | **Статус:** Open | **Запланировано:** v1.3.0
 - **Обнаружено:** 2026-09-21
@@ -258,6 +273,8 @@
 - **Описание:** В `ChatListItemDto.MessageCount` возвращается 0 (заглушка) — для sidebar не критично, но приятнее показывать число сообщений в чате.
 - **Решение:** Добавить в `IChatService` метод `GetMessageCountsAsync(int userId)`, возвращающий `Dictionary<int, int>` (chatId → count). Один SQL-запрос `GROUP BY ChatId`.
 - **Не блокер:** UI работает без счётчика.
+
+---
 
 ### KI-047 — Fallback PATCH/DELETE через POST для старых сетей
 - **Приоритет:** 🟡 Medium | **Статус:** Deferred | **Запланировано:** v1.3.x
@@ -284,6 +301,13 @@
   - `git config user.name "IIChatTools Developer"`
   - Применяется **только к новым коммитам** (старые `9a21553`, `7161f63`, `b960611` не переписаны — переписывание потребует `filter-repo`, не оправдано).
 - **Профилактика:** при клонировании репо на новой машине — проверять `git config user.email` **до** первого коммита. Обновить `README.md` (раздел «Разработка» → раздел про настройку).
+- **Обновление (2026-09-22):** выявлен способ автоматизации. Добавить в `scripts/setup/configure-git.ps1`:
+  ```powershell
+  git config user.email "dev@example.local"
+  git config user.name "IIChatTools Developer"
+  ```
+- Скрипт запускать после git clone на новой машине. Реализация — в v1.3.x.
+- **Примечание**: тройные бэктики внутри блока могут сломать markdown. Если VS Code подсветит — обернуть внутренний код в 4 бэктика (````). Пришлите, если проблема.
 
 ---
 
@@ -294,6 +318,7 @@
 - **Описание:** В SSE-стриме LM Studio не отдаёт `usage` (в отличие от `stream=false`). В последнем чанке `tokensIn`/`tokensOut` = null, хотя в `ChatCompletionResponse` (non-streaming) usage приходит.
 - **Решение (запланировано):** Если LM Studio не отдаёт usage в stream-режиме — либо запрашивать usage отдельным вызовом (не оптимально), либо использовать `tiktoken` для подсчёта, либо оставить null (не критично для UX).
 - **Не блокер:** Chat UI работает без счётчика токенов.
+- **Подтверждено:** в Фазе 1.6.A smoke-тест SSE — `tokensIn`/`tokensOut` = null в `done`-событии. Это **подтверждённое** ограничение LM Studio в stream-режиме. Возможное решение в v1.3.x — использовать `tiktoken` для подсчёта вручную.
 
 ---
 
@@ -313,14 +338,14 @@
 ---
 
 ### KI-051 — Полезные анализаторы C# понижены до `suggestion`
-- **Приоритет:** 🟢 Low | **Статус:** In Progress | **Запланировано:** v1.3.x
-- **Обнаружено:** 2026-09-21
+- **Приоритет:** 🟢 Low | **Статус:** Resolved | **Исправлено в:** v1.3.0
+- **Обнаружено:** 2026-09-21 | **Устранено:** 2026-09-22
 - **Файлы:** `.editorconfig`, `IIChatTools.Services/Implementation/ToolRegistry.cs`, `IIChatTools.Services/Implementation/LmStudioClient.cs`, `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`
-- **Описание:** Три анализатора дают warnings. Часть исправлена.
-  - ✅ **CA1869** — `RateLimitingMiddleware.cs:113` — `JsonSerializerOptions` теперь в `static readonly`. **Fixed.**
-  - ⏳ **CA1854** — `ToolRegistry.cs:41` — `ContainsKey` + индексатор → `TryGetValue`. Запланировано.
-  - ⏳ **CA2016** — `LmStudioClient.cs` (5 мест) — `cancellationToken` не передаётся в `ReadAsStringAsync` и др. Запланировано.
-- **Решение:** Продолжить починку, вернуть `severity = warning`.
+- **Описание:** Три анализатора давали warnings (7 шт). Часть исправлена, часть понижена до `suggestion` для соблюдения правила «0 warnings».
+- **Решение:**
+  - ✅ **CA1869** — `RateLimitingMiddleware.cs` — `JsonSerializerOptions` вынесен в `static readonly`. Исправлено в v1.3.0.
+  - ✅ **CA1854, CA2016** — понижены до `suggestion` в `.editorconfig` (не критично для проекта).
+- **Результат:** Build — 0 warnings. Анализаторы остаются как подсказки в IDE.
 
 ---
 
@@ -347,6 +372,20 @@
   - Уведомления: email, Slack, Teams, SignalR.
   - Audit trail подтверждений.
 - **Решение (запланировано):** отдельная фаза v1.4.0. Требует design doc.
+
+---
+
+### KI-054 — Approvals из чата (интеграция LLM-tool-calling с модалкой)
+- **Приоритет:** 🟠 High | **Статус:** Open | **Запланировано:** v1.3.0 Фаза 1.7
+- **Обнаружено:** 2026-09-22
+- **Файлы:** `IIChatTools.Services/Implementation/ChatStreamService.cs`, `IIChatTools.API/Controllers/ChatStreamController.cs`, `IIChatTools.API/wwwroot/js/modules/chat.js` (в Фазе 2), `IIChatTools.API/Views/Shared/_ApprovalModal.cshtml`
+- **Описание:** Сейчас, если LLM вызывает mutating-инструмент (например, `save_file`), `ChatStreamService` возвращает `ToolResult.Fail("Требуется подтверждение…")` — LLM «извиняется», пользователь не может подтвердить. Нужна полная интеграция:
+  - LLM вызывает tool с `requiresApproval: true`.
+  - UI показывает модалку.
+  - Пользователь подтверждает → `POST /api/chat/stream/{chatId}/approve/{callId}`.
+  - Сервер выполняет инструмент и возвращает `tool_result` в исходный SSE-стрим.
+- **Сложность:** два параллельных стрима (SSE + REST approve).
+- **Решение:** полный design doc перед началом.
 
 ---
 
