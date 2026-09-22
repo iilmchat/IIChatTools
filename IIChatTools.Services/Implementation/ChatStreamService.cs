@@ -35,14 +35,17 @@ namespace IIChatTools.Services.Implementation
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;
         private readonly IToolRegistry _toolRegistry;
+        private readonly IWorkspaceResolver _workspaceResolver;
         private readonly IConfiguration _configuration;
         private readonly ILogger<ChatStreamService> _logger;
+
         /// <summary>
         /// Создаёт сервис стриминга.
         /// </summary>
         /// <param name="chatService">Сервис CRUD чатов</param>
         /// <param name="lmStudioClient">Клиент LM Studio (SSE)</param>
         /// <param name="toolRegistry">Реестр инструментов (для tool calling в чате)</param>
+        /// <param name="workspaceResolver">Резолвер рабочего пространства пользователя</param>
         /// <param name="configuration">Конфигурация приложения (для SubAgent:DefaultAllowedTools)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
@@ -50,12 +53,14 @@ namespace IIChatTools.Services.Implementation
             IChatService chatService,
             ILmStudioClient lmStudioClient,
             IToolRegistry toolRegistry,
+            IWorkspaceResolver workspaceResolver,
             IConfiguration configuration,
             ILogger<ChatStreamService> logger)
         {
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
             _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+            _workspaceResolver = workspaceResolver ?? throw new ArgumentNullException(nameof(workspaceResolver));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -314,11 +319,14 @@ namespace IIChatTools.Services.Implementation
                     }
                     else
                     {
+                        // Workspace — через резолвер (путь вида …/users/{userId})
+                        var workspaceRoot = await _workspaceResolver.GetWorkspacePathAsync(userId);
+
                         var execContext = new ToolExecutionContext
                         {
                             UserId = userId,
-                            WorkspaceRoot = request.ChatId > 0 ? null : null, // TODO: из резолвера (Фаза 1.7)
-                            ClientIp = null,
+                            WorkspaceRoot = workspaceRoot,
+                            ClientIp = null,   // TODO: пробросить из Controller (низкий приоритет)
                             CancellationToken = cancellationToken
                         };
 

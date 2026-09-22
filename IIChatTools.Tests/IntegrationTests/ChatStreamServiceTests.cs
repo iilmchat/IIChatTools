@@ -58,22 +58,33 @@ namespace IIChatTools.Tests.IntegrationTests
             var chatService = new ChatService(db, NullLogger<ChatService>.Instance);
             var fakeLm = new FakeLmStudioClient();
 
-            // Пустой реестр инструментов — тесты на tool calling добавятся в A.2.4.
             var emptyRegistry = new EmptyToolRegistry();
-
-            // Пустая конфигурация — UseTools=false в тестах A.1/A.2.1/A.2.2.
+            var fakeResolver = new FakeWorkspaceResolver();
             var config = new ConfigurationBuilder().Build();
 
             var service = new ChatStreamService(
                 chatService,
                 fakeLm,
                 emptyRegistry,
+                fakeResolver,
                 config,
                 NullLogger<ChatStreamService>.Instance);
 
             var chat = chatService.CreateChatAsync(1, model, "Test Chat").GetAwaiter().GetResult();
 
             return (service, chatService, 1, chat.Id, fakeLm);
+        }
+
+        /// <summary>
+        /// Fake-резолвер workspace — возвращает временный путь.
+        /// </summary>
+        private sealed class FakeWorkspaceResolver : IWorkspaceResolver
+        {
+            public Task<string> GetWorkspacePathAsync(int userId)
+                => Task.FromResult(System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(),
+                    "iichattools_test_ws",
+                    userId.ToString()));
         }
 
         /// <summary>
