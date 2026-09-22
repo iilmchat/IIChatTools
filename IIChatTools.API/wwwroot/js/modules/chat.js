@@ -548,6 +548,7 @@ function renderMessages(messages) {
     }
 
     container.innerHTML = messages.map(renderMessage).join('');
+    enhanceCodeBlocks(container);
     scrollToBottom(true);
 }
 
@@ -565,7 +566,7 @@ function renderMessage(msg) {
     }
 
     const contentHtml = msg.content
-        ? `<div class="chat-message-content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>`
+        ? `<div class="chat-message-content chat-markdown">${renderMarkdown(msg.content)}</div>`
         : '';
 
     // Кнопка Copy — только если есть текстовый контент
@@ -633,11 +634,12 @@ function appendUserMessage(text) {
             <div class="chat-message-avatar">👤</div>
             <div class="chat-message-body">
                 <div class="chat-message-meta">Вы · ${escapeHtml(formatTime(now))}</div>
-                <div class="chat-message-content">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
+                <div class="chat-message-content chat-markdown">${renderMarkdown(text)}</div>
                 ${renderMessageActions(text)}
             </div>
         </div>`;
     container.insertAdjacentHTML('beforeend', html);
+    enhanceCodeBlocks(container.lastElementChild);
     scrollToBottom();
 }
 
@@ -755,6 +757,22 @@ function finalizeAssistantBubble(bubble, data) {
     if (!bubble) return;
     bubble.classList.remove('chat-message-streaming');
     bubble.dataset.assistantMessageId = data.assistantMessageId || '';
+
+    // Финальный Markdown-рендер: во время стрима — plain-text (без мигания),
+    // после done — полноценный Markdown + code blocks.
+    const contentEl = bubble.querySelector('[data-stream-content]');
+    if (contentEl) {
+        const raw = contentEl.dataset.raw || '';
+        if (raw) {
+            contentEl.classList.add('chat-markdown');
+            contentEl.innerHTML = renderMarkdown(raw);
+            enhanceCodeBlocks(bubble);
+
+            // Синхронизация текста для Copy
+            const actionsEl = bubble.querySelector('.chat-message-actions');
+            if (actionsEl) actionsEl.dataset.copyText = raw;
+        }
+    }
 }
 
 /**
@@ -834,6 +852,163 @@ function readUrlChatId() {
     if (!raw) return null;
     const id = parseInt(raw, 10);
     return Number.isFinite(id) ? id : null;
+}
+
+// ============ Markdown rendering (Фаза 2.1.4) ============
+
+/**
+ * Рендерит Markdown в безопасный HTML через marked + DOMPurify.
+ * Если библиотеки не загружены — fallback на plain-text с <br>.
+ * @param {string} text
+ * @returns {string} Безопасный HTML
+ */
+function renderMarkdown(text) {
+    if (!text) return '';
+
+    // Fallback, если marked/DOMPurify не загрузились
+    if (!window.marked || !window.DOMPurify) {
+        return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    try {
+        // breaks: true — одиночный \n превращается в <br> (удобно для чата).
+        const rawHtml = window.marked.parse(text, { breaks: true, gfm: true });
+        return window.DOMPurify.sanitize(rawHtml, {
+            ALLOWED_TAGS: [
+                'p', 'br', 'strong', 'em', 'del', 'code', 'pre',
+                'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'ul', 'ol', 'li', 'blockquote', 'hr',
+                'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                'span', 'div'
+            ],
+            ALLOWED_ATTR: ['href', 'title', 'alt', 'src', 'class', 'target', 'rel'],
+        });
+    } catch (ex) {
+        console.warn('[chat] Markdown parse error:', ex);
+        return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+}
+
+// ============ Code blocks (Фаза 2.1.4) ============
+
+/**
+ * Оборачивает каждый <pre><code> в контейнер с шапкой (язык + Copy/Download).
+ * Идемпотентно: повторный вызов не дублирует шапки.
+ * @param {HTMLElement} root
+ */
+function enhanceCodeBlocks(root) {
+    if (!root) return;
+
+    root.querySelectorAll('pre > code').forEach(codeEl => {
+        const pre = codeEl.parentElement;
+        if (!pre || pre.parentElement?.classList.contains('chat-code-block')) return;
+
+        // Язык из класса "language-xxx" или "lang-xxx"
+        const langClass = Array.from(codeEl.classList)
+            .find(c => c.startsWith('language-') || c.startsWith('lang-'));
+        const lang = langClass ? langClass.replace(/^(language-|lang-)/, '') : '';
+
+        // Обёртка
+        const wrapper = document.createElement('div');
+        wrapper.className = 'chat-code-block';
+
+        const header = document.createElement('div');
+        header.className = 'chat-code-header';
+
+        const langEl = document.createElement('span');
+        langEl.className = 'chat-code-lang';
+        langEl.textContent = lang || 'code';
+
+        const actions = document.createElement('div');
+        actions.className = 'chat-code-actions';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'chat-code-btn chat-code-copy';
+        copyBtn.title = 'Скопировать код';
+        copyBtn.setAttribute('aria-label', 'Скопировать код');
+        copyBtn.textContent = '📋';
+
+        const dlBtn = document.createElement('button');
+        dlBtn.type = 'button';
+        dlBtn.className = 'chat-code-btn chat-code-download';
+        dlBtn.title = 'Скачать как файл';
+        dlBtn.setAttribute('aria-label', 'Скачать код');
+        dlBtn.textContent = '⬇️';
+
+        const codeText = codeEl.textContent || '';
+
+        copyBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                await copyToClipboard(codeText);
+                flashCopied(copyBtn);
+            } catch {
+                toast('Не удалось скопировать', 'error');
+            }
+        });
+
+        dlBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            downloadCodeFile(codeText, lang);
+        });
+
+        actions.appendChild(copyBtn);
+        actions.appendChild(dlBtn);
+        header.appendChild(langEl);
+        header.appendChild(actions);
+
+        // Перемещаем <pre> внутрь wrapper
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(header);
+        wrapper.appendChild(pre);
+    });
+}
+
+/**
+ * Скачивает текст как файл с расширением по языку.
+ * @param {string} code
+ * @param {string} lang
+ */
+function downloadCodeFile(code, lang) {
+    const ext = langToExtension(lang);
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `code-${Date.now()}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Преобразует название языка в расширение файла.
+ * @param {string} lang
+ * @returns {string}
+ */
+function langToExtension(lang) {
+    const map = {
+        javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts',
+        python: 'py', py: 'py',
+        csharp: 'cs', cs: 'cs', 'c#': 'cs',
+        java: 'java', kotlin: 'kt',
+        go: 'go', rust: 'rs', rs: 'rs',
+        ruby: 'rb', php: 'php',
+        bash: 'sh', sh: 'sh', shell: 'sh', zsh: 'sh',
+        powershell: 'ps1', ps1: 'ps1',
+        sql: 'sql', json: 'json',
+        yaml: 'yml', yml: 'yml', xml: 'xml',
+        html: 'html', css: 'css', scss: 'scss',
+        markdown: 'md', md: 'md',
+        dockerfile: 'Dockerfile',
+        text: 'txt', plaintext: 'txt',
+    };
+    return map[(lang || '').toLowerCase()] || 'txt';
 }
 
 // ============ Действия с сообщениями (Фаза 2.1.1 — Copy) ============

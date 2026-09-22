@@ -69,6 +69,10 @@
 }
 
 @section Scripts {
+    <!-- Markdown + sanitize (UMD, локально). Глобальные window.marked / window.DOMPurify. -->
+    <script src="~/lib/marked/marked.min.js" asp-append-version="true"></script>
+    <script src="~/lib/dompurify/purify.min.js" asp-append-version="true"></script>
+
     <script type="module">
         import { initChatPage } from '/js/modules/chat.js';
         initChatPage();
