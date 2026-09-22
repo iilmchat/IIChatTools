@@ -58,6 +58,16 @@
   - Минимальное отображение tool calls (серые блоки с именем инструмента).
   - Автоскролл к последнему сообщению.
   - `chat.css` дополнен стилями сообщений и tool-блоков.
+  - **Chat UI — SSE-стриминг (v1.3 Фаза 2.0.3)**: `chat.js` умеет отправлять сообщения и стримить ответ:
+  - `sendMessage()` — `POST /api/chat/stream` с `useTools: true`.
+  - `readSseStream()` — чтение SSE через `fetch` + `ReadableStream`.
+  - `handleSseEvent()` — обработка `start`/`delta`/`done`/`error`/`tool_call`/`tool_result`.
+  - `tool_approval_required` / `tool_approval_resolved` — заглушки (полная обработка — Фаза 2.0.4).
+  - Оптимистичное отображение user-пузыря, индикатор «Печатает…» (три точки), потоковая отрисовка delta.
+  - Блокировка input/кнопки на время стрима, автоскролл (только если пользователь был внизу).
+  - Enter — отправка, Shift+Enter — новая строка, автоувеличение textarea.
+  - Локальное обновление `UpdatedAt` в sidebar после `done`.
+  - `chat.css`: стили `chat-typing-indicator`, `chat-message-streaming`, `chat-message-error`, `chat-tool-result.success/error`.
 
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.
