@@ -980,6 +980,16 @@ function enhanceCodeBlocks(root) {
         pre.parentNode.insertBefore(wrapper, pre);
         wrapper.appendChild(header);
         wrapper.appendChild(pre);
+
+        // Подсветка синтаксиса (highlight.js). Если не загружен — просто пропуск.
+        // hljs сам найдёт язык по class="language-xxx" или auto-detect.
+        if (window.hljs && typeof window.hljs.highlightElement === 'function') {
+            try {
+                window.hljs.highlightElement(codeEl);
+            } catch (ex) {
+                console.warn('[chat] highlight.js error:', ex);
+            }
+        }
     });
 }
 

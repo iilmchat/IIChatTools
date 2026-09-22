@@ -612,10 +612,17 @@ body.approval-dragging {
     padding: 0;
     background: transparent;
     border-radius: 0;
-    color: inherit;
+    /* color: inherit убран — иначе перебиваем палитру highlight.js */
     font-size: .85rem;
     line-height: 1.5;
     white-space: pre;
+}
+
+/* highlight.js — нейтрализуем фон/паддинг темы, оставляем только цвета */
+.chat-code-block pre code.hljs {
+    background: transparent;
+    padding: 0;
+    overflow: visible;
 }
 
 /* ============ Code block wrapper (Фаза 2.1.4) ============ */

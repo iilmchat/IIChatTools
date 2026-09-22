@@ -65,13 +65,18 @@
 <partial name="_ApprovalModal" />
 
 @section Styles {
+    <!-- highlight.js тема (перед chat.css, чтобы наши стили переопределили) -->
+    <link rel="stylesheet" href="~/lib/highlight/github.min.css" asp-append-version="true" />
+
     <link rel="stylesheet" href="~/css/chat.css" asp-append-version="true" />
 }
 
 @section Scripts {
-    <!-- Markdown + sanitize (UMD, локально). Глобальные window.marked / window.DOMPurify. -->
+    <!-- Markdown + sanitize + highlight (UMD, локально). -->
+    <!-- Глобальные: window.marked / window.DOMPurify / window.hljs. -->
     <script src="~/lib/marked/marked.min.js" asp-append-version="true"></script>
     <script src="~/lib/dompurify/purify.min.js" asp-append-version="true"></script>
+    <script src="~/lib/highlight/highlight.min.js" asp-append-version="true"></script>
 
     <script type="module">
         import { initChatPage } from '/js/modules/chat.js';
