@@ -22,19 +22,23 @@ namespace IIChatTools.API.Controllers
     public class ChatStreamController : ControllerBase
     {
         private readonly IChatStreamService _chatStreamService;
+        private readonly IChatApprovalCoordinator _approvalCoordinator;
         private readonly ILogger<ChatStreamController> _logger;
 
         /// <summary>
         /// Создаёт экземпляр контроллера.
         /// </summary>
         /// <param name="chatStreamService">Сервис стриминга чата</param>
+        /// <param name="approvalCoordinator">Координатор подтверждений (Singleton)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatStreamController(
             IChatStreamService chatStreamService,
+            IChatApprovalCoordinator approvalCoordinator,
             ILogger<ChatStreamController> logger)
         {
             _chatStreamService = chatStreamService ?? throw new ArgumentNullException(nameof(chatStreamService));
+            _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -137,5 +141,80 @@ namespace IIChatTools.API.Controllers
                 throw new UnauthorizedAccessException("Пользователь не аутентифицирован");
             return id;
         }
+
+
+        // ============================================================
+        // Approvals (Фаза 1.7) — REST для resolve tool-call decisions
+        // ============================================================
+
+        /// <summary>
+        /// Подтверждает вызов инструмента, ожидающего approval в чате.
+        /// </summary>
+        /// <param name="callId">Идентификатор вызова (от LM Studio)</param>
+        /// <returns>JSON { success, data: { resolved } }</returns>
+        [HttpPost("approvals/{callId}/approve")]
+        public async Task<IActionResult> ApproveAsync(string callId)
+        {
+            return await ResolveApprovalAsync(callId, ChatApprovalDecision.Approved);
+        }
+
+        /// <summary>
+        /// Отклоняет вызов инструмента, ожидающего approval в чате.
+        /// </summary>
+        /// <param name="callId">Идентификатор вызова (от LM Studio)</param>
+        /// <returns>JSON { success, data: { resolved } }</returns>
+        [HttpPost("approvals/{callId}/reject")]
+        public async Task<IActionResult> RejectAsync(string callId)
+        {
+            return await ResolveApprovalAsync(callId, ChatApprovalDecision.Rejected);
+        }
+
+        /// <summary>
+        /// Общий метод approve/reject: находит ожидающего, будит его.
+        /// </summary>
+        /// <param name="callId">Идентификатор вызова</param>
+        /// <param name="decision">Решение</param>
+        /// <returns>JSON { success, data: { resolved } }</returns>
+        private async Task<IActionResult> ResolveApprovalAsync(string callId, ChatApprovalDecision decision)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(callId))
+                {
+                    return Ok(new { success = false, message = "Некорректный идентификатор вызова." });
+                }
+
+                var userId = GetCurrentUserId();
+
+                _logger.LogInformation(
+                    "Approval resolve: callId={CallId}, decision={Decision}, userId={UserId}",
+                    callId, decision, userId);
+
+                var resolved = await _approvalCoordinator.ResolveAsync(callId, decision);
+
+                if (!resolved)
+                {
+                    _logger.LogWarning(
+                        "Approval resolve: callId={CallId} не найден (таймаут или неверный id)",
+                        callId);
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "Запрос уже неактуален (таймаут истёк или неверный id)."
+                    });
+                }
+
+                return Ok(new { success = true, data = new { resolved = true } });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка resolve approval callId={CallId}", callId);
+                return Ok(new { success = false, message = "Внутренняя ошибка сервера." });
+            }
+        }        
     }
 }
