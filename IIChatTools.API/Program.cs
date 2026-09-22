@@ -83,6 +83,21 @@ namespace IIChatTools.API
                 return;
             }
 
+            // Placeholder из appsettings — игнорируем (KI-059).
+            if (proxyUrl.StartsWith("CHANGE_ME", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("[INFO] Прокси не настроен (placeholder, не задан в User Secrets)");
+                return;
+            }
+
+            // Требуем абсолютный URL со схемой http/https.
+            if (!Uri.TryCreate(proxyUrl, UriKind.Absolute, out var parsedProxy)
+                || (parsedProxy.Scheme != Uri.UriSchemeHttp && parsedProxy.Scheme != Uri.UriSchemeHttps))
+            {
+                Console.Error.WriteLine($"[WARN] Некорректный URL прокси: {proxyUrl}");
+                return;
+            }
+
             try
             {
                 // 1) HTTP-прокси для HttpClient и ClientWebSocket (используется PuppeteerSharp)

@@ -377,6 +377,20 @@
 
 ---
 
+### KI-059 — Placeholder `CHANGE_ME_VIA_USER_SECRETS` использовался как прокси
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.3.0 (hotfix после Фазы 2.1.1)
+- **Обнаружено:** 2026-09-22 (smoke-тест Chat UI — `web_search` / `wikipedia_search` падали) | **Устранено:** 2026-09-22
+- **Файлы:** `IIChatTools.API/Startup.cs`, `IIChatTools.API/Program.cs`
+- **Описание:** В `appsettings.Development.json` ключ `Browser:ProxyServer` содержит placeholder `CHANGE_ME_VIA_USER_SECRETS`. Код проверял только `!string.IsNullOrWhiteSpace(proxyUrl)` — placeholder **не пустой** → трактовался как реальный прокси. `System.Net.WebProxy("CHANGE_ME_VIA_USER_SECRETS")` парсил строку как хост `change_me_via_user_secrets:80`, `HttpClient` пытался установить CONNECT-туннель → `SocketException 11001: Этот хост неизвестен`. Все исходящие HTTP-запросы (`web_search`, `wikipedia_search`) падали.
+- **Симптом в UI:** LLM вызывает `web_search` → SSE `tool_result` success=false → LLM отвечает «не смог найти информацию из-за технической ошибки».
+- **Решение:**
+  - `Startup.cs`: helper `IsRealProxyUrl(url)` — отсекает placeholder (`CHANGE_ME*`), пустые строки и требует абсолютный URL с http/https схемой.
+  - `Program.cs` (`ConfigureDefaultProxy`): та же проверка для env-переменной `IICHATTOOLS_PROXY`.
+  - Placeholder теперь трактуется как «прокси не настроен» — логируется `[INFO]`, а не `[ERROR]`.
+- **Результат:** `web_search` и `wikipedia_search` работают без прокси; при заданных User Secrets — используют реальный прокси.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -526,14 +540,14 @@
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
-| Fixed / Resolved (v1.3.0) | 4 |   <!-- KI-046, KI-050, KI-051, KI-058 -->
+| Fixed / Resolved (v1.3.0) | 5 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049 -->
 | Deferred | 3 |                      <!-- KI-047, KI-052, KI-053 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
-**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX).
+**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream).
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).

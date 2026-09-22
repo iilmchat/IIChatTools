@@ -229,7 +229,9 @@ namespace IIChatTools.API
                     var proxyUser = Configuration["Browser:ProxyUsername"];
                     var proxyPass = Configuration["Browser:ProxyPassword"];
 
-                    if (!string.IsNullOrWhiteSpace(proxyUrl))
+                    // Проверяем, что это РЕАЛЬНЫЙ прокси URL, а не placeholder
+                    // «CHANGE_ME_VIA_USER_SECRETS» из appsettings (KI-059).
+                    if (IsRealProxyUrl(proxyUrl))
                     {
                         var webProxy = new System.Net.WebProxy(proxyUrl)
                         {
@@ -498,6 +500,32 @@ namespace IIChatTools.API
         private static void RegisterSubAgentTools(IServiceCollection services)
         {
             services.AddScoped<ITool, ConsultSecondaryAgentTool>();
+        }
+
+        /// <summary>
+        /// Проверяет, что строка является РЕАЛЬНЫМ URL прокси, а не placeholder.
+        /// Placeholder-значения (<c>CHANGE_ME_VIA_USER_SECRETS</c>, пустые строки)
+        /// игнорируются — иначе <see cref="System.Net.WebProxy"/> пытается
+        /// установить CONNECT-туннель к несуществующему хосту (KI-059).
+        /// </summary>
+        /// <param name="url">Значение из конфигурации</param>
+        /// <returns>true, если URL валиден и не является placeholder</returns>
+        private static bool IsRealProxyUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return false;
+            }
+
+            // Placeholder из appsettings.json (см. README → User Secrets).
+            if (url.StartsWith("CHANGE_ME", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Должен быть абсолютный URL со схемой http/https.
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
     }
 }
