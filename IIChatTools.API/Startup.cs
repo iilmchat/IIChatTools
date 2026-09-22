@@ -6,6 +6,7 @@ using System.Text;
 using IIChatTools.Data;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.Implementation;
+using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
@@ -279,8 +280,12 @@ namespace IIChatTools.API
             services.AddScoped<IChatService, ChatService>();
 
             // ============ Chat stream service (v1.3 Фаза 1.5) ============
-            services.AddScoped<IChatStreamService, ChatStreamService>();
-            
+            services.AddScoped<IChatStreamService, ChatStreamService>();            
+
+            // ============ Chat approval coordinator (v1.3 Фаза 1.7) ============
+            // Singleton — связывает SSE-стрим и REST-endpoint в разных HTTP-scope.
+            services.AddSingleton<IChatApprovalCoordinator, ChatApprovalCoordinator>();
+
             // ============ 7. Реестр инструментов ============
             services.AddScoped<IToolRegistry, ToolRegistry>();
 
