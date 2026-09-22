@@ -114,6 +114,31 @@ namespace IIChatTools.Services.DTO.Chat
             {
                 Type = "tool_result",
                 Data = dto
-            };            
+            };     
+
+
+        /// <summary>
+        /// Создаёт событие <c>tool_approval_required</c> — инструмент требует подтверждения.
+        /// </summary>
+        /// <param name="dto">Информация о запросе подтверждения</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent ToolApprovalRequired(ChatApprovalRequiredDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "tool_approval_required",
+                Data = dto
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>tool_approval_resolved</c> — решение принято.
+        /// </summary>
+        /// <param name="dto">Решение пользователя</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent ToolApprovalResolved(ChatApprovalResolvedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "tool_approval_resolved",
+                Data = dto
+            };                   
     }
 }
