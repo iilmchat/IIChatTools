@@ -143,3 +143,6 @@ IIChatTools.API/Data/
 # Continue.dev (VS Code AI extension)
 .continue/
 
+# Локальные артефакты curl/smoke-тестов
+cookies.txt
+.commit-msg.txt

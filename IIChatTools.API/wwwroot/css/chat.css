@@ -149,3 +149,116 @@
         font-size: .8rem;
     }
 }
+
+/* ============ Сообщения ============ */
+
+.chat-message {
+    display: flex;
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-start;
+}
+
+.chat-message.user {
+    flex-direction: row-reverse;
+}
+
+.chat-message-avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    user-select: none;
+}
+
+.chat-message.user .chat-message-avatar {
+    background: #cfe2ff;
+}
+
+.chat-message-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 80%;
+}
+
+.chat-message.user .chat-message-body {
+    text-align: right;
+}
+
+.chat-message-meta {
+    font-size: .75rem;
+    color: #6c757d;
+    margin-bottom: .25rem;
+}
+
+.chat-message-content {
+    display: inline-block;
+    text-align: left;
+    padding: .6rem .9rem;
+    border-radius: .5rem;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.chat-message.user .chat-message-content {
+    background: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+}
+
+/* ============ Tool calls / результаты ============ */
+
+.chat-tool-block,
+.chat-tool-result {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .3rem .6rem;
+    margin-bottom: .35rem;
+    font-size: .8rem;
+    background: #f1f3f5;
+    border-left: 3px solid #adb5bd;
+    border-radius: .25rem;
+    color: #495057;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.chat-tool-icon {
+    font-size: .9rem;
+    flex-shrink: 0;
+}
+
+.chat-tool-name {
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.chat-tool-preview {
+    font-family: var(--bs-font-monospace);
+    font-size: .75rem;
+    color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* ============ Индикатор загрузки ============ */
+
+.chat-loading {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    color: #6c757d;
+    font-size: .875rem;
+}
