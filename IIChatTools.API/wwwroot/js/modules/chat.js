@@ -135,12 +135,13 @@ function renderChatList() {
     listEl.innerHTML = state.chats.map(chat => {
         const isActive = chat.id === state.activeChatId;
         const title = escapeHtml(chat.title || 'Без названия');
+        const meta = formatChatMeta(chat);
         return `
             <div class="chat-list-item ${isActive ? 'active' : ''}"
                  data-chat-id="${chat.id}" role="button" tabindex="0">
                 <div class="chat-list-item-body">
                     <div class="chat-list-item-title">${title}</div>
-                    <div class="chat-list-item-meta">${escapeHtml(formatRelativeDate(chat.updatedAt))}</div>
+                    <div class="chat-list-item-meta">${escapeHtml(meta)}</div>
                 </div>
                 <button type="button"
                         class="chat-list-item-action chat-list-item-edit"
@@ -857,6 +858,18 @@ function updateScrollDownButton() {
     const btn = document.getElementById('chat-scroll-down');
     if (!btn) return;
     btn.hidden = state.autoScroll;
+}
+
+/**
+ * Формирует meta-строку для элемента sidebar: «дата · N сообщ.».
+ * @param {object} chat ChatListItemDto
+ * @returns {string}
+ */
+function formatChatMeta(chat) {
+    const datePart = formatRelativeDate(chat.updatedAt);
+    const count = chat.messageCount || 0;
+    if (count <= 0) return datePart;
+    return `${datePart} · ${count} сообщ.`;
 }
 
 function formatRelativeDate(iso) {
