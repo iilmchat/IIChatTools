@@ -7,6 +7,7 @@
  */
 import { apiGet, apiPost } from './api.js';
 import { escapeHtml, toast } from './ui.js';
+import { requestChatApproval } from './approvals.js';
 
 // ============ Состояние ============
 
@@ -343,13 +344,11 @@ function handleSseEvent(name, data, assistantBubble) {
             break;
 
         case 'tool_approval_required':
-            // TODO Фаза 2.0.4 — показать модалку, отправить approve/reject
-            console.warn('[chat] tool_approval_required (обработка — в 2.0.4)', data);
+            handleApprovalRequired(data);
             break;
 
         case 'tool_approval_resolved':
-            // TODO Фаза 2.0.4 — обновить UI модалки
-            console.warn('[chat] tool_approval_resolved (обработка — в 2.0.4)', data);
+            handleApprovalResolved(data);
             break;
 
         case 'done':
@@ -365,6 +364,45 @@ function handleSseEvent(name, data, assistantBubble) {
         default:
             console.debug('[chat] Неизвестное SSE-событие:', name, data);
     }
+}
+
+// ============ Approvals (Фаза 2.0.4) ============
+
+/**
+ * Обрабатывает SSE-событие tool_approval_required.
+ * Показывает модалку подтверждения. Модалка сама отправит approve/reject
+ * через REST /api/chat/approvals/{callId}/... — сервер продолжит стрим.
+ *
+ * ВАЖНО: не await — SSE reader продолжает читать события. Разрешение
+ * придёт в стрим как tool_approval_resolved (сервер ждёт решение 5 минут).
+ *
+ * @param {object} data { id, name, arguments, expiresAt }
+ */
+function handleApprovalRequired(data) {
+    const expiresMs = new Date(data.expiresAt).getTime();
+    const argsJson = JSON.stringify(data.arguments || {});
+
+    console.log(`[chat] Approval required: ${data.name} (${data.id}), expires ${data.expiresAt}`);
+
+    requestChatApproval(data.id, data.name, argsJson, expiresMs)
+        .then(result => {
+            console.log(`[chat] Approval resolved: ${data.id} → ${result.decision}`);
+        })
+        .catch(ex => {
+            console.error('[chat] Ошибка approval:', ex);
+            toast('Ошибка подтверждения', 'error');
+        });
+}
+
+/**
+ * Обрабатывает SSE-событие tool_approval_resolved.
+ * Модалка уже закрылась сама (в requestChatApproval). Здесь только
+ * логирование — можно будет использовать для индикатора в UI (v1.3.x).
+ *
+ * @param {object} data { id, decision }
+ */
+function handleApprovalResolved(data) {
+    console.log(`[chat] Approval resolved event: ${data.id} → ${data.decision}`);
 }
 
 // ============ Рендер сообщений ============

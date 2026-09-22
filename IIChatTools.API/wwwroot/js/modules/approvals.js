@@ -1,22 +1,71 @@
 /**
  * Модуль подтверждения действий агента.
- * Отображает модальное окно, ожидает решения пользователя, отправляет решение на сервер,
- * а затем выполняет ожидающий запрос на инструмент с approvalId.
- * © 2026 RuChating (iilmchat) · IIChatTools v1.1.0
+ * Отображает модальное окно, ожидает решения пользователя, отправляет решение на сервер.
+ *
+ * Используется в двух сценариях:
+ *   1. /test         — старый flow через PendingActions: /api/approvals/{actionId}/...
+ *   2. /chat         — новый flow через IChatApprovalCoordinator: /api/chat/approvals/{callId}/...
+ *
+ * © 2026 RuChating (iilmchat) · IIChatTools v1.3
  */
-import { apiGet, apiPost } from './api.js';
+import { apiPost } from './api.js';
 import { escapeHtml, toast } from './ui.js';
 
 /**
- * Запрашивает подтверждение действия у пользователя.
+ * Запрашивает подтверждение действия у пользователя (страница /test).
  * @param {number} actionId Идентификатор ожидающего действия
  * @param {string} toolName Имя инструмента
  * @param {string} parametersJson Параметры в виде JSON-строки
  * @param {number} expiresAt Время истечения в UTC (миллисекунды)
  * @returns {Promise<{decision: 'approved'|'rejected'|'expired', reason?: string}>}
- *   decision — решение пользователя; reason — причина отклонения (для 'rejected')
  */
 export function requestApproval(actionId, toolName, parametersJson, expiresAt) {
+    return _showApprovalModal({
+        toolName,
+        parametersJson,
+        expiresAt,
+        approveUrl: `/api/approvals/${actionId}/approve`,
+        rejectUrl: `/api/approvals/${actionId}/reject`,
+        askReason: true,
+    });
+}
+
+/**
+ * Запрашивает подтверждение вызова инструмента в чате (страница /chat).
+ * Отличие от requestApproval: другой endpoint (IChatApprovalCoordinator) и
+ * отсутствие запроса причины отклонения (см. Q6 Фазы 1.7).
+ *
+ * @param {string} callId Идентификатор вызова инструмента (от LM Studio)
+ * @param {string} toolName Имя инструмента
+ * @param {string} parametersJson Параметры в виде JSON-строки
+ * @param {number} expiresAt Время истечения в UTC (миллисекунды)
+ * @returns {Promise<{decision: 'approved'|'rejected'|'expired'}>}
+ */
+export function requestChatApproval(callId, toolName, parametersJson, expiresAt) {
+    return _showApprovalModal({
+        toolName,
+        parametersJson,
+        expiresAt,
+        approveUrl: `/api/chat/approvals/${callId}/approve`,
+        rejectUrl: `/api/chat/approvals/${callId}/reject`,
+        askReason: false,
+    });
+}
+
+/**
+ * Внутренняя реализация модалки approve/reject.
+ * Параметризована URL-ами для поддержки двух flow (/test и /chat).
+ *
+ * @param {object} opts
+ * @param {string} opts.toolName
+ * @param {string} opts.parametersJson
+ * @param {number} opts.expiresAt — миллисекунды UTC
+ * @param {string} opts.approveUrl
+ * @param {string} opts.rejectUrl
+ * @param {boolean} opts.askReason — спрашивать ли причину отклонения через prompt()
+ * @returns {Promise<{decision: 'approved'|'rejected'|'expired', reason?: string}>}
+ */
+function _showApprovalModal({ toolName, parametersJson, expiresAt, approveUrl, rejectUrl, askReason }) {
     return new Promise(resolve => {
         const modalEl = document.getElementById('approvalModal');
         if (!modalEl) {
@@ -39,8 +88,6 @@ export function requestApproval(actionId, toolName, parametersJson, expiresAt) {
         let settled = false;
         let timer = null;
 
-        // Снимает все обработчики и останавливает таймер.
-        // Вызывается ровно один раз — при принятии решения (approve/reject/expired).
         const cleanup = () => {
             if (timer) {
                 clearInterval(timer);
@@ -75,7 +122,7 @@ export function requestApproval(actionId, toolName, parametersJson, expiresAt) {
             approveBtn.disabled = rejectBtn.disabled = true;
 
             try {
-                const res = await apiPost(`/api/approvals/${actionId}/approve`, {});
+                const res = await apiPost(approveUrl, {});
                 modal.hide();
                 if (!res.success) {
                     toast(res.message || 'Ошибка подтверждения', 'error');
@@ -93,20 +140,21 @@ export function requestApproval(actionId, toolName, parametersJson, expiresAt) {
         const onReject = async () => {
             if (settled) return;
 
-            // Запрос причины. Cancel в prompt() = пользователь передумал:
-            // модалка остаётся открытой, обработчики живы, settled = false.
-            const raw = prompt('Причина отклонения (необязательно):', '');
-            if (raw === null) {
-                return;
+            // Причина — только если askReason === true (flow /test).
+            // В /chat — без причины (Q6 Фазы 1.7).
+            let reason = '';
+            if (askReason) {
+                const raw = prompt('Причина отклонения (необязательно):', '');
+                if (raw === null) return;   // отмена диалога — модалка остаётся
+                reason = raw.trim();
             }
-            const reason = raw.trim();
 
             settled = true;
             cleanup();
             approveBtn.disabled = rejectBtn.disabled = true;
 
             try {
-                const res = await apiPost(`/api/approvals/${actionId}/reject`, { reason });
+                const res = await apiPost(rejectUrl, askReason ? { reason } : {});
                 modal.hide();
                 if (!res.success) {
                     toast(res.message || 'Ошибка отклонения', 'error');
@@ -121,11 +169,10 @@ export function requestApproval(actionId, toolName, parametersJson, expiresAt) {
             }
         };
 
-        // Без { once: true } — снимаем обработчики сами через cleanup()
         approveBtn.addEventListener('click', onApprove);
         rejectBtn.addEventListener('click', onReject);
 
-        // Восстанавливаем кнопки при следующем открытии модалки (не once!)
+        // Восстанавливаем кнопки при следующем открытии модалки
         modalEl.addEventListener('hidden.bs.modal', () => {
             approveBtn.disabled = rejectBtn.disabled = false;
         });
