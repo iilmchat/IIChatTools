@@ -4,29 +4,39 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
+using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
 using Xunit;
-using IIChatTools.Services.DTO;
-using Microsoft.Extensions.Configuration;
 
 namespace IIChatTools.Tests.IntegrationTests
 {
     /// <summary>
-    /// Тесты ChatStreamService: успешный стрим, отсутствие чата, пустое сообщение.
+    /// Тесты ChatStreamService: простой стрим, tool calling loop, approval.
     /// Используют реальный ChatService на InMemory-БД + FakeLmStudioClient.
     /// </summary>
     public class ChatStreamServiceTests
     {
         /// <summary>
-        /// Fake ILmStudioClient — отдаёт заданные чанки по порядку.
+        /// Fake ILmStudioClient — отдаёт чанки по итерациям.
+        /// Итерация 1 → Iterations[0], итерация 2 → Iterations[1] и т. д.
+        /// Если итераций меньше, чем запрошено, отдаётся последняя.
         /// </summary>
         private sealed class FakeLmStudioClient : ILmStudioClient
         {
-            public List<ChatCompletionChunk> Chunks { get; } = new List<ChatCompletionChunk>();
+            /// <summary>Список итераций: каждая — набор чанков.</summary>
+            public List<List<ChatCompletionChunk>> Iterations { get; } = new List<List<ChatCompletionChunk>>();
+
+            /// <summary>Счётчик запросов ChatStreamAsync (для ассертов).</summary>
+            public int StreamCallCount { get; private set; }
+
+            /// <summary>Совместимость со старыми тестами — используем Iterations[0].</summary>
+            public List<ChatCompletionChunk> Chunks =>
+                Iterations.Count == 0 ? null : Iterations[0];
 
             public Task<ChatCompletionResponse> CompleteAsync(
                 JArray messages, JArray tools, CancellationToken cancellationToken)
@@ -40,39 +50,24 @@ namespace IIChatTools.Tests.IntegrationTests
                 JArray tools,
                 [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
             {
-                foreach (var chunk in Chunks)
+                var index = StreamCallCount;
+                StreamCallCount++;
+
+                // Если итераций меньше, чем вызовов — отдаём последнюю (повтор для устойчивости)
+                var listIndex = Math.Min(index, Iterations.Count - 1);
+                if (listIndex < 0)
+                {
+                    yield break;
+                }
+
+                var chunks = Iterations[listIndex];
+                foreach (var chunk in chunks)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     yield return chunk;
                     await Task.Yield();
                 }
             }
-        }
-
-        /// <summary>
-        /// Создаёт сервис с реальным ChatService на InMemory-БД.
-        /// </summary>
-        private static (ChatStreamService Service, ChatService ChatService, int UserId, int ChatId, FakeLmStudioClient LmClient) CreateService(string model = "test-model")
-        {
-            var db = TestDbContextFactory.Create();
-            var chatService = new ChatService(db, NullLogger<ChatService>.Instance);
-            var fakeLm = new FakeLmStudioClient();
-
-            var emptyRegistry = new EmptyToolRegistry();
-            var fakeResolver = new FakeWorkspaceResolver();
-            var config = new ConfigurationBuilder().Build();
-
-            var service = new ChatStreamService(
-                chatService,
-                fakeLm,
-                emptyRegistry,
-                fakeResolver,
-                config,
-                NullLogger<ChatStreamService>.Instance);
-
-            var chat = chatService.CreateChatAsync(1, model, "Test Chat").GetAwaiter().GetResult();
-
-            return (service, chatService, 1, chat.Id, fakeLm);
         }
 
         /// <summary>
@@ -88,7 +83,74 @@ namespace IIChatTools.Tests.IntegrationTests
         }
 
         /// <summary>
-        /// Пустой реестр инструментов — для тестов, где tools не нужны.
+        /// Реестр fake-инструментов: позволяет зарегистрировать инструменты
+        /// с настраиваемыми Name/RequiresApprovalByDefault/Result.
+        /// </summary>
+        private sealed class FakeToolRegistry : IToolRegistry
+        {
+            private readonly Dictionary<string, FakeToolDef> _tools
+                = new Dictionary<string, FakeToolDef>(StringComparer.OrdinalIgnoreCase);
+
+            /// <summary>Счётчик вызовов ExecuteAsync (для ассертов).</summary>
+            public int ExecuteCallCount { get; private set; }
+
+            /// <summary>Имена инструментов, которые были вызваны.</summary>
+            public List<string> ExecutedTools { get; } = new List<string>();
+
+            public void Register(string name, bool requiresApproval, ToolResult result, string description = null)
+            {
+                _tools[name] = new FakeToolDef
+                {
+                    Name = name,
+                    Description = description ?? $"Fake tool: {name}",
+                    RequiresApproval = requiresApproval,
+                    Result = result
+                };
+            }
+
+            public IReadOnlyList<ToolDescriptor> GetAllDescriptors()
+                => _tools.Values
+                    .Select(t => new ToolDescriptor
+                    {
+                        Name = t.Name,
+                        Description = t.Description,
+                        RequiresApprovalByDefault = t.RequiresApproval,
+                        Parameters = new List<ToolParameterDescriptor>()
+                    })
+                    .ToList();
+
+            public ToolDescriptor GetDescriptor(string name)
+            {
+                if (!_tools.TryGetValue(name, out var t)) return null;
+                return new ToolDescriptor
+                {
+                    Name = t.Name,
+                    Description = t.Description,
+                    RequiresApprovalByDefault = t.RequiresApproval,
+                    Parameters = new List<ToolParameterDescriptor>()
+                };
+            }
+
+            public Task<ToolResult> ExecuteAsync(string toolName, ToolExecutionContext context, JObject arguments)
+            {
+                ExecuteCallCount++;
+                ExecutedTools.Add(toolName);
+                if (!_tools.TryGetValue(toolName, out var t))
+                    return Task.FromResult(ToolResult.Fail($"Fake tool '{toolName}' not registered"));
+                return Task.FromResult(t.Result);
+            }
+
+            private sealed class FakeToolDef
+            {
+                public string Name { get; set; }
+                public string Description { get; set; }
+                public bool RequiresApproval { get; set; }
+                public ToolResult Result { get; set; }
+            }
+        }
+
+        /// <summary>
+        /// Пустой реестр — для тестов, где tools не нужны.
         /// </summary>
         private sealed class EmptyToolRegistry : IToolRegistry
         {
@@ -98,37 +160,71 @@ namespace IIChatTools.Tests.IntegrationTests
                 => Task.FromResult(ToolResult.Fail("not implemented"));
         }
 
+        /// <summary>
+        /// Создаёт сервис с реальным ChatService на InMemory-БД.
+        /// </summary>
+        private static (ChatStreamService Service, ChatService ChatService, int UserId, int ChatId, FakeLmStudioClient LmClient, IToolRegistry Registry) CreateService(
+            IToolRegistry registry = null,
+            string model = "test-model",
+            IConfiguration config = null)
+        {
+            var db = TestDbContextFactory.Create();
+            var chatService = new ChatService(db, NullLogger<ChatService>.Instance);
+            var fakeLm = new FakeLmStudioClient();
+
+            var effectiveRegistry = registry ?? new EmptyToolRegistry();
+            var fakeResolver = new FakeWorkspaceResolver();
+
+            // Пустая конфигурация с SubAgent:DefaultAllowedTools (для tool-calling тестов)
+            var effectiveConfig = config ?? new ConfigurationBuilder().Build();
+
+            var service = new ChatStreamService(
+                chatService,
+                fakeLm,
+                effectiveRegistry,
+                fakeResolver,
+                effectiveConfig,
+                NullLogger<ChatStreamService>.Instance);
+
+            var chat = chatService.CreateChatAsync(1, model, "Test Chat").GetAwaiter().GetResult();
+
+            return (service, chatService, 1, chat.Id, fakeLm, effectiveRegistry);
+        }
+
+        // ============================================================
+        // Существующие тесты (A.1 / A.2.1 / A.2.2 — простой стрим)
+        // ============================================================
+
         [Fact]
         public async Task StreamAsync_ValidRequest_EmitsStartDeltaDone_AndSavesMessages()
         {
-            // Arrange
-            var (service, chatService, userId, chatId, fakeLm) = CreateService();
+            var (service, chatService, userId, chatId, fakeLm, _) = CreateService();
 
-            fakeLm.Chunks.Add(new ChatCompletionChunk { DeltaContent = "Привет" });
-            fakeLm.Chunks.Add(new ChatCompletionChunk { DeltaContent = ", мир" });
-            fakeLm.Chunks.Add(new ChatCompletionChunk
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
             {
-                IsDone = true,
-                FinishReason = "stop",
-                Usage = new ChatCompletionUsage { PromptTokens = 10, CompletionTokens = 5 }
+                new ChatCompletionChunk { DeltaContent = "Привет" },
+                new ChatCompletionChunk { DeltaContent = ", мир" },
+                new ChatCompletionChunk
+                {
+                    IsDone = true,
+                    FinishReason = "stop",
+                    Usage = new ChatCompletionUsage { PromptTokens = 10, CompletionTokens = 5 }
+                }
             });
 
             var request = new ChatStreamRequest { ChatId = chatId, Message = "Тест" };
 
-            // Act
             var events = new List<ChatStreamEvent>();
             await foreach (var evt in service.StreamAsync(request, userId))
             {
                 events.Add(evt);
             }
 
-            // Assert
             Assert.NotEmpty(events);
             Assert.Equal("start", events[0].Type);
             Assert.Contains(events, e => e.Type == "delta");
             Assert.Equal("done", events.Last().Type);
 
-            // Проверяем, что оба сообщения сохранены
             var messages = await chatService.GetMessagesAsync(chatId, userId, 50);
             Assert.Equal(2, messages.Count);
             Assert.Equal("user", messages[0].Role);
@@ -142,18 +238,15 @@ namespace IIChatTools.Tests.IntegrationTests
         [Fact]
         public async Task StreamAsync_ChatNotFound_EmitsError()
         {
-            // Arrange
-            var (service, _, userId, _, _) = CreateService();
+            var (service, _, userId, _, _, _) = CreateService();
             var request = new ChatStreamRequest { ChatId = 99999, Message = "Тест" };
 
-            // Act
             var events = new List<ChatStreamEvent>();
             await foreach (var evt in service.StreamAsync(request, userId))
             {
                 events.Add(evt);
             }
 
-            // Assert
             Assert.Single(events);
             Assert.Equal("error", events[0].Type);
         }
@@ -161,9 +254,83 @@ namespace IIChatTools.Tests.IntegrationTests
         [Fact]
         public async Task StreamAsync_EmptyMessage_EmitsError()
         {
-            // Arrange
-            var (service, _, userId, chatId, _) = CreateService();
+            var (service, _, userId, chatId, _, _) = CreateService();
             var request = new ChatStreamRequest { ChatId = chatId, Message = "" };
+
+            var events = new List<ChatStreamEvent>();
+            await foreach (var evt in service.StreamAsync(request, userId))
+            {
+                events.Add(evt);
+            }
+
+            Assert.Single(events);
+            Assert.Equal("error", events[0].Type);
+        }
+
+        // ============================================================
+        // Новые тесты (1.6.B — tool calling loop)
+        // ============================================================
+
+        /// <summary>
+        /// Проверяет успешный multi-turn tool calling:
+        /// итерация 1 — LLM вызывает инструмент; итерация 2 — финальный текст.
+        /// </summary>
+        [Fact]
+        public async Task StreamAsync_ToolCalling_ExecutesToolAndContinues()
+        {
+            // Arrange
+            var registry = new FakeToolRegistry();
+            registry.Register(
+                name: "list_directory",
+                requiresApproval: false,
+                result: ToolResult.Ok(new { count = 2, items = new[] { ".tmp", "git-test" } },
+                                      "Найдено 2 элемента"));
+
+            // Конфигурация с DefaultAllowedTools — чтобы tools попали в запрос
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    ["SubAgent:DefaultAllowedTools:0"] = "list_directory"
+                })
+                .Build();
+
+            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(registry, config: config);
+
+            // Итерация 1: LLM вызывает list_directory.
+            // Строим JObject программно — экранирование JSON в verbatim-строке ломается.
+            var toolCallJObject = new JObject
+            {
+                ["index"] = 0,
+                ["id"] = "call_1",
+                ["type"] = "function",
+                ["function"] = new JObject
+                {
+                    ["name"] = "list_directory",
+                    // arguments — это JSON-СТРОКА (как в OpenAI API), а не объект
+                    ["arguments"] = "{\"path\":\".\"}"
+                }
+            };
+
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
+            {
+                new ChatCompletionChunk { DeltaToolCall = toolCallJObject },
+                new ChatCompletionChunk { IsDone = true, FinishReason = "tool_calls" }
+            });
+
+            // Итерация 2: LLM отдаёт финальный текст
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
+            {
+                new ChatCompletionChunk { DeltaContent = "В workspace " },
+                new ChatCompletionChunk { DeltaContent = "2 элемента: .tmp, git-test." },
+                new ChatCompletionChunk { IsDone = true, FinishReason = "stop" }
+            });
+
+            var request = new ChatStreamRequest
+            {
+                ChatId = chatId,
+                Message = "Покажи файлы",
+                UseTools = true
+            };
 
             // Act
             var events = new List<ChatStreamEvent>();
@@ -172,9 +339,126 @@ namespace IIChatTools.Tests.IntegrationTests
                 events.Add(evt);
             }
 
-            // Assert
-            Assert.Single(events);
-            Assert.Equal("error", events[0].Type);
+            // Assert: события SSE
+            Assert.Equal("start", events[0].Type);
+            Assert.Contains(events, e => e.Type == "tool_call");
+            Assert.Contains(events, e => e.Type == "tool_result");
+            Assert.Equal("done", events.Last().Type);
+
+            // Assert: инструмент вызван ровно 1 раз
+            Assert.Equal(1, registry.ExecuteCallCount);
+            Assert.Contains("list_directory", registry.ExecutedTools);
+
+            // Assert: стрим вызван 2 раза (2 итерации)
+            Assert.Equal(2, fakeLm.StreamCallCount);
+
+            // Assert: tool_call содержит requiresApproval=false
+            var toolCallEvent = events.First(e => e.Type == "tool_call");
+            var toolCallDto = (ChatToolCallDto)toolCallEvent.Data;
+            Assert.Equal("list_directory", toolCallDto.Name);
+            Assert.False(toolCallDto.RequiresApproval);
+
+            // Assert: tool_result success=true
+            var toolResultEvent = events.First(e => e.Type == "tool_result");
+            var toolResultDto = (ChatToolResultDto)toolResultEvent.Data;
+            Assert.True(toolResultDto.Success);
+            Assert.Equal("list_directory", toolResultDto.Name);
+
+            // Assert: в БД 4 записи: user, assistant(tool_calls), tool, assistant(final)
+            var messages = await chatService.GetMessagesAsync(chatId, userId, 50);
+            Assert.Equal(4, messages.Count);
+            Assert.Equal("user", messages[0].Role);
+            Assert.Equal("assistant", messages[1].Role);
+            Assert.NotNull(messages[1].ToolCallsJson);   // assistant с tool_calls
+            Assert.Equal("tool", messages[2].Role);
+            Assert.Equal("list_directory", messages[2].ToolName);
+            Assert.Equal("assistant", messages[3].Role);
+            Assert.Contains("2 элемента", messages[3].Content);
+        }
+
+        /// <summary>
+        /// Проверяет, что approval-инструмент НЕ выполняется,
+        /// LLM получает ToolResult.Fail("Требуется подтверждение…").
+        /// </summary>
+        [Fact]
+        public async Task StreamAsync_ToolCalling_RequiresApproval_DoesNotExecute()
+        {
+            // Arrange
+            var registry = new FakeToolRegistry();
+            registry.Register(
+                name: "save_file",
+                requiresApproval: true,
+                result: ToolResult.Ok(new { saved = true }));
+
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    ["SubAgent:DefaultAllowedTools:0"] = "save_file"
+                })
+                .Build();
+
+            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(registry, config: config);
+
+            // Итерация 1: LLM вызывает save_file.
+            var toolCallJObject = new JObject
+            {
+                ["index"] = 0,
+                ["id"] = "call_2",
+                ["type"] = "function",
+                ["function"] = new JObject
+                {
+                    ["name"] = "save_file",
+                    ["arguments"] = "{\"path\":\"test.txt\",\"content\":\"hi\"}"
+                }
+            };
+
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
+            {
+                new ChatCompletionChunk { DeltaToolCall = toolCallJObject },
+                new ChatCompletionChunk { IsDone = true, FinishReason = "tool_calls" }
+            });
+
+            // Итерация 2: LLM «извиняется»
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
+            {
+                new ChatCompletionChunk { DeltaContent = "Извините, требуется подтверждение." },
+                new ChatCompletionChunk { IsDone = true, FinishReason = "stop" }
+            });
+
+            var request = new ChatStreamRequest
+            {
+                ChatId = chatId,
+                Message = "Сохрани файл test.txt",
+                UseTools = true
+            };
+
+            // Act
+            var events = new List<ChatStreamEvent>();
+            await foreach (var evt in service.StreamAsync(request, userId))
+            {
+                events.Add(evt);
+            }
+
+            // Assert: инструмент НЕ вызван
+            Assert.Equal(0, registry.ExecuteCallCount);
+
+            // Assert: tool_call содержит requiresApproval=true
+            var toolCallEvent = events.First(e => e.Type == "tool_call");
+            var toolCallDto = (ChatToolCallDto)toolCallEvent.Data;
+            Assert.Equal("save_file", toolCallDto.Name);
+            Assert.True(toolCallDto.RequiresApproval);
+
+            // Assert: tool_result success=false + сообщение про подтверждение
+            var toolResultEvent = events.First(e => e.Type == "tool_result");
+            var toolResultDto = (ChatToolResultDto)toolResultEvent.Data;
+            Assert.False(toolResultDto.Success);
+            Assert.Contains("Требуется подтверждение", toolResultDto.Message);
+
+            // Assert: 4 сообщения в БД
+            var messages = await chatService.GetMessagesAsync(chatId, userId, 50);
+            Assert.Equal(4, messages.Count);
+            Assert.Equal("tool", messages[2].Role);
+            Assert.Equal("save_file", messages[2].ToolName);
         }
     }
 }
