@@ -86,6 +86,7 @@
 | 4.12 | `<Version>` в `.csproj` **перебивает** `Directory.Build.props` | Рассинхрон версий UI и логов |
 | 4.13 | Путь `obj/project.assets.json` — **создаётся** `restore`, удаляется с `obj/` | NETSDK1004 |
 | 4.14 | `--no-restore` использует **существующий** `project.assets.json` | Старые версии пакетов |
+| 4.15 | **Имена папок не должны совпадать с именами типов из `Entities`** — namespace `…Implementation.Chat` конфликтует с типом `Chat` (CS0118). Папка → `ChatTools`, `ChatHandlers` и т. п. |
 
 ---
 
