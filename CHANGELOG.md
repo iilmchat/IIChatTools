@@ -31,6 +31,14 @@
 - **Тесты tool calling (v1.3 Фаза 1.6.B)**: 2 новых интеграционных теста в `ChatStreamServiceTests` — успешный multi-turn loop (list_directory → результат → финальный ответ) и approval-инструмент (save_file → ToolResult.Fail без выполнения). FakeLmStudioClient расширен — поддержка итераций. Всего: **29/29**.
 - **Approvals в чате — каркас (v1.3 Фаза 1.7.1)**: `ChatApprovalDecision` (enum), `ChatApprovalRequiredDto`, `ChatApprovalResolvedDto`, `IChatApprovalCoordinator`. Дополнены `ChatStreamEvent.ToolApprovalRequired` и `.ToolApprovalResolved`. Готовит почву для Singleton-координатора (Шаг 1.7.2).
 - **Approvals в чате — REST-endpoints (v1.3 Фаза 1.7.4)**: `POST /api/chat/approvals/{callId}/approve` и `POST /api/chat/approvals/{callId}/reject`. Вызывают `IChatApprovalCoordinator.ResolveAsync`, будят ожидающий SSE-стрим. `[Authorize]` — только аутентифицированные. Если ожидающий не найден (таймаут) — `{ success: false }`.
+- **Approvals в чате (v1.3 Фаза 1.7 — полная реализация)**: 
+  - `POST /api/chat/approvals/{callId}/approve` — подтвердить вызов инструмента.
+  - `POST /api/chat/approvals/{callId}/reject` — отклонить.
+  - SSE-события `tool_approval_required` / `tool_approval_resolved`.
+  - Координатор Singleton + cleanup (KI-043 учтён).
+  - camelCase в SSE-событиях (единый стиль).
+  - Smoke-тест end-to-end: `save_file` → approval_required → reject → tool_result(fail) → финал.
+- **Фаза 1.7 v1.3 закрыта.** Backend полностью готов к Chat UI.
 
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.

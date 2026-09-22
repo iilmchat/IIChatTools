@@ -319,6 +319,7 @@
 - **Решение (запланировано):** Если LM Studio не отдаёт usage в stream-режиме — либо запрашивать usage отдельным вызовом (не оптимально), либо использовать `tiktoken` для подсчёта, либо оставить null (не критично для UX).
 - **Не блокер:** Chat UI работает без счётчика токенов.
 - **Подтверждено:** в Фазе 1.6.A smoke-тест SSE — `tokensIn`/`tokensOut` = null в `done`-событии. Это **подтверждённое** ограничение LM Studio в stream-режиме. Возможное решение в v1.3.x — использовать `tiktoken` для подсчёта вручную.
+- **Финальное решение (2026-09-22):** в v1.3.0 (Фаза 1.5-1.7) — `tokensIn`/`tokensOut` остаются null. Причина — LM Studio не отдаёт `usage` в stream-режиме. **Для v1.4** запланирован ручной подсчёт через `tiktoken` или обратный вызов `usage` после `done`.
 
 ---
 
@@ -375,17 +376,30 @@
 
 ---
 
-### KI-054 — Approvals из чата (интеграция LLM-tool-calling с модалкой)
-- **Приоритет:** 🟠 High | **Статус:** Open | **Запланировано:** v1.3.0 Фаза 1.7
-- **Обнаружено:** 2026-09-22
-- **Файлы:** `IIChatTools.Services/Implementation/ChatStreamService.cs`, `IIChatTools.API/Controllers/ChatStreamController.cs`, `IIChatTools.API/wwwroot/js/modules/chat.js` (в Фазе 2), `IIChatTools.API/Views/Shared/_ApprovalModal.cshtml`
-- **Описание:** Сейчас, если LLM вызывает mutating-инструмент (например, `save_file`), `ChatStreamService` возвращает `ToolResult.Fail("Требуется подтверждение…")` — LLM «извиняется», пользователь не может подтвердить. Нужна полная интеграция:
-  - LLM вызывает tool с `requiresApproval: true`.
-  - UI показывает модалку.
-  - Пользователь подтверждает → `POST /api/chat/stream/{chatId}/approve/{callId}`.
-  - Сервер выполняет инструмент и возвращает `tool_result` в исходный SSE-стрим.
-- **Сложность:** два параллельных стрима (SSE + REST approve).
-- **Решение:** полный design doc перед началом.
+### KI-054 — Approvals из чата — реализовано в v1.3.0
+- **Приоритет:** 🟠 High | **Статус:** Implemented | **Реализовано в:** v1.3.0 Фаза 1.7
+- **Дата:** 2026-09-22
+- **Файлы:** 
+  - `IIChatTools.Services/DTO/Chat/ChatApprovalDecision.cs`, `ChatApprovalRequiredDto.cs`, `ChatApprovalResolvedDto.cs`
+  - `IIChatTools.Services/Interfaces/IChatApprovalCoordinator.cs`
+  - `IIChatTools.Services/Implementation/ChatTools/ChatApprovalCoordinator.cs` (Singleton)
+  - `IIChatTools.Services/Implementation/ChatStreamService.cs`
+  - `IIChatTools.API/Controllers/ChatStreamController.cs`
+- **Описание:** Полная интеграция LLM-tool-calling с подтверждениями пользователя в чате:
+  - LLM вызывает mutating-инструмент (`RequiresApprovalByDefault == true`).
+  - SSE-событие `tool_approval_required` — клиент показывает модалку.
+  - Сервер ожидает решение через `IChatApprovalCoordinator.WaitForDecisionAsync(callId, 5min)`.
+  - Пользователь подтверждает → `POST /api/chat/approvals/{callId}/approve` → инструмент **выполняется**.
+  - Пользователь отклоняет → `POST /api/chat/approvals/{callId}/reject` → `ToolResult.Fail("Пользователь отклонил вызов")` → LLM продолжает.
+  - Таймаут 5 минут → `Expired` → `ToolResult.Fail("Время подтверждения истекло")`.
+  - SSE-событие `tool_approval_resolved` — клиент закрывает модалку.
+- **Особенности:**
+  - `ChatApprovalCoordinator` — **Singleton**, `ConcurrentDictionary<string, TaskCompletionSource<ChatApprovalDecision>>`.
+  - Cleanup в `finally` — защита от утечки памяти (урок KI-043).
+  - `RunContinuationsAsynchronously` — защита от deadlock.
+  - camelCase в SSE-событиях (`JsonSerializerSettings` с `CamelCasePropertyNamesContractResolver`).
+- **Проверено:** smoke-тест end-to-end — `save_file` → approval_required → reject → tool_result(fail) → финальный ответ LLM.
+- **UI-интеграция** — в Фазе 2 (Chat UI). Сейчас smoke через DevTools Console.
 
 ---
 
