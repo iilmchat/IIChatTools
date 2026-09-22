@@ -69,9 +69,13 @@ namespace IIChatTools.API.Controllers
                     }
                 };
 
-                // Добавляем остальные модели из LM Studio (исключая дубль default)
+                // Добавляем остальные модели из LM Studio,
+                // исключая дубль default и embedding-модели
+                // (embedding-модели не поддерживают /v1/chat/completions).
+                // TODO v1.3.x: config-driven exclusion patterns (KI-057).
                 foreach (var id in ids.Where(x =>
-                    !string.Equals(x, defaultModel, StringComparison.Ordinal)))
+                    !string.Equals(x, defaultModel, StringComparison.Ordinal) &&
+                    !IsEmbeddingModel(x)))
                 {
                     list.Add(new ModelInfoDto
                     {
@@ -113,5 +117,17 @@ namespace IIChatTools.API.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Проверяет, является ли модель embedding-моделью (не поддерживает chat completion).
+        /// Эвристика по имени: содержит "embed" (например, <c>text-embedding-nomic-embed-text-v1.5</c>).
+        /// </summary>
+        /// <param name="modelId">Идентификатор модели</param>
+        /// <returns>true, если модель является embedding-моделью</returns>
+        private static bool IsEmbeddingModel(string modelId)
+        {
+            return !string.IsNullOrEmpty(modelId)
+                && modelId.Contains("embed", StringComparison.OrdinalIgnoreCase);
+        }        
     }
 }

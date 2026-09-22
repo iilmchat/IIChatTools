@@ -350,6 +350,16 @@
 
 ---
 
+### KI-057 — `/api/models` возвращает embedding-модели
+- **Приоритет:** 🟢 Low | **Статус:** Partially Fixed | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-22
+- **Файлы:** `IIChatTools.API/Controllers/ModelsController.cs`
+- **Описание:** LM Studio отдаёт в `GET /v1/models` все модели, включая embedding (`text-embedding-nomic-embed-text-v1.5`). Если пользователь выберет её для чата — LM Studio вернёт 400.
+- **Текущее решение (v1.3 Фаза 2.0.2a):** heuristic-фильтр по подстроке `embed` в имени модели.
+- **TODO v1.3.x:** config-driven exclusion patterns (`LmStudio:ExcludeModelPatterns`) — массив подстрок, которые исключаются из списка.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
