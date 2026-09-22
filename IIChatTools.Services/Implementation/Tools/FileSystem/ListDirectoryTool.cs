@@ -22,7 +22,7 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
         public string Description => "Возвращает список файлов и подкаталогов внутри рабочего пространства.";
 
         /// <inheritdoc />
-        public bool RequiresApprovalByDefault => true;
+        public bool RequiresApprovalByDefault => false;
 
         /// <inheritdoc />
         public IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
