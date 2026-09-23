@@ -599,7 +599,27 @@ async function readSseStream(response, assistantBubble) {
 function handleSseEvent(name, data, assistantBubble) {
     switch (name) {
         case 'start':
-            // userMessageId известен, но user-пузырь уже добавлен — ничего не делаем
+            // Фаза 2.2.6b: привязываем messageId к последнему user-bubble
+            // (после optimistic-рендера id ещё не известен).
+            // Добавляем кнопку ✏️ в actions, если её нет.
+            if (data?.userMessageId) {
+                const container = document.getElementById('chat-messages');
+                const userBubbles = container?.querySelectorAll('.chat-message.user');
+                const lastUser = userBubbles?.[userBubbles.length - 1];
+                if (lastUser) {
+                    lastUser.dataset.messageId = String(data.userMessageId);
+
+                    const actionsEl = lastUser.querySelector('.chat-message-actions');
+                    if (actionsEl && !actionsEl.querySelector('[data-action="edit"]')) {
+                        actionsEl.insertAdjacentHTML('afterbegin', `
+                            <button type="button"
+                                    class="chat-message-action"
+                                    data-action="edit"
+                                    title="Редактировать"
+                                    aria-label="Редактировать сообщение">✏️</button>`);
+                    }
+                }
+            }
             break;
 
         case 'delta':
@@ -865,18 +885,20 @@ function renderMessage(msg, opts = {}) {
 
     // Actions:
     //  - Copy      — если есть текст
+    //  - Edit ✏️    — на user-сообщениях (Фаза 2.2.6b)
     //  - Regenerate 🔄 — на последнем assistant
     //  - Retry 🔄 Повторить — на последнем user, если после него нет assistant (Stop/отмена)
     const hasActions = !!msg.content || (opts.showRetry && isUser);
     const actionsHtml = hasActions
         ? renderMessageActions(msg.content || '', {
+            showEdit: isUser && !!msg.id,
             showRegenerate: opts.showRegenerate && !isUser,
             showRetry: opts.showRetry && isUser,
         })
         : '';
 
     return `
-        <div class="chat-message ${isUser ? 'user' : 'assistant'}">
+        <div class="chat-message ${isUser ? 'user' : 'assistant'}" data-message-id="${msg.id}">
             <div class="chat-message-avatar">${avatar}</div>
             <div class="chat-message-body">
                 <div class="chat-message-meta">${roleLabel} · ${escapeHtml(formatTime(msg.createdAt))}</div>
@@ -1463,6 +1485,14 @@ function renderMessageActions(text, opts = {}) {
                    aria-label="Скопировать сообщение">📋</button>`
         : '';
 
+    const editBtn = opts.showEdit
+        ? `<button type="button"
+                   class="chat-message-action"
+                   data-action="edit"
+                   title="Редактировать"
+                   aria-label="Редактировать сообщение">✏️</button>`
+        : '';
+
     const regenBtn = opts.showRegenerate
         ? `<button type="button"
                    class="chat-message-action"
@@ -1484,6 +1514,7 @@ function renderMessageActions(text, opts = {}) {
     return `
         <div class="chat-message-actions${alwaysVisible}" data-copy-text="${attr}">
             ${copyBtn}
+            ${editBtn}
             ${regenBtn}
             ${retryBtn}
         </div>`;
@@ -1494,6 +1525,29 @@ function renderMessageActions(text, opts = {}) {
  * @param {MouseEvent} e
  */
 async function onMessageActionClick(e) {
+    // Edit user-message (Фаза 2.2.6b)
+    const editBtn = e.target.closest('[data-action="edit"]');
+    if (editBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (state.isStreaming) {
+            toast('Подождите завершения генерации', 'warning');
+            return;
+        }
+
+        const bubble = editBtn.closest('.chat-message');
+        const messageId = parseInt(bubble?.dataset.messageId, 10);
+
+        if (!Number.isFinite(messageId)) {
+            toast('Сообщение ещё не сохранено', 'warning');
+            return;
+        }
+
+        startEditUserMessage(bubble, messageId);
+        return;
+    }
+
     // Retry (KI-065: после Stop) — то же, что Regenerate, но assistant может отсутствовать
     const retryBtn = e.target.closest('[data-action="retry"]');
     if (retryBtn) {
@@ -1533,6 +1587,171 @@ async function onMessageActionClick(e) {
     } catch (ex) {
         console.error('[chat] Копирование не удалось:', ex);
         toast('Не удалось скопировать', 'error');
+    }
+}
+
+// ============ Edit user-message (Фаза 2.2.6b) ============
+
+/**
+ * Начинает inline-edit user-сообщения.
+ * Заменяет `.chat-message-content` на `<textarea>` + кнопки Save/Cancel.
+ * @param {HTMLElement} bubble — `.chat-message` элемент
+ * @param {number} messageId — идентификатор сообщения
+ */
+function startEditUserMessage(bubble, messageId) {
+    if (!bubble) return;
+
+    // Уже в режиме edit?
+    if (bubble.classList.contains('chat-message-editing')) return;
+
+    const contentEl = bubble.querySelector('.chat-message-content');
+    const bodyEl = bubble.querySelector('.chat-message-body');
+    if (!contentEl || !bodyEl) return;
+
+    // Оригинальный HTML/текст для Cancel
+    const originalHtml = contentEl.innerHTML;
+    const originalText = contentEl.innerText;
+
+    // Скрываем actions на время edit
+    const actionsEl = bubble.querySelector('.chat-message-actions');
+    if (actionsEl) actionsEl.style.display = 'none';
+
+    // Заменяем content на textarea
+    contentEl.innerHTML = `
+        <textarea class="chat-message-edit"
+                  rows="3"
+                  data-original-text="${escapeAttr(originalText)}"></textarea>
+        <div class="chat-message-edit-actions">
+            <button type="button" class="btn btn-sm btn-primary" data-edit-action="save">Сохранить</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-edit-action="cancel">Отмена</button>
+        </div>`;
+
+    const textarea = contentEl.querySelector('.chat-message-edit');
+    textarea.value = originalText;
+    textarea.focus();
+
+    // Автовысота
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 400) + 'px';
+
+    bubble.classList.add('chat-message-editing');
+
+    // Клавиатура: Enter=Save, Shift+Enter=\n, Esc=Cancel
+    textarea.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && !ev.shiftKey) {
+            ev.preventDefault();
+            saveUserMessageEdit(bubble, messageId);
+        } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            cancelUserMessageEdit(bubble, originalHtml);
+        }
+    });
+
+    // Автоувеличение при вводе
+    textarea.addEventListener('input', () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 400) + 'px';
+    });
+
+    // Кнопки
+    contentEl.querySelector('[data-edit-action="save"]')
+        ?.addEventListener('click', () => saveUserMessageEdit(bubble, messageId));
+    contentEl.querySelector('[data-edit-action="cancel"]')
+        ?.addEventListener('click', () => cancelUserMessageEdit(bubble, originalHtml));
+}
+
+/**
+ * Отменяет inline-edit: возвращает оригинальный HTML.
+ * @param {HTMLElement} bubble
+ * @param {string} originalHtml
+ */
+function cancelUserMessageEdit(bubble, originalHtml) {
+    if (!bubble) return;
+
+    const contentEl = bubble.querySelector('.chat-message-content');
+    if (contentEl) contentEl.innerHTML = originalHtml;
+
+    bubble.classList.remove('chat-message-editing');
+
+    const actionsEl = bubble.querySelector('.chat-message-actions');
+    if (actionsEl) actionsEl.style.display = '';
+}
+
+/**
+ * Сохраняет inline-edit: POST /api/chat/messages/{id}/edit,
+ * удаляет DOM-сообщения после, вызывает regenerate.
+ * @param {HTMLElement} bubble
+ * @param {number} messageId
+ */
+async function saveUserMessageEdit(bubble, messageId) {
+    if (!bubble) return;
+
+    const textarea = bubble.querySelector('.chat-message-edit');
+    if (!textarea) return;
+
+    const newText = (textarea.value || '').trim();
+    if (!newText) {
+        toast('Сообщение не может быть пустым', 'warning');
+        textarea.focus();
+        return;
+    }
+
+    // Блокируем textarea на время запроса
+    textarea.disabled = true;
+    bubble.querySelectorAll('[data-edit-action]').forEach(b => b.disabled = true);
+
+    try {
+        const res = await fetch(`/api/chat/messages/${messageId}/edit`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: newText }),
+        }).then(r => r.json());
+
+        if (!res.success) {
+            toast(res.message || 'Ошибка редактирования', 'error');
+            textarea.disabled = false;
+            bubble.querySelectorAll('[data-edit-action]').forEach(b => b.disabled = false);
+            return;
+        }
+
+        // 1. Обновляем содержимое bubble (новый текст, plain text для user)
+        const contentEl = bubble.querySelector('.chat-message-content');
+        if (contentEl) {
+            contentEl.classList.remove('chat-message-editing');
+            contentEl.innerHTML = renderUserContent(newText);
+        }
+
+        bubble.classList.remove('chat-message-editing');
+
+        // 2. Восстанавливаем actions (в них ✏️ должен остаться)
+        const actionsEl = bubble.querySelector('.chat-message-actions');
+        if (actionsEl) {
+            actionsEl.style.display = '';
+            // Обновляем data-copy-text на новое содержимое
+            actionsEl.dataset.copyText = newText;
+        }
+
+        // 3. Удаляем все DOM-сообщения после отредактированного
+        let next = bubble.nextElementSibling;
+        while (next) {
+            const toRemove = next;
+            next = next.nextElementSibling;
+            toRemove.remove();
+        }
+
+        // 4. Обновляем счётчик сообщений
+        //    (assistant + tool + последующие — уже удалены в БД)
+        state.activeChatMessageCount = 1;  // только отредактированное user
+
+        toast('Сообщение обновлено, генерируем новый ответ…', 'success');
+
+        // 5. Запускаем regenerate (создаст новый assistant bubble)
+        await regenerateLastMessage({ allowNoAssistant: true });
+    } catch (ex) {
+        toast(ex.message || 'Ошибка редактирования', 'error');
+        textarea.disabled = false;
+        bubble.querySelectorAll('[data-edit-action]').forEach(b => b.disabled = false);
     }
 }
 

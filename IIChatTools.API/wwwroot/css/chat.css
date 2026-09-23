@@ -813,3 +813,50 @@ body.approval-dragging {
         max-width: 180px;
     }
 }
+
+/* ============ Inline-edit user-message (Фаза 2.2.6b) ============ */
+
+.chat-message.user .chat-message-content .chat-message-edit {
+    width: 100%;
+    min-height: 60px;
+    max-height: 400px;
+    padding: .5rem .65rem;
+    border: 1px solid #86b7fe;
+    border-radius: .375rem;
+    font-family: var(--bs-font-sans-serif);
+    font-size: .95rem;
+    line-height: 1.5;
+    resize: vertical;
+    background: #fff;
+    color: #212529;
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .15);
+    transition: border-color .15s, box-shadow .15s;
+    box-sizing: border-box;
+}
+
+.chat-message.user .chat-message-content .chat-message-edit:focus {
+    outline: none;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 .25rem rgba(13, 110, 253, .25);
+}
+
+.chat-message-edit-actions {
+    display: flex;
+    gap: .35rem;
+    justify-content: flex-end;
+    margin-top: .4rem;
+}
+
+.chat-message.user .chat-message-edit-actions {
+    /* Кнопки справа у user (bubble прижат вправо) */
+    justify-content: flex-end;
+}
+
+.chat-message.user .chat-message-content:has(.chat-message-edit) {
+    /* Отключаем max-width=80%, чтобы textarea была шире для удобства */
+    max-width: 100%;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    padding: 0;
+}

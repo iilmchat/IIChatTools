@@ -168,7 +168,14 @@
   - Валидация: не пустое, role == "user", владение через `chat.UserId`. Обобщённый ответ «Сообщение не найдено» — не палим чужие чаты.
   - `ChatStreamController`: + `IChatService` в конструктор.
   - DTO: `EditUserMessageRequest` (request), `EditUserMessageResult` (сервис).
-
+- **Chat UI — inline-edit user-message (v1.3 Фаза 2.2.6b)**:
+  - Кнопка ✏️ в `.chat-message-actions` на **user**-сообщениях (при hover).
+  - Для свежих сообщений ✏️ добавляется в SSE-событии `start` (после optimistic-рендера id ещё не известен). Для истории (F5) — сразу в `renderMessage`.
+  - Клик по ✏️ → `.chat-message-content` заменяется на `<textarea>` + кнопки Save/Cancel.
+  - **Enter** = Save, **Shift+Enter** = новая строка, **Esc** = Cancel.
+  - Save: `POST /api/chat/messages/{id}/edit` (Фаза 2.2.6a) → обновление UI → удаление DOM-сообщений после → `regenerateLastMessage({ allowNoAssistant: true })`.
+  - Edit доступен только в `state.isStreaming === false`.
+  - `chat.css`: `.chat-message-edit` (textarea), `.chat-message-edit-actions`.
   
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.
