@@ -24,6 +24,13 @@
 
 ### Added
 - **KI-068**: новый метод `IChatService.SearchUserChatsAsync(userId, search)` — регистронезависимый поиск (кросс-провайдерно). Пустой запрос эквивалентен `GetUserChatsAsync`.
+- **v1.4.0 Фаза 1 (KI-052)**: реестр специализированных суб-агентов.
+  - DTO `SubAgentDescriptor` — Name, DisplayName (RU), Description, SystemPrompt, AllowedTools, Model, MaxSteps, RequiresApprovalByDefault, Disabled.
+  - `SubAgentTaskRequest.SystemPromptOverride` + `ModelOverride` (обратносовместимо).
+  - `ISubAgentRegistry` + `SubAgentRegistry` (singleton, читает `SubAgents:*` из appsettings.json).
+  - 6 агентов в `appsettings.json` (+ в Development): `file_system_agent`, `code_agent`, `web_agent`, `git_agent`, `github_agent`, `planner_agent`.
+  - 4 unit-теста (`SubAgentRegistryTests`).
+  - `docs/development/v1.4/DESIGN.md` — дизайн-документ фазы.
 
 ### Fixed
 

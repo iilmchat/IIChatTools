@@ -34,6 +34,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using IIChatTools.API.HealthChecks;
 using IIChatTools.API.RateLimiting;
 using IIChatTools.API.BackgroundServices;   // вместо IIChatTools.API.Metrics
+using IIChatTools.Services.Implementation.Agents;   // SubAgentRegistry
 using Prometheus;
 
 namespace IIChatTools.API
@@ -294,6 +295,11 @@ namespace IIChatTools.API
 
             // ============ Chat service (v1.3) ============
             services.AddScoped<IChatService, ChatService>();
+
+            // ============ SubAgent registry (v1.4 Фаза 1, KI-052) ============
+            // Singleton: реестр читается из appsettings один раз. В Фазе 6 — Update/Reset
+            // будут ходить в AppSettings (нужна потокобезопасность).
+            services.AddSingleton<ISubAgentRegistry, SubAgentRegistry>();
 
             // ============ Chat title service (v1.3 Фаза 2.2.1) ============
             // AI-генерация короткого названия из первого сообщения (ChatGPT-style).
