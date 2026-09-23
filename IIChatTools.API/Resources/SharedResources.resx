@@ -219,4 +219,5 @@
   <data name="Сообщение не может быть пустым" xml:space="preserve"><value>Message cannot be empty</value></data>
   <data name="Ошибка отправки сообщения" xml:space="preserve"><value>Failed to send message</value></data>
   <data name="Соединение прервано" xml:space="preserve"><value>Connection interrupted</value></data>
+  <data name="Остановить" xml:space="preserve"><value>Stop</value></data>  
 </root>

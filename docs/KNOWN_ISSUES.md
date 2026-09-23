@@ -420,6 +420,31 @@
 
 ---
 
+### KI-061a — box-shadow фокуса textarea перекрывал кнопку
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.0 (2.1.3.1)
+- **Обнаружено:** 2026-09-23 (smoke-тест) | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/wwwroot/css/chat.css`
+- **Описание:** Остаточная проблема KI-061: после фикса `min-height` Bootstrap `box-shadow: 0 0 0 .25rem` при фокусе на textarea расширялся вправо и визуально перекрывал кнопку «Отправить».
+- **Решение:** Focus-ring перенесён с textarea на `.input-group:focus-within` (общая тень вокруг всего блока). `textarea:focus` и `.btn:focus` — `box-shadow: none`.
+
+---
+
+### KI-063 — Нет кнопки Stop для прерывания стрима
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.3.0 (2.1.3.2)
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/Views/Chat/Index.cshtml`, `IIChatTools.API/wwwroot/js/modules/chat.js`
+- **Описание:** Во время стрима пользователь не мог прервать генерацию — приходилось ждать завершения (до 5 минут при ожидании approval).
+- **Решение:**
+  - Кнопка `#btn-stop` (⏹) — отдельный элемент в `.input-group`, рядом с textarea.
+  - Во время стрима: `#btn-send` скрыта, `#btn-stop` показана (`setStreamingUI(true)`).
+  - `state.abortController` — `AbortController` на время стрима; `signal` передаётся в `fetch`.
+  - Клик по Stop → `abortController.abort()` → fetch рвёт соединение → сервер отменяет `CancellationToken` → SSE закрывается.
+  - При `AbortError`: частичный assistant-пузырь удаляется из DOM; **частичный ответ НЕ сохраняется в БД** (согласовано).
+  - Работает и для обычного стрима, и для Regenerate.
+- **TODO (2.1.3.3):** audit-запись при Stop.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -569,14 +594,14 @@
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
-| Fixed / Resolved (v1.3.0) | 8 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-062 -->
+| Fixed / Resolved (v1.3.0) | 10 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049 -->
 | Deferred | 3 |                      <!-- KI-047, KI-052, KI-053 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
-**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-062 (фокус).
+**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream).
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).

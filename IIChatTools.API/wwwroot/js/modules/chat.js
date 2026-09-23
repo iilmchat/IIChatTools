@@ -17,8 +17,9 @@ const state = {
     defaultModel: null,
     activeChatId: null,
     activeChat: null,
-    isStreaming: false,   // блокировка отправки во время стрима
-    autoScroll: true,     // включён, пока пользователь у нижнего края
+    isStreaming: false,     // блокировка отправки во время стрима
+    autoScroll: true,       // включён, пока пользователь у нижнего края
+    abortController: null,  // Фаза 2.1.3: AbortController для Stop
 };
 
 // ============ Инициализация ============
@@ -72,6 +73,12 @@ function bindEvents() {
 
     if (btnSend) {
         btnSend.addEventListener('click', sendMessage);
+    }
+
+    // Фаза 2.1.3: кнопка Stop
+    const btnStop = document.getElementById('btn-stop');
+    if (btnStop) {
+        btnStop.addEventListener('click', stopStreaming);
     }
 
     // === Скроллинг (Фаза 2.0.5b) ===
@@ -371,11 +378,16 @@ async function sendMessage() {
     appendUserMessage(message);
     if (input) { input.value = ''; autoResizeTextarea(input); }
     enableInput(false);
+    setStreamingUI(true);
     state.isStreaming = true;
 
     // 2. Создаём пузырь ассистента с индикатором «Печатает…»
     const assistantBubble = appendAssistantBubble();
     showTypingIndicator(assistantBubble, true);
+
+    // 3. AbortController для Stop
+    const controller = new AbortController();
+    state.abortController = controller;
 
     try {
         const response = await fetch('/api/chat/stream', {
@@ -387,6 +399,7 @@ async function sendMessage() {
                 message,
                 useTools: true,
             }),
+            signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -396,14 +409,45 @@ async function sendMessage() {
         await readSseStream(response, assistantBubble);
     } catch (ex) {
         showTypingIndicator(assistantBubble, false);
-        appendAssistantError(assistantBubble, ex.message || 'Ошибка соединения');
-        toast(ex.message || 'Ошибка отправки сообщения', 'error');
+
+        if (ex.name === 'AbortError') {
+            // Фаза 2.1.3: пользователь нажал Stop — частичный ответ отбрасываем.
+            // Удаляем bubble с частичным текстом (согласовано: не сохраняем).
+            assistantBubble?.remove();
+            // Не показываем error-toast (это ожидаемое поведение).
+        } else {
+            appendAssistantError(assistantBubble, ex.message || 'Ошибка соединения');
+            toast(ex.message || 'Ошибка отправки сообщения', 'error');
+        }
     } finally {
         state.isStreaming = false;
+        state.abortController = null;
         enableInput(true);
+        setStreamingUI(false);
         input?.focus();
         updateSidebarTimeLocally();
     }
+}
+
+/**
+ * Фаза 2.1.3: прерывает текущий SSE-стрим (Stop).
+ * Сервер получит разрыв соединения → CancellationToken отменится.
+ */
+function stopStreaming() {
+    if (!state.abortController) return;
+    state.abortController.abort();
+    toast('Генерация остановлена', 'info');
+}
+
+/**
+ * Фаза 2.1.3: переключает UI между «Отправить» и «Остановить».
+ * @param {boolean} isStreaming
+ */
+function setStreamingUI(isStreaming) {
+    const btnSend = document.getElementById('btn-send');
+    const btnStop = document.getElementById('btn-stop');
+    if (btnSend) btnSend.hidden = isStreaming;
+    if (btnStop) btnStop.hidden = !isStreaming;
 }
 
 /**
@@ -524,11 +568,16 @@ async function regenerateLastMessage() {
 
     // Заблокировать input
     enableInput(false);
+    setStreamingUI(true);
     state.isStreaming = true;
 
     // Создать пустой bubble с typing indicator
     const newBubble = appendAssistantBubble();
     showTypingIndicator(newBubble, true);
+
+    // AbortController для Stop
+    const controller = new AbortController();
+    state.abortController = controller;
 
     try {
         const response = await fetch('/api/chat/regenerate', {
@@ -536,6 +585,7 @@ async function regenerateLastMessage() {
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chatId: state.activeChatId }),
+            signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -545,11 +595,19 @@ async function regenerateLastMessage() {
         await readSseStream(response, newBubble);
     } catch (ex) {
         showTypingIndicator(newBubble, false);
-        appendAssistantError(newBubble, ex.message || 'Ошибка регенерации');
-        toast(ex.message || 'Ошибка регенерации', 'error');
+
+        if (ex.name === 'AbortError') {
+            newBubble?.remove();
+            // Частичный regen-ответ отбрасываем.
+        } else {
+            appendAssistantError(newBubble, ex.message || 'Ошибка регенерации');
+            toast(ex.message || 'Ошибка регенерации', 'error');
+        }
     } finally {
         state.isStreaming = false;
+        state.abortController = null;
         enableInput(true);
+        setStreamingUI(false);
         document.getElementById('chat-input')?.focus();
         updateSidebarTimeLocally();
     }

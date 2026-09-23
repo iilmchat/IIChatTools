@@ -397,8 +397,16 @@
 
 /* textarea — автоувеличение */
 .chat-input .input-group {
-    /* Растягиваем textarea и кнопку по высоте друг друга */
+    /* Растягиваем textarea и кнопки по высоте друг друга */
     align-items: stretch;
+    border-radius: .375rem;
+    transition: box-shadow .15s;
+}
+
+/* KI-061a: focus-ring на весь input-group вместо textarea.
+   Иначе Bootstrap box-shadow на textarea вылезает вправо и перекрывает кнопку. */
+.chat-input .input-group:focus-within {
+    box-shadow: 0 0 0 .25rem rgba(13, 110, 253, .25);
 }
 
 .chat-input textarea {
@@ -412,10 +420,20 @@
     transition: height .1s;
 }
 
+.chat-input textarea:focus {
+    /* Убираем box-shadow у самого textarea — он перекрывал кнопку.
+       Focus-ring теперь на .input-group:focus-within (выше). */
+    box-shadow: none;
+}
+
 .chat-input .input-group > .btn {
     /* Кнопка растягивается на всю высоту textarea */
     align-self: stretch;
     height: auto;
+}
+
+.chat-input .input-group > .btn:focus {
+    box-shadow: none;
 }
 
 /* ============ Drag-and-drop модалки approval (v1.3 Фаза 2.0.4 fix) ============ */
