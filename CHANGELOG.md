@@ -167,6 +167,8 @@
 - **KI-061**: кнопка «Отправить» перекрывала textarea при одном ряде текста. Фикс: `min-height` для textarea (стандарт Bootstrap `.form-control`), `align-items: stretch` в `.input-group`, `.btn { align-self: stretch; height: auto }`.
 - **KI-062**: отсутствовал автофокус на поле ввода при создании/выборе чата. Фикс: `input.focus()` в `selectChat()` (покрывает оба сценария, т.к. `createChat` вызывает `selectChat`).
 - **KI-061a**: box-shadow фокуса на textarea перекрывал кнопку «Отправить». Focus-ring перенесён на `.input-group:focus-within`; `textarea:focus` и `.btn:focus` → `box-shadow: none`.
+- **KI-066**: кнопка Copy (📋) пропадала под ответом ассистента до F5. Причина: `renderMessageActions('')` в `appendAssistantBubble()` не создаёт кнопку при пустом тексте (правка 2.2.1a). Фикс: `finalizeAssistantBubble()` пересоздаёт `.chat-message-actions` с финальным текстом после Markdown-рендера.
+- **2.2.1b диагностика**: в `sendMessage` (finally) и `maybeGenerateTitle` добавлены `console.log` — для отладки сценария AI-title.
 
 ### Security
 - Н/Д

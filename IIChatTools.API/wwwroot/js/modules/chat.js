@@ -434,6 +434,95 @@ async function sendMessage() {
         setStreamingUI(false);
         input?.focus();
         updateSidebarTimeLocally();
+
+        // Фаза 2.2.1b: обновляем счётчик только для успешного стрима
+        // (при AbortError assistant-пузырь удаляется — счётчик не меняется).
+        const streamSucceeded = assistantBubble?.dataset.streamCompleted === '1';
+
+        console.log('[chat] sendMessage finally:', {
+            wasEmpty,
+            streamSucceeded,
+            msgCount: state.activeChatMessageCount,
+            chatId: state.activeChatId,
+        });
+
+        if (streamSucceeded) {
+            state.activeChatMessageCount += 2;   // user + assistant
+
+            // Если это был первый ответ в пустом чате — фоном генерируем
+            // название. Без await — не блокируем UI.
+            if (wasEmpty) {
+                console.log('[chat] maybeGenerateTitle: вызываем для chatId=', state.activeChatId);
+                maybeGenerateTitle();
+            } else {
+                console.log('[chat] maybeGenerateTitle: пропуск (wasEmpty=false)');
+            }
+        }
+    }
+}
+
+/**
+ * Фаза 2.2.1b: фоновый запрос на AI-генерацию названия чата.
+ * Вызывается только для первого успешного ответа в пустом чате.
+ * При успехе обновляет sidebar и (если чат всё ещё активен) header.
+ */
+async function maybeGenerateTitle() {
+    const chatIdAtRequest = state.activeChatId;
+    console.log('[chat] maybeGenerateTitle entry:', {
+        chatIdAtRequest,
+        chatsCount: state.chats.length,
+    });
+
+    if (!chatIdAtRequest) {
+        console.warn('[chat] maybeGenerateTitle: нет activeChatId');
+        return;
+    }
+
+    // Пропускаем, если title уже не «Новый чат» / «Новый чат N».
+    // Это защита от повторного вызова и от перезаписи ручного имени.
+    const chat = state.chats.find(c => c.id === chatIdAtRequest);
+    if (!chat) {
+        console.warn('[chat] maybeGenerateTitle: чат не найден в state.chats');
+        return;
+    }
+    const currentTitle = chat.title || '';
+    console.log('[chat] maybeGenerateTitle: currentTitle =', JSON.stringify(currentTitle));
+
+    if (!/^Новый чат(?:\s+\d+)?$/.test(currentTitle)) {
+        console.warn('[chat] maybeGenerateTitle: title не матчит /^Новый чат( N)?$/ — пропуск');
+        return;
+    }
+
+    try {
+        console.log('[chat] maybeGenerateTitle: fetch POST', `/api/chats/${chatIdAtRequest}/generate-title`);
+        const res = await fetch(`/api/chats/${chatIdAtRequest}/generate-title`, {
+            method: 'POST',
+            credentials: 'same-origin',
+        }).then(r => r.json());
+
+        console.log('[chat] maybeGenerateTitle: response =', res);
+
+        if (!res?.success || !res.data?.title) {
+            console.warn('[chat] maybeGenerateTitle: success=false или нет title');
+            return;
+        }
+
+        const newTitle = res.data.title;
+        console.log(`[chat] AI-title: "${newTitle}"`);
+
+        // Обновляем sidebar (вне зависимости от того, где сейчас пользователь).
+        const chatInState = state.chats.find(c => c.id === chatIdAtRequest);
+        if (chatInState) chatInState.title = newTitle;
+        renderChatList();
+
+        // Если активный чат всё ещё тот же — обновляем header.
+        if (state.activeChatId === chatIdAtRequest && state.activeChat) {
+            state.activeChat.title = newTitle;
+            renderChatHeader(state.activeChat);
+        }
+    } catch (ex) {
+        console.warn('[chat] Ошибка AI-title:', ex);
+        // Не показываем toast — фича фоновая.
     }
 }
 
@@ -977,9 +1066,15 @@ function finalizeAssistantBubble(bubble, data) {
             contentEl.innerHTML = renderMarkdown(raw);
             enhanceCodeBlocks(bubble);
 
-            // Синхронизация текста для Copy
-            const actionsEl = bubble.querySelector('.chat-message-actions');
-            if (actionsEl) actionsEl.dataset.copyText = raw;
+            // KI-066: пересоздаём actions с финальным текстом.
+            // appendAssistantBubble() вызывал renderMessageActions('') — кнопка Copy
+            // не создавалась (пустой текст). Здесь создаём её с реальным содержимым.
+            const bodyEl = bubble.querySelector('.chat-message-body');
+            if (bodyEl) {
+                const oldActions = bodyEl.querySelector('.chat-message-actions');
+                if (oldActions) oldActions.remove();
+                bodyEl.insertAdjacentHTML('beforeend', renderMessageActions(raw));
+            }
         }
     }
 
