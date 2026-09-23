@@ -25,6 +25,7 @@ namespace IIChatTools.API.Controllers
     public class ChatStreamController : ControllerBase
     {
         private readonly IChatStreamService _chatStreamService;
+        private readonly IChatService _chatService;
         private readonly IChatApprovalCoordinator _approvalCoordinator;
         private readonly IAuditService _auditService;
         private readonly ILogger<ChatStreamController> _logger;
@@ -33,17 +34,20 @@ namespace IIChatTools.API.Controllers
         /// Создаёт экземпляр контроллера.
         /// </summary>
         /// <param name="chatStreamService">Сервис стриминга чата</param>
+        /// <param name="chatService">Сервис CRUD чатов (для edit user-message)</param>
         /// <param name="approvalCoordinator">Координатор подтверждений (Singleton)</param>
         /// <param name="auditService">Сервис аудита (для записи Stop)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatStreamController(
             IChatStreamService chatStreamService,
+            IChatService chatService,
             IChatApprovalCoordinator approvalCoordinator,
             IAuditService auditService,
             ILogger<ChatStreamController> logger)
         {
             _chatStreamService = chatStreamService ?? throw new ArgumentNullException(nameof(chatStreamService));
+            _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
             _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -244,6 +248,63 @@ namespace IIChatTools.API.Controllers
             return id;
         }
 
+
+        // ============================================================
+        // Edit user-message (Фаза 2.2.6) — REST + последующий regenerate
+        // ============================================================
+
+        /// <summary>
+        /// Редактирует user-сообщение и удаляет все сообщения после него
+        /// (Фаза 2.2.6). Клиент после успеха вызывает <c>/api/chat/regenerate</c>
+        /// для получения нового ответа ассистента.
+        /// </summary>
+        /// <param name="id">Идентификатор user-сообщения</param>
+        /// <param name="request">Новое содержимое (<c>{ content }</c>)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>JSON { success, data: { messageId, deletedCount } } или { success: false, message }</returns>
+        [HttpPost("messages/{id:int}/edit")]
+        public async Task<IActionResult> EditUserMessageAsync(
+            int id,
+            [FromBody] EditUserMessageRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.Content))
+                {
+                    return Ok(new { success = false, message = "Пустое содержимое." });
+                }
+
+                var userId = GetCurrentUserId();
+
+                var result = await _chatService.EditUserMessageAsync(
+                    id, userId, request.Content, cancellationToken);
+
+                if (!result.Success)
+                {
+                    return Ok(new { success = false, message = result.Error });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        messageId = result.MessageId,
+                        deletedCount = result.DeletedCount
+                    }
+                });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка edit user-message {MessageId}", id);
+                return Ok(new { success = false, message = "Внутренняя ошибка сервера." });
+            }
+        }
 
         // ============================================================
         // Approvals (Фаза 1.7) — REST для resolve tool-call decisions

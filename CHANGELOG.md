@@ -162,6 +162,13 @@
   - `state.searchQuery` сохраняется при createChat/deleteChat/renameChat — фильтр не сбрасывается.
   - «Ничего не найдено» — если ни один чат не матчит (локализация через `data-label-no-results`).
   - Поиск по содержимому сообщений — отложено в v1.3.x (**KI-068**).
+- **Chat UI — Backend edit user-message (v1.3 Фаза 2.2.6a)**:
+  - `IChatService.EditUserMessageAsync(messageId, userId, newContent)` — обновляет `Content` user-сообщения + удаляет все сообщения после (ассистент + tool + последующие) + обновляет `Chat.UpdatedAt`.
+  - `POST /api/chat/messages/{id}/edit` — принимает `{ content }`. Возвращает `{ success, data: { messageId, deletedCount } }`.
+  - Валидация: не пустое, role == "user", владение через `chat.UserId`. Обобщённый ответ «Сообщение не найдено» — не палим чужие чаты.
+  - `ChatStreamController`: + `IChatService` в конструктор.
+  - DTO: `EditUserMessageRequest` (request), `EditUserMessageResult` (сервис).
+
   
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.

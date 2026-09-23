@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Data;
 using IIChatTools.Data.Entities;
+using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -309,6 +310,82 @@ namespace IIChatTools.Services.Implementation
                 toDelete.Count, chatId);
 
             return toDelete.Count;
+        }
+
+        /// <inheritdoc />
+        public async Task<EditUserMessageResult> EditUserMessageAsync(
+            int messageId,
+            int userId,
+            string newContent,
+            CancellationToken cancellationToken = default)
+        {
+            var fail = new EditUserMessageResult { Success = false, MessageId = messageId };
+
+            // 1. Валидация входных данных
+            if (string.IsNullOrWhiteSpace(newContent))
+            {
+                fail.Error = "Содержимое не может быть пустым.";
+                return fail;
+            }
+
+            var trimmed = newContent.Trim();
+
+            // 2. Загружаем сообщение
+            var message = await _dbContext.ChatMessages
+                .FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken);
+
+            if (message == null)
+            {
+                fail.Error = "Сообщение не найдено.";
+                return fail;
+            }
+
+            // 3. Проверяем владение через чат
+            var chat = await _dbContext.Chats
+                .FirstOrDefaultAsync(c => c.Id == message.ChatId && c.UserId == userId, cancellationToken);
+
+            if (chat == null)
+            {
+                // Намеренно обобщённый ответ — не палим существование чужих чатов.
+                fail.Error = "Сообщение не найдено.";
+                return fail;
+            }
+
+            // 4. Редактировать можно только user-сообщения
+            if (!string.Equals(message.Role, "user", StringComparison.Ordinal))
+            {
+                fail.Error = "Можно редактировать только сообщения пользователя.";
+                return fail;
+            }
+
+            // 5. Обновляем содержимое
+            message.Content = trimmed;
+
+            // 6. Удаляем все сообщения после (assistant + tool + последующие)
+            var toDelete = await _dbContext.ChatMessages
+                .Where(m => m.ChatId == message.ChatId && m.Id > messageId)
+                .ToListAsync(cancellationToken);
+
+            if (toDelete.Count > 0)
+            {
+                _dbContext.ChatMessages.RemoveRange(toDelete);
+            }
+
+            // 7. Обновляем UpdatedAt чата
+            chat.UpdatedAt = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Edit user-message: chatId={ChatId}, messageId={MessageId}, deletedAfter={Count}",
+                message.ChatId, messageId, toDelete.Count);
+
+            return new EditUserMessageResult
+            {
+                Success = true,
+                MessageId = messageId,
+                DeletedCount = toDelete.Count
+            };
         }
     }
 }

@@ -108,17 +108,6 @@ namespace IIChatTools.Services.Interfaces
         Task<int> DeleteOldChatsAsync(int retentionDays, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Возвращает количество сообщений для каждого чата пользователя.
-        /// Один SQL-запрос с GROUP BY — используется для sidebar (KI-046).
-        /// </summary>
-        /// <param name="userId">Идентификатор пользователя</param>
-        /// <param name="cancellationToken">Токен отмены</param>
-        /// <returns>Словарь chatId → количество сообщений (чаты без сообщений отсутствуют)</returns>
-        Task<IReadOnlyDictionary<int, int>> GetMessageCountsAsync(
-            int userId,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Удаляет последний обмен в чате: последний assistant-ответ и все tool-сообщения,
         /// которые к нему относятся (до предыдущего user-сообщения включительно).
         /// Используется для Regenerate — после удаления чат возвращается в состояние,
@@ -132,5 +121,32 @@ namespace IIChatTools.Services.Interfaces
             int chatId,
             int userId,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Возвращает количество сообщений для каждого чата пользователя.
+        /// Один SQL-запрос с GROUP BY — используется для sidebar (KI-046).
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Словарь chatId → количество сообщений (чаты без сообщений отсутствуют)</returns>
+        Task<IReadOnlyDictionary<int, int>> GetMessageCountsAsync(
+            int userId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Редактирует содержимое user-сообщения и удаляет все сообщения после него
+        /// (ассистент, tool, последующие user/assistant). Используется для
+        /// ChatGPT-style edit + regenerate (Фаза 2.2.6).
+        /// </summary>
+        /// <param name="messageId">Идентификатор редактируемого сообщения</param>
+        /// <param name="userId">Идентификатор пользователя (проверка владения через chat.UserId)</param>
+        /// <param name="newContent">Новое содержимое (пробелы обрезаются)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Результат: <c>Success</c>, <c>Error</c>, <c>DeletedCount</c>, <c>MessageId</c></returns>
+        Task<IIChatTools.Services.DTO.Chat.EditUserMessageResult> EditUserMessageAsync(
+            int messageId,
+            int userId,
+            string newContent,
+            CancellationToken cancellationToken = default);            
     }
 }
