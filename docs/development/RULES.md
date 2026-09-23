@@ -96,6 +96,7 @@
 | 4.22 | **`new ConcurrentDictionary<...>(StringComparer.Ordinal)`** — для ключей-callId (чувствительны к регистру). По умолчанию `ConcurrentDictionary` использует `EqualityComparer<string>.Default` (`Ordinal`), но явное указание — самодокументируемо. |
 | 4.23 | **`TaskCompletionSource` — с `TaskCreationOptions.RunContinuationsAsynchronously`.** Иначе continuation выполнится в потоке вызывающего (`SetResult`) → потенциальный deadlock. См. `ChatApprovalCoordinator`. |
 | 4.24 | **`finalizeAssistantBubble` — пересоздавать `.chat-message-actions`** после Markdown-рендера. Иначе кнопки (📋 / 🔄 / ✏️), созданные при пустом тексте, не синхронизируются с финальным содержимым. См. KI-066. |
+| 4.25 | **Sqlite `EnsureCreatedAsync` не мигрирует существующую БД.** Если добавили новую сущность (или изменили модель) — старая `.db` не обновится, падает `no such table: <Table>`. Решение: **удалить `Data/*.db`** (и `bin/Debug/net10.0/Data/*.db`) → перезапустить. Для прод-Sqlite — миграции в `Migrations/Sqlite/`. См. KI-070. |
 
 ---
 

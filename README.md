@@ -260,10 +260,14 @@ dotnet user-secrets set "Browser:ProxyPassword" "<password>"
 dotnet ef database update --project IIChatTools.Data --startup-project IIChatTools.API
 ```
 
+**Заменить на:**
+
+```markdown
 **Sqlite / InMemory** (схема создаётся автоматически):
 ```bash
 dotnet run --project IIChatTools.API
 ```
+Важно для Sqlite: EnsureCreatedAsync не мигрирует существующую схему. Если БД создана на старой версии (без новых таблиц/колонок) — приложение упадёт с SQLite Error 1: no such table: <Table>. Решение: удалить Data/iichattools-dev.db (и bin/Debug/net10.0/Data/*.db, если есть) → перезапустить. Схема пересоздастся с текущей моделью. Данные будут потеряны. Для прод-Sqlite — миграции в Migrations/Sqlite/ (план на v1.3.x, KI-070).
 
 При первом запуске автоматически:
 - применяются миграции (SqlServer) или `EnsureCreated` (Sqlite/InMemory);

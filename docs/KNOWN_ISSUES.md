@@ -514,6 +514,18 @@
 
 ---
 
+### KI-070 — Sqlite: stale DB без новых таблиц (`no such table`)
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-23 | **Устранено:** —
+- **Файлы:** `IIChatTools.API/Program.cs`, `README.md`
+- **Описание:** При переходе на Sqlite (`Database:Provider = Sqlite`) на машине с существующим `Data/iichattools-dev.db` (созданным до появления новых сущностей, например `Chat`/`ChatMessage`) приложение падает с `SQLite Error 1: no such table: Chats`. Причина — `EnsureCreatedAsync()` **идемпотентен**: если БД существует, он **не создаёт недостающие таблицы** и не мигрирует схему.
+- **Симптом в логе:** `fail: Microsoft.EntityFrameworkCore.Database.Command[20102] Failed executing DbCommand ... FROM "Chats" ... no such table: Chats`.
+- **Решение (краткосрочно):** удалить `Data/iichattools-dev.db` и `bin/Debug/net10.0/Data/*.db` → перезапустить. Схема пересоздастся с текущей моделью. Данные будут потеряны.
+- **Решение (v1.3.x):** генерировать миграции для Sqlite (`Migrations/Sqlite/`) и применять через `MigrateAsync` (как для SqlServer). Позволит обновлять схему без удаления БД.
+- **Не блокер:** разработчик может удалить файл БД вручную (комментарий в `Program.cs` это уже описывает).
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -665,16 +677,17 @@
 | Fixed (v1.1.1) | 11 |
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
-| Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064 -->
+| Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
 | Deferred | 6 |                      <!-- KI-047, KI-052, KI-053, KI-067, KI-068, KI-069 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
-**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia).
+**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia), KI-070 (Sqlite stale DB).
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content), KI-069 (inline-edit в sidebar).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
+**Всего в реестре:** 48 KI.
 
 ---
 
