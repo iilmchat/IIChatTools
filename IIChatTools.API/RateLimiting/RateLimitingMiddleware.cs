@@ -23,24 +23,40 @@ namespace IIChatTools.API.RateLimiting
     /// - <c>/health/*</c> — без лимита (Docker healthcheck).
     ///
     /// Настраивается секцией <c>RateLimiting</c> в appsettings.json.
+    ///
+    /// KI-043: утечка памяти в словаре <c>_limiters</c> — <c>Timer</c>
+    /// раз в <see cref="CleanupInterval"/> удаляет лимитеры, не использованные
+    /// дольше <see cref="StaleThreshold"/>. Middleware — singleton (создаётся
+    /// один раз), <see cref="IDisposable"/> останавливает таймер при shutdown.
     /// </summary>
-    public sealed class RateLimitingMiddleware
+    public sealed class RateLimitingMiddleware : IDisposable
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<RateLimitingMiddleware> _logger;
         private readonly RateLimitingOptions _options;
 
-        // Кеш лимитеров по partition-key.
-        // Внимание: для production с несколькими инстансами нужен распределённый лимитер.
-        private readonly ConcurrentDictionary<string, FixedWindowRateLimiter> _limiters =
-            new ConcurrentDictionary<string, FixedWindowRateLimiter>();
+        // KI-043: словарь хранит LimiterEntry (limiter + LastUsedUtc),
+        // а не голый FixedWindowRateLimiter. Иначе нет информации о времени
+        // последнего использования для cleanup'а.
+        private readonly ConcurrentDictionary<string, LimiterEntry> _limiters =
+            new ConcurrentDictionary<string, LimiterEntry>();
+
+        // KI-043: таймер периодической очистки stale-лимитеров.
+        // Null, если лимиты отключены (Enabled = false) — не тратим ресурсы.
+        private readonly Timer _cleanupTimer;
+
+        /// <summary>Интервал очистки stale-лимитеров (2 минуты).</summary>
+        private static readonly TimeSpan CleanupInterval = TimeSpan.FromMinutes(2);
+
+        /// <summary>Порог «протухания»: лимитер, не использованный 5 минут, удаляется.</summary>
+        private static readonly TimeSpan StaleThreshold = TimeSpan.FromMinutes(5);
 
         // Кэш JSON-опций — исправляет CA1869 (см. KI-051).
         private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
         {
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
-        
+
         /// <summary>
         /// Создаёт middleware.
         /// </summary>
@@ -59,6 +75,16 @@ namespace IIChatTools.API.RateLimiting
 
             _options = new RateLimitingOptions();
             configuration.GetSection("RateLimiting").Bind(_options);
+
+            // KI-043: запускаем Timer только если лимиты включены.
+            if (_options.Enabled)
+            {
+                _cleanupTimer = new Timer(
+                    callback: _ => CleanupStaleLimiters(),
+                    state: null,
+                    dueTime: CleanupInterval,
+                    period: CleanupInterval);
+            }
         }
 
         /// <summary>
@@ -99,16 +125,20 @@ namespace IIChatTools.API.RateLimiting
                     return;
                 }
 
-                var limiter = _limiters.GetOrAdd($"{policy}:{partitionKey}", _ =>
-                    new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+                // KI-043: GetOrAdd возвращает LimiterEntry; при повторных запросах
+                // к тому же ключу Touch() обновляет LastUsedUtc.
+                var entry = _limiters.GetOrAdd($"{policy}:{partitionKey}", _ =>
+                    new LimiterEntry(new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = policyOptions.PermitLimit,
                         Window = TimeSpan.FromSeconds(policyOptions.WindowSeconds),
                         QueueLimit = policyOptions.QueueLimit,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
-                    }));
+                    })));
 
-                using var lease = limiter.AttemptAcquire(1);
+                entry.Touch();
+
+                using var lease = entry.Limiter.AttemptAcquire(1);
 
                 if (!lease.IsAcquired)
                 {
@@ -160,7 +190,35 @@ namespace IIChatTools.API.RateLimiting
                 _currentContext.Value = null;
             }
         }
-        
+
+        /// <summary>
+        /// KI-043: удаляет лимитеры, не использованные дольше <see cref="StaleThreshold"/>.
+        /// Вызывается периодически из <see cref="_cleanupTimer"/>.
+        /// </summary>
+        private void CleanupStaleLimiters()
+        {
+            var threshold = DateTime.UtcNow - StaleThreshold;
+            var removed = 0;
+
+            foreach (var kvp in _limiters)
+            {
+                if (kvp.Value.LastUsedUtc < threshold)
+                {
+                    if (_limiters.TryRemove(kvp.Key, out _))
+                    {
+                        removed++;
+                    }
+                }
+            }
+
+            if (removed > 0)
+            {
+                _logger.LogDebug(
+                    "RateLimiter cleanup: удалено {Removed} stale-лимитеров, осталось {Remaining}",
+                    removed, _limiters.Count);
+            }
+        }
+
         /// <summary>
         /// Определяет политику для пути и вычисляет ключ партиции.
         /// </summary>
@@ -229,7 +287,44 @@ namespace IIChatTools.API.RateLimiting
             return _currentContext.Value?.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
         }
 
+        /// <summary>
+        /// KI-043: останавливает Timer очистки при shutdown приложения.
+        /// </summary>
+        public void Dispose()
+        {
+            _cleanupTimer?.Dispose();
+        }
+
         // AsyncLocal для доступа к HttpContext в методах SelectPolicy/GetUserId
         private static readonly AsyncLocal<HttpContext> _currentContext = new AsyncLocal<HttpContext>();
+
+        /// <summary>
+        /// KI-043: обёртка над <see cref="FixedWindowRateLimiter"/> с отметкой
+        /// последнего использования. Нужна для cleanup'а stale-лимитеров.
+        /// </summary>
+        private sealed class LimiterEntry
+        {
+            /// <summary>Собственно лимитер.</summary>
+            public FixedWindowRateLimiter Limiter { get; }
+
+            /// <summary>UTC-время последнего успешного <c>Touch()</c>.</summary>
+            public DateTime LastUsedUtc { get; private set; }
+
+            /// <summary>
+            /// Создаёт обёртку и фиксирует время создания.
+            /// </summary>
+            /// <param name="limiter">Лимитер</param>
+            public LimiterEntry(FixedWindowRateLimiter limiter)
+            {
+                Limiter = limiter ?? throw new ArgumentNullException(nameof(limiter));
+                LastUsedUtc = DateTime.UtcNow;
+            }
+
+            /// <summary>
+            /// Обновляет отметку последнего использования.
+            /// Не критично к race — погрешность в наносекундах допустима.
+            /// </summary>
+            public void Touch() => LastUsedUtc = DateTime.UtcNow;
+        }
     }
 }

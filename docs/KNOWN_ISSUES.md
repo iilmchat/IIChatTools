@@ -222,12 +222,18 @@
 ---
 
 ### KI-043 — Утечка памяти в RateLimitingMiddleware
-- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.2.x
-- **Обнаружено:** 2026-09-18
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.3.x
+- **Обнаружено:** 2026-09-18 | **Устранено:** 2026-09-23
 - **Файлы:** `IIChatTools.API/RateLimiting/RateLimitingMiddleware.cs`
-- **Описание:** `ConcurrentDictionary<string, FixedWindowRateLimiter>` в `RateLimitingMiddleware` хранит лимитеры по partition-key и **не очищает их** при истечении окна. При долгой работе с тысячами уникальных пользователей/IP → постепенный рост памяти.
-- **Решение (запланировано):** периодическая очистка через `Timer` (удалять лимитеры с истёкшим окном) или переход на `PartitionedRateLimiter` (если появится в следующих версиях SDK).
-- **Не блокер v1.1.1:** footprint одного лимитера мал, при десятках пользователей проблема не проявляется.
+- **Описание:** `ConcurrentDictionary<string, FixedWindowRateLimiter>` хранил лимитеры по partition-key и **не очищал их** при истечении окна. При долгой работе с тысячами уникальных пользователей/IP → постепенный рост памяти.
+- **Решение:**
+  - Словарь хранит `LimiterEntry` (limiter + `LastUsedUtc`) вместо голого лимитера.
+  - `Timer` каждые 2 минуты вызывает `CleanupStaleLimiters()` — удаляет записи, не использованные дольше 5 минут.
+  - `LimiterEntry.Touch()` вызывается при каждом использовании — отметка обновляется.
+  - Middleware реализует `IDisposable` — Timer останавливается при shutdown приложения.
+  - `Timer` создаётся только при `RateLimiting:Enabled = true` (иначе не тратим ресурсы).
+- **Итог:** словарь ограничен активными пользователями (окно 5 минут), утечка устранена.
+- **Smoke:** логирование cleanup'а (`LogDebug`) при удалении → мониторинг через Serilog/логгер.
 
 ---
 
@@ -446,13 +452,19 @@
 ---
 
 ### KI-064 — SSL-обрыв к ru.wikipedia.org (intermittent)
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
-- **Обнаружено:** 2026-09-23 | **Устранено:** —
-- **Файлы:** `IIChatTools.Services/Implementation/Tools/Web/WikipediaSearchTool.cs` (внешний вызов)
-- **Описание:** При запросе `wikipedia_search` LLM получила `HttpRequestException: The SSL connection could not be established` (SocketException 10054 — «Удалённый хост принудительно разорвал соединение») после 43 секунд таймаута. В то же время `web_search` (DuckDuckGo) сработал успешно.
-- **Причина:** внешняя сетевая проблема — TLS-handshake к `ru.wikipedia.org` прерывается через корпоративный прокси/firewall (долгие соединения). Не баг приложения.
-- **Fallback:** LLM самостоятельно переключилась на `web_search` и получила данные.
-- **Профилактика (TODO v1.3.x):** уменьшить `HttpClient.Timeout` для `WikipediaSearchTool` (по умолчанию 100s → 15s), добавить retry с exponential backoff. Не Critical.
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.x
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/Web/WikipediaSearchTool.cs`
+- **Описание:** При запросе `wikipedia_search` LLM получила `HttpRequestException: The SSL connection could not be established` (SocketException 10054 — «Удалённый хост принудительно разорвал соединение») после **43 секунд** таймаута. В то же время `web_search` (DuckDuckGo) сработал успешно.
+- **Причина:** внешняя сетевая проблема — TLS-handshake к `ru.wikipedia.org` прерывается через корпоративный прокси/firewall. Не баг приложения, но дефолтный `HttpClient.Timeout` = 100s делает зависание недопустимо долгим.
+- **Решение:**
+  - Явный `client.Timeout = 15s` (было 100s).
+  - Retry 1 раз с задержкой 1s при `HttpRequestException` / `TaskCanceledException`.
+  - Внешняя отмена (`context.CancellationToken` — Stop в чате) — **не retry**, пробрасывается немедленно.
+  - Информативные сообщения в `ToolResult.Fail`: «Wikipedia не ответила за 15 секунд. Возможны проблемы с сетью или прокси. Попробуйте позже или используйте web_search».
+  - `context.CancellationToken` теперь реально пробрасывается в `GetStringAsync`.
+- **Правило:** см. RULES § 4.28.
+- **Тесты:** не добавлены (требуют HTTP-мок; проверено smoke-тестом).
 
 ---
 
@@ -719,7 +731,7 @@
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
-| Fixed / Resolved (v1.3.x) | 4 |    <!-- KI-068, KI-069, KI-071, KI-072 -->
+| Fixed / Resolved (v1.3.x) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
 | Deferred | 4 |                      <!-- KI-047, KI-052, KI-053, KI-067 -->
