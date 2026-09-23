@@ -396,11 +396,26 @@
 }
 
 /* textarea — автоувеличение */
+.chat-input .input-group {
+    /* Растягиваем textarea и кнопку по высоте друг друга */
+    align-items: stretch;
+}
+
 .chat-input textarea {
     resize: none;
     overflow-y: auto;
+    /* min-height — стандартный размер form-control Bootstrap:
+       1.5em (line-height) + 0.75rem (padding) + 2px (border) ≈ 38px.
+       Без min-height textarea с одним рядом текста «проседает» ниже кнопки. */
+    min-height: calc(1.5em + 0.75rem + 2px);
     max-height: 200px;
     transition: height .1s;
+}
+
+.chat-input .input-group > .btn {
+    /* Кнопка растягивается на всю высоту textarea */
+    align-self: stretch;
+    height: auto;
 }
 
 /* ============ Drag-and-drop модалки approval (v1.3 Фаза 2.0.4 fix) ============ */

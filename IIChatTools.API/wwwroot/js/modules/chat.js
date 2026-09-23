@@ -229,6 +229,11 @@ async function selectChat(chatId) {
     renderChatHeader(res.data);
     renderMessages(res.data.messages || []);
     enableInput(true);
+
+    // KI-062: фокус на input (ChatGPT-style). setTimeout — чтобы фокус
+    // не сбрасывался re-render'ом sidebar и других элементов.
+    setTimeout(() => document.getElementById('chat-input')?.focus(), 0);
+        
     updateScrollDownButton();
 }
 

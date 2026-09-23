@@ -402,6 +402,24 @@
 
 ---
 
+### KI-061 — Кнопка «Отправить» перекрывает textarea
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.0 (fix 2.1.2.3a)
+- **Обнаружено:** 2026-09-23 (визуально на скриншоте Chat UI) | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/wwwroot/css/chat.css`
+- **Описание:** В `.input-group` (textarea + кнопка «Отправить») `textarea` без `min-height` при одном ряде текста «проседала» ниже кнопки — кнопка визуально выступала над/под textarea.
+- **Решение:** `min-height: calc(1.5em + 0.75rem + 2px)` для textarea (стандарт Bootstrap `.form-control`), `.input-group` → `align-items: stretch`, `.btn` → `align-self: stretch; height: auto`.
+
+---
+
+### KI-062 — Нет фокуса на input при создании/выборе чата
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.0 (fix 2.1.2.3a)
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js`
+- **Описание:** При создании нового чата (и при выборе существующего) фокус не переводился в поле ввода — пользователю приходилось кликать по textarea мышкой.
+- **Решение:** В `selectChat()` после `enableInput(true)` добавлен `setTimeout(() => input.focus(), 0)`. Так как `createChat()` вызывает `selectChat()`, оба сценария покрыты. ChatGPT-style.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -551,14 +569,14 @@
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
-| Fixed / Resolved (v1.3.0) | 6 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060 -->
+| Fixed / Resolved (v1.3.0) | 8 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-062 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049 -->
 | Deferred | 3 |                      <!-- KI-047, KI-052, KI-053 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
-**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown).
+**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-062 (фокус).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream).
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).
