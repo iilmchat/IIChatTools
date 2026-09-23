@@ -1,7 +1,7 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.3.0
-**Обновлено:** 2026-09-21
+**Версия:** 1.4.0
+**Обновлено:** 2026-09-23
 **Назначение:** единый свод правил для команды и ассистента.
 
 При работе над проектом **все** изменения должны соответствовать этим правилам.
@@ -87,6 +87,15 @@
 | 4.13 | Путь `obj/project.assets.json` — **создаётся** `restore`, удаляется с `obj/` | NETSDK1004 |
 | 4.14 | `--no-restore` использует **существующий** `project.assets.json` | Старые версии пакетов |
 | 4.15 | **Имена папок не должны совпадать с именами типов из `Entities`** — namespace `…Implementation.Chat` конфликтует с типом `Chat` (CS0118). Папка → `ChatTools`, `ChatHandlers` и т. п. |
+| 4.16 | **Ключи `.resx` — case-insensitive.** `ResourceManager` не различает `"По умолчанию"` и `"по умолчанию"` → MSB3568 (duplicate resource name). Для новых ключей использовать camelCase-стиль `WelcomeTitle`, `ChatModelLabel`. Перед добавлением: `Select-String -Path *.resx -Pattern "имя"` — проверка коллизий. |
+| 4.17 | **Локализация JS-строк** — через `data-*`-атрибуты на HTML-элементе (`data-label-default="@Localizer["ChatModelSuffixDefault"]"`). JS читает `el.dataset.labelDefault`. Не дублировать строки в JS. |
+| 4.18 | **`AbortController` + `fetch(..., { signal })`** — единственный способ отменить SSE-стрим с клиента. `abort()` рвёт соединение → серверный `CancellationToken` отменяется. Для `AbortError` — `try/catch` с `ex.name === 'AbortError'`. |
+| 4.19 | **Флаг завершения стрима** — `bubble.dataset.streamCompleted = '1'` в `case 'done'`. В `finally` проверять `dataset.streamCompleted === '1'` вместо дополнительных Promise/SetState. |
+| 4.20 | **`setTimeout(() => el.focus(), 0)`** — для фокуса после re-render (sidebar/списка). Синхронный `.focus()` теряется при перерисовке DOM. |
+| 4.21 | **Поиск последнего элемента в массиве** — обратный цикл: `for (let i = arr.length - 1; i >= 0; i--)`. Для «найти последний role='assistant'» и подобных сценариев. `Array.findLast()` — ES2023, не всегда поддерживается. |
+| 4.22 | **`new ConcurrentDictionary<...>(StringComparer.Ordinal)`** — для ключей-callId (чувствительны к регистру). По умолчанию `ConcurrentDictionary` использует `EqualityComparer<string>.Default` (`Ordinal`), но явное указание — самодокументируемо. |
+| 4.23 | **`TaskCompletionSource` — с `TaskCreationOptions.RunContinuationsAsynchronously`.** Иначе continuation выполнится в потоке вызывающего (`SetResult`) → потенциальный deadlock. См. `ChatApprovalCoordinator`. |
+| 4.24 | **`finalizeAssistantBubble` — пересоздавать `.chat-message-actions`** после Markdown-рендера. Иначе кнопки (📋 / 🔄 / ✏️), созданные при пустом тексте, не синхронизируются с финальным содержимым. См. KI-066. |
 
 ---
 
@@ -125,16 +134,23 @@
 
 См. [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — полный реестр.
 
-**Краткая выжимка Open/Deferred:**
+**Краткая выжимка Open/Deferred (после релиза v1.3.0):**
 
-| KI | Приоритет | Суть |
-|----|-----------|------|
-| KI-043 | 🟡 | Утечка памяти в `RateLimitingMiddleware` |
-| KI-044 | 🟢 | `iichattools_audit_entries_total` не инкрементируется |
-| KI-046 | 🟢 | `MessageCount` в `ChatListItemDto` всегда 0 |
-| KI-047 | 🟡 | Fallback PATCH/DELETE через POST (для старых сетей) |
-| KI-049 | 🟢 | `tokensIn`/`tokensOut` = null в SSE |
-| KI-050 | 🟠 | JSON на HTML-эндпоинтах при rate limit (плохой UX) |
+| KI | Приоритет | Статус | Суть | План |
+|----|-----------|--------|------|------|
+| KI-043 | 🟡 | Documented | Утечка памяти в `RateLimitingMiddleware` | v1.3.x |
+| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.3.x |
+| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.3.x |
+| KI-049 | 🟢 | Documented | `tokensIn`/`tokensOut` = null в SSE (ограничение LM Studio) | v1.4 |
+| KI-052 | 🟡 | Deferred | Специализированные суб-агенты по группам инструментов | v1.4.0 |
+| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.4.0 |
+| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.3.x |
+| KI-064 | 🟢 | Documented | SSL-обрыв к `ru.wikipedia.org` (корпоративный прокси) | v1.3.x |
+| KI-067 | 🟢 | Deferred | Per-user retention чатов (override глобальной) | v1.3.x |
+| KI-068 | 🟢 | Deferred | Поиск по содержимому сообщений (не только title) | v1.3.x |
+| KI-069 | 🟢 | Deferred | Inline-edit названия чата в sidebar (двойной клик) | v1.3.x |
+
+**Всего в реестре:** 48 KI. **Fixed/Resolved:** 44 (v1.0.x–v1.3.0). **Deferred:** 6. **Documented:** 6.
 
 ---
 
@@ -147,6 +163,7 @@
 | 2026-09-18 | 1.1.0 | Правила Git 6.x (force-with-lease, filter-repo) |
 | 2026-09-21 | 1.2.0 | Правила 3.x (workflow) — маленькие шаги, `git add -A` |
 | 2026-09-21 | 1.3.0 | Правила 4.x (технические C#/.NET 10) + 7 (KI-выжимка) |
+| 2026-09-23 | 1.4.0 | Правила 4.16–4.24 (уроки v1.3: resx case-insensitive, data-* локализация, AbortController, TCS, `:has()`, фокус после re-render). Раздел 7 (актуальная KI-выжимка). **Релиз v1.3.0.** |
 
 ---
 
