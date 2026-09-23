@@ -480,6 +480,17 @@
 
 ---
 
+### KI-067 — Per-user retention чатов (override глобальной)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-23
+- **Файлы:** `IIChatTools.Services/Implementation/ChatRetentionService.cs`, `IIChatTools.Services/Implementation/ChatRetentionOptions.cs`
+- **Описание:** Сейчас retention чатов — глобальный (`Chat:Retention:DefaultDays` в appsettings). Пользователь не может настроить свой срок хранения (например, «хранить 7 дней» для приватных чатов или «365 дней» для архива). DESIGN § 13.2 предлагал override через `AppSettings` (поле `Chat.RetentionDays` per-user).
+- **Реализовано в v1.3 Фаза 2.2.5:** глобальный retention через `ChatRetentionService` (BackgroundService, bulk DELETE).
+- **TODO v1.3.x:** добавить per-user override через `AppSettings` (ключ `Chat.RetentionDays`) + UI в профиле пользователя.
+- **Не блокер:** текущий глобальный retention покрывает 95% сценариев.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -632,14 +643,14 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064 -->
-| Deferred | 3 |                      <!-- KI-047, KI-052, KI-053 -->
+| Deferred | 4 |                      <!-- KI-047, KI-052, KI-053, KI-067 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia).
-**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).
+**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 
 ---

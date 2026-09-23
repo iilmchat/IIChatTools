@@ -148,7 +148,15 @@
   - Селектор **disabled во время стрима** (`setStreamingUI`). Попытка смены в этот момент игнорируется.
   - `showEmptyState`: очистка селекта (нет активного чата).
   - Локализация: 4 новых ключа (`Модель`, `по умолчанию`, `недоступна`, `Нет моделей`) — передаются в JS через `data-*`-атрибуты.
-  - `chat.css`: `.chat-model-select` (моноширинный, компактный, hover/focus/disabled).  
+  - `chat.css`: `.chat-model-select` (моноширинный, компактный, hover/focus/disabled).
+- **Chat retention (v1.3 Фаза 2.2.5, DESIGN § 13.2)**: фоновый `ChatRetentionService` (по образцу `AuditRetentionService`).
+  - Удаляет чаты старше `Chat:Retention:DefaultDays` (по умолчанию — 30 дней) через `IChatService.DeleteOldChatsAsync` (bulk DELETE через `ExecuteDeleteAsync`).
+  - Первый запуск — через 2 минуты после старта; далее раз в `CleanupIntervalHours` (по умолчанию — 24 ч).
+  - Защита от опечаток: `DefaultDays` ограничивается сверху `MaxDays` (365).
+  - `Chat:Retention:Enabled = false` — полностью отключает retention (рекомендуется в dev).
+  - Метрика Prometheus: `iichattools_chat_cleanup_total` (label `reason="retention"`).
+  - Логирование: `Retention чатов: удалено {Count} чатов старше {Cutoff}`.
+  - Per-user override — отложено в v1.3.x (**KI-067**).
   
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.

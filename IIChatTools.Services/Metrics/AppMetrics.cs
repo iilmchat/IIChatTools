@@ -68,6 +68,15 @@ namespace IIChatTools.Services.Metrics
         public static readonly Counter AuditCleanupTotal = Prometheus.Metrics.CreateCounter(
             "iichattools_audit_cleanup_total",
             "Total number of audit records/files deleted by retention policy.",
-            new CounterConfiguration { LabelNames = new[] { "target" } });            
+            new CounterConfiguration { LabelNames = new[] { "target" } });
+
+        /// <summary>
+        /// Счётчик удалённых чатов по retention policy.
+        /// Labels: <c>reason</c> = "retention" | "manual" (для будущего).
+        /// </summary>
+        public static readonly Counter ChatCleanupTotal = Prometheus.Metrics.CreateCounter(
+            "iichattools_chat_cleanup_total",
+            "Total number of chats deleted by retention policy.",
+            new CounterConfiguration { LabelNames = new[] { "reason" } });
     }
 }

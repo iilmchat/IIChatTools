@@ -100,7 +100,11 @@ namespace IIChatTools.API
 
             // ============ 1.4. Audit retention ============
             // BackgroundService: чистка AuditLogs и JSONL-файлов по retention policy.
-            services.AddHostedService<AuditRetentionService>();            
+            services.AddHostedService<AuditRetentionService>();
+
+            // ============ 1.5. Chat retention (v1.3 Фаза 2.2.5) ============
+            // BackgroundService: удаление чатов старше Chat:Retention:DefaultDays.
+            services.AddHostedService<ChatRetentionService>();
 
             // ============ 2. Identity ============
             services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
