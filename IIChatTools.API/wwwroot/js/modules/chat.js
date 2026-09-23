@@ -17,6 +17,7 @@ const state = {
     defaultModel: null,
     activeChatId: null,
     activeChat: null,
+    activeChatMessageCount: 0,   // Фаза 2.2.1b: кол-во сообщений активного чата
     isStreaming: false,     // блокировка отправки во время стрима
     autoScroll: true,       // включён, пока пользователь у нижнего края
     abortController: null,  // Фаза 2.1.3: AbortController для Stop
@@ -229,6 +230,7 @@ async function selectChat(chatId) {
 
     state.activeChatId = chatId;
     state.activeChat = res.data;
+    state.activeChatMessageCount = (res.data.messages || []).length;
     state.autoScroll = true;   // при переключении чата — прилипаем к низу
 
     updateUrl(chatId);
@@ -373,6 +375,10 @@ async function sendMessage() {
         toast('Сообщение не может быть пустым', 'warning');
         return;
     }
+
+    // Фаза 2.2.1b: запомнить, был ли чат пустым ДО отправки —
+    // от этого зависит, генерировать ли AI-title после done.
+    const wasEmpty = state.activeChatMessageCount === 0;
 
     // 1. Сразу добавляем user-пузырь (оптимистично) и очищаем input
     appendUserMessage(message);
@@ -530,6 +536,8 @@ function handleSseEvent(name, data, assistantBubble) {
         case 'done':
             showTypingIndicator(assistantBubble, false);
             finalizeAssistantBubble(assistantBubble, data);
+            // Фаза 2.2.1b: флаг успешного завершения — для maybeGenerateTitle.
+            if (assistantBubble) assistantBubble.dataset.streamCompleted = '1';
             break;
 
         case 'error':

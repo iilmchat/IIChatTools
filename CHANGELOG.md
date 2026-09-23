@@ -134,6 +134,13 @@
   - `ResultJson`: `{ reason: "user_stop" }`.
   - `DurationMs`: длительность стрима (Stopwatch).
   - `ClientIp`: из `HttpContext.Connection.RemoteIpAddress`.
+- **Chat UI — AI-title frontend (v1.3 Фаза 2.2.1b)**:
+  - `maybeGenerateTitle()` — фоновый `POST /api/chats/{id}/generate-title` после **первого** успешного ответа в пустом чате.
+  - Триггер: `state.activeChatMessageCount === 0` до отправки + `dataset.streamCompleted === '1'` после `done`.
+  - Защита от повторного вызова: title должен матчить `/^Новый чат(\s+\d+)?$/` — иначе пропускаем (пользователь переименовал вручную).
+  - Race-safe: `chatIdAtRequest` фиксируется — если пользователь переключится, пока идёт запрос, обновится правильный чат.
+  - При успехе: `renderChatList()` + `renderChatHeader()` — без F5.
+  - `state.activeChatMessageCount` — новый счётчик для активного чата (init в `selectChat`).
   
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.
