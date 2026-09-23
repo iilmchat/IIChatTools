@@ -441,7 +441,7 @@
   - Клик по Stop → `abortController.abort()` → fetch рвёт соединение → сервер отменяет `CancellationToken` → SSE закрывается.
   - При `AbortError`: частичный assistant-пузырь удаляется из DOM; **частичный ответ НЕ сохраняется в БД** (согласовано).
   - Работает и для обычного стрима, и для Regenerate.
-- **TODO (2.1.3.3):** audit-запись при Stop.
+- **Audit (2.1.3.3):** при Stop в `ChatStreamController.StreamInternalAsync` пишется запись в `AuditLogs`: `Status = "Cancelled"`, `ToolName = chat_stream | chat_regenerate`, `DurationMs` (Stopwatch), `ClientIp`. **Текст сообщения не логируется** (без PII).
 
 ---
 

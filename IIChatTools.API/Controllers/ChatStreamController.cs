@@ -1,7 +1,9 @@
 using System;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -24,6 +26,7 @@ namespace IIChatTools.API.Controllers
     {
         private readonly IChatStreamService _chatStreamService;
         private readonly IChatApprovalCoordinator _approvalCoordinator;
+        private readonly IAuditService _auditService;
         private readonly ILogger<ChatStreamController> _logger;
 
         /// <summary>
@@ -31,15 +34,18 @@ namespace IIChatTools.API.Controllers
         /// </summary>
         /// <param name="chatStreamService">Сервис стриминга чата</param>
         /// <param name="approvalCoordinator">Координатор подтверждений (Singleton)</param>
+        /// <param name="auditService">Сервис аудита (для записи Stop)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatStreamController(
             IChatStreamService chatStreamService,
             IChatApprovalCoordinator approvalCoordinator,
+            IAuditService auditService,
             ILogger<ChatStreamController> logger)
         {
             _chatStreamService = chatStreamService ?? throw new ArgumentNullException(nameof(chatStreamService));
             _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
+            _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -106,6 +112,8 @@ namespace IIChatTools.API.Controllers
                 "SSE-стрим начат: chatId={ChatId}, userId={UserId}, regenerate={Regen}, msgLen={MsgLen}",
                 request.ChatId, userId, request.Regenerate, request.Message?.Length ?? 0);
 
+            var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 await foreach (var evt in _chatStreamService.StreamAsync(request, userId, cancellationToken))
@@ -115,7 +123,13 @@ namespace IIChatTools.API.Controllers
             }
             catch (OperationCanceledException)
             {
-                _logger.LogInformation("SSE-стрим отменён клиентом: chatId={ChatId}", request.ChatId);
+                stopwatch.Stop();
+                _logger.LogInformation(
+                    "SSE-стрим отменён клиентом: chatId={ChatId}, durationMs={DurationMs}",
+                    request.ChatId, stopwatch.ElapsedMilliseconds);
+
+                // Фаза 2.1.3.3: аудит Stop (Status=Cancelled).
+                await LogStopAuditAsync(request, userId, stopwatch.ElapsedMilliseconds);
                 // Клиент отключился — писать уже некуда
             }
             catch (Exception ex)
@@ -173,6 +187,47 @@ namespace IIChatTools.API.Controllers
             catch (ObjectDisposedException)
             {
                 // Response закрыт — игнорируем
+            }
+        }
+
+
+        /// <summary>
+        /// Записывает в аудит факт остановки стрима пользователем (Фаза 2.1.3.3).
+        /// Текст сообщения НЕ логируется (правило 5.x — без PII).
+        /// </summary>
+        /// <param name="request">Запрос (ChatId, Regenerate)</param>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <param name="durationMs">Длительность стрима до отмены (мс)</param>
+        /// <returns>Асинхронная задача</returns>
+        private async Task LogStopAuditAsync(ChatStreamRequest request, int userId, long durationMs)
+        {
+            try
+            {
+                var clientIp = HttpContext?.Connection?.RemoteIpAddress?.ToString();
+
+                await _auditService.LogActionAsync(new AuditLog
+                {
+                    UserId = userId,
+                    ToolName = request.Regenerate ? "chat_regenerate" : "chat_stream",
+                    ParametersJson = JsonConvert.SerializeObject(new
+                    {
+                        chatId = request.ChatId,
+                        regenerate = request.Regenerate,
+                        hasMessage = !string.IsNullOrWhiteSpace(request.Message)
+                    }),
+                    ResultJson = JsonConvert.SerializeObject(new
+                    {
+                        reason = "user_stop"
+                    }),
+                    DurationMs = durationMs,
+                    Status = "Cancelled",
+                    ClientIp = clientIp
+                });
+            }
+            catch (Exception ex)
+            {
+                // Аудит не должен ломать основной поток.
+                _logger.LogWarning(ex, "Не удалось записать audit Stop: chatId={ChatId}", request.ChatId);
             }
         }
 
