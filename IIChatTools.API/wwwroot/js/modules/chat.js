@@ -82,6 +82,12 @@ function bindEvents() {
         btnStop.addEventListener('click', stopStreaming);
     }
 
+    // Фаза 2.2.4: селектор модели
+    const modelSelect = document.getElementById('chat-model-select');
+    if (modelSelect) {
+        modelSelect.addEventListener('change', onChatModelChanged);
+    }
+
     // === Скроллинг (Фаза 2.0.5b) ===
 
     // Слушатель скролла на ленте сообщений — отслеживает позицию пользователя
@@ -515,6 +521,10 @@ function setStreamingUI(isStreaming) {
     const btnStop = document.getElementById('btn-stop');
     if (btnSend) btnSend.hidden = isStreaming;
     if (btnStop) btnStop.hidden = !isStreaming;
+
+    // Фаза 2.2.4: селектор модели disabled во время стрима
+    const modelSelect = document.getElementById('chat-model-select');
+    if (modelSelect) modelSelect.disabled = isStreaming;
 }
 
 /**
@@ -1086,16 +1096,101 @@ function appendAssistantError(bubble, message) {
 function renderChatHeader(chat) {
     const headerEl = document.getElementById('chat-header');
     const titleEl = document.getElementById('chat-title');
-    const modelEl = document.getElementById('chat-model');
+    const selectEl = document.getElementById('chat-model-select');
 
     if (headerEl) headerEl.classList.remove('d-none');
     if (titleEl) titleEl.textContent = chat.title || 'Без названия';
-    if (modelEl) modelEl.textContent = chat.model || '—';
+    if (selectEl) populateChatModelSelect(selectEl, chat.model || '');
+}
+
+/**
+ * Фаза 2.2.4: заполняет <select> моделей чата.
+ * @param {HTMLSelectElement} selectEl
+ * @param {string} currentModel
+ */
+function populateChatModelSelect(selectEl, currentModel) {
+    const models = state.models || [];
+    const hasCurrent = models.some(m => m.id === currentModel);
+
+    const labelDefault = selectEl.dataset.labelDefault || 'по умолчанию';
+    const labelUnavailable = selectEl.dataset.labelUnavailable || 'недоступна';
+    const labelEmpty = selectEl.dataset.labelEmpty || 'Нет моделей';
+
+    let html = '';
+
+    // Текущей модели нет в списке — показываем как disabled option
+    if (currentModel && !hasCurrent) {
+        html += `<option value="${escapeHtml(currentModel)}" selected disabled>${
+            escapeHtml(currentModel)} (${escapeHtml(labelUnavailable)})</option>`;
+    }
+
+    for (const m of models) {
+        const selected = m.id === currentModel ? ' selected' : '';
+        const suffix = m.isDefault ? ` (${escapeHtml(labelDefault)})` : '';
+        html += `<option value="${escapeHtml(m.id)}"${selected}>${escapeHtml(m.id)}${suffix}</option>`;
+    }
+
+    // Совсем пусто (ни models, ни текущей) — placeholder
+    if (!html) {
+        html = `<option value="" selected disabled>${escapeHtml(labelEmpty)}</option>`;
+    }
+
+    selectEl.innerHTML = html;
+}
+
+/**
+ * Фаза 2.2.4: смена модели через PATCH /api/chats/{id}.
+ * Оптимистично обновляет state; при ошибке — откат.
+ */
+async function onChatModelChanged(e) {
+    const selectEl = e.target;
+    const newModel = selectEl.value;
+
+    // Защита: во время стрима выбор откатывается
+    if (state.isStreaming) {
+        selectEl.value = state.activeChat?.model || '';
+        return;
+    }
+
+    const chatId = state.activeChatId;
+    if (!chatId || !newModel) return;
+
+    const oldModel = state.activeChat?.model || '';
+    if (newModel === oldModel) return;
+
+    try {
+        const res = await fetch(`/api/chats/${chatId}`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: newModel }),
+        }).then(r => r.json());
+
+        if (!res.success) {
+            toast(res.message || 'Ошибка смены модели', 'error');
+            selectEl.value = oldModel;
+            return;
+        }
+
+        // Успех — обновляем state
+        if (state.activeChat) state.activeChat.model = newModel;
+        const chatInState = state.chats.find(c => c.id === chatId);
+        if (chatInState) chatInState.model = newModel;
+
+        toast(`Модель: ${newModel}`, 'success');
+    } catch (ex) {
+        toast(ex.message || 'Ошибка смены модели', 'error');
+        selectEl.value = oldModel;
+    }
 }
 
 function showEmptyState() {
     const headerEl = document.getElementById('chat-header');
     if (headerEl) headerEl.classList.add('d-none');
+
+    // Фаза 2.2.4: очистить селект модели (нет активного чата)
+    const selectEl = document.getElementById('chat-model-select');
+    if (selectEl) selectEl.innerHTML = '';
 
     const container = document.getElementById('chat-messages');
     if (container) {

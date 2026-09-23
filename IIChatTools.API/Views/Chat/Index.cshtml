@@ -24,13 +24,18 @@
     <main class="chat-main">
         <!-- Заголовок чата (скрыт, пока чат не выбран) -->
         <div id="chat-header" class="chat-header d-none">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="text-truncate">
-                    <h6 id="chat-title" class="mb-0 text-truncate">—</h6>
-                    <small id="chat-model" class="text-muted">—</small>
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="text-truncate flex-grow-1">
+                    <h6 id="chat-title" class="mb-1 text-truncate">—</h6>
+                    <select id="chat-model-select"
+                            class="chat-model-select"
+                            title="@Localizer["ChatModelLabel"]"
+                            data-label-default="@Localizer["ChatModelSuffixDefault"]"
+                            data-label-unavailable="@Localizer["ChatModelSuffixUnavailable"]"
+                            data-label-empty="@Localizer["ChatModelEmpty"]"></select>
                 </div>
                 <button id="btn-delete-chat" type="button"
-                        class="btn btn-outline-danger btn-sm"
+                        class="btn btn-outline-danger btn-sm flex-shrink-0"
                         title="@Localizer["Удалить чат"]">
                     🗑
                 </button>

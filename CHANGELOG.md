@@ -141,6 +141,14 @@
   - Race-safe: `chatIdAtRequest` фиксируется — если пользователь переключится, пока идёт запрос, обновится правильный чат.
   - При успехе: `renderChatList()` + `renderChatHeader()` — без F5.
   - `state.activeChatMessageCount` — новый счётчик для активного чата (init в `selectChat`).
+- **Chat UI — селектор модели (v1.3 Фаза 2.2.4, DESIGN § 13.1)**: `<select id="chat-model-select">` в header чата (вместо `<small>`).
+  - Заполняется из `state.models` (уже загружено в `initChatPage` → `loadModels`).
+  - Формат: `<id>` + ` (по умолчанию)` у `isDefault: true`. Если текущей модели нет в списке — disabled option `<id> (недоступна)`.
+  - `onChatModelChanged`: `PATCH /api/chats/{id}` с `{ model }`; оптимистично обновляет `state.activeChat.model` + `state.chats[i].model`; при ошибке — откат.
+  - Селектор **disabled во время стрима** (`setStreamingUI`). Попытка смены в этот момент игнорируется.
+  - `showEmptyState`: очистка селекта (нет активного чата).
+  - Локализация: 4 новых ключа (`Модель`, `по умолчанию`, `недоступна`, `Нет моделей`) — передаются в JS через `data-*`-атрибуты.
+  - `chat.css`: `.chat-model-select` (моноширинный, компактный, hover/focus/disabled).  
   
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.
