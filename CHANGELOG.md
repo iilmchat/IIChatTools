@@ -18,12 +18,7 @@
 
 ## [Unreleased]
 
-### Changed
-- **KI-069**: переименование чата в sidebar теперь через **inline-edit** (ChatGPT-style) вместо `prompt()`. Двойной клик по названию → `<input>`, **Enter** = сохранить, **Esc** = отмена, **blur** = сохранить. Кнопка ✏️ вызывает тот же inline-edit. Backend (`PATCH /api/chats/{id}`) без изменений.
-- **KI-068**: поиск по чатам теперь **server-side** (по названию + содержимому сообщений). Запрос `GET /api/chats?search={q}` — `LOWER()` LIKE по `Chats.Title` и `ChatMessages.Content` (EXISTS-подзапрос). Frontend — debounce 300ms, убран клиентский фильтр.
-
 ### Added
-- **KI-068**: новый метод `IChatService.SearchUserChatsAsync(userId, search)` — регистронезависимый поиск (кросс-провайдерно). Пустой запрос эквивалентен `GetUserChatsAsync`.
 - **v1.4.0 Фаза 1 (KI-052)**: реестр специализированных суб-агентов.
   - DTO `SubAgentDescriptor` — Name, DisplayName (RU), Description, SystemPrompt, AllowedTools, Model, MaxSteps, RequiresApprovalByDefault, Disabled.
   - `SubAgentTaskRequest.SystemPromptOverride` + `ModelOverride` (обратносовместимо).
@@ -32,17 +27,26 @@
   - 4 unit-теста (`SubAgentRegistryTests`).
   - `docs/development/v1.4/DESIGN.md` — дизайн-документ фазы.
 
-### Fixed
-
-- **KI-068 (регрессия)**: поиск по чатам возвращал неполный список при кириллице. Причина: SQLite `LOWER()` не обрабатывает не-ASCII — `LOWER('Привет') = 'Привет'`, поэтому `LIKE '%прив%'` не матчил. Решение: фильтрация в памяти через `string.Contains(term, StringComparison.OrdinalIgnoreCase)`. Два чата с одинаковым названием «Приветствие в чате» теперь находятся оба. См. RULES § 4.26.
-- **KI-071**: даты в JSON сериализовались без суффикса `Z` (Sqlite + EF Core возвращают `DateTime` с `Kind=Unspecified`). JS `new Date()` парсил их как local → только что созданные чаты показывались как «3 ч назад» (UTC+3). Решение: `AddNewtonsoftJson(o => o.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.Utc)` в `Startup.cs` + то же для `SseJsonSettings` в `ChatStreamController`. См. RULES § 4.27.
-- **KI-072**: при активном поиске новый чат попадал в отфильтрованный sidebar (даже если не совпадал с фильтром), а нумерация «Новый чат N» могла сбиваться. Решение: `createChat()` сбрасывает поиск и перезагружает полный список перед созданием. Поведение как в ChatGPT.
-- **KI-064**: `wikipedia_search` через корпоративный прокси иногда зависал на ~43 секунды (SSL-обрыв, дефолтный `HttpClient.Timeout` = 100s). Решение: явный `Timeout = 15s` + retry 1 раз с задержкой 1s. При внешней отмене (Stop в чате) retry не выполняется. Понятные сообщения в `ToolResult.Fail` для LLM. См. RULES § 4.28.
-- **KI-043**: утечка памяти в `RateLimitingMiddleware` — `ConcurrentDictionary<string, FixedWindowRateLimiter>` рос бесконечно. Решение: словарь хранит `LimiterEntry` с `LastUsedUtc`, `Timer` каждые 2 минуты удаляет лимитеры, не использованные > 5 минут. Middleware реализует `IDisposable`.
-
 ### Planned
-- **v1.3.x**: KI-047 (PATCH/DELETE fallback), KI-057 (config-driven model exclusion), KI-064 (Wikipedia timeout+retry), KI-067 (per-user chat retention), KI-068 (поиск по содержимому сообщений), KI-069 (inline-edit названия в sidebar).
-- **v1.4.0**: KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).
+- **v1.4.0**: KI-052 (специализированные суб-агенты — Фазы 2-9), KI-053 (multi-user approvals), KI-049 (tiktoken).
+
+---
+
+## [1.3.1] — 2026-09-24
+
+### Added
+- **KI-068**: новый метод `IChatService.SearchUserChatsAsync(userId, search)` — регистронезависимый поиск (кросс-провайдерно). Пустой запрос эквивалентен `GetUserChatsAsync`.
+
+### Changed
+- **KI-069**: переименование чата в sidebar теперь через **inline-edit** (ChatGPT-style) вместо `prompt()`. Двойной клик по названию → `<input>`, **Enter** = сохранить, **Esc** = отмена, **blur** = сохранить. Кнопка ✏️ вызывает тот же inline-edit. Backend (`PATCH /api/chats/{id}`) без изменений.
+- **KI-068**: поиск по чатам теперь **server-side** (по названию + содержимому сообщений). Запрос `GET /api/chats?search={q}`. Frontend — debounce 300ms, убран клиентский фильтр.
+
+### Fixed
+- **KI-068 (регрессия)**: поиск по чатам возвращал неполный список при кириллице. Причина: SQLite `LOWER()` не обрабатывает не-ASCII — `LOWER('Привет') = 'Привет'`, поэтому `LIKE '%прив%'` не матчил. Решение: фильтрация в памяти через `string.Contains(term, StringComparison.OrdinalIgnoreCase)`. См. RULES § 4.26.
+- **KI-071**: даты в JSON сериализовались без суффикса `Z` (Sqlite + EF Core возвращают `DateTime` с `Kind=Unspecified`). JS `new Date()` парсил их как local → только что созданные чаты показывались как «3 ч назад» (UTC+3). Решение: `AddNewtonsoftJson(o => o.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.Utc)` + то же для `SseJsonSettings`. См. RULES § 4.27.
+- **KI-072**: при активном поиске новый чат попадал в отфильтрованный sidebar. Решение: `createChat()` сбрасывает поиск и перезагружает полный список перед созданием.
+- **KI-064**: `wikipedia_search` через корпоративный прокси зависал на ~43 секунды. Решение: явный `Timeout = 15s` + retry 1 раз с задержкой 1s. См. RULES § 4.28.
+- **KI-043**: утечка памяти в `RateLimitingMiddleware`. Решение: `Timer` каждые 2 минуты удаляет `LimiterEntry` с `LastUsedUtc` > 5 минут. Middleware реализует `IDisposable`.
 
 ---
 

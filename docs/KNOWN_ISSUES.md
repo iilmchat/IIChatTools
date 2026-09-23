@@ -731,10 +731,11 @@
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
-| Fixed / Resolved (v1.3.x) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
+| Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
+| Deferred | 3 |                      <!-- KI-047, KI-053, KI-067 -->
+| In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
-| Deferred | 4 |                      <!-- KI-047, KI-052, KI-053, KI-067 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 

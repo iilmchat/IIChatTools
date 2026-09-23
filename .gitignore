@@ -146,3 +146,9 @@ IIChatTools.API/Data/
 # Локальные артефакты curl/smoke-тестов
 cookies.txt
 .commit-msg.txt
+
+# Release notes (temporary, not for commit)
+.release-notes-*.md
+
+# Release notes (temporary, not for commit)
+.release-notes-*.md
