@@ -281,6 +281,10 @@ namespace IIChatTools.API
             // ============ Chat service (v1.3) ============
             services.AddScoped<IChatService, ChatService>();
 
+            // ============ Chat title service (v1.3 Фаза 2.2.1) ============
+            // AI-генерация короткого названия из первого сообщения (ChatGPT-style).
+            services.AddScoped<IChatTitleService, ChatTitleService>();
+
             // ============ Chat stream service (v1.3 Фаза 1.5) ============
             services.AddScoped<IChatStreamService, ChatStreamService>();            
 

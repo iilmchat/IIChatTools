@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.API.Resources;
 using IIChatTools.Services.DTO.Chat;
@@ -21,6 +22,7 @@ namespace IIChatTools.API.Controllers
     public class ChatController : ControllerBase
     {
         private readonly IChatService _chatService;
+        private readonly IChatTitleService _chatTitleService;
         private readonly ILogger<ChatController> _logger;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
@@ -28,15 +30,18 @@ namespace IIChatTools.API.Controllers
         /// Создаёт экземпляр контроллера.
         /// </summary>
         /// <param name="chatService">Сервис чатов</param>
+        /// <param name="chatTitleService">Сервис AI-генерации названий</param>
         /// <param name="logger">Логгер</param>
         /// <param name="localizer">Локализатор</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatController(
             IChatService chatService,
+            IChatTitleService chatTitleService,
             ILogger<ChatController> logger,
             IStringLocalizer<SharedResources> localizer)
         {
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
+            _chatTitleService = chatTitleService ?? throw new ArgumentNullException(nameof(chatTitleService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         }
@@ -235,6 +240,47 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка удаления чата {ChatId}", id);
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
+        /// Генерирует короткое название чата на основе первого сообщения пользователя
+        /// (Фаза 2.2.1, ChatGPT-style). Не изменяет title, если LLM недоступен.
+        /// </summary>
+        /// <param name="id">Идентификатор чата</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>JSON { success, data: { title } } или { success: false, message }</returns>
+        [HttpPost("{id:int}/generate-title")]
+        public async Task<IActionResult> GenerateTitleAsync(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                var title = await _chatTitleService.GenerateAndSetTitleAsync(
+                    id, userId, cancellationToken);
+
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = _localizer["Не удалось сгенерировать название."].Value
+                    });
+                }
+
+                _logger.LogInformation(
+                    "Сгенерировано название для чата {ChatId}: \"{Title}\"",
+                    id, title);
+
+                return Ok(new { success = true, data = new { title } });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка генерации названия чата {ChatId}", id);
                 return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
             }
         }

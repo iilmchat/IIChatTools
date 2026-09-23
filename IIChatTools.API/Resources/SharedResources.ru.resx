@@ -220,4 +220,5 @@
   <data name="Ошибка отправки сообщения" xml:space="preserve"><value>Ошибка отправки сообщения</value></data>
   <data name="Соединение прервано" xml:space="preserve"><value>Соединение прервано</value></data>
   <data name="Остановить" xml:space="preserve"><value>Остановить</value></data>
+  <data name="Не удалось сгенерировать название." xml:space="preserve"><value>Не удалось сгенерировать название.</value></data>  
 </root>
