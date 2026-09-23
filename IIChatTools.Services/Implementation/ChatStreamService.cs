@@ -125,14 +125,10 @@ namespace IIChatTools.Services.Implementation
                     yield break;
                 }
 
-                if (deleted == 0)
-                {
-                    yield return ChatStreamEvent.Error("Нечего регенерировать");
-                    yield break;
-                }
+                // KI-065: deleted == 0 — это норма, если предыдущий ответ был отменён
+                // через Stop или не сгенерирован (последнее сообщение — user).
+                // Best-effort удаление: продолжаем от последнего user-сообщения.
 
-                // Находим последний user-message (для Start).
-                // После DeleteLastAssistantExchangeAsync последним в чате является user.
                 var history = await _chatService.GetMessagesAsync(
                     request.ChatId, userId, MaxHistoryMessages, cancellationToken);
 

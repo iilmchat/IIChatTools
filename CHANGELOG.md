@@ -12,6 +12,7 @@
 - **Removed** — удалённая функциональность
 - **Fixed** — исправления
 - **Security** — исправления уязвимостей и утечек
+- **Documented** — Задокументировано багов
 
 ---
 
@@ -121,6 +122,11 @@
   - `AbortError` — частичный assistant-пузырь удаляется из DOM; **частичный ответ не сохраняется в БД**.
   - Работает для обычного стрима и Regenerate.
   - **TODO (2.1.3.3)**: audit-запись при Stop.
+- **Chat UI — Retry после Stop (v1.3 Фаза 2.1.3.5, KI-065)**:
+  - Кнопка «🔄 Повторить» под последним user-сообщением — если ответ был прерван через Stop или не сгенерирован.
+  - Backend: `ChatStreamService.StreamAsync` (Regenerate) — убрана жёсткая проверка `deleted == 0`; best-effort удаление; работает при последнем user (когда ответ не сохранён).
+  - Frontend: `regenerateLastMessage({ allowNoAssistant: true })` — переиспользован для Retry; `showRetryOnLastUser()` вызывается из `AbortError`; `renderMessages` показывает кнопку при загрузке истории, если последнее — user.
+  - CSS: `.chat-message-action-with-text`, `.chat-message-actions-always-visible`.  
 
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.
@@ -150,6 +156,9 @@
 
 ### Security
 - Н/Д
+
+### Documented
+- **KI-064**: `wikipedia_search` иногда падает с `SSL connection could not be established` (SocketException 10054) через корпоративный прокси — внешняя сетевая проблема, не баг приложения. LLM переключается на `web_search`. Планируется уменьшение таймаута + retry в v1.3.x.
 
 ---
 

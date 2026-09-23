@@ -445,6 +445,32 @@
 
 ---
 
+### KI-064 — SSL-обрыв к ru.wikipedia.org (intermittent)
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-23 | **Устранено:** —
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/Web/WikipediaSearchTool.cs` (внешний вызов)
+- **Описание:** При запросе `wikipedia_search` LLM получила `HttpRequestException: The SSL connection could not be established` (SocketException 10054 — «Удалённый хост принудительно разорвал соединение») после 43 секунд таймаута. В то же время `web_search` (DuckDuckGo) сработал успешно.
+- **Причина:** внешняя сетевая проблема — TLS-handshake к `ru.wikipedia.org` прерывается через корпоративный прокси/firewall (долгие соединения). Не баг приложения.
+- **Fallback:** LLM самостоятельно переключилась на `web_search` и получила данные.
+- **Профилактика (TODO v1.3.x):** уменьшить `HttpClient.Timeout` для `WikipediaSearchTool` (по умолчанию 100s → 15s), добавить retry с exponential backoff. Не Critical.
+
+---
+
+### KI-065 — После Stop нет кнопки «Повторить»
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.3.0 (2.1.3.5)
+- **Обнаружено:** 2026-09-23 (smoke-тест Stop) | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.Services/Implementation/ChatStreamService.cs`, `IIChatTools.API/wwwroot/js/modules/chat.js`, `IIChatTools.API/wwwroot/css/chat.css`
+- **Описание:** При нажатии Stop ассистент-пузырь с частичным ответом удаляется, и пользователь остаётся с одним user-сообщением. Не было способа быстро перезапустить генерацию с тем же prompt'ом. ChatGPT/Claude показывают «Retry» в этой ситуации.
+- **Backend fix:** `ChatStreamService.StreamAsync` (режим `Regenerate = true`) — убрана проверка `deleted == 0`. Теперь при последнем user (ответ не сохранён) регенерация тоже возможна (best-effort delete). Ошибка «Нечего регенерировать» возникает только если в чате нет user-сообщений.
+- **Frontend fix:**
+  - `renderMessages`: если последнее сообщение — user, на нём показывается «🔄 Повторить» (при загрузке истории после F5).
+  - `sendMessage` (AbortError): `showRetryOnLastUser()` — добавляет кнопку «🔄 Повторить» под последним user.
+  - `regenerateLastMessage(opts)`: новый параметр `allowNoAssistant` — если assistant-пузыря нет, регенерация всё равно происходит (для retry после Stop).
+  - `renderMessageActions(text, { showRetry })` — новый параметр; кнопка с текстом `.chat-message-action-with-text`.
+  - CSS: `.chat-message-actions-always-visible` — кнопка видна без hover, пока не начнётся стрим.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -594,16 +620,16 @@
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
-| Fixed / Resolved (v1.3.0) | 10 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063 -->
+| Fixed / Resolved (v1.3.0) | 11 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
-| Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049 -->
+| Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064 -->
 | Deferred | 3 |                      <!-- KI-047, KI-052, KI-053 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
-**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка).
+**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
-**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream).
+**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia).
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 

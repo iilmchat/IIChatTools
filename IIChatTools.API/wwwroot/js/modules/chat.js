@@ -414,6 +414,8 @@ async function sendMessage() {
             // Фаза 2.1.3: пользователь нажал Stop — частичный ответ отбрасываем.
             // Удаляем bubble с частичным текстом (согласовано: не сохраняем).
             assistantBubble?.remove();
+            // KI-065: показать кнопку «🔄 Повторить» на последнем user-сообщении.
+            showRetryOnLastUser();
             // Не показываем error-toast (это ожидаемое поведение).
         } else {
             appendAssistantError(assistantBubble, ex.message || 'Ошибка соединения');
@@ -540,6 +542,46 @@ function handleSseEvent(name, data, assistantBubble) {
     }
 }
 
+// ============ Retry после Stop (KI-065) ============
+
+/**
+ * Показывает кнопку «🔄 Повторить» на последнем user-сообщении.
+ * Вызывается при Stop (AbortError).
+ */
+function showRetryOnLastUser() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+
+    // Убрать со всех (на случай повторного вызова)
+    container.querySelectorAll('[data-action="retry"]').forEach(b => b.remove());
+
+    // Найти последний user-bubble
+    const userBubbles = container.querySelectorAll('.chat-message.user');
+    if (userBubbles.length === 0) return;
+
+    const lastUser = userBubbles[userBubbles.length - 1];
+    let actionsEl = lastUser.querySelector('.chat-message-actions');
+    if (!actionsEl) {
+        // Если контейнера нет (не должно случиться, но подстрахуемся) — создаём
+        const bodyEl = lastUser.querySelector('.chat-message-body');
+        if (!bodyEl) return;
+        bodyEl.insertAdjacentHTML('beforeend', '<div class="chat-message-actions"></div>');
+        actionsEl = bodyEl.querySelector('.chat-message-actions');
+    }
+
+    if (!actionsEl.querySelector('[data-action="retry"]')) {
+        actionsEl.insertAdjacentHTML('beforeend', `
+            <button type="button"
+                    class="chat-message-action chat-message-action-with-text"
+                    data-action="retry"
+                    title="Повторить"
+                    aria-label="Повторить">🔄 Повторить</button>`);
+    }
+
+    actionsEl.classList.add('chat-message-actions-always-visible');
+    scrollToBottom();
+}
+
 // ============ Regenerate (Фаза 2.1.2.3) ============
 
 /**
@@ -547,24 +589,31 @@ function handleSseEvent(name, data, assistantBubble) {
  * Удаляет последний assistant-пузырь из DOM, отправляет POST /api/chat/regenerate
  * и стримит новый ответ (через существующий readSseStream).
  */
-async function regenerateLastMessage() {
+async function regenerateLastMessage(opts = {}) {
     if (state.isStreaming) return;
     if (!state.activeChatId) {
         toast('Сначала выберите чат', 'warning');
         return;
     }
 
-    // Найти последний assistant-пузырь
     const container = document.getElementById('chat-messages');
     if (!container) return;
+
+    // Найти последний assistant-пузырь
     const assistantBubbles = container.querySelectorAll('.chat-message.assistant');
-    if (assistantBubbles.length === 0) {
+    if (assistantBubbles.length > 0) {
+        assistantBubbles[assistantBubbles.length - 1].remove();
+    } else if (!opts.allowNoAssistant) {
+        // Обычный Regenerate требует существующий ответ.
+        // Retry (allowNoAssistant) — нет: после Stop ответ удалён.
         toast('Нет ответа для регенерации', 'warning');
         return;
     }
 
-    // Удалить последний assistant-пузырь
-    assistantBubbles[assistantBubbles.length - 1].remove();
+    // KI-065: снять кнопку «Повторить» со всех user-сообщений
+    container.querySelectorAll('[data-action="retry"]').forEach(b => b.remove());
+    container.querySelectorAll('.chat-message-actions-always-visible')
+        .forEach(el => el.classList.remove('chat-message-actions-always-visible'));
 
     // Заблокировать input
     enableInput(false);
@@ -678,8 +727,16 @@ function renderMessages(messages) {
         }
     }
 
+    // KI-065: если последнее сообщение — user (после Stop / прерывания),
+    // на нём покажем «🔄 Повторить».
+    const lastIndex = messages.length - 1;
+    const lastIsUser = messages[lastIndex]?.role === 'user';
+
     container.innerHTML = messages
-        .map((msg, i) => renderMessage(msg, { showRegenerate: i === lastAssistantIndex }))
+        .map((msg, i) => renderMessage(msg, {
+            showRegenerate: i === lastAssistantIndex,
+            showRetry: i === lastIndex && lastIsUser,
+        }))
         .join('');
     enhanceCodeBlocks(container);
     scrollToBottom(true);
@@ -706,11 +763,15 @@ function renderMessage(msg, opts = {}) {
             : `<div class="chat-message-content chat-markdown">${renderMarkdown(msg.content)}</div>`)
         : '';
 
-    // Кнопка Copy — только если есть текстовый контент.
-    // Regenerate — только для последнего assistant (передаётся через opts).
-    const actionsHtml = msg.content
-        ? renderMessageActions(msg.content, {
+    // Actions:
+    //  - Copy      — если есть текст
+    //  - Regenerate 🔄 — на последнем assistant
+    //  - Retry 🔄 Повторить — на последнем user, если после него нет assistant (Stop/отмена)
+    const hasActions = !!msg.content || (opts.showRetry && isUser);
+    const actionsHtml = hasActions
+        ? renderMessageActions(msg.content || '', {
             showRegenerate: opts.showRegenerate && !isUser,
+            showRetry: opts.showRetry && isUser,
         })
         : '';
 
@@ -1193,14 +1254,24 @@ function langToExtension(lang) {
 // ============ Действия с сообщениями (Фаза 2.1.1 — Copy) ============
 
 /**
- * Рендерит блок действий сообщения (Copy + Regenerate).
+ * Рендерит блок действий сообщения (Copy + Regenerate + Retry).
  * @param {string} text Текст для копирования (пустой у streaming-bubble)
  * @param {object} [opts]
- * @param {boolean} [opts.showRegenerate] — показать ли кнопку 🔄 (только последний assistant)
+ * @param {boolean} [opts.showRegenerate] — показать ли кнопку 🔄 на последнем assistant
+ * @param {boolean} [opts.showRetry]      — показать ли кнопку «🔄 Повторить» на последнем user (после Stop)
  * @returns {string} HTML
  */
 function renderMessageActions(text, opts = {}) {
     const attr = escapeAttr(text || '');
+
+    const copyBtn = text
+        ? `<button type="button"
+                   class="chat-message-action"
+                   data-action="copy"
+                   title="Скопировать"
+                   aria-label="Скопировать сообщение">📋</button>`
+        : '';
+
     const regenBtn = opts.showRegenerate
         ? `<button type="button"
                    class="chat-message-action"
@@ -1209,14 +1280,21 @@ function renderMessageActions(text, opts = {}) {
                    aria-label="Сгенерировать заново">🔄</button>`
         : '';
 
+    const retryBtn = opts.showRetry
+        ? `<button type="button"
+                   class="chat-message-action chat-message-action-with-text"
+                   data-action="retry"
+                   title="Повторить"
+                   aria-label="Повторить">🔄 Повторить</button>`
+        : '';
+
+    const alwaysVisible = opts.showRetry ? ' chat-message-actions-always-visible' : '';
+
     return `
-        <div class="chat-message-actions" data-copy-text="${attr}">
-            <button type="button"
-                    class="chat-message-action"
-                    data-action="copy"
-                    title="Скопировать"
-                    aria-label="Скопировать сообщение">📋</button>
+        <div class="chat-message-actions${alwaysVisible}" data-copy-text="${attr}">
+            ${copyBtn}
             ${regenBtn}
+            ${retryBtn}
         </div>`;
 }
 
@@ -1225,6 +1303,15 @@ function renderMessageActions(text, opts = {}) {
  * @param {MouseEvent} e
  */
 async function onMessageActionClick(e) {
+    // Retry (KI-065: после Stop) — то же, что Regenerate, но assistant может отсутствовать
+    const retryBtn = e.target.closest('[data-action="retry"]');
+    if (retryBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        await regenerateLastMessage({ allowNoAssistant: true });
+        return;
+    }
+
     // Regenerate
     const regenBtn = e.target.closest('[data-action="regenerate"]');
     if (regenBtn) {

@@ -546,6 +546,20 @@ body.approval-dragging {
     background: #d1e7dd;
 }
 
+/* Кнопка с текстом (например, «🔄 Повторить») */
+.chat-message-action-with-text {
+    width: auto;
+    padding: 0 .6rem;
+    gap: .3rem;
+    font-size: .78rem;
+    white-space: nowrap;
+}
+
+/* Всегда видимый блок действий (для Retry после Stop) */
+.chat-message-actions.chat-message-actions-always-visible {
+    opacity: 1;
+}
+
 /* ============ Markdown rendering (Фаза 2.1.4) ============ */
 
 .chat-markdown {
