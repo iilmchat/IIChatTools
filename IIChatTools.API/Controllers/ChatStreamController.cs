@@ -50,8 +50,42 @@ namespace IIChatTools.API.Controllers
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>SSE-поток событий</returns>
         [HttpPost("stream")]
-        public async Task StreamAsync(
+        public Task StreamAsync(
             [FromBody] ChatStreamRequest request,
+            CancellationToken cancellationToken)
+        {
+            return StreamInternalAsync(request, cancellationToken);
+        }
+
+        /// <summary>
+        /// Перегенерирует последний ответ ассистента в чате (Фаза 2.1.2).
+        /// Удаляет последний assistant-exchange (assistant + tool) и заново стримит ответ
+        /// на последнее user-сообщение. Ожидает <c>{ chatId }</c>; поле Message игнорируется.
+        /// </summary>
+        /// <param name="request">Запрос (только ChatId)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>SSE-поток событий (как в StreamAsync)</returns>
+        [HttpPost("regenerate")]
+        public Task RegenerateAsync(
+            [FromBody] ChatStreamRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request != null)
+            {
+                request.Regenerate = true;
+                request.UseTools = true;   // Regenerate всегда с tools
+            }
+            return StreamInternalAsync(request, cancellationToken);
+        }
+
+        /// <summary>
+        /// Общая логика SSE-стриминга для <c>stream</c> и <c>regenerate</c>.
+        /// Настраивает SSE-заголовки, пробрасывает события из <see cref="IChatStreamService"/>.
+        /// </summary>
+        /// <param name="request">Запрос</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        private async Task StreamInternalAsync(
+            ChatStreamRequest request,
             CancellationToken cancellationToken)
         {
             // Настраиваем SSE-ответ ДО первой записи
@@ -69,8 +103,8 @@ namespace IIChatTools.API.Controllers
 
             var userId = GetCurrentUserId();
             _logger.LogInformation(
-                "SSE-стрим начат: chatId={ChatId}, userId={UserId}, msgLen={MsgLen}",
-                request.ChatId, userId, request.Message?.Length ?? 0);
+                "SSE-стрим начат: chatId={ChatId}, userId={UserId}, regenerate={Regen}, msgLen={MsgLen}",
+                request.ChatId, userId, request.Regenerate, request.Message?.Length ?? 0);
 
             try
             {

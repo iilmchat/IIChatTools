@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -76,7 +77,14 @@ namespace IIChatTools.Services.Implementation
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             // 1. Валидация запроса
-            if (request == null || string.IsNullOrWhiteSpace(request.Message))
+            if (request == null)
+            {
+                yield return ChatStreamEvent.Error("Пустой запрос");
+                yield break;
+            }
+
+            // Message обязателен только в обычном flow (не Regenerate).
+            if (!request.Regenerate && string.IsNullOrWhiteSpace(request.Message))
             {
                 yield return ChatStreamEvent.Error("Пустое сообщение");
                 yield break;
@@ -90,31 +98,86 @@ namespace IIChatTools.Services.Implementation
                 yield break;
             }
 
-            // 3. Сохраняем user message (ошибка → в переменную, yield после catch)
-            ChatMessage userMsg = null;
-            string userMsgError = null;
-            try
-            {
-                userMsg = await _chatService.AddMessageAsync(
-                    request.ChatId,
-                    userId,
-                    new ChatMessage { Role = RoleUser, Content = request.Message },
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Не удалось сохранить user message (chatId={ChatId})", request.ChatId);
-                userMsgError = "Не удалось сохранить сообщение";
-            }
+            // 3. Подготовка:
+            //    - Regenerate (Фаза 2.1.2): удаляем последний assistant-exchange,
+            //      новое user-сообщение НЕ сохраняем.
+            //    - Обычный flow: сохраняем новое user-сообщение.
+            int startUserMessageId;
 
-            if (userMsgError != null)
+            if (request.Regenerate)
             {
-                yield return ChatStreamEvent.Error(userMsgError);
-                yield break;
+                int deleted = 0;
+                string regenError = null;
+                try
+                {
+                    deleted = await _chatService.DeleteLastAssistantExchangeAsync(
+                        request.ChatId, userId, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Ошибка Regenerate для чата {ChatId}", request.ChatId);
+                    regenError = "Не удалось удалить предыдущий ответ";
+                }
+
+                if (regenError != null)
+                {
+                    yield return ChatStreamEvent.Error(regenError);
+                    yield break;
+                }
+
+                if (deleted == 0)
+                {
+                    yield return ChatStreamEvent.Error("Нечего регенерировать");
+                    yield break;
+                }
+
+                // Находим последний user-message (для Start).
+                // После DeleteLastAssistantExchangeAsync последним в чате является user.
+                var history = await _chatService.GetMessagesAsync(
+                    request.ChatId, userId, MaxHistoryMessages, cancellationToken);
+
+                var lastUser = history.LastOrDefault(m => m.Role == RoleUser);
+                if (lastUser == null)
+                {
+                    yield return ChatStreamEvent.Error("Не найдено user-сообщение");
+                    yield break;
+                }
+
+                startUserMessageId = lastUser.Id;
+
+                _logger.LogInformation(
+                    "Regenerate: чат {ChatId}, удалено {Deleted}, startUserId={UserId}",
+                    request.ChatId, deleted, startUserMessageId);
+            }
+            else
+            {
+                ChatMessage userMsg = null;
+                string userMsgError = null;
+                try
+                {
+                    userMsg = await _chatService.AddMessageAsync(
+                        request.ChatId,
+                        userId,
+                        new ChatMessage { Role = RoleUser, Content = request.Message },
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Не удалось сохранить user message (chatId={ChatId})", request.ChatId);
+                    userMsgError = "Не удалось сохранить сообщение";
+                }
+
+                if (userMsgError != null)
+                {
+                    yield return ChatStreamEvent.Error(userMsgError);
+                    yield break;
+                }
+
+                startUserMessageId = userMsg.Id;
             }
 
             // 4. Сигнализируем начало стрима
-            yield return ChatStreamEvent.Start(userMsg.Id, request.ChatId);
+            yield return ChatStreamEvent.Start(startUserMessageId, request.ChatId);
 
             // 5. Формируем историю для LM Studio
             JArray messages = null;

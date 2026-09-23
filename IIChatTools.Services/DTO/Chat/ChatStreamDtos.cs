@@ -18,6 +18,13 @@ namespace IIChatTools.Services.DTO.Chat
         /// В v1.3 Фазе 1.5 игнорируется (всегда false) — включим в Фазе 1.6.
         /// </summary>
         public bool UseTools { get; set; }
+
+        /// <summary>
+        /// Режим «Regenerate» (Фаза 2.1.2): удалить последний assistant-exchange
+        /// (assistant + tool) и заново сгенерировать ответ от последнего user-сообщения.
+        /// При <c>true</c> поле <see cref="Message"/> игнорируется, новое user-сообщение не сохраняется.
+        /// </summary>
+        public bool Regenerate { get; set; }
     }
 
     /// <summary>
