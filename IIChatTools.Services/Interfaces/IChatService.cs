@@ -117,5 +117,20 @@ namespace IIChatTools.Services.Interfaces
         Task<IReadOnlyDictionary<int, int>> GetMessageCountsAsync(
             int userId,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Удаляет последний обмен в чате: последний assistant-ответ и все tool-сообщения,
+        /// которые к нему относятся (до предыдущего user-сообщения включительно).
+        /// Используется для Regenerate — после удаления чат возвращается в состояние,
+        /// в котором последним сообщением является user, и можно заново сгенерировать ответ.
+        /// </summary>
+        /// <param name="chatId">Идентификатор чата</param>
+        /// <param name="userId">Идентификатор пользователя (для проверки владения)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Количество удалённых сообщений (0, если нечего удалять)</returns>
+        Task<int> DeleteLastAssistantExchangeAsync(
+            int chatId,
+            int userId,
+            CancellationToken cancellationToken = default);
     }
 }

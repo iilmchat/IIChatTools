@@ -255,5 +255,60 @@ namespace IIChatTools.Services.Implementation
 
             return counts.ToDictionary(x => x.ChatId, x => x.Count);
         }
+
+        /// <inheritdoc />
+        public async Task<int> DeleteLastAssistantExchangeAsync(
+            int chatId,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            // Проверка владения чатом
+            var chat = await _dbContext.Chats
+                .FirstOrDefaultAsync(c => c.Id == chatId && c.UserId == userId, cancellationToken);
+            if (chat == null)
+            {
+                return 0;
+            }
+
+            // Загружаем все сообщения чата в порядке создания
+            var messages = await _dbContext.ChatMessages
+                .Where(m => m.ChatId == chatId)
+                .OrderBy(m => m.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            // Ищем последний user-message (с конца)
+            int lastUserIndex = -1;
+            for (int i = messages.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(messages[i].Role, "user", StringComparison.Ordinal))
+                {
+                    lastUserIndex = i;
+                    break;
+                }
+            }
+
+            // Если user нет или это последнее сообщение — нечего регенерировать
+            if (lastUserIndex < 0 || lastUserIndex == messages.Count - 1)
+            {
+                return 0;
+            }
+
+            // Удаляем всё после последнего user (assistant + tool)
+            var toDelete = messages.Skip(lastUserIndex + 1).ToList();
+            if (toDelete.Count == 0)
+            {
+                return 0;
+            }
+
+            _dbContext.ChatMessages.RemoveRange(toDelete);
+            chat.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Regenerate: удалено {Count} сообщений после последнего user в чате {ChatId}",
+                toDelete.Count, chatId);
+
+            return toDelete.Count;
+        }
     }
 }
