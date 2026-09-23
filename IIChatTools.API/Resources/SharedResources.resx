@@ -224,5 +224,7 @@
   <data name="ChatModelLabel" xml:space="preserve"><value>Model</value></data>
   <data name="ChatModelSuffixDefault" xml:space="preserve"><value>default</value></data>
   <data name="ChatModelSuffixUnavailable" xml:space="preserve"><value>unavailable</value></data>
-  <data name="ChatModelEmpty" xml:space="preserve"><value>No models</value></data>      
+  <data name="ChatModelEmpty" xml:space="preserve"><value>No models</value></data>
+  <data name="ChatSearchPlaceholder" xml:space="preserve"><value>Search chats…</value></data>
+  <data name="ChatSearchNoResults" xml:space="preserve"><value>No results</value></data>        
 </root>

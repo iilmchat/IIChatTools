@@ -157,6 +157,11 @@
   - Метрика Prometheus: `iichattools_chat_cleanup_total` (label `reason="retention"`).
   - Логирование: `Retention чатов: удалено {Count} чатов старше {Cutoff}`.
   - Per-user override — отложено в v1.3.x (**KI-067**).
+- **Chat UI — поиск по чатам (v1.3 Фаза 2.2.3)**: input `#chat-search` в sidebar (между кнопкой «+ Новый чат» и списком).
+  - Клиентский фильтр по `chat.title` (case-insensitive, `includes`).
+  - `state.searchQuery` сохраняется при createChat/deleteChat/renameChat — фильтр не сбрасывается.
+  - «Ничего не найдено» — если ни один чат не матчит (локализация через `data-label-no-results`).
+  - Поиск по содержимому сообщений — отложено в v1.3.x (**KI-068**).
   
 ### Changed
 - **ChatStreamService (v1.3 Фаза 1.6.A.2.4)**: добавлена зависимость `IWorkspaceResolver`. `ToolExecutionContext.WorkspaceRoot` теперь реально резолвится (было `null`) — FS-инструменты в чате работают.

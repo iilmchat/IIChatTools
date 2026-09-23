@@ -13,6 +13,16 @@
                 + @Localizer["Новый чат"]
             </button>
         </div>
+
+        <!-- Фаза 2.2.3: поиск по названию чата (клиентский фильтр) -->
+        <div class="chat-sidebar-search">
+            <input id="chat-search"
+                   type="search"
+                   autocomplete="off"
+                   placeholder="@Localizer["ChatSearchPlaceholder"]"
+                   data-label-no-results="@Localizer["ChatSearchNoResults"]" />
+        </div>
+
         <div id="chat-list" class="chat-list">
             <div class="text-muted text-center p-3 small">
                 @Localizer["Загрузка"]…

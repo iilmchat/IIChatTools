@@ -18,6 +18,7 @@ const state = {
     activeChatId: null,
     activeChat: null,
     activeChatMessageCount: 0,   // Фаза 2.2.1b: кол-во сообщений активного чата
+    searchQuery: '',             // Фаза 2.2.3: поиск по названию чата
     isStreaming: false,     // блокировка отправки во время стрима
     autoScroll: true,       // включён, пока пользователь у нижнего края
     abortController: null,  // Фаза 2.1.3: AbortController для Stop
@@ -88,6 +89,15 @@ function bindEvents() {
         modelSelect.addEventListener('change', onChatModelChanged);
     }
 
+    // Фаза 2.2.3: поиск по чатам (клиентский фильтр)
+    const searchInput = document.getElementById('chat-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            state.searchQuery = e.target.value || '';
+            renderChatList();
+        });
+    }
+
     // === Скроллинг (Фаза 2.0.5b) ===
 
     // Слушатель скролла на ленте сообщений — отслеживает позицию пользователя
@@ -148,7 +158,20 @@ function renderChatList() {
         return;
     }
 
-    listEl.innerHTML = state.chats.map(chat => {
+    // Фаза 2.2.3: клиентский фильтр по названию чата
+    const query = (state.searchQuery || '').trim().toLowerCase();
+    const visibleChats = query
+        ? state.chats.filter(c => (c.title || '').toLowerCase().includes(query))
+        : state.chats;
+
+    if (visibleChats.length === 0) {
+        const noResults = document.getElementById('chat-search')?.dataset.labelNoResults
+            || 'Ничего не найдено';
+        listEl.innerHTML = `<div class="text-muted text-center p-3 small">${escapeHtml(noResults)}</div>`;
+        return;
+    }
+
+    listEl.innerHTML = visibleChats.map(chat => {
         const isActive = chat.id === state.activeChatId;
         const title = escapeHtml(chat.title || 'Без названия');
         const meta = formatChatMeta(chat);

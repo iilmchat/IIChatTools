@@ -224,5 +224,7 @@
   <data name="ChatModelLabel" xml:space="preserve"><value>Модель</value></data>
   <data name="ChatModelSuffixDefault" xml:space="preserve"><value>по умолчанию</value></data>
   <data name="ChatModelSuffixUnavailable" xml:space="preserve"><value>недоступна</value></data>
-  <data name="ChatModelEmpty" xml:space="preserve"><value>Нет моделей</value></data>    
+  <data name="ChatModelEmpty" xml:space="preserve"><value>Нет моделей</value></data>
+  <data name="ChatSearchPlaceholder" xml:space="preserve"><value>Поиск по чатам…</value></data>
+  <data name="ChatSearchNoResults" xml:space="preserve"><value>Ничего не найдено</value></data>      
 </root>

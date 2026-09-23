@@ -30,6 +30,35 @@
     flex-shrink: 0;
 }
 
+/* Фаза 2.2.3: поиск по чатам */
+.chat-sidebar-search {
+    padding: .5rem .75rem;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+.chat-sidebar-search input[type="search"] {
+    width: 100%;
+    padding: .35rem .6rem;
+    font-size: .85rem;
+    border: 1px solid #dee2e6;
+    border-radius: .25rem;
+    background: #fff;
+    color: #495057;
+    transition: border-color .15s, box-shadow .15s;
+    box-sizing: border-box;
+}
+
+.chat-sidebar-search input[type="search"]:focus {
+    outline: none;
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .25);
+}
+
+.chat-sidebar-search input[type="search"]::placeholder {
+    color: #adb5bd;
+}
+
 .chat-list {
     flex: 1 1 auto;
     overflow-y: auto;

@@ -491,6 +491,16 @@
 
 ---
 
+### KI-068 — Поиск по содержимому сообщений (не только по title)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js`
+- **Описание:** Поиск по чатам (Фаза 2.2.3) — **клиентский фильтр** по `chat.title`. Не ищет по содержимому сообщений. Пользователь не может найти «тот чат, где мы обсуждали X».
+- **Решение (запланировано):** Backend endpoint `GET /api/chats?search={query}` — LIKE по `Chats.Title` + `ChatMessages.Content` (JOIN, GROUP BY). Дорого по производительности при больших объёмах — нужен FTS или индексирование.
+- **Не блокер:** текущий поиск по title покрывает 95% кейсов.
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -643,14 +653,14 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064 -->
-| Deferred | 4 |                      <!-- KI-047, KI-052, KI-053, KI-067 -->
+| Deferred | 5 |                      <!-- KI-047, KI-052, KI-053, KI-067, KI-068 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia).
-**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention).
+**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 
 ---
