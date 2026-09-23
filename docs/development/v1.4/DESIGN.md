@@ -34,48 +34,51 @@
 **Плюсы решения:**
 - Маленькие промпты → точнее выбор.
 - Тонкая настройка модели под группу (code_agent → coder-модель).
-- Возможность отключить группу (например, `github` в offline-сети).
+- Возможность отключить группу (например, `github_agent` в offline-сети).
 
 **Минусы (принимаем):**
 - Сложность: два уровня агентов (Chat → SubAgent).
 - Дороже по токенам (двойной проход: Chat + SubAgent).
-- Возможны «зацикливания» при плохих промптах (защита — MaxSteps).
+- Возможны «зацикливания» при плохих промптах (защита — `MaxSteps`).
 
 ---
 
 ## § 3. Архитектура (диаграмма)
+
+```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Пользователь (Chat UI) │
-│ /chat │
+│                    Пользователь (Chat UI)                       │
+│                    /chat                                        │
 └──────────────────────────┬──────────────────────────────────────┘
-│ SSE
-▼
+                           │ SSE
+                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ ChatStreamService (оркестратор) │
-│ - видит 7 верхнеуровневых инструментов: │
-│ file_system_agent, code_agent, web_agent, git_agent, │
-│ github_agent, planner_agent, consult_secondary_agent │
-│ - multi-turn loop (до 5 итераций) │
+│              ChatStreamService (оркестратор)                    │
+│  - видит 7 верхнеуровневых инструментов:                        │
+│    file_system_agent, code_agent, web_agent, git_agent,         │
+│    github_agent, planner_agent, consult_secondary_agent         │
+│  - multi-turn loop (до 5 итераций)                              │
 └──────────────────────────┬──────────────────────────────────────┘
-│ tool_call(name="file_system_agent", task=...)
-▼
+                           │ tool_call(name="file_system_agent", task=...)
+                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ FileSystemAgentTool : ITool │
-│ - RequiresApprovalByDefault = true │
-│ - Параметры: { task, context?, maxSteps? } │
-│ - Внутри: SubAgentService.ExecuteTaskAsync( │
-│ request.AllowedTools = [13 FS-инструментов], │
-│ request.SystemPrompt = "Ты — агент файловой системы...", │
-│ request.Model = "qwen/qwen3-4b-2507") │
+│         FileSystemAgentTool : ITool                             │
+│  - RequiresApprovalByDefault = true                             │
+│  - Параметры: { task, context?, maxSteps? }                     │
+│  - Внутри: SubAgentService.ExecuteTaskAsync(                    │
+│       request.AllowedTools = [13 FS-инструментов],              │
+│       request.SystemPromptOverride = "Ты — агент файловой...",  │
+│       request.ModelOverride = "qwen/qwen3-4b-2507")             │
 └──────────────────────────┬──────────────────────────────────────┘
-│
-▼
+                           │
+                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ SubAgentService (существующий) │
-│ - multi-turn loop (MaxSteps) │
-│ - LLM вызывает FS-инструменты (list_directory, read_file, ...) │
-│ - возвращает SubAgentTaskResult │
+│         SubAgentService (существующий)                          │
+│  - multi-turn loop (MaxSteps)                                   │
+│  - LLM вызывает FS-инструменты (list_directory, read_file, ...) │
+│  - возвращает SubAgentTaskResult                                │
 └─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -122,10 +125,13 @@ namespace IIChatTools.Services.DTO.SubAgent
         public bool Disabled { get; set; }
     }
 }
-§ 4.2. Правки SubAgentTaskRequest (обратная совместимость)
-Добавляем три опциональных поля (все — null по умолчанию, ничего не ломается):
+```
 
-csharp
+### § 4.2. Правки `SubAgentTaskRequest` (обратная совместимость)
+
+Добавляем **два опциональных поля** (оба — `null` по умолчанию, ничего не ломается):
+
+```csharp
 /// <summary>
 /// Системный промпт. Если null — используется SubAgent:SystemPrompt из конфига.
 /// </summary>
@@ -136,9 +142,15 @@ public string SystemPromptOverride { get; set; }
 /// или SubAgents:X.Model (для специализированных).
 /// </summary>
 public string ModelOverride { get; set; }
-§ 5. Реестр агентов
-§ 5.1. ISubAgentRegistry
-csharp
+```
+
+---
+
+## § 5. Реестр агентов
+
+### § 5.1. `ISubAgentRegistry`
+
+```csharp
 namespace IIChatTools.Services.Interfaces
 {
     /// <summary>
@@ -164,37 +176,45 @@ namespace IIChatTools.Services.Interfaces
         void Reset(string name);
     }
 }
-§ 5.2. SubAgentRegistry — реализация
-Singleton (как ToolRegistry).
+```
 
-Инициализация: IConfiguration.GetSection("SubAgents") → словарь.
+### § 5.2. `SubAgentRegistry` — реализация
 
-Дополнительно: AppSettings (из БД) для runtime-переопределений.
+- **Singleton** (как `ToolRegistry`).
+- Инициализация: `IConfiguration.GetSection("SubAgents")` → словарь.
+- Ключ секции в `appsettings.json` = `Name` агента (snake_case).
+- Порядок сортировки `GetAll()` — по имени (детерминированно).
+- Fallback: если секция `SubAgents` пуста → реестр пуст (Chat работает только с `consult_secondary_agent`).
 
-Ключ — Name (snake_case, StringComparer.OrdinalIgnoreCase).
+**Приоритет загрузки (на будущее, для Фазы 6/админки):**
+1. `AppSettings` из БД (высший).
+2. `appsettings.json` (база).
+3. Hardcoded fallback — если оба пусты.
 
-При старте: если в конфиге нет агентов — реестр пуст (fallback на consult_secondary_agent).
+---
 
-§ 6. Оркестратор (Chat → named tools)
-ChatStreamService не меняется в архитектуре. Меняется только список tools,
+## § 6. Оркестратор (Chat → named tools)
+
+`ChatStreamService` не меняется в архитектуре. Меняется только **список tools**,
 который уходит в LM Studio.
 
-Было: SubAgent:DefaultAllowedTools (12 инструментов из 40).
-Станет: SubAgentRegistry.GetEnabled() → 6 *_agent + consult_secondary_agent
+**Было:** `SubAgent:DefaultAllowedTools` (12 инструментов из 40).
+**Станет:** `SubAgentRegistry.GetEnabled()` → 6 `*_agent` + `consult_secondary_agent`
 (итого 7 верхнеуровневых инструментов).
 
-Generic-класс AgentToolBase (базовый для всех агентов):
+**Generic-класс `AgentToolBase`** (базовый для всех агентов):
 
-csharp
+```csharp
 namespace IIChatTools.Services.Implementation.Tools.SubAgent
 {
     /// <summary>
     /// Базовый класс для инструментов-обёрток вокруг специализированных суб-агентов.
-    /// Наследники переопределяют Name, Description, Parameters и SystemPrompt/AllowedTools.
+    /// Наследники переопределяют Name, Description, Parameters и AgentName.
     /// </summary>
     public abstract class AgentToolBase : ITool
     {
         protected readonly ISubAgentService SubAgentService;
+        protected readonly ISubAgentRegistry Registry;
         protected readonly ILogger Logger;
 
         public abstract string Name { get; }
@@ -205,7 +225,15 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
         /// <summary>Имя агента в реестре (file_system_agent, code_agent, ...).</summary>
         protected abstract string AgentName { get; }
 
-        protected AgentToolBase(ISubAgentService subAgentService, ILogger logger) { ... }
+        protected AgentToolBase(
+            ISubAgentService subAgentService,
+            ISubAgentRegistry registry,
+            ILogger logger)
+        {
+            SubAgentService = subAgentService ?? throw new ArgumentNullException(nameof(subAgentService));
+            Registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
 
         public virtual async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
@@ -214,58 +242,75 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
             if (task.Length > 8000) return ToolResult.Fail("Задача превышает 8000 символов");
 
             var extraContext = arguments.GetString("context");
-            var maxSteps = arguments.GetInt("maxSteps", 10);
+            var maxSteps = arguments.GetInt("maxSteps", 0);
 
-            // Получаем дескриптор из реестра (SystemPrompt, AllowedTools, Model)
-            var descriptor = ... // через ISubAgentRegistry
+            var descriptor = Registry.Get(AgentName);
+            if (descriptor == null)
+                return ToolResult.Fail($"Агент '{AgentName}' не найден в реестре");
+            if (descriptor.Disabled)
+                return ToolResult.Fail($"Агент '{AgentName}' отключён администратором");
 
             var request = new SubAgentTaskRequest
             {
                 Task = task,
                 Context = extraContext,
-                MaxSteps = maxSteps,
+                MaxSteps = maxSteps > 0 ? maxSteps : descriptor.MaxSteps,
                 AllowedTools = descriptor.AllowedTools,
                 SystemPromptOverride = descriptor.SystemPrompt,
                 ModelOverride = descriptor.Model
             };
 
             var result = await SubAgentService.ExecuteTaskAsync(context, request);
-            return ToolResult.Ok(new { ... });
+            return ToolResult.Ok(new
+            {
+                sessionId = result.SessionId,
+                finalAnswer = result.FinalAnswer,
+                completed = result.Completed,
+                steps = result.Steps,
+                durationMs = result.DurationMs,
+                usedTools = result.UsedTools
+            });
         }
     }
 }
-6 наследников (по одному на агента):
+```
 
-FileSystemAgentTool → file_system_agent
+**6 наследников** (по одному на агента):
+- `FileSystemAgentTool` → `file_system_agent`
+- `CodeAgentTool` → `code_agent`
+- `WebAgentTool` → `web_agent`
+- `GitAgentTool` → `git_agent`
+- `GitHubAgentTool` → `github_agent`
+- `PlannerAgentTool` → `planner_agent`
 
-CodeAgentTool → code_agent
+Каждый — **1 класс + 1 строка регистрации** в `Startup.cs` (правило 1.15).
 
-WebAgentTool → web_agent
+---
 
-GitAgentTool → git_agent
+## § 7. Специализированные агенты
 
-GitHubAgentTool → github_agent
+| # | `Name` | `DisplayName` (RU) | Инструментов | Модель по умолчанию | Approval |
+|---|---|---|:---:|---|---|
+| 1 | `file_system_agent` | Агент файловой системы | 13 | `qwen/qwen3-4b-2507` | ✅ |
+| 2 | `code_agent` | Агент выполнения кода | 3 | `gemma-4-12b-coder...` | ✅ |
+| 3 | `web_agent` | Веб-агент | 3 | `qwen/qwen3-4b-2507` | ❌ |
+| 4 | `git_agent` | Git-агент | 7 | `qwen/qwen3-4b-2507` | ✅ |
+| 5 | `github_agent` | GitHub-агент | 7 | `qwen/qwen3-4b-2507` | ✅ |
+| 6 | `planner_agent` | Агент-планировщик | 2 (`save_memory`, `get_system_info`) | `gemma-4-12b...` | ❌ |
+| — | `consult_secondary_agent` | Универсальный агент *(fallback)* | browser (4) + остальное | `LmStudio:Model` | ✅ |
 
-PlannerAgentTool → planner_agent
-
-Каждый — 1 класс + 1 строка регистрации в Startup.cs (правило 1.15).
-
-§ 7. Специализированные агенты
-#	Name	DisplayName (RU)	Инструментов	Модель по умолчанию	Approval
-1	file_system_agent	Агент файловой системы	13	qwen/qwen3-4b-2507	✅
-2	code_agent	Агент выполнения кода	3	gemma-4-12b-coder...	✅
-3	web_agent	Веб-агент	3	qwen/qwen3-4b-2507	❌
-4	git_agent	Git-агент	7	qwen/qwen3-4b-2507	✅
-5	github_agent	GitHub-агент	7	qwen/qwen3-4b-2507	✅
-6	planner_agent	Агент-планировщик	2 (save_memory, get_system_info)	gemma-4-12b...	❌
-—	consult_secondary_agent	Универсальный агент (fallback)	browser (4) + остальное	LmStudio:Model	✅
-consult_secondary_agent — остаётся как есть (существующий ConsultSecondaryAgentTool).
+**`consult_secondary_agent`** — остаётся как есть (существующий `ConsultSecondaryAgentTool`).
 Ему достаются browser-инструменты + всё, что не укладывается в группы.
 
-§ 8. Конфигурация (appsettings.json)
-jsonc
+---
+
+## § 8. Конфигурация (`appsettings.json`)
+
+Ключи секции `SubAgents` — **технические имена агентов** (snake_case). Это `Name`.
+
+```jsonc
 "SubAgents": {
-  "FileSystem": {
+  "file_system_agent": {
     "Enabled": true,
     "DisplayName": "Агент файловой системы",
     "Description": "Работа с файлами: чтение, запись, поиск, метаданные.",
@@ -280,208 +325,231 @@ jsonc
       "make_directory", "change_directory", "delete_files_by_pattern"
     ]
   },
-  "Code": { "Enabled": true, "DisplayName": "Агент выполнения кода", "Model": "gemma-4-12b-coder-fable5-composer2.5-v1", "AllowedTools": ["run_javascript", "run_python", "execute_command"], ... },
-  "Web": { "Enabled": true, "DisplayName": "Веб-агент", "Model": "qwen/qwen3-4b-2507", "AllowedTools": ["web_search", "wikipedia_search", "fetch_web_content"], "RequiresApproval": false, ... },
-  "Git": { "Enabled": true, "DisplayName": "Git-агент", "Model": "qwen/qwen3-4b-2507", "AllowedTools": ["git_status", "git_diff", "git_log", "git_add", "git_commit", "git_checkout", "git_push"], ... },
-  "GitHub": { "Enabled": true, "DisplayName": "GitHub-агент", "Model": "qwen/qwen3-4b-2507", "AllowedTools": ["gh_auth_status", "gh_create_issue", "gh_list_issues", "gh_view_comments", "gh_create_pr", "gh_list_prs", "gh_view_pr_diff"], ... },
-  "Planner": { "Enabled": true, "DisplayName": "Агент-планировщик", "Model": "gemma-4-12b-coder-fable5-composer2.5-v1", "AllowedTools": ["save_memory", "get_system_info"], "RequiresApproval": false, ... }
+  "code_agent": {
+    "Enabled": true,
+    "DisplayName": "Агент выполнения кода",
+    "Description": "Запуск JavaScript, Python и shell-команд.",
+    "Model": "gemma-4-12b-coder-fable5-composer2.5-v1",
+    "MaxSteps": 10,
+    "RequiresApproval": true,
+    "AllowedTools": ["run_javascript", "run_python", "execute_command"]
+  },
+  "web_agent": {
+    "Enabled": true,
+    "DisplayName": "Веб-агент",
+    "Description": "Поиск в интернете и Wikipedia, загрузка веб-страниц.",
+    "Model": "qwen/qwen3-4b-2507",
+    "MaxSteps": 10,
+    "RequiresApproval": false,
+    "AllowedTools": ["web_search", "wikipedia_search", "fetch_web_content"]
+  },
+  "git_agent": {
+    "Enabled": true,
+    "DisplayName": "Git-агент",
+    "Description": "Операции с локальным Git-репозиторием.",
+    "Model": "qwen/qwen3-4b-2507",
+    "MaxSteps": 10,
+    "RequiresApproval": true,
+    "AllowedTools": ["git_status", "git_diff", "git_log", "git_add", "git_commit", "git_checkout", "git_push"]
+  },
+  "github_agent": {
+    "Enabled": true,
+    "DisplayName": "GitHub-агент",
+    "Description": "Работа с GitHub через gh CLI: issues, PRs, комментарии.",
+    "Model": "qwen/qwen3-4b-2507",
+    "MaxSteps": 10,
+    "RequiresApproval": true,
+    "AllowedTools": ["gh_auth_status", "gh_create_issue", "gh_list_issues", "gh_view_comments", "gh_create_pr", "gh_list_prs", "gh_view_pr_diff"]
+  },
+  "planner_agent": {
+    "Enabled": true,
+    "DisplayName": "Агент-планировщик",
+    "Description": "Долговременная память и системная информация.",
+    "Model": "gemma-4-12b-coder-fable5-composer2.5-v1",
+    "MaxSteps": 5,
+    "RequiresApproval": false,
+    "AllowedTools": ["save_memory", "get_system_info"]
+  }
 }
-Приоритет загрузки:
-
-AppSettings из БД (если админ что-то менял) — высший.
-
-appsettings.json — база.
-
-Hardcoded fallback — если оба пусты.
-
-§ 9. Админка
-§ 9.1. UI
-Новая вкладка «Агенты» в /admin (7-я вкладка, после «Аудит»):
-
-Таблица агентов:
-
-Агент	Русское имя	Модель	Инструментов	Approval	Вкл	Действия
-file_system_agent	Агент файловой системы	qwen/qwen3-4b	13	✅	✅	✏️ Изменить / ↻ Сбросить
-code_agent	Агент выполнения кода	gemma-4-12b	3	✅	✅	✏️ / ↻
-...	...	...	...	...	...	...
-Модалка редактирования (переиспользуем showModal из admin.js):
-
-DisplayName (text)
-
-Description (textarea)
-
-Model (text с автокомплитом из /api/models)
-
-MaxSteps (number, 1-30)
-
-RequiresApproval (checkbox)
-
-SystemPrompt (textarea, большое)
-
-AllowedTools (multi-select из /api/tools)
-
-Секция «Статистика» (read-only):
-
-Всего запусков агента (счётчик из AgentStates).
-
-Среднее время выполнения.
-
-% успешных (Completed = true).
-
-Последние 10 задач (task + user + duration).
-
-§ 9.2. API endpoints
-Метод	URL	Назначение
-GET	/api/admin/agents	Список агентов (дескрипторы + статистика)
-PUT	/api/admin/agents/{name}	Обновить дескриптор (сохраняется в AppSettings)
-POST	/api/admin/agents/{name}/reset	Сбросить к appsettings.json
-GET	/api/admin/agents/{name}/stats	Детальная статистика (опционально)
-Все — под [Authorize(Policy = "AdminOnly")].
-
-§ 9.3. Хранение переопределений
-Таблица AppSettings уже есть. Используем ключи:
-
-SubAgents.FileSystem.Model
-
-SubAgents.FileSystem.SystemPrompt
-
-SubAgents.FileSystem.AllowedTools (JSON-массив)
-
-SubAgents.FileSystem.MaxSteps
-
-SubAgents.FileSystem.RequiresApproval
-
-SubAgents.FileSystem.Enabled
-
-SubAgentRegistry при старте: грузит из appsettings.json, потом накладывает AppSettings из БД.
-
-§ 10. Локализация
-Новые ключи .resx (RU + EN, правило 1.14):
-
-Ключ	RU	EN
-AdminTabAgents	Агенты	Agents
-AgentColumnName	Техническое имя	Technical name
-AgentColumnDisplayName	Отображаемое имя	Display name
-AgentColumnModel	Модель	Model
-AgentColumnTools	Инструментов	Tools count
-AgentColumnApproval	Approval	Approval
-AgentColumnEnabled	Включён	Enabled
-AgentColumnActions	Действия	Actions
-AgentEditTitle	Редактировать агента	Edit agent
-AgentResetConfirm	Сбросить агента к значениям по умолчанию?	Reset agent to defaults?
-AgentResetSuccess	Агент сброшен	Agent reset
-AgentSaveSuccess	Агент сохранён	Agent saved
-AgentStatsTotal	Всего запусков	Total runs
-AgentStatsAvgTime	Среднее время	Average time
-AgentStatsSuccessRate	Успешных	Success rate
-Русские DisplayName у агентов — в appsettings.json (см. § 8). Дублировать в .resx не нужно — это данные, не UI-строки.
-
-§ 11. Approval в суб-агентах
-Решение: approval на уровне агента целиком (как сейчас у consult_secondary_agent).
-
-Flow:
-
-Пользователь в чате → «LLM решает вызвать file_system_agent(task='Создай файл X')».
-
-Chat видит RequiresApprovalByDefault = true → SSE tool_approval_required.
-
-Пользователь → модалка: «Агент файловой системы хочет выполнить задачу: Создай файл X».
-
-Approve → FileSystemAgentTool.ExecuteAsync → внутри SubAgentService выполняет все FS-инструменты без дальнейших approval.
-
-Reject → ToolResult.Fail("Пользователь отклонил").
-
-Обоснование:
-
-Просто (не надо стримить approval из суб-агента).
-
-Безопасно (пользователь видит задачу целиком).
-
-Соответствует ChatGPT-style «approve once per agent task».
-
-Mutating-инструменты внутри агента (например, save_file) — не имеют отдельного approval. Это осознанное упрощение.
-
-§ 12. Тесты
-§ 12.1. Unit — SubAgentRegistryTests (3-4 теста)
-GetAll_ReturnsConfiguredAgents — базовый сценарий.
-
-Get_UnknownName_ReturnsNull.
-
-GetEnabled_ExcludesDisabled.
-
-Update_OverridesConfig + Reset_RestoresDefaults.
-
-§ 12.2. Integration — SpecializedSubAgentServiceTests (1 тест)
-ExecuteTaskAsync_FileSystemAgent_UsesAllowedToolsOnly — подсовываем FakeLmStudioClient, у которого LLM вызывает 2 инструмента: разрешённый + неразрешённый. Проверяем, что неразрешённый не выполнен.
-
-Ожидаем: 36 + 5 = 41/41.
-
-§ 13. Ограничения (осознанные)
-#	Ограничение	Причина
-1	Результат агента отдаётся одним куском (не SSE-стрим)	MVP; стриминг из SubAgent → Chat сложен (нужен вложенный канал)
-2	Approval на входе в агента, не на каждом tool	Упрощение UX; риск: LLM внутри агента может сделать лишнее
-3	Вложенные агенты запрещены (рекурсия)	Защита от бесконечного цикла (ParentToolName)
-4	ModelOverride реализуется через новую перегрузку ILmStudioClient.CompleteAsync(..., string model)	Единственный чистый способ задать per-call модель
-5	Статистика — только по AgentStates (не по каждому tool-call внутри)	Tool-call'ы идут через ToolRegistry.ExecuteAsync → не пишутся отдельно
-6	Per-user настройка агентов — не в v1.4.0	Сложно, не критично
-§ 14. План работ (фазы)
-Фаза	Что	Файлы	Оценка
-0	DESIGN.md (этот документ) + согласование	docs/development/v1.4/DESIGN.md	~2 ч ✅
-1	DTO + ISubAgentRegistry + SubAgentRegistry + unit-тесты	Services/DTO/SubAgent/, Services/Interfaces/, Services/Implementation/Agents/	~4 ч
-2	Перегрузка ILmStudioClient.CompleteAsync(..., string model) + SystemPromptOverride/ModelOverride в SubAgentService	ILmStudioClient, LmStudioClient, SubAgentService	~3 ч
-3	AgentToolBase + 6 наследников + регистрация в Startup.cs	Tools/SubAgent/	~4 ч
-4	appsettings.json + appsettings.Development.json (секция SubAgents)	Конфиги	~2 ч
-5	Chat: переключение на SubAgentRegistry.GetEnabled() (вместо SubAgent:DefaultAllowedTools)	ChatStreamService	~2 ч
-6	Админка: вкладка «Агенты» + API endpoints + локализация	admin.js, Admin.cshtml, .resx, AdminAgentsController	~6 ч
-7	Тесты: 4 unit + 1 integration	IIChatTools.Tests/	~3 ч
-8	Документация (CHANGELOG, README, KNOWN_ISSUES, RULES § 7)	Docs	~2 ч
-9	Smoke + релиз v1.4.0	—	~2 ч
-Итого: ~30 ч (≈4 рабочих дня).
-
-§ 15. Definition of Done (v1.4.0)
-□ SubAgents:* в appsettings.json (6 агентов + consult).
-□ ISubAgentRegistry + SubAgentRegistry (singleton, читает из конфига + AppSettings).
-□ ILmStudioClient.CompleteAsync(..., string model) — перегрузка с явной моделью.
-□ SubAgentTaskRequest.SystemPromptOverride + ModelOverride.
-□ AgentToolBase + 6 наследников + consult_secondary_agent (существует).
-□ Chat видит 7 инструментов вместо 12 (SubAgent:DefaultAllowedTools → SubAgentRegistry.GetEnabled()).
-□ /admin → вкладка «Агенты»: список, редактирование, сброс, статистика.
-□ AdminAgentsController (GET/PUT/POST /api/admin/agents/*).
-□ 15+ ключей .resx (RU + EN), LocalizationSyncTests проходит.
-□ 41/41 тестов (36 + 5 новых).
-□ dotnet build — 0 warnings, 0 errors.
-□ CHANGELOG [1.4.0] + [Unreleased] пустая.
-□ docs/development/v1.4/DESIGN.md — финальная версия.
-□ README обновлён (раздел «Multi-Agent»).
-□ Smoke: задача «Создай файл test.txt» → LLM выбирает file_system_agent → approve → файл создан.
-§ 16. Ссылки
-KI-052 — специализированные суб-агенты (roadmap).
-
-KI-053 — multi-user approvals (следующая фаза v1.4.0.x).
-
-KI-049 — tokensIn/tokensOut через tiktoken (в v1.4.0.x).
-
-RULES § 3.1 — маленькие шаги (1 фаза = 3-5 подшагов).
-
-RULES § 4.15 — имена папок не совпадают с типами (Agents/ — ок).
-
-RULES § 1.15 — новый инструмент = 1 класс + 1 строка регистрации.
-
-docs/development/v1.3/DESIGN.md — эталон формата.
-
-text
+```
 
 ---
 
-## 📊 Сводка
+## § 9. Админка
 
-**Сделано:**
-- ✅ **DESIGN.md v1.4.0** — полный дизайн-документ (согласован с твоими ответами Q1-Q7 + уточнения).
-- ✅ Зафиксировано: **6 агентов + consult_secondary_agent** (fallback).
-- ✅ Named tools (b).
-- ✅ Git и GitHub — два отдельных агента.
-- ✅ Per-agent модель + SystemPrompt + AllowedTools.
-- ✅ Админка: вкладка «Агенты» + статистика + API endpoints.
-- ✅ Локализация: RU DisplayName + краткое описание.
-- ✅ Approval — на уровне агента целиком.
-- ✅ 4 unit + 1 integration → 41/41.
+### § 9.1. UI
+
+**Новая вкладка «Агенты»** в `/admin` (после «Аудит»):
+
+**Таблица агентов:**
+
+| Агент | Русское имя | Модель | Инструментов | Approval | Вкл | Действия |
+|---|---|---|---|---|---|---|
+| file_system_agent | Агент файловой системы | qwen/qwen3-4b | 13 | ✅ | ✅ | ✏️ Изменить / ↻ Сбросить |
+
+**Модалка редактирования** (переиспользуем `showModal` из `admin.js`):
+- DisplayName (text)
+- Description (textarea)
+- Model (text)
+- MaxSteps (number, 1-30)
+- RequiresApproval (checkbox)
+- SystemPrompt (textarea)
+- AllowedTools (multi-select из `/api/tools`)
+
+**Секция «Статистика» (read-only):**
+- Всего запусков агента (`AgentStates`).
+- Среднее время выполнения.
+- % успешных (`Completed = true`).
+- Последние 10 задач.
+
+### § 9.2. API endpoints
+
+| Метод | URL | Назначение |
+|---|---|---|
+| `GET` | `/api/admin/agents` | Список агентов + статистика |
+| `PUT` | `/api/admin/agents/{name}` | Обновить дескриптор (→ `AppSettings`) |
+| `POST` | `/api/admin/agents/{name}/reset` | Сбросить к `appsettings.json` |
+
+Все — под `[Authorize(Policy = "AdminOnly")]`.
+
+### § 9.3. Хранение переопределений
+
+Таблица `AppSettings` (уже есть). Ключи:
+- `SubAgents.file_system_agent.Model`
+- `SubAgents.file_system_agent.SystemPrompt`
+- `SubAgents.file_system_agent.AllowedTools` (JSON-массив)
+- `SubAgents.file_system_agent.MaxSteps`
+- `SubAgents.file_system_agent.RequiresApproval`
+- `SubAgents.file_system_agent.Enabled`
+
+`SubAgentRegistry` при старте: `appsettings.json`, потом накладывает `AppSettings` из БД.
+
+---
+
+## § 10. Локализация
+
+**Новые ключи `.resx` (RU + EN, правило 1.14):**
+
+| Ключ | RU | EN |
+|---|---|---|
+| `AdminTabAgents` | Агенты | Agents |
+| `AgentColumnName` | Техническое имя | Technical name |
+| `AgentColumnDisplayName` | Отображаемое имя | Display name |
+| `AgentColumnModel` | Модель | Model |
+| `AgentColumnTools` | Инструментов | Tools count |
+| `AgentColumnApproval` | Approval | Approval |
+| `AgentColumnEnabled` | Включён | Enabled |
+| `AgentColumnActions` | Действия | Actions |
+| `AgentEditTitle` | Редактировать агента | Edit agent |
+| `AgentResetConfirm` | Сбросить агента к значениям по умолчанию? | Reset agent to defaults? |
+| `AgentResetSuccess` | Агент сброшен | Agent reset |
+| `AgentSaveSuccess` | Агент сохранён | Agent saved |
+| `AgentStatsTotal` | Всего запусков | Total runs |
+| `AgentStatsAvgTime` | Среднее время | Average time |
+| `AgentStatsSuccessRate` | Успешных | Success rate |
+
+**Русские `DisplayName`** у агентов — в `appsettings.json` (данные, не UI-строки).
+
+---
+
+## § 11. Approval в суб-агентах
+
+**Решение:** approval **на уровне агента целиком**.
+
+**Flow:**
+1. Пользователь в чате → «LLM решает вызвать `file_system_agent(task='Создай файл X')`».
+2. Chat видит `RequiresApprovalByDefault = true` → SSE `tool_approval_required`.
+3. Пользователь → модалка: «Агент файловой системы хочет выполнить задачу: Создай файл X».
+4. Approve → `FileSystemAgentTool.ExecuteAsync` → внутри `SubAgentService` выполняет **все** FS-инструменты без дальнейших approval.
+5. Reject → `ToolResult.Fail("Пользователь отклонил")`.
+
+**Обоснование:**
+- **UX:** одна модалка вместо N (при «Создай 5 файлов» было бы 5 модалок подряд).
+- **Безопасность:** пользователь видит задачу целиком и решает.
+- **ChatGPT-style:** approve once per agent task.
+- **Технически:** SubAgentService — batch, не SSE. Вложенный approve требует переделки на `IAsyncEnumerable` (~2 дня).
+
+**Риски (осознанные):**
+- LLM внутри агента может сделать лишнее (например, удалить файл).
+- **Митигации:** System prompt агента («строго в рамках задачи»), ограничение `AllowedTools` в админке, `MaxSteps`, аудит всех шагов в `AgentStates`.
+- **В v1.4.x:** опциональный «строгий режим» с approval на каждый mutating.
+
+---
+
+## § 12. Тесты
+
+### § 12.1. Unit — `SubAgentRegistryTests` (4 теста)
+
+- `GetAll_ReturnsConfiguredAgents`
+- `Get_UnknownName_ReturnsNull`
+- `GetEnabled_ExcludesDisabled`
+- `Update_OverridesConfig` + `Reset_RestoresDefaults`
+
+### § 12.2. Integration — `SpecializedSubAgentServiceTests` (1 тест)
+
+- `ExecuteTaskAsync_FileSystemAgent_UsesAllowedToolsOnly` — подсовываем `FakeLmStudioClient`, у которого LLM вызывает 2 инструмента: разрешённый + неразрешённый. Проверяем, что неразрешённый не выполнен.
+
+**Ожидаем:** 36 + 5 = **41/41**.
+
+---
+
+## § 13. Ограничения (осознанные)
+
+| # | Ограничение | Причина |
+|---|---|---|
+| 1 | Результат агента отдаётся **одним куском** (не SSE-стрим) | MVP; стриминг из SubAgent → Chat требует переделки на `IAsyncEnumerable` (~2 дня). Все шаги — в `AgentStates` для аудита |
+| 2 | Approval **на входе в агента**, не на каждом tool | UX: 1 модалка вместо N. Технически: вложенный approval требует переделки SubAgentService |
+| 3 | Вложенные агенты запрещены (рекурсия) | Защита от бесконечного цикла (`ParentToolName`) |
+| 4 | `ModelOverride` через перегрузку `ILmStudioClient.CompleteAsync(..., string model = null)` | Thread-safe, обратносовместимо, явно |
+| 5 | Статистика — только по `AgentStates` (не по каждому tool-call) | Tool-call'ы не пишутся отдельно (идут через `ToolRegistry.ExecuteAsync`) |
+| 6 | Мультитенантность агентов — вне roadmap v1.4.0 | Админка — глобальная для всех пользователей |
+
+---
+
+## § 14. План работ (фазы)
+
+| Фаза | Что | Файлы | Оценка |
+|:---:|---|---|:---:|
+| **0** | DESIGN.md (этот документ) + согласование | `docs/development/v1.4/DESIGN.md` | ~2 ч ✅ |
+| **1** | DTO + `ISubAgentRegistry` + `SubAgentRegistry` + unit-тесты | `Services/DTO/SubAgent/`, `Services/Interfaces/`, `Services/Implementation/Agents/` | ~4 ч |
+| **2** | Перегрузка `ILmStudioClient.CompleteAsync(..., string model)` + `SystemPromptOverride`/`ModelOverride` в `SubAgentService` | `ILmStudioClient`, `LmStudioClient`, `SubAgentService` | ~3 ч |
+| **3** | `AgentToolBase` + 6 наследников + регистрация в `Startup.cs` | `Tools/SubAgent/` | ~4 ч |
+| **4** | `appsettings.json` + `appsettings.Development.json` (секция `SubAgents`) | Конфиги | ~2 ч |
+| **5** | Chat: переключение на `SubAgentRegistry.GetEnabled()` | `ChatStreamService` | ~2 ч |
+| **6** | Админка: вкладка «Агенты» + API endpoints + локализация | `admin.js`, `Admin.cshtml`, `.resx`, `AdminAgentsController` | ~6 ч |
+| **7** | Тесты: 4 unit + 1 integration | `IIChatTools.Tests/` | ~3 ч |
+| **8** | Документация (CHANGELOG, README, KNOWN_ISSUES, RULES § 7) | Docs | ~2 ч |
+| **9** | Smoke + релиз v1.4.0 | — | ~2 ч |
+
+**Итого:** ~30 ч (≈4 рабочих дня).
+
+---
+
+## § 15. Definition of Done (v1.4.0)
+
+- [ ] `SubAgents:*` в `appsettings.json` (6 агентов + consult).
+- [ ] `ISubAgentRegistry` + `SubAgentRegistry` (singleton, читает из конфига + `AppSettings`).
+- [ ] `ILmStudioClient.CompleteAsync(..., string model = null)` — перегрузка.
+- [ ] `SubAgentTaskRequest.SystemPromptOverride` + `ModelOverride`.
+- [ ] `AgentToolBase` + 6 наследников + `consult_secondary_agent` (существует).
+- [ ] Chat видит **7 инструментов** вместо 12.
+- [ ] `/admin` → вкладка «Агенты»: список, редактирование, сброс, статистика.
+- [ ] `AdminAgentsController` (`GET/PUT/POST /api/admin/agents/*`).
+- [ ] 15+ ключей `.resx` (RU + EN), `LocalizationSyncTests` проходит.
+- [ ] 41/41 тестов (36 + 5 новых).
+- [ ] `dotnet build` — 0 warnings, 0 errors.
+- [ ] CHANGELOG `[1.4.0]` + `[Unreleased]` пустая.
+- [ ] README обновлён (раздел «Multi-Agent»).
+- [ ] Smoke: «Создай файл test.txt» → LLM выбирает `file_system_agent` → approve → файл создан.
+
+---
+
+## § 16. Ссылки
+
+- KI-052 — специализированные суб-агенты (roadmap).
+- KI-053 — multi-user approvals (v1.4.0.x).
+- KI-049 — tokensIn/tokensOut через tiktoken (v1.4.0.x).
+- RULES § 3.1 — маленькие шаги.
+- RULES § 4.15 — имена папок не совпадают с типами.
+- RULES § 1.15 — новый инструмент = 1 класс + 1 строка регистрации.
+- `docs/development/v1.3/DESIGN.md` — эталон формата.
