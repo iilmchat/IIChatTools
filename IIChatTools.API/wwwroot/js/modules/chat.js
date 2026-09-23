@@ -439,23 +439,13 @@ async function sendMessage() {
         // (при AbortError assistant-пузырь удаляется — счётчик не меняется).
         const streamSucceeded = assistantBubble?.dataset.streamCompleted === '1';
 
-        console.log('[chat] sendMessage finally:', {
-            wasEmpty,
-            streamSucceeded,
-            msgCount: state.activeChatMessageCount,
-            chatId: state.activeChatId,
-        });
-
         if (streamSucceeded) {
             state.activeChatMessageCount += 2;   // user + assistant
 
             // Если это был первый ответ в пустом чате — фоном генерируем
             // название. Без await — не блокируем UI.
             if (wasEmpty) {
-                console.log('[chat] maybeGenerateTitle: вызываем для chatId=', state.activeChatId);
                 maybeGenerateTitle();
-            } else {
-                console.log('[chat] maybeGenerateTitle: пропуск (wasEmpty=false)');
             }
         }
     }
@@ -468,47 +458,24 @@ async function sendMessage() {
  */
 async function maybeGenerateTitle() {
     const chatIdAtRequest = state.activeChatId;
-    console.log('[chat] maybeGenerateTitle entry:', {
-        chatIdAtRequest,
-        chatsCount: state.chats.length,
-    });
-
-    if (!chatIdAtRequest) {
-        console.warn('[chat] maybeGenerateTitle: нет activeChatId');
-        return;
-    }
+    if (!chatIdAtRequest) return;
 
     // Пропускаем, если title уже не «Новый чат» / «Новый чат N».
     // Это защита от повторного вызова и от перезаписи ручного имени.
     const chat = state.chats.find(c => c.id === chatIdAtRequest);
-    if (!chat) {
-        console.warn('[chat] maybeGenerateTitle: чат не найден в state.chats');
-        return;
-    }
+    if (!chat) return;
     const currentTitle = chat.title || '';
-    console.log('[chat] maybeGenerateTitle: currentTitle =', JSON.stringify(currentTitle));
-
-    if (!/^Новый чат(?:\s+\d+)?$/.test(currentTitle)) {
-        console.warn('[chat] maybeGenerateTitle: title не матчит /^Новый чат( N)?$/ — пропуск');
-        return;
-    }
+    if (!/^Новый чат(?:\s+\d+)?$/.test(currentTitle)) return;
 
     try {
-        console.log('[chat] maybeGenerateTitle: fetch POST', `/api/chats/${chatIdAtRequest}/generate-title`);
         const res = await fetch(`/api/chats/${chatIdAtRequest}/generate-title`, {
             method: 'POST',
             credentials: 'same-origin',
         }).then(r => r.json());
 
-        console.log('[chat] maybeGenerateTitle: response =', res);
-
-        if (!res?.success || !res.data?.title) {
-            console.warn('[chat] maybeGenerateTitle: success=false или нет title');
-            return;
-        }
+        if (!res?.success || !res.data?.title) return;
 
         const newTitle = res.data.title;
-        console.log(`[chat] AI-title: "${newTitle}"`);
 
         // Обновляем sidebar (вне зависимости от того, где сейчас пользователь).
         const chatInState = state.chats.find(c => c.id === chatIdAtRequest);
@@ -520,9 +487,12 @@ async function maybeGenerateTitle() {
             state.activeChat.title = newTitle;
             renderChatHeader(state.activeChat);
         }
+
+        // Один информативный лог (используется для диагностики).
+        console.log(`[chat] AI-title: "${newTitle}"`);
     } catch (ex) {
+        // Фоновая фича — не показываем toast, только warning в консоль.
         console.warn('[chat] Ошибка AI-title:', ex);
-        // Не показываем toast — фича фоновая.
     }
 }
 
