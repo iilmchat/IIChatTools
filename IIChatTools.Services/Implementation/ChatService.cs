@@ -400,33 +400,57 @@ namespace IIChatTools.Services.Implementation
                 return await GetUserChatsAsync(userId, cancellationToken);
             }
 
-            var term = search.Trim().ToLowerInvariant();
+            var term = search.Trim();
 
             // Защита от гигантских запросов — обрезаем до 200 символов.
-            // Не даём пользователю влиять на производительность SQL через длину LIKE-паттерна.
             if (term.Length > 200)
             {
                 term = term.Substring(0, 200);
             }
 
-            // LIKE-поиск через LOWER() с обеих сторон — обеспечивает
-            // регистронезависимость одинаково на SqlServer / Sqlite / InMemory
-            // (нативный LIKE в SQLite case-sensitive для не-ASCII).
+            // KI-068 fix (2026-09-23): LOWER() в SQLite не обрабатывает кириллицу.
+            // SQLite LOWER конвертирует только ASCII A-Z: LOWER('Привет') = 'Привет'.
+            // Поэтому SQL-запрос LOWER(Content) LIKE '%прив%' находит только
+            // строки в нижнем регистре и не матчит 'Привет'. Аналогично для Title.
             //
-            // Намеренно НЕ используем JOIN + GROUP BY: EXISTS-подзапрос
-            // (`.Any()`) в большинстве случаев эффективнее и не плодит дубликаты.
+            // Решение: тянем кандидатов (чаты пользователя + их сообщения) и
+            // фильтруем в памяти через string.Contains(..., OrdinalIgnoreCase) —
+            // .NET корректно обрабатывает Unicode (кириллица, диакритика).
+            // Кросс-провайдерно: SqlServer / Sqlite / InMemory ведут себя одинаково.
             //
-            // Замечание по производительности (KI-068):
-            // LIKE '%...%' не использует индексы — на больших объёмах (100k+ сообщений)
-            // потребуется FTS. Для масштаба одного пользователя (десятки чатов) — ок.
-            return await _dbContext.Chats
+            // Для масштаба одного пользователя (десятки чатов, сотни сообщений) —
+            // приемлемо. На больших объёмах (100k+) — потребуется FTS (KI-068).
+
+            var allChats = await GetUserChatsAsync(userId, cancellationToken);
+            if (allChats.Count == 0)
+            {
+                return allChats;
+            }
+
+            var chatIds = allChats.Select(c => c.Id).ToList();
+
+            // Тянем только (ChatId, Content) — lightweight-проекция, без ToolCallsJson и т.д.
+            var messageSnapshots = await _dbContext.ChatMessages
                 .AsNoTracking()
-                .Where(c => c.UserId == userId &&
-                    (c.Title.ToLower().Contains(term) ||
-                     _dbContext.ChatMessages.Any(m =>
-                         m.ChatId == c.Id && m.Content.ToLower().Contains(term))))
-                .OrderByDescending(c => c.UpdatedAt)
+                .Where(m => chatIds.Contains(m.ChatId))
+                .Select(m => new { m.ChatId, m.Content })
                 .ToListAsync(cancellationToken);
+
+            // Множество ChatId, где хотя бы одно сообщение содержит term (case-insensitive).
+            var chatIdsWithContentMatch = new HashSet<int>(
+                messageSnapshots
+                    .Where(m => !string.IsNullOrEmpty(m.Content)
+                                && m.Content.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => m.ChatId));
+
+            // Фильтрация: Title содержит term (case-insensitive) ИЛИ есть matching message.
+            // Порядок (UpdatedAt desc) сохраняется из allChats.
+            return allChats
+                .Where(c =>
+                    (!string.IsNullOrEmpty(c.Title)
+                     && c.Title.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    || chatIdsWithContentMatch.Contains(c.Id))
+                .ToList();
         }
     }
 }

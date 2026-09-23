@@ -25,6 +25,11 @@
 ### Added
 - **KI-068**: новый метод `IChatService.SearchUserChatsAsync(userId, search)` — регистронезависимый поиск (кросс-провайдерно). Пустой запрос эквивалентен `GetUserChatsAsync`.
 
+### Fixed
+
+- **KI-068 (регрессия)**: поиск по чатам возвращал неполный список при кириллице. Причина: SQLite `LOWER()` не обрабатывает не-ASCII — `LOWER('Привет') = 'Привет'`, поэтому `LIKE '%прив%'` не матчил. Решение: фильтрация в памяти через `string.Contains(term, StringComparison.OrdinalIgnoreCase)`. Два чата с одинаковым названием «Приветствие в чате» теперь находятся оба. См. RULES § 4.26.
+
+
 ### Planned
 - **v1.3.x**: KI-047 (PATCH/DELETE fallback), KI-057 (config-driven model exclusion), KI-064 (Wikipedia timeout+retry), KI-067 (per-user chat retention), KI-068 (поиск по содержимому сообщений), KI-069 (inline-edit названия в sidebar).
 - **v1.4.0**: KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).
