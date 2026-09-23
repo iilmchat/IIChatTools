@@ -618,18 +618,52 @@ v1.3 считается готовым, когда:
 
 ### 14.1. Что реализовано
 
-Все пункты § 9 «План работ → Фаза 2» закрыты.
+**Все пункты § 9 «План работ → Фаза 2» + Фаза 2.1 (ChatGPT-like) + Фаза 2.2 (расширения) закрыты.**
+
+**Статус документа:** Draft → **Implemented** (2026-09-23)
+**Релиз:** v1.3.0 — 2026-09-23
+
+#### Фаза 2.0 — базовый Chat UI
 
 | Шаг | Коммит | Что |
 |-----|--------|-----|
-| 2.0.1 | `3f660fb` | Каркас `/chat`: `ChatViewController` + Razor + `chat.css` + локализация (16 ключей). |
+| 2.0.1 | `3f660fb` | Каркас `/chat`: `ChatViewController` + Razor + `chat.css` + локализация. |
 | 2.0.2a | `6902a18` | `GET /api/models` — список моделей LM Studio + default. |
 | 2.0.2b | `b9f3e7e`, `a69d5c4` | Sidebar: загрузка, создание, удаление, переключение, sync `?chatId=N`. |
 | 2.0.3 | `3a53bb5` | SSE-стриминг: `sendMessage`, `readSseStream`, `handleSseEvent`. |
 | 2.0.4 | `43b8aa1`, `a79c7ed` | Approvals: модалка, drag-and-drop, X = Reject. |
 | 2.0.5a | `168f8f1` | Переименование чатов (✏️) + авто-нумерация «Новый чат N». |
 | 2.0.5b | `e763b31` | ChatGPT-style скроллинг (кнопка «↓ Вниз», флаг `autoScroll`). |
-| 2.0.6a | — | KI-046: `MessageCount` в `/api/chats`. |
+| 2.0.6a | `45c349a` | KI-046: `MessageCount` в `/api/chats`. |
+| 2.0.6b | `fa8bf68` | README + DESIGN + KNOWN_ISSUES: Фаза 2.0 закрыта. |
+
+#### Фаза 2.1 — ChatGPT-like фичи
+
+| Шаг | Коммит | Что |
+|-----|--------|-----|
+| 2.1.1 | `3b5e94c` | Copy message (📋 при hover). |
+| 2.1.4 | `e194855` | Markdown + code blocks (`marked` + `DOMPurify`). |
+| 2.1.4.1 | `757ce88` | Подсветка синтаксиса (`highlight.js`). |
+| 2.1.2.1 | `ba9e3c9` | `DeleteLastAssistantExchangeAsync` (backend для Regenerate). |
+| 2.1.2.2 | `90cacc3` | `POST /api/chat/regenerate`. |
+| 2.1.2.3 | `cff367a` | Кнопка 🔄 Regenerate. |
+| 2.1.3.1-2 | `7f28c62` | Stop + KI-061a (box-shadow focus). |
+| 2.1.3.3 | `ea91293` | Audit Stop в `AuditLogs`. |
+| 2.1.3.5 | `2f1568c` | Retry после Stop (KI-065) + KI-064 (documented). |
+
+#### Фаза 2.2 — Расширения
+
+| Шаг | Коммит | Что |
+|-----|--------|-----|
+| 2.2.1a | `a8bc0dd` | AI-title backend (`IChatTitleService`). |
+| 2.2.1b | `1a9d3b4` | AI-title frontend. |
+| 2.2.1b-hotfix | `8577650` | KI-066 (Copy после done). |
+| 2.2.1b-cleanup | `0728126` | Убраны debug console.log. |
+| 2.2.4 | `89e9c7f` | Селектор модели в header. |
+| 2.2.5 | `ba09250` | `ChatRetentionService` (retention чатов). |
+| 2.2.3 | `009de01` | Поиск по чатам (клиентский). |
+| 2.2.6a | `1c13dc1` | Backend edit user-message. |
+| 2.2.6b | `148ea38` | Inline-edit user-message + regenerate. |
 
 ### 14.2. Расхождения с Draft-версией DESIGN.md
 
@@ -645,20 +679,67 @@ v1.3 считается готовым, когда:
 | § 13.2 Retention чатов | `ChatRetentionService` | Отложено в Фазу 2.1 (`ChatService.DeleteOldChatsAsync` уже есть) |
 | § 7 LmStudioClient | `IAsyncEnumerable<LmStudioStreamChunk>` | `IAsyncEnumerable<ChatCompletionChunk>` (имя DTO другое) |
 
-### 14.3. Что отложено в Фазу 2.1 (ChatGPT-like фичи)
+### 14.3. Что реализовано в Фазах 2.1 + 2.2
 
-Приоритет по итогам обсуждения:
+| # | Фича | Коммит |
+|---|------|--------|
+| 1 | Копировать сообщение (📋) | `3b5e94c` |
+| 2 | Regenerate (🔄 на последнем assistant) | `cff367a` |
+| 3 | Стоп-кнопка (⏹ рядом с input) | `7f28c62` |
+| 4 | AI-генерация заголовка (после 1-го ответа) | `a8bc0dd`, `1a9d3b4` |
+| 5 | Edit user-сообщения + regenerate | `1c13dc1`, `148ea38` |
+| 6 | Поиск по чатам (по title) | `009de01` |
+| 7 | UI-селектор модели (в header) | `89e9c7f` |
+| 8 | Retention чатов | `ba09250` |
+| 9 | Markdown + code blocks + подсветка | `e194855`, `757ce88` |
+| 10 | Audit Stop | `ea91293` |
+| 11 | Retry после Stop | `2f1568c` |
 
-| # | Фича | Приоритет |
-|---|------|-----------|
-| 1 | Копировать сообщение (📋 при hover) | 🟠 High |
-| 2 | Regenerate (перегенерировать последний ответ) | 🟠 High |
-| 3 | Стоп-кнопка (прервать стрим) | 🟡 Med |
-| 4 | AI-генерация заголовка из первого сообщения | 🟡 Med |
-| 5 | Edit user-сообщения + regenerate | 🟡 Med |
-| 6 | Поиск по чатам | 🟢 Low |
-| 7 | UI-селектор модели (из § 13.1) | 🟡 Med |
-| 8 | Retention чатов (из § 13.2) | 🟢 Low |
-| 9 | SignalR для approvals (из § 13.3) | 🟢 Low |
-| 10 | Метрики `iichattools_chat_*` | 🟢 Low |
+### 14.4. Что отложено в v1.3.x / v1.4.0
 
+| # | Фича | Запланировано |
+|---|------|---------------|
+| 1 | SignalR для approvals | v1.3.x |
+| 2 | Метрики `iichattools_chat_messages_total`, `iichattools_chat_stream_duration_seconds` | v1.3.x |
+| 3 | Inline-edit названия в sidebar (KI-069) | v1.3.x |
+| 4 | Поиск по содержимому сообщений (KI-068) | v1.3.x |
+| 5 | Per-user retention (KI-067) | v1.3.x |
+| 6 | Fallback PATCH/DELETE через POST (KI-047) | v1.3.x |
+| 7 | Config-driven exclusion patterns моделей (KI-057) | v1.3.x |
+| 8 | Специализированные суб-агенты (KI-052) | v1.4.0 |
+| 9 | Multi-user approvals (KI-053) | v1.4.0 |
+
+---
+
+## 15. Известные ограничения v1.3.0
+
+| # | Ограничение | KI |
+|---|-------------|-----|
+| 1 | `tokensIn`/`tokensOut` = null в SSE (ограничение LM Studio) | KI-049 |
+| 2 | `wikipedia_search` — intermittent SSL-обрывы через корпоративный прокси | KI-064 |
+| 3 | Поиск по чатам — только по title, без содержимого | KI-068 |
+| 4 | Retention чатов — глобальный, без per-user override | KI-067 |
+| 5 | `MessageCount` — только в `/api/chats`, в sidebar отображается как `<дата> · N сообщ.` | — |
+| 6 | `README.md` не содержит скриншотов (планируется в v1.3.x) | KI-070 |
+
+---
+
+## 16. Критерии готовности (DoD) — финал
+
+| Критерий | Статус |
+|----------|--------|
+| Chat CRUD + персистентность | ✅ |
+| SSE-стриминг | ✅ |
+| Tool calling (multi-turn) | ✅ |
+| Approvals из чата | ✅ |
+| Sidebar (создание / удаление / переименование / поиск) | ✅ |
+| AI-title | ✅ |
+| UI-селектор модели | ✅ |
+| Regenerate / Retry / Stop | ✅ |
+| Copy / Edit / Markdown / Code blocks / подсветка | ✅ |
+| Retention чатов | ✅ |
+| Локализация RU/EN | ✅ |
+| Build 0/0, Tests 29/29 | ✅ |
+| CI + Docker Publish зелёные | ✅ |
+| CHANGELOG + README + DESIGN + KNOWN_ISSUES обновлены | ✅ |
+| Git tag `v1.3.0` | ⏳ |

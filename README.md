@@ -302,6 +302,9 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/chat/approvals/{callId}/approve` | Подтвердить вызов инструмента в чате |
 | `POST` | `/api/chat/approvals/{callId}/reject` | Отклонить вызов инструмента в чате |
 | `GET` | `/api/models` | Список моделей LM Studio (без embedding) |
+| `POST` | `/api/chat/regenerate` | Перегенерировать последний ответ ассистента |
+| `POST` | `/api/chat/messages/{id}/edit` | Редактировать user-сообщение (удаляет всё после) |
+| `POST` | `/api/chats/{id}/generate-title` | AI-генерация названия из первого сообщения |
 
 ---
 
@@ -326,23 +329,32 @@ dotnet run --project IIChatTools.API
 Полноценный чат-интерфейс (`/chat`) по аналогии с ChatGPT/DeepSeek:
 
 **Возможности:**
-- 📋 **Sidebar** — список чатов с относительными датами (`только что`, `5 мин назад`, `вчера`, `22.09`).
-- ➕ **Создание / переименование (✏️) / удаление (🗑)** чатов прямо в sidebar (кнопки по hover).
+- 📋 **Sidebar** — список чатов с относительными датами (`только что`, `5 мин назад`, `вчера`, `22.09`) и счётчиком сообщений.
+- 🔍 **Поиск по чатам** — клиентский фильтр по названию.
+- ➕ **Создание / переименование (✏️) / удаление (🗑)** чатов прямо в sidebar.
 - 🔢 **Авто-нумерация** новых чатов: «Новый чат», «Новый чат 2», «Новый чат 3», …
+- 🤖 **AI-генерация названия** из первого сообщения (ChatGPT-style, после первого ответа).
+- 🎛 **Селектор модели** в header — переключение модели чата (`PATCH /api/chats/{id}`).
 - 🌊 **SSE-стриминг** ответа LLM — потоковая отрисовка с мигающим курсором.
-- 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций).
+- 📝 **Markdown-рендеринг** ответов (`marked` + `DOMPurify`) + **подсветка синтаксиса** (`highlight.js`).
+- 💻 **Code blocks** — шапка с языком + кнопки Copy / Download.
+- 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций, SSE `tool_call` / `tool_result`).
 - ✅ **Approvals** — mutating-инструменты требуют подтверждения:
   - Модалка с именем инструмента, JSON-параметрами, countdown (5 минут).
   - Drag-and-drop за заголовок.
   - Approve/Reject; закрытие крестиком = Reject.
-- 📜 **Persistентная история** — все диалоги в БД.
+- ✏️ **Edit user-сообщения** → автоматическая регенерация ответа.
+- 🔄 **Regenerate / Retry** — перегенерировать ответ ассистента или повторить после Stop.
+- ⏹ **Stop** — прерывание стрима (`AbortController`), частичный ответ отбрасывается.
+- 📋 **Copy** на каждом сообщении.
+- 📜 **Persistентная история** — все диалоги в БД + **retention** (авто-удаление старых).
 - ⬇️ **ChatGPT-style скроллинг** — кнопка «↓ Вниз», автоскролл отключается при ручной прокрутке вверх.
 - 💾 **Enter** — отправка, **Shift+Enter** — новая строка, автоувеличение textarea.
 - 🌐 **Локализация RU/EN**.
 
 **Точки входа:**
 - UI: `/chat`
-- API: `/api/chats`, `/api/chat/stream`, `/api/chat/approvals/*`, `/api/models`
+- API: `/api/chats`, `/api/chat/stream`, `/api/chat/regenerate`, `/api/chat/messages/{id}/edit`, `/api/chat/approvals/*`, `/api/chats/{id}/generate-title`, `/api/models`
 
 **Скриншоты** — в [docs/development/v1.3/DESIGN.md](docs/development/v1.3/DESIGN.md).
 
@@ -396,6 +408,7 @@ Prometheus-метрики доступны по `/metrics` (публичный, 
 | iichattools_audit_entries_total | counter | status | Записи аудита |
 | iichattools_lmstudio_requests_total | counter | status | Запросы к LM Studio |
 | iichattools_audit_cleanup_total | counter | target | Удалённые записи/файлы аудита (retention) |
+| iichattools_chat_cleanup_total | counter | reason | Удалённые чаты по retention (`reason="retention"`) |
 
 **Prometheus scrape config**:
 

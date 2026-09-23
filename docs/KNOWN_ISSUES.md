@@ -249,7 +249,7 @@
 
 ---
 
-## v1.3.0 — Chat UI (в работе)
+## v1.3.0 — Chat UI (реализовано 2026-09-23)
 
 ### KI-055 — Tool calling в чате — реализовано в v1.3.0
 - **Приоритет:** — | **Статус:** Implemented | **Реализовано в:** v1.3.0 Фаза 1.6.A
@@ -501,6 +501,19 @@
 
 ---
 
+### KI-069 — Inline-edit названия чата в sidebar (двойной клик)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.3.x
+- **Обнаружено:** 2026-09-23 (обсуждение Фазы 2.2)
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js` (планируется)
+- **Описание:** Сейчас переименование чата из sidebar — через `prompt()` (Фаза 2.0.5a). ChatGPT/DeepSeek делают inline-edit: двойной клик по названию → `<input>` → Enter/Esc. Нужна доработка UI.
+- **Решение (запланировано):**
+  - Двойной клик по `.chat-list-item-title` → `<input>` вместо `<div>`.
+  - **Enter** = сохранить, **Esc** = Cancel, **blur** = сохранить (ChatGPT-style).
+  - Использовать существующий `PATCH /api/chats/{id}` — backend готов.
+- **Отсрочка:** prompt-rename работает, приоритет низкий (не блокер).
+
+---
+
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
@@ -653,14 +666,14 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064 -->
-| Deferred | 5 |                      <!-- KI-047, KI-052, KI-053, KI-067, KI-068 -->
+| Deferred | 6 |                      <!-- KI-047, KI-052, KI-053, KI-067, KI-068, KI-069 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia).
-**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content).
+**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content), KI-069 (inline-edit в sidebar).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 
 ---

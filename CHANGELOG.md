@@ -18,6 +18,16 @@
 
 ## [Unreleased]
 
+_(пусто — планируется для v1.3.x / v1.4.0)_
+
+### Planned
+- **v1.3.x**: KI-047 (PATCH/DELETE fallback), KI-057 (config-driven model exclusion), KI-064 (Wikipedia timeout+retry), KI-067 (per-user chat retention), KI-068 (поиск по содержимому сообщений), KI-069 (inline-edit названия в sidebar).
+- **v1.4.0**: KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals).
+
+---
+
+## [1.3.0] — 2026-09-23
+
 ### Added
 - **Chat UI (v1.3 Фаза 1.1)**: сущности `Chat` и `ChatMessage` + миграция `AddChatAndChatMessages`. Таблицы `Chats`, `ChatMessages` в БД; индексы `IX_Chats_UserId_UpdatedAt`, `IX_ChatMessages_ChatId_CreatedAt`.
 - **ChatService (v1.3 Фаза 1.2)**: `IChatService` + `ChatService` — CRUD чатов и сообщений, проверка владения (`userId`), `DeleteOldChatsAsync` для retention.
@@ -204,7 +214,6 @@
 - **KI-062**: отсутствовал автофокус на поле ввода при создании/выборе чата. Фикс: `input.focus()` в `selectChat()` (покрывает оба сценария, т.к. `createChat` вызывает `selectChat`).
 - **KI-061a**: box-shadow фокуса на textarea перекрывал кнопку «Отправить». Focus-ring перенесён на `.input-group:focus-within`; `textarea:focus` и `.btn:focus` → `box-shadow: none`.
 - **KI-066**: кнопка Copy (📋) пропадала под ответом ассистента до F5. Причина: `renderMessageActions('')` в `appendAssistantBubble()` не создаёт кнопку при пустом тексте (правка 2.2.1a). Фикс: `finalizeAssistantBubble()` пересоздаёт `.chat-message-actions` с финальным текстом после Markdown-рендера.
-- **2.2.1b диагностика**: в `sendMessage` (finally) и `maybeGenerateTitle` добавлены `console.log` — для отладки сценария AI-title.
 
 ### Security
 - Н/Д
