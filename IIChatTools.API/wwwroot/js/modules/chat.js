@@ -5,6 +5,7 @@
  * Шаг 2.0.3 — SSE: отправка сообщений, стриминг ответа, обработка tool_call/tool_result.
  * Интеграция approval-модалки — Шаг 2.0.4.
  * KI-069 — inline-edit названия чата в sidebar (двойной клик или ✏️).
+ * KI-068 — серверный поиск по названию + содержимому сообщений (debounce 300ms).
  */
 import { apiGet, apiPost } from './api.js';
 import { escapeHtml, toast } from './ui.js';
@@ -91,12 +92,14 @@ function bindEvents() {
         modelSelect.addEventListener('change', onChatModelChanged);
     }
 
-    // Фаза 2.2.3: поиск по чатам (клиентский фильтр)
+    // KI-068: поиск по чатам — server-side (title + content), debounce 300ms
     const searchInput = document.getElementById('chat-search');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
+            // KI-069: сохранить активный inline-edit перед перерисовкой sidebar
+            _flushActiveInlineEdit();
             state.searchQuery = e.target.value || '';
-            renderChatList();
+            _scheduleSearch();
         });
     }
 
@@ -141,14 +144,35 @@ async function loadChats() {
     const listEl = document.getElementById('chat-list');
     if (listEl) listEl.innerHTML = '<div class="text-muted text-center p-3 small">Загрузка…</div>';
 
-    const res = await apiGet('/api/chats');
+    // KI-068: если есть активный поисковый запрос — используем server-side search.
+    // Пустой запрос → полный список (поведение как до KI-068).
+    const q = (state.searchQuery || '').trim();
+    const url = q ? `/api/chats?search=${encodeURIComponent(q)}` : '/api/chats';
+
+    const res = await apiGet(url);
     if (!res.success) {
-        toast('Не удалось загрузить чаты', 'error');
+        toast(q ? 'Ошибка поиска' : 'Не удалось загрузить чаты', 'error');
         return;
     }
 
     state.chats = res.data || [];
     renderChatList();
+}
+
+/**
+ * KI-068: debounce для поиска — ждём 300ms после последнего нажатия.
+ * Если пользователь продолжает печатать — таймер сбрасывается.
+ */
+let _searchDebounceTimer = null;
+
+function _scheduleSearch() {
+    if (_searchDebounceTimer) {
+        clearTimeout(_searchDebounceTimer);
+    }
+    _searchDebounceTimer = setTimeout(() => {
+        _searchDebounceTimer = null;
+        loadChats();
+    }, 300);
 }
 
 function renderChatList() {
@@ -160,25 +184,19 @@ function renderChatList() {
     // сохранении имени) применяются к DOM напрямую через _setItemTitleText.
     if (state.editingChatId) return;
 
+    // KI-068: сервер уже отфильтровал список (title + content). Различаем два случая:
+    // — пустой поиск → «Нет чатов. Создайте первый.»
+    // — активный поиск без результатов → «Ничего не найдено»
     if (state.chats.length === 0) {
-        listEl.innerHTML = '<div class="text-muted text-center p-3 small">Нет чатов. Создайте первый.</div>';
-        return;
-    }
-
-    // Фаза 2.2.3: клиентский фильтр по названию чата
-    const query = (state.searchQuery || '').trim().toLowerCase();
-    const visibleChats = query
-        ? state.chats.filter(c => (c.title || '').toLowerCase().includes(query))
-        : state.chats;
-
-    if (visibleChats.length === 0) {
+        const hasQuery = (state.searchQuery || '').trim().length > 0;
         const noResults = document.getElementById('chat-search')?.dataset.labelNoResults
             || 'Ничего не найдено';
-        listEl.innerHTML = `<div class="text-muted text-center p-3 small">${escapeHtml(noResults)}</div>`;
+        const empty = hasQuery ? noResults : 'Нет чатов. Создайте первый.';
+        listEl.innerHTML = `<div class="text-muted text-center p-3 small">${escapeHtml(empty)}</div>`;
         return;
     }
 
-    listEl.innerHTML = visibleChats.map(chat => {
+    listEl.innerHTML = state.chats.map(chat => {
         const isActive = chat.id === state.activeChatId;
         const title = escapeHtml(chat.title || 'Без названия');
         const meta = formatChatMeta(chat);

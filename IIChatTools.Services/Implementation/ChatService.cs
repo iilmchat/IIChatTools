@@ -387,5 +387,46 @@ namespace IIChatTools.Services.Implementation
                 DeletedCount = toDelete.Count
             };
         }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyList<Chat>> SearchUserChatsAsync(
+            int userId,
+            string search,
+            CancellationToken cancellationToken = default)
+        {
+            // Пустой запрос — семантика «вернуть всё» (совместимо с GetUserChatsAsync).
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return await GetUserChatsAsync(userId, cancellationToken);
+            }
+
+            var term = search.Trim().ToLowerInvariant();
+
+            // Защита от гигантских запросов — обрезаем до 200 символов.
+            // Не даём пользователю влиять на производительность SQL через длину LIKE-паттерна.
+            if (term.Length > 200)
+            {
+                term = term.Substring(0, 200);
+            }
+
+            // LIKE-поиск через LOWER() с обеих сторон — обеспечивает
+            // регистронезависимость одинаково на SqlServer / Sqlite / InMemory
+            // (нативный LIKE в SQLite case-sensitive для не-ASCII).
+            //
+            // Намеренно НЕ используем JOIN + GROUP BY: EXISTS-подзапрос
+            // (`.Any()`) в большинстве случаев эффективнее и не плодит дубликаты.
+            //
+            // Замечание по производительности (KI-068):
+            // LIKE '%...%' не использует индексы — на больших объёмах (100k+ сообщений)
+            // потребуется FTS. Для масштаба одного пользователя (десятки чатов) — ок.
+            return await _dbContext.Chats
+                .AsNoTracking()
+                .Where(c => c.UserId == userId &&
+                    (c.Title.ToLower().Contains(term) ||
+                     _dbContext.ChatMessages.Any(m =>
+                         m.ChatId == c.Id && m.Content.ToLower().Contains(term))))
+                .OrderByDescending(c => c.UpdatedAt)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

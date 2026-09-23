@@ -48,15 +48,20 @@ namespace IIChatTools.API.Controllers
 
         /// <summary>
         /// Возвращает список чатов текущего пользователя (сортировка по UpdatedAt desc).
+        /// При указании <paramref name="search"/> — фильтрует по подстроке в
+        /// названии чата или в содержимом сообщений (KI-068).
         /// </summary>
+        /// <param name="search">
+        /// Опциональный поисковый запрос. Пустой / отсутствует → весь список.
+        /// </param>
         /// <returns>JSON { success, data: ChatListItemDto[] }</returns>
         [HttpGet]
-        public async Task<IActionResult> GetChatsAsync()
+        public async Task<IActionResult> GetChatsAsync([FromQuery] string search = null)
         {
             try
             {
                 var userId = GetCurrentUserId();
-                var chats = await _chatService.GetUserChatsAsync(userId);
+                var chats = await _chatService.SearchUserChatsAsync(userId, search);
                 var counts = await _chatService.GetMessageCountsAsync(userId);
 
                 var data = chats.Select(c => new ChatListItemDto

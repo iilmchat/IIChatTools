@@ -147,6 +147,23 @@ namespace IIChatTools.Services.Interfaces
             int messageId,
             int userId,
             string newContent,
-            CancellationToken cancellationToken = default);            
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Ищет чаты пользователя по подстроке в названии чата или в содержимом
+        /// любого из его сообщений (KI-068). Регистронезависимый поиск —
+        /// через <c>LOWER()</c> на обеих сторонах (кросс-провайдерно).
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <param name="search">
+        /// Поисковый запрос. Пустой / <c>null</c> → возвращается весь список
+        /// (эквивалентно <see cref="GetUserChatsAsync"/>). Обрезается до 200 символов.
+        /// </param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Отфильтрованный список чатов (сортировка по UpdatedAt desc)</returns>
+        Task<IReadOnlyList<Chat>> SearchUserChatsAsync(
+            int userId,
+            string search,
+            CancellationToken cancellationToken = default);
     }
 }

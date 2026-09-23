@@ -148,10 +148,10 @@
 | KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.3.x |
 | KI-064 | 🟢 | Documented | SSL-обрыв к `ru.wikipedia.org` (корпоративный прокси) | v1.3.x |
 | KI-067 | 🟢 | Deferred | Per-user retention чатов (override глобальной) | v1.3.x |
-| KI-068 | 🟢 | Deferred | Поиск по содержимому сообщений (не только title) | v1.3.x |
+| KI-068 | 🟢 | Fixed (v1.3.x) | Поиск по содержимому сообщений (не только title) | ✅ v1.3.x |
 | KI-069 | 🟢 | Fixed (v1.3.x) | Inline-edit названия чата в sidebar (двойной клик) | ✅ v1.3.x |
 
-**Всего в реестре:** 48 KI. **Fixed/Resolved:** 45 (v1.0.x–v1.3.x). **Deferred:** 5. **Documented:** 6.
+**Всего в реестре:** 48 KI. **Fixed/Resolved:** 46 (v1.0.x–v1.3.x). **Deferred:** 4. **Documented:** 6.
 
 ---
 

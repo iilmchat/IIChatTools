@@ -492,12 +492,22 @@
 ---
 
 ### KI-068 — Поиск по содержимому сообщений (не только по title)
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.3.x
-- **Обнаружено:** 2026-09-23
-- **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js`
-- **Описание:** Поиск по чатам (Фаза 2.2.3) — **клиентский фильтр** по `chat.title`. Не ищет по содержимому сообщений. Пользователь не может найти «тот чат, где мы обсуждали X».
-- **Решение (запланировано):** Backend endpoint `GET /api/chats?search={query}` — LIKE по `Chats.Title` + `ChatMessages.Content` (JOIN, GROUP BY). Дорого по производительности при больших объёмах — нужен FTS или индексирование.
-- **Не блокер:** текущий поиск по title покрывает 95% кейсов.
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.x
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
+- **Файлы:** 
+  - `IIChatTools.Services/Interfaces/IChatService.cs` (новый метод `SearchUserChatsAsync`)
+  - `IIChatTools.Services/Implementation/ChatService.cs` (реализация)
+  - `IIChatTools.API/Controllers/ChatController.cs` (`[FromQuery] string search`)
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` (debounce 300ms, server-side)
+- **Описание:** Поиск по чатам (Фаза 2.2.3) был **клиентским фильтром** по `chat.title`. Не искал по содержимому сообщений — пользователь не мог найти «тот чат, где мы обсуждали X».
+- **Решение:**
+  - Backend: `GET /api/chats?search={q}` → `SearchUserChatsAsync`.
+  - Регистронезависимый LIKE через `LOWER()` на обеих сторонах (кросс-провайдерно: SqlServer / Sqlite / InMemory).
+  - EXISTS-подзапрос (`.Any()`) вместо JOIN + GROUP BY — эффективнее, без дубликатов.
+  - Защита от длинных запросов: обрезка до 200 символов.
+  - Frontend: debounce 300ms; при пустом запросе — полный список.
+  - Убран клиентский фильтр.
+- **Ограничение (не блокер):** `LIKE '%...%'` не использует индексы. На больших объёмах (100k+ сообщений) потребуется FTS. Для масштаба одного пользователя — приемлемо.
 
 ---
 
@@ -681,7 +691,7 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
-| Deferred | 5 |                      <!-- KI-047, KI-052, KI-053, KI-067, KI-068 -->
+| Deferred | 4 |                      <!-- KI-047, KI-052, KI-053, KI-067 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 

@@ -20,6 +20,10 @@
 
 ### Changed
 - **KI-069**: переименование чата в sidebar теперь через **inline-edit** (ChatGPT-style) вместо `prompt()`. Двойной клик по названию → `<input>`, **Enter** = сохранить, **Esc** = отмена, **blur** = сохранить. Кнопка ✏️ вызывает тот же inline-edit. Backend (`PATCH /api/chats/{id}`) без изменений.
+- **KI-068**: поиск по чатам теперь **server-side** (по названию + содержимому сообщений). Запрос `GET /api/chats?search={q}` — `LOWER()` LIKE по `Chats.Title` и `ChatMessages.Content` (EXISTS-подзапрос). Frontend — debounce 300ms, убран клиентский фильтр.
+
+### Added
+- **KI-068**: новый метод `IChatService.SearchUserChatsAsync(userId, search)` — регистронезависимый поиск (кросс-провайдерно). Пустой запрос эквивалентен `GetUserChatsAsync`.
 
 ### Planned
 - **v1.3.x**: KI-047 (PATCH/DELETE fallback), KI-057 (config-driven model exclusion), KI-064 (Wikipedia timeout+retry), KI-067 (per-user chat retention), KI-068 (поиск по содержимому сообщений), KI-069 (inline-edit названия в sidebar).
