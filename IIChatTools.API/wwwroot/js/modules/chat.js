@@ -233,7 +233,7 @@ async function selectChat(chatId) {
     // KI-062: фокус на input (ChatGPT-style). setTimeout — чтобы фокус
     // не сбрасывался re-render'ом sidebar и других элементов.
     setTimeout(() => document.getElementById('chat-input')?.focus(), 0);
-        
+
     updateScrollDownButton();
 }
 
@@ -496,6 +496,65 @@ function handleSseEvent(name, data, assistantBubble) {
     }
 }
 
+// ============ Regenerate (Фаза 2.1.2.3) ============
+
+/**
+ * Перегенерирует последний ответ ассистента в чате.
+ * Удаляет последний assistant-пузырь из DOM, отправляет POST /api/chat/regenerate
+ * и стримит новый ответ (через существующий readSseStream).
+ */
+async function regenerateLastMessage() {
+    if (state.isStreaming) return;
+    if (!state.activeChatId) {
+        toast('Сначала выберите чат', 'warning');
+        return;
+    }
+
+    // Найти последний assistant-пузырь
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    const assistantBubbles = container.querySelectorAll('.chat-message.assistant');
+    if (assistantBubbles.length === 0) {
+        toast('Нет ответа для регенерации', 'warning');
+        return;
+    }
+
+    // Удалить последний assistant-пузырь
+    assistantBubbles[assistantBubbles.length - 1].remove();
+
+    // Заблокировать input
+    enableInput(false);
+    state.isStreaming = true;
+
+    // Создать пустой bubble с typing indicator
+    const newBubble = appendAssistantBubble();
+    showTypingIndicator(newBubble, true);
+
+    try {
+        const response = await fetch('/api/chat/regenerate', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId: state.activeChatId }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        await readSseStream(response, newBubble);
+    } catch (ex) {
+        showTypingIndicator(newBubble, false);
+        appendAssistantError(newBubble, ex.message || 'Ошибка регенерации');
+        toast(ex.message || 'Ошибка регенерации', 'error');
+    } finally {
+        state.isStreaming = false;
+        enableInput(true);
+        document.getElementById('chat-input')?.focus();
+        updateSidebarTimeLocally();
+    }
+}
+
 // ============ Approvals (Фаза 2.0.4) ============
 
 /**
@@ -552,12 +611,23 @@ function renderMessages(messages) {
         return;
     }
 
-    container.innerHTML = messages.map(renderMessage).join('');
+    // Определяем индекс последнего assistant — на нём покажем 🔄 Regenerate
+    let lastAssistantIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'assistant') {
+            lastAssistantIndex = i;
+            break;
+        }
+    }
+
+    container.innerHTML = messages
+        .map((msg, i) => renderMessage(msg, { showRegenerate: i === lastAssistantIndex }))
+        .join('');
     enhanceCodeBlocks(container);
     scrollToBottom(true);
 }
 
-function renderMessage(msg) {
+function renderMessage(msg, opts = {}) {
     if (msg.role === 'system') return '';
     if (msg.role === 'tool') return renderToolResultBlock(msg);
 
@@ -578,9 +648,12 @@ function renderMessage(msg) {
             : `<div class="chat-message-content chat-markdown">${renderMarkdown(msg.content)}</div>`)
         : '';
 
-    // Кнопка Copy — только если есть текстовый контент
+    // Кнопка Copy — только если есть текстовый контент.
+    // Regenerate — только для последнего assistant (передаётся через opts).
     const actionsHtml = msg.content
-        ? renderMessageActions(msg.content)
+        ? renderMessageActions(msg.content, {
+            showRegenerate: opts.showRegenerate && !isUser,
+        })
         : '';
 
     return `
@@ -781,6 +854,23 @@ function finalizeAssistantBubble(bubble, data) {
             const actionsEl = bubble.querySelector('.chat-message-actions');
             if (actionsEl) actionsEl.dataset.copyText = raw;
         }
+    }
+
+    // Кнопка 🔄 Regenerate: только на последнем assistant.
+    // Снимаем её со всех существующих bubble, добавляем на текущий.
+    const container = document.getElementById('chat-messages');
+    if (container) {
+        container.querySelectorAll('.chat-message-actions [data-action="regenerate"]')
+            .forEach(btn => btn.remove());
+    }
+    const currentActions = bubble.querySelector('.chat-message-actions');
+    if (currentActions && !currentActions.querySelector('[data-action="regenerate"]')) {
+        currentActions.insertAdjacentHTML('beforeend', `
+            <button type="button"
+                    class="chat-message-action"
+                    data-action="regenerate"
+                    title="Сгенерировать заново"
+                    aria-label="Сгенерировать заново">🔄</button>`);
     }
 }
 
@@ -1045,12 +1135,22 @@ function langToExtension(lang) {
 // ============ Действия с сообщениями (Фаза 2.1.1 — Copy) ============
 
 /**
- * Рендерит блок действий сообщения (Copy).
+ * Рендерит блок действий сообщения (Copy + Regenerate).
  * @param {string} text Текст для копирования (пустой у streaming-bubble)
+ * @param {object} [opts]
+ * @param {boolean} [opts.showRegenerate] — показать ли кнопку 🔄 (только последний assistant)
  * @returns {string} HTML
  */
-function renderMessageActions(text) {
+function renderMessageActions(text, opts = {}) {
     const attr = escapeAttr(text || '');
+    const regenBtn = opts.showRegenerate
+        ? `<button type="button"
+                   class="chat-message-action"
+                   data-action="regenerate"
+                   title="Сгенерировать заново"
+                   aria-label="Сгенерировать заново">🔄</button>`
+        : '';
+
     return `
         <div class="chat-message-actions" data-copy-text="${attr}">
             <button type="button"
@@ -1058,6 +1158,7 @@ function renderMessageActions(text) {
                     data-action="copy"
                     title="Скопировать"
                     aria-label="Скопировать сообщение">📋</button>
+            ${regenBtn}
         </div>`;
 }
 
@@ -1066,13 +1167,23 @@ function renderMessageActions(text) {
  * @param {MouseEvent} e
  */
 async function onMessageActionClick(e) {
-    const btn = e.target.closest('[data-action="copy"]');
-    if (!btn) return;
+    // Regenerate
+    const regenBtn = e.target.closest('[data-action="regenerate"]');
+    if (regenBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        await regenerateLastMessage();
+        return;
+    }
+
+    // Copy
+    const copyBtn = e.target.closest('[data-action="copy"]');
+    if (!copyBtn) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    const actionsEl = btn.closest('.chat-message-actions');
+    const actionsEl = copyBtn.closest('.chat-message-actions');
     const text = actionsEl?.dataset.copyText || '';
 
     if (!text) {
@@ -1082,7 +1193,7 @@ async function onMessageActionClick(e) {
 
     try {
         await copyToClipboard(text);
-        flashCopied(btn);
+        flashCopied(copyBtn);
     } catch (ex) {
         console.error('[chat] Копирование не удалось:', ex);
         toast('Не удалось скопировать', 'error');
