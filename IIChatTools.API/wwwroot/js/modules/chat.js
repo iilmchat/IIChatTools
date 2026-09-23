@@ -4,6 +4,7 @@
  *
  * Шаг 2.0.3 — SSE: отправка сообщений, стриминг ответа, обработка tool_call/tool_result.
  * Интеграция approval-модалки — Шаг 2.0.4.
+ * KI-069 — inline-edit названия чата в sidebar (двойной клик или ✏️).
  */
 import { apiGet, apiPost } from './api.js';
 import { escapeHtml, toast } from './ui.js';
@@ -19,9 +20,10 @@ const state = {
     activeChat: null,
     activeChatMessageCount: 0,   // Фаза 2.2.1b: кол-во сообщений активного чата
     searchQuery: '',             // Фаза 2.2.3: поиск по названию чата
-    isStreaming: false,     // блокировка отправки во время стрима
-    autoScroll: true,       // включён, пока пользователь у нижнего края
-    abortController: null,  // Фаза 2.1.3: AbortController для Stop
+    isStreaming: false,          // блокировка отправки во время стрима
+    autoScroll: true,            // включён, пока пользователь у нижнего края
+    abortController: null,       // Фаза 2.1.3: AbortController для Stop
+    editingChatId: null,         // KI-069: id чата в режиме inline-edit (или null)
 };
 
 // ============ Инициализация ============
@@ -44,7 +46,7 @@ export async function initChatPage() {
         showEmptyState();
     }
 
-    console.log('[chat] Шаг 2.0.3 готов: SSE-стриминг');
+    console.log('[chat] KI-069 готов: inline-edit названия в sidebar');
 }
 
 // ============ Привязка событий ============
@@ -153,6 +155,11 @@ function renderChatList() {
     const listEl = document.getElementById('chat-list');
     if (!listEl) return;
 
+    // KI-069: во время inline-edit НЕ перерисовываем sidebar — иначе потеряем
+    // <input> с вводом пользователя. Локальные изменения (например, при
+    // сохранении имени) применяются к DOM напрямую через _setItemTitleText.
+    if (state.editingChatId) return;
+
     if (state.chats.length === 0) {
         listEl.innerHTML = '<div class="text-muted text-center p-3 small">Нет чатов. Создайте первый.</div>';
         return;
@@ -179,7 +186,7 @@ function renderChatList() {
             <div class="chat-list-item ${isActive ? 'active' : ''}"
                  data-chat-id="${chat.id}" role="button" tabindex="0">
                 <div class="chat-list-item-body">
-                    <div class="chat-list-item-title">${title}</div>
+                    <div class="chat-list-item-title" title="Двойной клик — переименовать">${title}</div>
                     <div class="chat-list-item-meta">${escapeHtml(meta)}</div>
                 </div>
                 <button type="button"
@@ -197,10 +204,31 @@ function renderChatList() {
 
     listEl.querySelectorAll('[data-chat-id]').forEach(el => {
         el.addEventListener('click', (e) => {
+            // KI-069: игнорируем клики по input (пользователь редактирует название).
+            if (e.target.closest('.chat-list-item-edit-input')) return;
             // Игнорируем клики по кнопкам действий
             if (e.target.closest('[data-delete-id]') || e.target.closest('[data-edit-id]')) return;
+
+            const chatId = parseInt(el.dataset.chatId, 10);
+            // KI-069: если чат уже активен — не дёргаем selectChat (это перерисует DOM).
+            if (chatId === state.activeChatId) return;
+
             e.preventDefault();
-            selectChat(parseInt(el.dataset.chatId, 10));
+            selectChat(chatId);
+        });
+    });
+
+    // KI-069: двойной клик на названии → inline-edit (ChatGPT-style)
+    listEl.querySelectorAll('.chat-list-item-title').forEach(titleEl => {
+        titleEl.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const item = titleEl.closest('[data-chat-id]');
+            if (!item) return;
+
+            const chatId = parseInt(item.dataset.chatId, 10);
+            startInlineEditTitle(chatId);
         });
     });
 
@@ -212,11 +240,12 @@ function renderChatList() {
         });
     });
 
+    // KI-069: кнопка ✏️ запускает тот же inline-edit (без prompt)
     listEl.querySelectorAll('[data-edit-id]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            renameChat(parseInt(btn.dataset.editId, 10));
+            startInlineEditTitle(parseInt(btn.dataset.editId, 10));
         });
     });
 }
@@ -226,6 +255,9 @@ async function createChat() {
         toast('Нет доступных моделей LM Studio', 'error');
         return;
     }
+
+    // KI-069: если идёт inline-edit — сначала сохраняем, иначе потеряем ввод при re-render.
+    _flushActiveInlineEdit();
 
     const btn = document.getElementById('btn-new-chat');
     if (btn) btn.disabled = true;
@@ -251,6 +283,10 @@ async function createChat() {
 }
 
 async function selectChat(chatId) {
+    // KI-069: если пользователь редактировал название другого чата —
+    // принудительно сохраняем (blur → save), чтобы не потерять ввод.
+    _flushActiveInlineEdit();
+
     const res = await apiGet(`/api/chats/${chatId}`);
     if (!res.success) {
         toast(res.message || 'Не удалось загрузить чат', 'error');
@@ -277,6 +313,12 @@ async function selectChat(chatId) {
 
 async function deleteChat(chatId) {
     if (!confirm('Вы уверены, что хотите удалить чат?')) return;
+
+    // KI-069: если удаляем редактируемый чат — сбрасываем флаг, чтобы
+    // следующий renderChatList() отработал (иначе он будет заблокирован).
+    if (state.editingChatId === chatId) {
+        state.editingChatId = null;
+    }
 
     try {
         const res = await fetch(`/api/chats/${chatId}`, {
@@ -305,53 +347,199 @@ async function deleteChat(chatId) {
     }
 }
 
-// ============ Переименование чата (Фаза 2.0.5a) ============
+// ============ Переименование чата — inline-edit (KI-069) ============
 
 /**
- * Переименовывает чат через prompt(). Пустое имя — отклоняется.
+ * Начинает inline-edit названия чата в sidebar (KI-069).
+ * Заменяет `.chat-list-item-title` на `<input>` с текущим названием.
+ *
+ * Поведение:
+ *   - Enter  = сохранить (PATCH /api/chats/{id})
+ *   - Esc    = отмена (без запроса)
+ *   - blur   = сохранить (ChatGPT-style)
+ *
+ * Если редактируется другой чат — предварительно сохраняет его.
+ * Игнорируется во время стрима (правило: не трогать UI во время генерации).
+ *
  * @param {number} chatId Идентификатор чата
  */
-async function renameChat(chatId) {
+function startInlineEditTitle(chatId) {
+    if (state.isStreaming) return;   // не редактируем во время стрима
+
+    const listEl = document.getElementById('chat-list');
+    if (!listEl) return;
+
+    // Если уже редактируется другой чат — сохраняем его.
+    if (state.editingChatId && state.editingChatId !== chatId) {
+        _flushActiveInlineEdit();
+    }
+
+    // Уже редактируем этот же чат — повторный клик игнорируем.
+    if (state.editingChatId === chatId) return;
+
+    const item = listEl.querySelector(`[data-chat-id="${chatId}"]`);
+    if (!item) return;
+
     const chat = state.chats.find(c => c.id === chatId);
     if (!chat) return;
 
+    const titleEl = item.querySelector('.chat-list-item-title');
+    if (!titleEl) return;
+
     const currentTitle = chat.title || '';
-    const raw = prompt('Новое имя чата:', currentTitle);
-    if (raw === null) return;   // отмена
 
-    const newTitle = raw.trim();
-    if (!newTitle) {
-        toast('Имя не может быть пустым', 'warning');
-        return;
-    }
-    if (newTitle === currentTitle) return;   // без изменений
+    // Заменяем <div class="chat-list-item-title"> на <input>
+    titleEl.innerHTML = `<input type="text" class="chat-list-item-edit-input" maxlength="200" />`;
+    const input = titleEl.querySelector('.chat-list-item-edit-input');
+    input.value = currentTitle;
 
-    try {
-        const res = await fetch(`/api/chats/${chatId}`, {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: newTitle }),
-        }).then(r => r.json());
+    item.classList.add('chat-list-item-editing');
+    state.editingChatId = chatId;
 
-        if (!res.success) {
-            toast(res.message || 'Ошибка переименования', 'error');
+    // Фокус + выделение (правило 4.20: setTimeout для re-render DOM)
+    setTimeout(() => {
+        input.focus();
+        input.select();
+    }, 0);
+
+    // Флаг «решение принято» — защита от повторного вызова finish()
+    // (например, Enter → finish, потом blur от скрытия input).
+    let settled = false;
+
+    const onBlur = () => finish(true);
+
+    /**
+     * Завершает inline-edit.
+     * @param {boolean} save true — сохранить на сервере, false — отменить
+     */
+    const finish = async (save) => {
+        if (settled) return;
+        settled = true;
+
+        // Отписываемся от blur, чтобы повторный blur не сработал.
+        input.removeEventListener('blur', onBlur);
+
+        const newTitle = (input.value || '').trim();
+        const oldTitle = chat.title || '';
+
+        // Esc / отмена — просто восстанавливаем текст
+        if (!save) {
+            _setItemTitleText(item, oldTitle);
             return;
         }
 
-        // Локальное обновление
-        chat.title = newTitle;
-        renderChatList();
+        // Пустое имя — предупреждаем и откатываем
+        if (!newTitle) {
+            toast('Имя не может быть пустым', 'warning');
+            _setItemTitleText(item, oldTitle);
+            return;
+        }
 
-        // Синхронизация header, если это активный чат
+        // Без изменений — просто откат на «красивое» отображение
+        if (newTitle === oldTitle) {
+            _setItemTitleText(item, oldTitle);
+            return;
+        }
+
+        // Оптимистично: сначала DOM + state, потом PATCH
+        _setItemTitleText(item, newTitle);
+        chat.title = newTitle;
+
         if (state.activeChatId === chatId && state.activeChat) {
             state.activeChat.title = newTitle;
             renderChatHeader(state.activeChat);
         }
 
-        toast('Чат переименован', 'success');
-    } catch (ex) {
-        toast(ex.message || 'Ошибка переименования', 'error');
+        try {
+            const res = await fetch(`/api/chats/${chatId}`, {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle }),
+            }).then(r => r.json());
+
+            if (!res.success) {
+                toast(res.message || 'Ошибка переименования', 'error');
+                _rollbackTitle(chatId, oldTitle, item);
+                return;
+            }
+
+            toast('Чат переименован', 'success');
+        } catch (ex) {
+            toast(ex.message || 'Ошибка переименования', 'error');
+            _rollbackTitle(chatId, oldTitle, item);
+        }
+    };
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            finish(true);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            finish(false);
+        }
+    });
+    input.addEventListener('blur', onBlur);
+
+    // Клики по input не должны всплывать до item (иначе сработает selectChat).
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+}
+
+/**
+ * KI-069: принудительно сохраняет активный inline-edit (если есть).
+ * Вызывается перед selectChat / createChat / sendMessage — чтобы не потерять ввод.
+ * Использует тот же путь, что и blur: `input.blur()` → `finish(true)`.
+ */
+function _flushActiveInlineEdit() {
+    if (!state.editingChatId) return;
+
+    const listEl = document.getElementById('chat-list');
+    const editing = listEl?.querySelector('.chat-list-item-editing');
+    const input = editing?.querySelector('.chat-list-item-edit-input');
+
+    if (input) {
+        // Синхронный blur → finish(true) → _setItemTitleText → state.editingChatId = null
+        input.blur();
+    } else {
+        // Защита: если input потерялся — сбрасываем флаг принудительно.
+        state.editingChatId = null;
+    }
+}
+
+/**
+ * KI-069: заменяет `<input>` на текст названия, снимает флаг редактирования.
+ * @param {HTMLElement} item — `.chat-list-item` элемент
+ * @param {string} title — актуальное название
+ */
+function _setItemTitleText(item, title) {
+    const titleEl = item.querySelector('.chat-list-item-title');
+    if (titleEl) {
+        titleEl.innerHTML = escapeHtml(title || 'Без названия');
+    }
+    item.classList.remove('chat-list-item-editing');
+
+    if (state.editingChatId === parseInt(item.dataset.chatId, 10)) {
+        state.editingChatId = null;
+    }
+}
+
+/**
+ * KI-069: откатывает оптимистичное обновление названия при ошибке PATCH.
+ * @param {number} chatId
+ * @param {string} oldTitle
+ * @param {HTMLElement} item
+ */
+function _rollbackTitle(chatId, oldTitle, item) {
+    const chat = state.chats.find(c => c.id === chatId);
+    if (chat) chat.title = oldTitle;
+
+    _setItemTitleText(item, oldTitle);
+
+    if (state.activeChatId === chatId && state.activeChat) {
+        state.activeChat.title = oldTitle;
+        renderChatHeader(state.activeChat);
     }
 }
 
@@ -404,6 +592,10 @@ async function sendMessage() {
         toast('Сообщение не может быть пустым', 'warning');
         return;
     }
+
+    // KI-069: если идёт inline-edit — сначала сохраняем название,
+    // иначе re-render при обновлении sidebar затрёт ввод.
+    _flushActiveInlineEdit();
 
     // Фаза 2.2.1b: запомнить, был ли чат пустым ДО отправки —
     // от этого зависит, генерировать ли AI-title после done.
@@ -1470,6 +1662,7 @@ function langToExtension(lang) {
  * Рендерит блок действий сообщения (Copy + Regenerate + Retry).
  * @param {string} text Текст для копирования (пустой у streaming-bubble)
  * @param {object} [opts]
+ * @param {boolean} [opts.showEdit]       — показать ли кнопку ✏️ на user-сообщении
  * @param {boolean} [opts.showRegenerate] — показать ли кнопку 🔄 на последнем assistant
  * @param {boolean} [opts.showRetry]      — показать ли кнопку «🔄 Повторить» на последнем user (после Stop)
  * @returns {string} HTML
@@ -1897,6 +2090,11 @@ function formatTime(iso) {
  */
 function updateSidebarTimeLocally() {
     if (!state.activeChatId) return;
+
+    // KI-069: если идёт inline-edit — не трогаем sidebar (renderChatList
+    // заблокирован флагом editingChatId, но лучше не дёргать зря).
+    if (state.editingChatId) return;
+
     const chat = state.chats.find(c => c.id === state.activeChatId);
     if (chat) {
         chat.updatedAt = new Date().toISOString();

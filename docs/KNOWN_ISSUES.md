@@ -502,15 +502,18 @@
 ---
 
 ### KI-069 — Inline-edit названия чата в sidebar (двойной клик)
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.3.x
-- **Обнаружено:** 2026-09-23 (обсуждение Фазы 2.2)
-- **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js` (планируется)
-- **Описание:** Сейчас переименование чата из sidebar — через `prompt()` (Фаза 2.0.5a). ChatGPT/DeepSeek делают inline-edit: двойной клик по названию → `<input>` → Enter/Esc. Нужна доработка UI.
-- **Решение (запланировано):**
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.x
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js`, `IIChatTools.API/wwwroot/css/chat.css`
+- **Описание:** Переименование чата из sidebar было через `prompt()` (Фаза 2.0.5a) — не соответствовало ChatGPT/DeepSeek-стилю.
+- **Решение:**
   - Двойной клик по `.chat-list-item-title` → `<input>` вместо `<div>`.
-  - **Enter** = сохранить, **Esc** = Cancel, **blur** = сохранить (ChatGPT-style).
-  - Использовать существующий `PATCH /api/chats/{id}` — backend готов.
-- **Отсрочка:** prompt-rename работает, приоритет низкий (не блокер).
+  - **Enter** = сохранить, **Esc** = отмена, **blur** = сохранить (ChatGPT-style).
+  - Кнопка ✏️ вызывает тот же inline-edit (через `startInlineEditTitle`).
+  - Использован существующий `PATCH /api/chats/{id}` — backend без изменений.
+  - Оптимистичное обновление UI; при ошибке PATCH — откат на старое название (`_rollbackTitle`).
+  - Защита от потери ввода: `state.editingChatId` блокирует перерисовку sidebar во время редактирования. Перед `selectChat` / `createChat` / `sendMessage` активный inline-edit принудительно сохраняется (`_flushActiveInlineEdit`).
+- **Удалено:** `renameChat()` (prompt-версия).
 
 ---
 
@@ -678,7 +681,7 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
-| Deferred | 6 |                      <!-- KI-047, KI-052, KI-053, KI-067, KI-068, KI-069 -->
+| Deferred | 5 |                      <!-- KI-047, KI-052, KI-053, KI-067, KI-068 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **47** |
 
