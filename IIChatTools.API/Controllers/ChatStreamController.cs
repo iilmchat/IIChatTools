@@ -161,7 +161,9 @@ namespace IIChatTools.API.Controllers
         {
             ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver(),
             Formatting = Formatting.None,
-            NullValueHandling = NullValueHandling.Ignore
+            NullValueHandling = NullValueHandling.Ignore,
+            // KI-071: гарантируем Z на всех DateTime (Sqlite возвращает Unspecified).
+            DateTimeZoneHandling = DateTimeZoneHandling.Utc
         };
 
         /// <summary>

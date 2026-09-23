@@ -28,7 +28,8 @@
 ### Fixed
 
 - **KI-068 (регрессия)**: поиск по чатам возвращал неполный список при кириллице. Причина: SQLite `LOWER()` не обрабатывает не-ASCII — `LOWER('Привет') = 'Привет'`, поэтому `LIKE '%прив%'` не матчил. Решение: фильтрация в памяти через `string.Contains(term, StringComparison.OrdinalIgnoreCase)`. Два чата с одинаковым названием «Приветствие в чате» теперь находятся оба. См. RULES § 4.26.
-
+- **KI-071**: даты в JSON сериализовались без суффикса `Z` (Sqlite + EF Core возвращают `DateTime` с `Kind=Unspecified`). JS `new Date()` парсил их как local → только что созданные чаты показывались как «3 ч назад» (UTC+3). Решение: `AddNewtonsoftJson(o => o.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.Utc)` в `Startup.cs` + то же для `SseJsonSettings` в `ChatStreamController`. См. RULES § 4.27.
+- **KI-072**: при активном поиске новый чат попадал в отфильтрованный sidebar (даже если не совпадал с фильтром), а нумерация «Новый чат N» могла сбиваться. Решение: `createChat()` сбрасывает поиск и перезагружает полный список перед созданием. Поведение как в ChatGPT.
 
 ### Planned
 - **v1.3.x**: KI-047 (PATCH/DELETE fallback), KI-057 (config-driven model exclusion), KI-064 (Wikipedia timeout+retry), KI-067 (per-user chat retention), KI-068 (поиск по содержимому сообщений), KI-069 (inline-edit названия в sidebar).

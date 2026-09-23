@@ -277,6 +277,20 @@ async function createChat() {
     // KI-069: если идёт inline-edit — сначала сохраняем, иначе потеряем ввод при re-render.
     _flushActiveInlineEdit();
 
+    // KI-072: если активен поиск — сбрасываем его. Иначе:
+    //   1) новый чат (не совпадающий с фильтром) попадёт в отфильтрованный sidebar;
+    //   2) generateNextChatTitle() увидит только отфильтрованный список и может
+    //      сгенерировать дубликат номера (например, «Новый чат 6», когда 4 вне фильтра).
+    // Поведение как в ChatGPT: создал чат → чистый полный список.
+    if (state.searchQuery) {
+        state.searchQuery = '';
+        const searchInput = document.getElementById('chat-search');
+        if (searchInput) searchInput.value = '';
+        // Перезагружаем полный список из БД (без фильтра).
+        // После этого state.chats — полный, generateNextChatTitle() корректен.
+        await loadChats();
+    }
+
     const btn = document.getElementById('btn-new-chat');
     if (btn) btn.disabled = true;
 

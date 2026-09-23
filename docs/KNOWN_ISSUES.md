@@ -594,6 +594,34 @@
 
 ---
 
+## v1.3.x — Post-release fixes (2026-09-23)
+
+### KI-071 — Даты в JSON без `Z` → неверное относительное время
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.3.x
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/Startup.cs` (`AddNewtonsoftJson`), `IIChatTools.API/Controllers/ChatStreamController.cs` (`SseJsonSettings`)
+- **Описание:** Только что созданный чат показывался как «3 ч назад» (при timezone UTC+3). Причина: Sqlite + EF Core возвращают `DateTime` с `Kind=Unspecified`, Newtonsoft.Json сериализует такие даты без суффикса `Z`, а JS `new Date("2026-09-23T19:29:00")` парсит их как **local** — отсюда расхождение на величину смещения. Свежие (в памяти) `DateTime.UtcNow` сериализовались с `Z`, поэтому сразу после `createChat()` UI показывал «только что», а после перезагрузки списка из БД — «3 ч назад».
+- **Решение:**
+  - `AddNewtonsoftJson(options => options.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.Utc)` — трактует `Unspecified` как UTC и добавляет `Z` на выходе.
+  - То же для `SseJsonSettings` (SSE-события идут в обход MVC).
+  - Все даты в проекте сохраняются через `DateTime.UtcNow` — изменение безопасно.
+- **Правило:** см. RULES § 4.27.
+
+---
+
+### KI-072 — Новый чат попадает в отфильтрованный sidebar
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.x
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js` (`createChat`)
+- **Описание:** Если активен поиск (например, «Прив»), при создании нового чата «Новый чат 5» он появлялся в отфильтрованном sidebar (в начале), хотя не совпадал с фильтром. Дополнительно: `generateNextChatTitle()` видел только отфильтрованный `state.chats` — нумерация могла сбиваться.
+- **Решение:**
+  - `createChat()` перед созданием сбрасывает `state.searchQuery`, очищает input `#chat-search`, вызывает `loadChats()` (полный список из БД).
+  - После этого `state.chats` — полный, `generateNextChatTitle()` корректен, `unshift` даёт ожидаемый результат.
+  - Поведение как в ChatGPT: создал чат → чистый список.
+- **Родственный KI:** KI-068 (server-side поиск — первоисточник `state.chats` = отфильтрованный).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -691,6 +719,7 @@
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
+| Fixed / Resolved (v1.3.x) | 4 |    <!-- KI-068, KI-069, KI-071, KI-072 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
 | Deferred | 4 |                      <!-- KI-047, KI-052, KI-053, KI-067 -->

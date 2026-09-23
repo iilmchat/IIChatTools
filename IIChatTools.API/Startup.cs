@@ -181,7 +181,17 @@ namespace IIChatTools.API
             //services.AddLocalization(options => options.ResourcesPath = "Resources");
             services.AddLocalization(options => options.ResourcesPath = "");
             services.AddControllersWithViews()
-                .AddNewtonsoftJson()
+                .AddNewtonsoftJson(options =>
+                {
+                    // KI-071: Sqlite + EF Core возвращают DateTime с Kind=Unspecified.
+                    // По умолчанию Newtonsoft.Json сериализует такие даты без суффикса Z,
+                    // и JS new Date() парсит их как local → расхождение с реальным UTC
+                    // на величину смещения (в Москве UTC+3 → «3 ч назад» для свежего чата).
+                    // DateTimeZoneHandling.Utc трактует Unspecified как UTC и добавляет Z.
+                    // Все даты в проекте сохраняются через DateTime.UtcNow — это безопасно.
+                    options.SerializerSettings.DateTimeZoneHandling =
+                        Newtonsoft.Json.DateTimeZoneHandling.Utc;
+                })
                 .AddViewLocalization()
                 .AddDataAnnotationsLocalization();
 

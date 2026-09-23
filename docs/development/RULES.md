@@ -98,6 +98,7 @@
 | 4.24 | **`finalizeAssistantBubble` — пересоздавать `.chat-message-actions`** после Markdown-рендера. Иначе кнопки (📋 / 🔄 / ✏️), созданные при пустом тексте, не синхронизируются с финальным содержимым. См. KI-066. |
 | 4.25 | **Sqlite `EnsureCreatedAsync` не мигрирует существующую БД.** Если добавили новую сущность (или изменили модель) — старая `.db` не обновится, падает `no such table: <Table>`. Решение: **удалить `Data/*.db`** (и `bin/Debug/net10.0/Data/*.db`) → перезапустить. Для прод-Sqlite — миграции в `Migrations/Sqlite/`. См. KI-070. |
 | 4.26 | **`LOWER()` в SQLite не обрабатывает не-ASCII (кириллицу).** SQLite LOWER конвертирует только ASCII `A-Z`. Запрос `LOWER(Title) LIKE '%прив%'` находит только строки в нижнем регистре и не матчит `'Привет'`. Аналогично `LOWER(Content)`. **Решение:** для регистронезависимого поиска по не-ASCII — фильтровать в памяти через `string.Contains(term, StringComparison.OrdinalIgnoreCase)`. Тянем кандидатов из БД, фильтруем в .NET. См. KI-068. |
+| 4.27 | **Даты из Sqlite/EF Core приходят с `Kind=Unspecified`.** Newtonsoft.Json по умолчанию сериализует их без суффикса `Z`, и JS `new Date()` парсит как local → расхождение на смещение (в UTC+3 → «3 ч назад» для только что созданных сущностей). **Решение:** `AddNewtonsoftJson(o => o.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.Utc)` (и то же для `SseJsonSettings`). Все даты в проекте — UTC. См. KI-071. |
 
 ---
 
@@ -152,7 +153,7 @@
 | KI-068 | 🟢 | Fixed (v1.3.x) | Поиск по содержимому сообщений (не только title) | ✅ v1.3.x |
 | KI-069 | 🟢 | Fixed (v1.3.x) | Inline-edit названия чата в sidebar (двойной клик) | ✅ v1.3.x |
 
-**Всего в реестре:** 48 KI. **Fixed/Resolved:** 46 (v1.0.x–v1.3.x). **Deferred:** 4. **Documented:** 6.
+**Всего в реестре:** 50 KI. **Fixed/Resolved:** 48 (v1.0.x–v1.3.x). **Deferred:** 4. **Documented:** 6.
 
 > KI-068 (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
 
