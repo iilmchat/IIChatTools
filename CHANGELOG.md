@@ -21,6 +21,15 @@
 _(пусто — планируется для v1.4.2 / v1.5.0)_
 
 ### Added
+- **Docs — финальная чистка legacy (v1.4.x)**:
+  - `docs/guides/` (3 файла) + `docs/testing/` (2 файла) → `docs/development/archive/v1.0.x/guides-testing/`.
+  - `scripts/setup/archive/v1.0.x/` — 8 legacy-скриптов (downloader*.ps1, check-packages, create_structure).
+  - Удалены: 4 обёртки в `scripts/setup/` (одноразовые `.sh`/`.ps1`).
+  - `scripts/setup/README.md` — новый (описание актуальных скриптов + порядок offline-restore).
+  - Версия в шапках актуальных скриптов: v1.1.1 → v1.4.1.
+  - `archive/README.md` — обновлена таблица структуры.
+
+### Added
 - **Docs — актуальный обзор архитектуры (KI-087, v1.5.x)**:
   - `docs/development/ARCHITECTURE.md` — сводный документ (9 разделов): слои, схема БД, DI-lifetime, поток Chat (SSE + approvals + regenerate), 46 инструментов, внешние зависимости, 10 ADR-style решений.
   - `docs/architecture/` (12 legacy-файлов эпохи v1.0 → v1.1) перенесены в `docs/development/archive/v1.0.x/architecture/`.

@@ -18,6 +18,7 @@
 | `v1.0.x/v1.0.2-docs/` | Сентябрь 2026 | Документы архитектуры v1.0.2 (6 `.txt`) |
 | `v1.0.x/snapshots/` | Сентябрь 2026 | Снимки кода v1.0.2 (`Program.cs`, `Startup.cs`, тестовые данные) |
 | `v1.0.x/architecture/` | Сентябрь 2026 | Архитектурные отчёты v1.0 → v1.1 (12 `.txt`, перенесены из `docs/architecture/`) |
+| `v1.0.x/guides-testing/` | Сентябрь 2026 | `guides/` (3 файла: PuppeteerSharp, оформление, KNOWN_ISSUES) + `testing/` (2: чек-лист, форма) — legacy |
 
 ---
 

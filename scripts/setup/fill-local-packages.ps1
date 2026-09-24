@@ -26,7 +26,7 @@
     pwsh -ExecutionPolicy Bypass -File scripts\setup\fill-local-packages.ps1 -Clean
 
 .NOTES
-    © 2026 RuChating (iilmchat) · IIChatTools v1.1.1
+    © 2026 RuChating (iilmchat) · IIChatTools v1.4.1
 #>
 [CmdletBinding()]
 param(

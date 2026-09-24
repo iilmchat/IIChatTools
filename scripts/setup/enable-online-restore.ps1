@@ -18,7 +18,7 @@
     pwsh -ExecutionPolicy Bypass -File scripts\setup\enable-online-restore.ps1 -Force
 
 .NOTES
-    © 2026 RuChating (iilmchat) · IIChatTools v1.1.1
+    © 2026 RuChating (iilmchat) · IIChatTools v1.4.1
 #>
 [CmdletBinding()]
 param(
