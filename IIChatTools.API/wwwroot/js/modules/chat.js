@@ -107,13 +107,17 @@ function bindEvents() {
         modelSelect.addEventListener('change', onChatModelChanged);
     }
 
-    // KI-079: кнопка «Свернуть sidebar» (внутри sidebar)
+    // KI-079: кнопка toggle (одна, работает в обоих состояниях)
     document.getElementById('btn-collapse-sidebar')
         ?.addEventListener('click', toggleSidebar);
 
-    // KI-079: кнопка «Открыть sidebar» (в header, видна в collapsed)
-    document.getElementById('btn-expand-sidebar')
-        ?.addEventListener('click', toggleSidebar);
+    // KI-079 fix: поиск в collapsed — раскрыть sidebar и сфокусировать input.
+    // В KI-078B переделаем на открытие ⌘K-модалки.
+    document.getElementById('btn-search-sidebar')
+        ?.addEventListener('click', () => {
+            applySidebarCollapsed(false);
+            setTimeout(() => document.getElementById('chat-search')?.focus(), 250);
+        });
 
     // KI-068: поиск по чатам — server-side (title + content), debounce 300ms
     const searchInput = document.getElementById('chat-search');
@@ -182,11 +186,16 @@ function applySidebarCollapsed(collapsed) {
         // Приватный режим — игнорируем.
     }
 
-    const btnCollapse = document.getElementById('btn-collapse-sidebar');
-    if (btnCollapse) btnCollapse.hidden = collapsed;
-
-    const btnExpand = document.getElementById('btn-expand-sidebar');
-    if (btnExpand) btnExpand.hidden = !collapsed;
+    // KI-079 fix: кнопка-toggle остаётся в sidebar всегда (mini-rail).
+    // Меняем только title/aria-label в зависимости от состояния.
+    const btn = document.getElementById('btn-collapse-sidebar');
+    if (btn) {
+        const label = collapsed
+            ? (btn.dataset.labelExpand || 'Открыть боковую панель')
+            : (btn.dataset.labelCollapse || 'Свернуть боковую панель');
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+    }
 }
 
 /**

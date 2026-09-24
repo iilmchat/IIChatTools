@@ -227,6 +227,7 @@
   <data name="ChatModelEmpty" xml:space="preserve"><value>Нет моделей</value></data>
   <data name="ChatSearchPlaceholder" xml:space="preserve"><value>Поиск по чатам…</value></data>
   <data name="ChatSearchNoResults" xml:space="preserve"><value>Ничего не найдено</value></data>
+  <data name="ChatSearchLabel" xml:space="preserve"><value>Поиск</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Свернуть боковую панель</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Открыть боковую панель</value></data>  
   

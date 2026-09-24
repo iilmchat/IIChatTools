@@ -20,8 +20,10 @@
 
 ### Added
 - **Chat UI — collapse/expand sidebar (KI-079, DeepSeek-style, v1.4.x)**:
-  - Кнопка «Свернуть боковую панель» внутри sidebar (SVG panel-left, рядом с «+ Новый чат»).
-  - Кнопка «Открыть боковую панель» в chat-header (видна только в collapsed).
+  - Collapsed-состояние — mini-rail 56px с иконками (SVG): «+» (новый чат), 🔍 (поиск), `«`/`»` (toggle).
+  - Кнопка «+ Новый чат» — текст в expanded, SVG `+` в collapsed.
+  - Кнопка 🔍 — только в collapsed (в expanded используется input `#chat-search`).
+  - Кнопка toggle — одна, работает в обоих состояниях (title меняется по data-атрибутам).
   - Анимация `width .2s ease`; collapsed → `.chat-container.chat-sidebar-collapsed` (`width: 0`).
   - Сохранение состояния в `localStorage["chat.sidebarCollapsed"]`, восстановление при загрузке.
   - Горячая клавиша `Ctrl+B` (toggle, `preventDefault` — не конфликтует с закладками браузера).

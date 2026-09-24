@@ -908,29 +908,76 @@ body.approval-dragging {
     box-shadow: 0 0 0 .15rem rgba(255, 255, 255, .35);
 }
 
-/* ============ KI-079: Collapse/expand sidebar (DeepSeek-style) ============ */
+/* ============ KI-079: Collapse/expand sidebar (DeepSeek-style mini-rail) ============ */
 
 /* Плавная анимация ширины */
 .chat-sidebar {
     transition: width .2s ease;
 }
 
-/* Collapsed — 0px, без содержимого */
+/* Collapsed — mini-rail 56px с иконками */
 .chat-container.chat-sidebar-collapsed .chat-sidebar {
-    width: 0;
-    border-right: 0;
+    width: 56px;
     overflow: hidden;
-    padding: 0;
 }
 
-/* Sidebar-header: две кнопки в ряд (+ Новый чат + Свернуть) */
+/* Sidebar-header: row (expanded) → column (collapsed) */
 .chat-sidebar-header {
     display: flex;
     align-items: center;
     gap: .35rem;
 }
 
-/* Универсальная иконка-кнопка (в sidebar-header и chat-header) */
+.chat-container.chat-sidebar-collapsed .chat-sidebar-header {
+    flex-direction: column;
+    padding: .5rem .25rem;
+    gap: .25rem;
+}
+
+/* Кнопка «+ Новый чат»: flex-grow (expanded) → icon-only (collapsed) */
+.chat-sidebar-action-btn {
+    flex-grow: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+}
+
+.chat-sidebar-action-svg {
+    display: none;
+}
+
+.chat-container.chat-sidebar-collapsed .chat-sidebar-action-btn {
+    flex-grow: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+.chat-container.chat-sidebar-collapsed .chat-sidebar-action-text {
+    display: none;
+}
+
+.chat-container.chat-sidebar-collapsed .chat-sidebar-action-svg {
+    display: block;
+}
+
+/* Кнопка «Поиск» (SVG): показываем только в collapsed */
+.chat-sidebar-search-btn {
+    display: none;
+}
+
+.chat-container.chat-sidebar-collapsed .chat-sidebar-search-btn {
+    display: flex;
+}
+
+/* Скрываем поиск-инпут и список чатов в collapsed */
+.chat-container.chat-sidebar-collapsed .chat-sidebar-search,
+.chat-container.chat-sidebar-collapsed .chat-list {
+    display: none;
+}
+
+/* Универсальная иконка-кнопка */
 .chat-sidebar-icon-btn {
     flex-shrink: 0;
     width: 32px;
@@ -957,10 +1004,6 @@ body.approval-dragging {
     outline-offset: 1px;
 }
 
-.chat-sidebar-icon-btn[hidden] {
-    display: none !important;
-}
-
 /* Mobile: collapse отключён, sidebar всегда виден */
 @media (max-width: 767.98px) {
     .chat-sidebar-icon-btn {
@@ -970,5 +1013,31 @@ body.approval-dragging {
     .chat-container.chat-sidebar-collapsed .chat-sidebar {
         width: 200px;
         border-right: 1px solid #dee2e6;
+    }
+
+    .chat-container.chat-sidebar-collapsed .chat-sidebar-search,
+    .chat-container.chat-sidebar-collapsed .chat-list {
+        display: revert;
+    }
+
+    .chat-container.chat-sidebar-collapsed .chat-sidebar-action-text {
+        display: inline;
+    }
+
+    .chat-container.chat-sidebar-collapsed .chat-sidebar-action-svg {
+        display: none;
+    }
+
+    .chat-container.chat-sidebar-collapsed .chat-sidebar-header {
+        flex-direction: row;
+        padding: .75rem;
+        gap: .35rem;
+    }
+
+    .chat-container.chat-sidebar-collapsed .chat-sidebar-action-btn {
+        flex-grow: 1;
+        width: auto;
+        height: auto;
+        padding: .25rem .5rem;
     }
 }

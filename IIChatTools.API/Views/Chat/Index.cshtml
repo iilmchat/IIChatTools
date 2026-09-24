@@ -9,13 +9,31 @@
     <!-- ===== Sidebar: список чатов ===== -->
     <aside class="chat-sidebar">
         <div class="chat-sidebar-header">
-            <button id="btn-new-chat" type="button" class="btn btn-primary btn-sm flex-grow-1">
-                + @Localizer["Новый чат"]
+            <!-- KI-079: «+ Новый чат» — текст в expanded, SVG в collapsed -->
+            <button id="btn-new-chat" type="button" class="btn btn-primary btn-sm chat-sidebar-action-btn">
+                <span class="chat-sidebar-action-text">+ @Localizer["Новый чат"]</span>
+                <svg class="chat-sidebar-action-svg" xmlns="http://www.w3.org/2000/svg"
+                     width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                </svg>
             </button>
-            <!-- KI-079: свернуть sidebar (DeepSeek-style) -->
+            <!-- KI-079: поиск (SVG) — видна только в collapsed -->
+            <button id="btn-search-sidebar"
+                    type="button"
+                    class="chat-sidebar-icon-btn chat-sidebar-search-btn"
+                    title="@Localizer["ChatSearchLabel"]"
+                    aria-label="@Localizer["ChatSearchLabel"]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                     viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                </svg>
+            </button>
+            <!-- KI-079: свернуть/развернуть sidebar -->
             <button id="btn-collapse-sidebar"
                     type="button"
                     class="chat-sidebar-icon-btn"
+                    data-label-collapse="@Localizer["ChatSidebarCollapse"]"
+                    data-label-expand="@Localizer["ChatSidebarExpand"]"
                     title="@Localizer["ChatSidebarCollapse"]"
                     aria-label="@Localizer["ChatSidebarCollapse"]">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
@@ -46,18 +64,6 @@
         <!-- Заголовок чата (скрыт, пока чат не выбран) -->
         <div id="chat-header" class="chat-header d-none">
             <div class="d-flex justify-content-between align-items-center gap-2">
-                <!-- KI-079: открыть sidebar (видна только в collapsed) -->
-                <button id="btn-expand-sidebar"
-                        type="button"
-                        class="chat-sidebar-icon-btn"
-                        hidden
-                        title="@Localizer["ChatSidebarExpand"]"
-                        aria-label="@Localizer["ChatSidebarExpand"]">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                         viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                        <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm5-1v12h9a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zM4 2H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h2z"/>
-                    </svg>
-                </button>
                 <div id="chat-header-info"
                      class="d-flex justify-content-between align-items-center gap-2 flex-grow-1">
                     <div class="text-truncate flex-grow-1">
