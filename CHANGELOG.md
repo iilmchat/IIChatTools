@@ -34,6 +34,23 @@
 - **KI-067-2 (fix)**: `ExecuteDeleteAsync` не поддерживается InMemory-провайдером EF Core 10. Решение: fallback — загрузка сущностей в память + `RemoveRange` + `SaveChangesAsync` (для тестов). Для SqlServer/Sqlite — прежний bulk-DELETE.
 
 ### Added
+- **Users — UI для per-user retention (KI-067-3, v1.4.x)**:
+  - **Backend:**
+    - `UserSettingsDto` (`RetentionDays`, `DoNotDelete`, `GlobalRetentionDays`, `MaxRetentionDays`).
+    - `AdminController`:
+      - `GET /api/admin/users/{id}/settings` — текущие настройки.
+      - `PUT /api/admin/users/{id}/settings` — сохранение (валидация 1..MaxDays, `null` = сброс override).
+    - `ProfileController`:
+      - `GET /profile` — Razor-страница профиля.
+      - `GET /api/profile/settings` — свои настройки.
+      - `PUT /api/profile/settings` — сохранение своих настроек.
+  - **Frontend:**
+    - `Views/Profile/Index.cshtml` — карточка «Хранение чатов» с полями.
+    - `wwwroot/js/modules/profile.js` — загрузка/сохранение, дизейбл поля при `DoNotDelete`.
+    - `admin.js`: кнопка ⚙ в строке пользователя → модалка с полями retention.
+    - `_Layout.cshtml`: пункт меню «Профиль» (для залогиненных).
+    - `_LoginPartial.cshtml`: displayName — ссылка на `/profile`.
+  - **Локализация:** +10 ключей (`ProfileTitle`, `ProfileMenu`, `ProfileRetentionSection`, `ProfileGlobalHint`, `ProfileRetentionDays`, `ProfileRetentionDaysPlaceholder`, `ProfileRetentionDaysHint`, `ProfileDoNotDelete`, `ProfileDoNotDeleteHint`, `ProfileSave`).
 - **Users — per-user retention чатов (KI-067-2, v1.4.x)**:
   - `IUserSettingsService.GetAllWithKeyPrefixAsync(prefix)` — получить все настройки по префиксу (для фонового сервиса).
   - `IChatService.DeleteOldChatsAsync(retentionDays, excludedUserIds)` — bulk-DELETE с исключением пользователей.

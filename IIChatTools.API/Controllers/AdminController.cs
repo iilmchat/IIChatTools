@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
@@ -6,6 +6,7 @@ using IIChatTools.Services.DTO.Admin;
 using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using IIChatTools.API.Resources;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,8 @@ namespace IIChatTools.API.Controllers
         private readonly IToolRegistry _toolRegistry;
         private readonly IApprovalService _approvalService;
         private readonly IAuditService _auditService;
+        private readonly IUserSettingsService _userSettingsService;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<AdminController> _logger;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
@@ -40,6 +43,8 @@ namespace IIChatTools.API.Controllers
             IToolRegistry toolRegistry,
             IApprovalService approvalService,
             IAuditService auditService,
+            IUserSettingsService userSettingsService,
+            IConfiguration configuration,
             ILogger<AdminController> logger,
             IStringLocalizer<SharedResources> localizer)
         {
@@ -49,6 +54,8 @@ namespace IIChatTools.API.Controllers
             _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
             _approvalService = approvalService ?? throw new ArgumentNullException(nameof(approvalService));
             _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
+            _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         }
@@ -220,6 +227,139 @@ namespace IIChatTools.API.Controllers
                 _logger.LogError(ex, "Ошибка получения списка ролей");
                 return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value  });
             }
+        }
+
+        // ============ PER-USER НАСТРОЙКИ (KI-067-3) ============
+
+        /// <summary>
+        /// Возвращает per-user настройки retention для указанного пользователя.
+        /// </summary>
+        /// <param name="id">Идентификатор пользователя</param>
+        /// <returns>JSON { success, data: UserSettingsDto }</returns>
+        [HttpGet("users/{id:int}/settings")]
+        public async Task<IActionResult> GetUserSettingsAsync(int id)
+        {
+            try
+            {
+                var user = await _userAdminService.GetByIdAsync(id);
+                if (user == null)
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value });
+
+                var dto = await BuildUserSettingsDtoAsync(id);
+                return Ok(new { success = true, data = dto });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка получения настроек пользователя {Id}", id);
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
+        /// Обновляет per-user настройки retention для указанного пользователя.
+        /// <para>
+        /// Семантика:
+        /// <list type="bullet">
+        ///   <item><c>RetentionDays = null</c> → удалить override (использовать глобальный);</item>
+        ///   <item><c>RetentionDays = N</c> (1..MaxDays) → установить override;</item>
+        ///   <item><c>DoNotDelete = true</c> → пользователь исключается из retention;</item>
+        ///   <item><c>DoNotDelete = false</c> → удалить override.</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        /// <param name="id">Идентификатор пользователя</param>
+        /// <param name="dto">Новые значения</param>
+        /// <returns>JSON { success, data: UserSettingsDto }</returns>
+        [HttpPut("users/{id:int}/settings")]
+        public async Task<IActionResult> UpdateUserSettingsAsync(int id, [FromBody] UserSettingsDto dto)
+        {
+            try
+            {
+                if (dto == null)
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value });
+
+                var user = await _userAdminService.GetByIdAsync(id);
+                if (user == null)
+                    return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value });
+
+                var maxDays = _configuration.GetValue<int>("Chat:Retention:MaxDays", 365);
+
+                // --- RetentionDays ---
+                if (dto.RetentionDays.HasValue)
+                {
+                    if (dto.RetentionDays.Value <= 0 || dto.RetentionDays.Value > maxDays)
+                    {
+                        return Ok(new
+                        {
+                            success = false,
+                            message = $"Срок хранения должен быть в диапазоне 1–{maxDays}."
+                        });
+                    }
+
+                    await _userSettingsService.SetAsync(
+                        id, "Chat.RetentionDays", dto.RetentionDays.Value.ToString(), "int");
+                }
+                else
+                {
+                    await _userSettingsService.DeleteAsync(id, "Chat.RetentionDays");
+                }
+
+                // --- DoNotDelete ---
+                if (dto.DoNotDelete)
+                {
+                    await _userSettingsService.SetAsync(
+                        id, "Chat.DoNotDelete", "true", "bool");
+                }
+                else
+                {
+                    await _userSettingsService.DeleteAsync(id, "Chat.DoNotDelete");
+                }
+
+                await LogAdminActionAsync("admin.user.settings.update", id);
+
+                var updated = await BuildUserSettingsDtoAsync(id);
+                return Ok(new { success = true, data = updated });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка обновления настроек пользователя {Id}", id);
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
+        /// Собирает <see cref="UserSettingsDto"/> из per-user настроек пользователя.
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>DTO с текущими значениями</returns>
+        private async Task<UserSettingsDto> BuildUserSettingsDtoAsync(int userId)
+        {
+            var settings = await _userSettingsService.GetAllForUserAsync(userId);
+
+            int? retentionDays = null;
+            var doNotDelete = false;
+
+            foreach (var s in settings)
+            {
+                if (string.Equals(s.Key, "Chat.RetentionDays", StringComparison.Ordinal)
+                    && int.TryParse(s.Value, out var days) && days > 0)
+                {
+                    retentionDays = days;
+                }
+                else if (string.Equals(s.Key, "Chat.DoNotDelete", StringComparison.Ordinal)
+                         && bool.TryParse(s.Value, out var dn) && dn)
+                {
+                    doNotDelete = true;
+                }
+            }
+
+            return new UserSettingsDto
+            {
+                RetentionDays = retentionDays,
+                DoNotDelete = doNotDelete,
+                GlobalRetentionDays = _configuration.GetValue<int>("Chat:Retention:DefaultDays", 30),
+                MaxRetentionDays = _configuration.GetValue<int>("Chat:Retention:MaxDays", 365)
+            };
         }
 
         // ============ НАСТРОЙКИ ============

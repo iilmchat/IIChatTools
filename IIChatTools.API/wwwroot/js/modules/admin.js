@@ -56,6 +56,7 @@ async function loadUsers() {
             <td>${new Date(u.registeredAt).toLocaleString()}</td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" data-action="edit-user" data-id="${u.id}">Изменить</button>
+                <button class="btn btn-sm btn-outline-secondary" data-action="edit-user-settings" data-id="${u.id}" title="Настройки retention">⚙</button>
                 <button class="btn btn-sm btn-outline-danger" data-action="delete-user" data-id="${u.id}">Удалить</button>
             </td>
         </tr>
@@ -63,6 +64,9 @@ async function loadUsers() {
 
     tbody.querySelectorAll('[data-action="edit-user"]').forEach(btn => {
         btn.addEventListener('click', () => openUserModal(parseInt(btn.dataset.id, 10)));
+    });
+    tbody.querySelectorAll('[data-action="edit-user-settings"]').forEach(btn => {
+        btn.addEventListener('click', () => openUserSettingsModal(parseInt(btn.dataset.id, 10)));
     });
     tbody.querySelectorAll('[data-action="delete-user"]').forEach(btn => {
         btn.addEventListener('click', () => deleteUser(parseInt(btn.dataset.id, 10)));
@@ -152,6 +156,86 @@ async function deleteUser(id) {
     if (!res.success) { toast(res.message || 'Ошибка', 'error'); return; }
     toast('Пользователь удалён', 'success');
     await loadUsers();
+}
+
+// ---------- Per-user настройки (KI-067-3) ----------
+
+/**
+ * Открывает модалку редактирования per-user настроек пользователя.
+ * @param {number} userId
+ */
+async function openUserSettingsModal(userId) {
+    const user = state.users.find(u => u.id === userId);
+    if (!user) {
+        toast('Пользователь не найден', 'error');
+        return;
+    }
+
+    // Загружаем текущие значения
+    const res = await apiGet(`/api/admin/users/${userId}/settings`);
+    if (!res.success) {
+        toast(res.message || 'Ошибка загрузки настроек', 'error');
+        return;
+    }
+
+    const data = res.data || {};
+    const globalDays = data.globalRetentionDays || 30;
+    const maxDays = data.maxRetentionDays || 365;
+    const currentDays = data.retentionDays != null ? data.retentionDays : '';
+    const doNotDelete = !!data.doNotDelete;
+
+    showModal(`Настройки: ${user.email}`, `
+        <div class="mb-3">
+            <label class="form-label">Срок хранения чатов (дней)</label>
+            <input type="number" class="form-control" id="m-user-retention-days"
+                   min="1" max="${maxDays}" value="${currentDays}"
+                   placeholder="Глобальный (${globalDays} дн.)"
+                   ${doNotDelete ? 'disabled' : ''}>
+            <div class="form-text">Оставьте пустым для использования глобального срока (${globalDays} дн.). Максимум: ${maxDays}.</div>
+        </div>
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="m-user-donotdelete"
+                   ${doNotDelete ? 'checked' : ''}>
+            <label class="form-check-label" for="m-user-donotdelete">
+                Не удалять чаты вообще
+            </label>
+            <div class="form-text">Перебивает срок хранения.</div>
+        </div>
+    `, async () => {
+        const daysRaw = document.getElementById('m-user-retention-days').value.trim();
+        const cb = document.getElementById('m-user-donotdelete').checked;
+
+        let retentionDays = null;
+        if (!cb && daysRaw.length > 0) {
+            const n = parseInt(daysRaw, 10);
+            if (!Number.isFinite(n) || n <= 0 || n > maxDays) {
+                return { ok: false, message: `Срок хранения должен быть 1–${maxDays}` };
+            }
+            retentionDays = n;
+        }
+
+        const body = { retentionDays, doNotDelete: cb };
+        const r = await fetch(`/api/admin/users/${userId}/settings`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(x => x.json());
+
+        if (!r.success) return { ok: false, message: r.message || 'Ошибка сохранения' };
+
+        toast('Настройки сохранены', 'success');
+        return { ok: true };
+    });
+
+    // При включении DoNotDelete — дизейблим input
+    setTimeout(() => {
+        const cb = document.getElementById('m-user-donotdelete');
+        const input = document.getElementById('m-user-retention-days');
+        cb?.addEventListener('change', () => {
+            if (input) input.disabled = cb.checked;
+        });
+    }, 0);
 }
 
 // ---------- Настройки ----------

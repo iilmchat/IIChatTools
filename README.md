@@ -404,6 +404,12 @@ Chat работает через **7 верхнеуровневых инстру
 4. Внутри агента — multi-turn loop (до `MaxSteps`, обычно 10) с **белым списком** инструментов.
 5. Финальный ответ агента → Chat формулирует ответ пользователю.
 
+**Retention чатов (KI-067):** per-user override глобального срока хранения.
+- `/profile` — своя страница: срок хранения (дней) + флаг «Не удалять».
+- `/admin` → вкладка «Пользователи» → ⚙ в строке → модалка retention.
+- Ключи: `Chat.RetentionDays` (int), `Chat.DoNotDelete` (bool) в таблице `UserSettings`.
+- Приоритет: `DoNotDelete = true` перебивает `RetentionDays`.
+
 **Управление:** `/admin` → вкладка **«Агенты»** — список, редактирование (DisplayName,
 Model, MaxSteps, SystemPrompt, AllowedTools, RequiresApproval, Disabled), сброс к defaults.
 **Статистика (KI-076):** карточки над списком — TotalRuns, AvgTime, SuccessRate, LastRun

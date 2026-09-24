@@ -1,0 +1,60 @@
+@using Microsoft.Extensions.Localization
+@using IIChatTools.API.Resources
+@inject IStringLocalizer<SharedResources> Localizer
+@{
+    ViewData["Title"] = Localizer["ProfileTitle"];
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">@Localizer["ProfileTitle"]</h1>
+
+    <div class="row">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">@Localizer["ProfileRetentionSection"]</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small" id="profile-global-hint">
+                        @Localizer["ProfileGlobalHint"]
+                    </p>
+
+                    <div class="mb-3">
+                        <label for="profile-retention-days" class="form-label">
+                            @Localizer["ProfileRetentionDays"]
+                        </label>
+                        <input type="number"
+                               id="profile-retention-days"
+                               class="form-control"
+                               min="1"
+                               placeholder="@Localizer["ProfileRetentionDaysPlaceholder"]" />
+                        <div class="form-text">@Localizer["ProfileRetentionDaysHint"]</div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input type="checkbox"
+                               id="profile-do-not-delete"
+                               class="form-check-input" />
+                        <label class="form-check-label" for="profile-do-not-delete">
+                            @Localizer["ProfileDoNotDelete"]
+                        </label>
+                        <div class="form-text">@Localizer["ProfileDoNotDeleteHint"]</div>
+                    </div>
+
+                    <button id="btn-save-profile-settings" type="button" class="btn btn-primary">
+                        @Localizer["ProfileSave"]
+                    </button>
+
+                    <span id="profile-save-status" class="ms-2 small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module">
+        import { initProfilePage } from '/js/modules/profile.js';
+        initProfilePage();
+    </script>
+}

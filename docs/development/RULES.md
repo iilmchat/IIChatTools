@@ -1,7 +1,7 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.0
-**Обновлено:** 2026-09-23
+**Версия:** 1.4.3
+**Обновлено:** 2026-09-24
 **Назначение:** единый свод правил для команды и ассистента.
 
 При работе над проектом **все** изменения должны соответствовать этим правилам.
@@ -103,6 +103,8 @@
 | 4.26 | **`LOWER()` в SQLite не обрабатывает не-ASCII (кириллицу).** SQLite LOWER конвертирует только ASCII `A-Z`. Запрос `LOWER(Title) LIKE '%прив%'` находит только строки в нижнем регистре и не матчит `'Привет'`. Аналогично `LOWER(Content)`. **Решение:** для регистронезависимого поиска по не-ASCII — фильтровать в памяти через `string.Contains(term, StringComparison.OrdinalIgnoreCase)`. Тянем кандидатов из БД, фильтруем в .NET. См. KI-068. |
 | 4.27 | **Даты из Sqlite/EF Core приходят с `Kind=Unspecified`.** Newtonsoft.Json по умолчанию сериализует их без суффикса `Z`, и JS `new Date()` парсит как local → расхождение на смещение (в UTC+3 → «3 ч назад» для только что созданных сущностей). **Решение:** `AddNewtonsoftJson(o => o.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.Utc)` (и то же для `SseJsonSettings`). Все даты в проекте — UTC. См. KI-071. |
 | 4.28 | **Внешние HTTP-инструменты (Wikipedia, Web, FetchWebContent) — всегда явный `Timeout` (15s) + 1 retry.** Дефолтный `HttpClient.Timeout = 100s` недопустим: через корпоративный прокси SSL-обрыв превращается в 40+ секунд зависания чата. Retry — только при transient-ошибках (`HttpRequestException`, `TaskCanceledException`), **не при внешней отмене** (`context.CancellationToken.IsCancellationRequested`). См. KI-064. |
+| 4.29 | **`ExecuteDeleteAsync`/`ExecuteUpdateAsync` не поддерживаются InMemory-провайдером EF Core 10.** Тесты на InMemory падают с `InvalidOperationException`. **Решение:** определять провайдер через `_dbContext.Database.ProviderName` (Contains "InMemory") и использовать fallback (`ToList` + `RemoveRange` + `SaveChangesAsync`). Для SqlServer/Sqlite — bulk-DELETE. См. `ChatService.DeleteOldChatsInternalAsync` (KI-067-2). |
+| 4.30 | **`cref` в XML-doc с перегрузками → CS0419.** После добавления перегрузки метода все `cref="Type.Method"` становятся неоднозначными. **Решение:** либо уточнять сигнатуру (`Type.Method(int, CancellationToken)`), либо использовать `<c>Text</c>` вместо `<see>`. При добавлении перегрузки — grep по `cref="MethodName"` в проекте. См. `ChatRetentionService.cs` (KI-067-2). |
 
 ---
 
@@ -181,6 +183,7 @@
 | 2026-09-23 | 1.4.0 | Правила 4.16–4.24 (уроки v1.3: resx case-insensitive, data-* локализация, AbortController, TCS, `:has()`, фокус после re-render). Раздел 7 (актуальная KI-выжимка). **Релиз v1.3.0.** |
 | 2026-09-24 | 1.4.1 | Правила 4.25 (Sqlite stale DB), 4.26 (LOWER в SQLite и не-ASCII), 4.27 (даты без `Z`), 4.28 (Timeout+retry для HTTP-инструментов). **Релиз v1.3.1.** |
 | 2026-09-24 | 1.4.2 | Правила 2.9 (RELEASES.md — чек-лист релиза), 2.10 (MD-файлы в 4 бэктиках), 3.6a (testhost boot ~44-60 с). **Релиз v1.4.0** — Multi-Agent (KI-052). |
+| 2026-09-24 | 1.4.3 | Правила 4.29 (InMemory + ExecuteDeleteAsync), 4.30 (cref + перегрузки). **KI-067** — per-user retention. |
 
 ---
 

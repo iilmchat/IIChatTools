@@ -295,4 +295,36 @@
   <data name="AgentStatsEmpty" xml:space="preserve">
       <value>No agent runs yet</value>
   </data>
+
+  <!-- ===== Профиль / Profile (KI-067-3) ===== -->
+  <data name="ProfileTitle" xml:space="preserve">
+      <value>Profile</value>
+  </data>
+  <data name="ProfileMenu" xml:space="preserve">
+      <value>Profile</value>
+  </data>
+  <data name="ProfileRetentionSection" xml:space="preserve">
+      <value>Chat retention</value>
+  </data>
+  <data name="ProfileGlobalHint" xml:space="preserve">
+      <value>Global retention: {0} days</value>
+  </data>
+  <data name="ProfileRetentionDays" xml:space="preserve">
+      <value>Retention (days)</value>
+  </data>
+  <data name="ProfileRetentionDaysPlaceholder" xml:space="preserve">
+      <value>Global</value>
+  </data>
+  <data name="ProfileRetentionDaysHint" xml:space="preserve">
+      <value>Leave empty to use the global retention setting.</value>
+  </data>
+  <data name="ProfileDoNotDelete" xml:space="preserve">
+      <value>Never delete chats</value>
+  </data>
+  <data name="ProfileDoNotDeleteHint" xml:space="preserve">
+      <value>Overrides retention days.</value>
+  </data>
+  <data name="ProfileSave" xml:space="preserve">
+      <value>Save</value>
+  </data>
 </root>

@@ -295,4 +295,36 @@
     <data name="AgentStatsEmpty" xml:space="preserve">
       <value>Пока нет запусков агентов</value>
     </data>
+
+    <!-- ===== Профиль / Profile (KI-067-3) ===== -->
+    <data name="ProfileTitle" xml:space="preserve">
+      <value>Профиль</value>
+    </data>
+    <data name="ProfileMenu" xml:space="preserve">
+      <value>Профиль</value>
+    </data>
+    <data name="ProfileRetentionSection" xml:space="preserve">
+      <value>Хранение чатов</value>
+    </data>
+    <data name="ProfileGlobalHint" xml:space="preserve">
+      <value>Глобальный срок хранения: {0} дней</value>
+    </data>
+    <data name="ProfileRetentionDays" xml:space="preserve">
+      <value>Срок хранения (дней)</value>
+    </data>
+    <data name="ProfileRetentionDaysPlaceholder" xml:space="preserve">
+      <value>Глобальный</value>
+    </data>
+    <data name="ProfileRetentionDaysHint" xml:space="preserve">
+      <value>Оставьте пустым, чтобы использовать глобальный срок.</value>
+    </data>
+    <data name="ProfileDoNotDelete" xml:space="preserve">
+      <value>Не удалять чаты вообще</value>
+    </data>
+    <data name="ProfileDoNotDeleteHint" xml:space="preserve">
+      <value>Перебивает срок хранения.</value>
+    </data>
+    <data name="ProfileSave" xml:space="preserve">
+      <value>Сохранить</value>
+    </data>
 </root>

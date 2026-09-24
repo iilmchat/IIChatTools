@@ -493,25 +493,33 @@
 ---
 
 ### KI-067 — Per-user retention чатов (override глобальной)
-- **Приоритет:** 🟢 Low | **Статус:** Partially Fixed | **Исправлено в:** v1.4.x (backend)
-- **Обнаружено:** 2026-09-23 | **Устранено (backend):** 2026-09-24
-- **Файлы (backend):**
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.x
+- **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-24
+- **Файлы:**
   - `IIChatTools.Data/Entities/UserSetting.cs` — таблица UserSettings.
   - `IIChatTools.Services/Interfaces/IUserSettingsService.cs` + реализация.
   - `IIChatTools.Services/Interfaces/IChatService.cs` — `DeleteOldChatsAsync(retentionDays, excludedUserIds)` + `DeleteOldChatsForUserAsync`.
-  - `IIChatTools.Services/Implementation/ChatService.cs` — реализация.
+  - `IIChatTools.Services/Implementation/ChatService.cs` — реализация (+ InMemory fallback).
   - `IIChatTools.Services/Implementation/ChatRetentionService.cs` — per-user overrides + DoNotDelete.
-- **Решение (backend):**
-  - Отдельная таблица `UserSettings` (UserId + Key + Value + Type; unique index).
-  - Ключи: `Chat.RetentionDays` (int), `Chat.DoNotDelete` (bool).
-  - `ChatRetentionService` раз в N часов:
-    1. Читает все `Chat.*` настройки (один SQL).
-    2. `DoNotDelete = true` → пользователь исключается.
-    3. `RetentionDays = N` → per-user bulk-DELETE.
-    4. Остальные → глобальный bulk-DELETE с исключением `excludedUserIds`.
-  - `DoNotDelete` побеждает `RetentionDays`.
-- **TODO:** UI (в `/admin` → пользователи + новая `/profile`) — KI-067-3.
-- **Не блокер:** backend работает через прямые SQL/PUT-запросы.
+  - `IIChatTools.Services/DTO/Admin/UserSettingsDto.cs` — новый DTO.
+  - `IIChatTools.API/Controllers/AdminController.cs` — `GET/PUT /api/admin/users/{id}/settings`.
+  - `IIChatTools.API/Controllers/ProfileController.cs` — `/profile` + `/api/profile/settings`.
+  - `IIChatTools.API/Views/Profile/Index.cshtml` — страница профиля.
+  - `IIChatTools.API/wwwroot/js/modules/profile.js` — модуль профиля.
+  - `IIChatTools.API/wwwroot/js/modules/admin.js` — кнопка ⚙ + модалка.
+  - `_Layout.cshtml` + `_LoginPartial.cshtml` — ссылка «Профиль».
+- **Решение:**
+  - **Backend (KI-067-1, KI-067-2):**
+    - Отдельная таблица `UserSettings` (UserId + Key + Value + Type; unique index).
+    - Ключи: `Chat.RetentionDays` (int), `Chat.DoNotDelete` (bool).
+    - `ChatRetentionService`: per-user overrides + исключение `DoNotDelete`.
+    - `DoNotDelete` побеждает `RetentionDays`.
+    - InMemory fallback для `ExecuteDeleteAsync` (тесты).
+  - **UI (KI-067-3):**
+    - `/admin` → ⚙ в строке пользователя → модалка.
+    - `/profile` — своя страница (карточка «Хранение чатов»).
+    - Пункт меню «Профиль» + displayName → ссылка.
+- **Тесты:** 10 (UserSettingsServiceTests) + 4 (ChatServiceRetentionTests). Всего: **74/74**.
 
 ---
 
@@ -915,8 +923,7 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Fixed (v1.4.x) | 5 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081 -->
-| Partially Fixed (v1.4.x) | 1 |       <!-- KI-067 (backend) -->
+| Fixed (v1.4.x) | 6 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081, KI-067 -->
 | Deferred | 5 |                      <!-- KI-047, KI-049, KI-053, KI-082 -->
 | Fixed (v1.4.x) | 1 |                <!-- KI-079 -->
 | Documented | 4 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075 -->

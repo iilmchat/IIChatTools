@@ -15,7 +15,9 @@
         var displayName = user?.FullName ?? User.Identity?.Name;
 
         <li class="nav-item">
-            <span class="navbar-text text-dark me-2">@displayName</span>
+            <a class="nav-link text-dark" href="/profile" title="@Localizer["ProfileMenu"]">
+                @displayName
+            </a>
         </li>
         <li class="nav-item">
             <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
