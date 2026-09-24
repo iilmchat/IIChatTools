@@ -34,6 +34,11 @@
   - Восстановление при старте: `Program.LoadSubAgentOverridesAsync`.
   - Локализация: 15 ключей в `.resx` (RU + EN).
   - **Не входит:** статистика по агентам (KI-076, Deferred), frontend (Фаза 6.5-6.6).
+- **v1.4.0 Фаза 6.5-6.6 (KI-052)**: frontend админки агентов.
+  - `Admin.cshtml`: 7-я вкладка «Агенты» (таблица: техническое имя, отображаемое, модель, инструментов, approval, вкл/выкл, действия).
+  - `admin-agents.js`: модуль вкладки (загрузка, редактирование, сброс); ленивая инициализация через `shown.bs.tab`.
+  - `admin.js`: `showModal` экспортирован для переиспользования.
+  - Модалка редактирования: DisplayName, Description, Model, MaxSteps, SystemPrompt, AllowedTools (textarea построчно), RequiresApproval, Disabled.  
 
 ### Fixed
 

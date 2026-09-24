@@ -654,6 +654,19 @@
 
 ---
 
+### KI-077 — `model: null` при PUT агента = «сбросить на default», а не «не менять»
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-24 (Фаза 6.1-6.4 KI-052) | **Устранено:** —
+- **Файлы:** `IIChatTools.API/Controllers/AdminAgentsController.cs` (метод `UpdateAgentAsync`), `IIChatTools.Services/DTO/Admin/UpdateAgentRequest.cs`
+- **Описание:** В `UpdateAgentRequest.Model` (тип `string`) невозможно отличить «поле не передано» от «явно передано `null`». Текущая логика: `string.IsNullOrWhiteSpace(request.Model) ? null : ...` — то есть **любое непереданное значение сбрасывает модель в null** (= «использовать `LmStudio:Model` из appsettings»). Например, PUT с `{ displayName: "...", maxSteps: 15 }` (без model) → `model: null` в результирующем дескрипторе.
+- **Влияние:**
+  - Через UI-модалку: **не проявляется** — поле `model` всегда заполнено текущим значением, всегда передаётся. Если админ оставил поле пустым — это осознанный сброс.
+  - Через прямой API-вызов (curl, DevTools): можно случайно сбросить модель, не указав её в body.
+- **Решение (при необходимости):** добавить в `UpdateAgentRequest` флаг `bool ClearModel` + обработать: `Model = request.ClearModel ? null : (request.Model ?? existing.Model)`. **Пока не критично** — в UI проблемы нет.
+- **Не блокер:** задокументировано, UI-путь безопасен.
+
+---
+
 ### KI-076 — Статистика по агентам в админке
 - **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
 - **Обнаружено:** 2026-09-24 (Фаза 6 KI-052)

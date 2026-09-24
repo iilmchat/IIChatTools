@@ -399,7 +399,14 @@ function statusBadge(status) {
 
 let _modalSaveHandler = null;
 
-function showModal(title, bodyHtml, onSave) {
+/**
+ * Показывает универсальную модалку /admin.
+ * Экспортируется для модуля admin-agents.js (v1.4.0 Фаза 6.5-6.6, KI-052).
+ * @param {string} title Заголовок
+ * @param {string} bodyHtml HTML тела
+ * @param {Function} onSave Колбэк сохранения (возвращает { ok: boolean, message?: string })
+ */
+export function showModal(title, bodyHtml, onSave) {
     document.getElementById('adminModalTitle').textContent = title;
     document.getElementById('adminModalBody').innerHTML = bodyHtml;
     _modalSaveHandler = onSave;

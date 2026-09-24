@@ -29,6 +29,11 @@
                 @Localizer["Просмотр аудита"]
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-agents" data-bs-toggle="tab" data-bs-target="#pane-agents" type="button" role="tab">
+                @Localizer["AdminTabAgents"]
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content border border-top-0 p-3 bg-white">
@@ -132,6 +137,36 @@
                 <ul class="pagination pagination-sm justify-content-center" id="audit-pagination"></ul>
             </nav>
         </div>
+
+        <!-- Вкладка: Агенты (v1.4.0 Фаза 6.5-6.6, KI-052) -->
+        <div class="tab-pane fade" id="pane-agents" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="text-muted small">
+                    @Localizer["AdminTabAgents"] — специализированные суб-агенты
+                </div>
+                <button id="btn-refresh-agents" class="btn btn-outline-secondary btn-sm">
+                    @Localizer["Обновить"]
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>@Localizer["AgentColumnName"]</th>
+                            <th>@Localizer["AgentColumnDisplayName"]</th>
+                            <th>@Localizer["AgentColumnModel"]</th>
+                            <th>@Localizer["AgentColumnTools"]</th>
+                            <th>@Localizer["AgentColumnApproval"]</th>
+                            <th>@Localizer["AgentColumnEnabled"]</th>
+                            <th>@Localizer["AgentColumnActions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agents-tbody">
+                        <tr><td colspan="7" class="text-center text-muted">@Localizer["Загрузка"]…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -155,6 +190,8 @@
 @section Scripts {
     <script type="module">
         import { initAdminPage } from '/js/modules/admin.js';
+        import { initAgentsTab } from '/js/modules/admin-agents.js';
         initAdminPage();
+        initAgentsTab();
     </script>
 }
