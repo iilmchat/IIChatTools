@@ -21,6 +21,12 @@
 _(пусто — планируется для v1.4.2 / v1.5.0)_
 
 ### Added
+- **Docs — финальная чистка legacy, часть 4 (v1.4.x)**:
+  - `scripts/build/` (8 legacy `.bat`/`.ps1`) → `scripts/build/archive/v1.0.x/`.
+  - `scripts/build/README.md` — новый.
+  - **PROMPT_V2.md**: восстановлена секция «📐 Формат вывода кода и ответа» (пример через 4-пробельный отступ — не ломает MD).
+
+### Added
 - **Docs — финальная чистка legacy, часть 3 (v1.4.x)**:
   - `scripts/diagnostics/` (3 legacy в архив, 3 удалены) → `scripts/diagnostics/archive/v1.0.x/`.
   - `scripts/diagnostics/README.md` — новый.
