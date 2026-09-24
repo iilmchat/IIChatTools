@@ -226,7 +226,9 @@
   <data name="ChatModelSuffixUnavailable" xml:space="preserve"><value>unavailable</value></data>
   <data name="ChatModelEmpty" xml:space="preserve"><value>No models</value></data>
   <data name="ChatSearchPlaceholder" xml:space="preserve"><value>Search chats…</value></data>
-  <data name="ChatSearchNoResults" xml:space="preserve"><value>No results</value></data>        
+  <data name="ChatSearchNoResults" xml:space="preserve"><value>No results</value></data>
+  <data name="ChatSidebarCollapse" xml:space="preserve"><value>Collapse sidebar</value></data>
+  <data name="ChatSidebarExpand" xml:space="preserve"><value>Open sidebar</value></data>        
 
   <data name="AdminTabAgents" xml:space="preserve">
       <value>Agents</value>

@@ -673,12 +673,15 @@
 ---
 
 ### KI-079 — Свернуть/развернуть боковую панель
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x / v1.5.0
-- **Обнаружено:** 2026-09-24 (по мотивам DeepSeek)
-- **Файлы:** `IIChatTools.API/Views/Chat/Index.cshtml`, `wwwroot/js/modules/chat.js`, `wwwroot/css/chat.css`
-- **Описание:** Сейчас sidebar фиксированной ширины 280px (`.chat-sidebar`). Нужна кнопка «Свернуть» (☰) в header чата → sidebar скрывается (`.chat-sidebar.collapsed { display: none }`), область сообщений расширяется на всю ширину. Кнопка «Открыть» возвращает. Состояние — сохранять в `localStorage` (`chat.sidebarCollapsed`).
-- **Аналог:** DeepSeek «Свернуть боковую панель» / «Открыть боковую панель».
-- **Технически:** добавить `<button id="btn-toggle-sidebar">` + `state.sidebarCollapsed` в JS.
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.x
+- **Обнаружено:** 2026-09-24 (по мотивам DeepSeek) | **Устранено:** 2026-09-25
+- **Файлы:**
+  - `IIChatTools.API/Views/Chat/Index.cshtml` — 2 кнопки (`#btn-collapse-sidebar` в sidebar, `#btn-expand-sidebar` в header) + обёртка `#chat-header-info`.
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` — `applySidebarCollapsed()`, `toggleSidebar()`, хоткей `Ctrl+B`, восстановление из `localStorage`.
+  - `IIChatTools.API/wwwroot/css/chat.css` — `.chat-sidebar-icon-btn`, `.chat-sidebar-collapsed`, media query.
+  - `SharedResources.resx` + `SharedResources.ru.resx` — 2 ключа (`ChatSidebarCollapse` / `ChatSidebarExpand`).
+- **Решение:** DeepSeek-style. Кнопка «Свернуть боковую панель» — внутри sidebar (рядом с «+ Новый чат»). При collapsed — кнопка «Открыть боковую панель» появляется в chat-header. Состояние — `localStorage["chat.sidebarCollapsed"]` (`"true"` / `"false"`). Анимация ширины `.2s ease`. Хоткей `Ctrl+B`. Mobile (< 768px) — collapse отключён, sidebar всегда виден. Header не скрывается при отсутствии чата (для доступа к кнопке «Открыть» при collapsed).
+- **Связанные:** KI-080 (поле ввода на всю ширину — отдельно).
 
 ---
 
@@ -835,7 +838,8 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Deferred | 8 |                      <!-- KI-047, KI-053, KI-067, KI-076, KI-078, KI-079, KI-080 -->
+| Deferred | 7 |                      <!-- KI-047, KI-053, KI-067, KI-076, KI-078, KI-080 -->
+| Fixed (v1.4.x) | 1 |                <!-- KI-079 -->
 | Documented | 4 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->

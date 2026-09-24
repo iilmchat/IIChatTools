@@ -13,6 +13,11 @@ import { requestChatApproval } from './approvals.js';
 
 // ============ Состояние ============
 
+/**
+ * KI-079: ключ localStorage для состояния sidebar.
+ */
+const LS_KEY_SIDEBAR = 'chat.sidebarCollapsed';
+
 const state = {
     chats: [],
     models: [],
@@ -25,6 +30,7 @@ const state = {
     autoScroll: true,            // включён, пока пользователь у нижнего края
     abortController: null,       // Фаза 2.1.3: AbortController для Stop
     editingChatId: null,         // KI-069: id чата в режиме inline-edit (или null)
+    sidebarCollapsed: false,     // KI-079: sidebar свёрнут (DeepSeek-style)
 };
 
 // ============ Инициализация ============
@@ -33,6 +39,15 @@ const state = {
  * Инициализирует страницу чата.
  */
 export async function initChatPage() {
+    // KI-079: восстановить состояние sidebar из localStorage (до bindEvents).
+    let savedCollapsed = null;
+    try {
+        savedCollapsed = localStorage.getItem(LS_KEY_SIDEBAR);
+    } catch {
+        // Приватный режим / запрет localStorage — игнорируем.
+    }
+    if (savedCollapsed === 'true') applySidebarCollapsed(true);
+
     bindEvents();
 
     await loadModels();
@@ -92,6 +107,14 @@ function bindEvents() {
         modelSelect.addEventListener('change', onChatModelChanged);
     }
 
+    // KI-079: кнопка «Свернуть sidebar» (внутри sidebar)
+    document.getElementById('btn-collapse-sidebar')
+        ?.addEventListener('click', toggleSidebar);
+
+    // KI-079: кнопка «Открыть sidebar» (в header, видна в collapsed)
+    document.getElementById('btn-expand-sidebar')
+        ?.addEventListener('click', toggleSidebar);
+
     // KI-068: поиск по чатам — server-side (title + content), debounce 300ms
     const searchInput = document.getElementById('chat-search');
     if (searchInput) {
@@ -127,6 +150,50 @@ function bindEvents() {
         btn.addEventListener('click', () => scrollToBottom(true));
         mainEl.appendChild(btn);
     }
+
+    // KI-079: глобальный хоткей Ctrl+B (toggle sidebar).
+    // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B (закладки).
+    // Работает только на /chat (модуль подключён только там).
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && !e.shiftKey && !e.altKey
+            && e.key.toLowerCase() === 'b') {
+            e.preventDefault();
+            toggleSidebar();
+        }
+    });
+}
+
+// ============ KI-079: Collapse/expand sidebar (DeepSeek-style) ============
+
+/**
+ * KI-079: применяет состояние collapse sidebar к DOM, обновляет localStorage
+ * и переключает видимость кнопок «Свернуть» (в sidebar) / «Открыть» (в header).
+ * @param {boolean} collapsed true — sidebar свёрнут
+ */
+function applySidebarCollapsed(collapsed) {
+    state.sidebarCollapsed = !!collapsed;
+
+    document.querySelector('.chat-container')
+        ?.classList.toggle('chat-sidebar-collapsed', collapsed);
+
+    try {
+        localStorage.setItem(LS_KEY_SIDEBAR, collapsed ? 'true' : 'false');
+    } catch {
+        // Приватный режим — игнорируем.
+    }
+
+    const btnCollapse = document.getElementById('btn-collapse-sidebar');
+    if (btnCollapse) btnCollapse.hidden = collapsed;
+
+    const btnExpand = document.getElementById('btn-expand-sidebar');
+    if (btnExpand) btnExpand.hidden = !collapsed;
+}
+
+/**
+ * KI-079: переключает sidebar между свёрнутым и развёрнутым состоянием.
+ */
+function toggleSidebar() {
+    applySidebarCollapsed(!state.sidebarCollapsed);
 }
 
 // ============ Модели и список чатов ============
@@ -1368,6 +1435,10 @@ function renderChatHeader(chat) {
     const selectEl = document.getElementById('chat-model-select');
 
     if (headerEl) headerEl.classList.remove('d-none');
+    // KI-079: показать информационную часть (title + select + delete).
+    // Сама кнопка «Открыть sidebar» (#btn-expand-sidebar) — вне #chat-header-info,
+    // поэтому её видимость управляется отдельно (в applySidebarCollapsed).
+    document.getElementById('chat-header-info')?.classList.remove('d-none');
     if (titleEl) titleEl.textContent = chat.title || 'Без названия';
     if (selectEl) populateChatModelSelect(selectEl, chat.model || '');
 }
@@ -1455,7 +1526,12 @@ async function onChatModelChanged(e) {
 
 function showEmptyState() {
     const headerEl = document.getElementById('chat-header');
-    if (headerEl) headerEl.classList.add('d-none');
+    if (headerEl) {
+        // KI-079: header остаётся видимым (в нём кнопка «Открыть sidebar»).
+        // Скрываем только информационную часть (title + select + delete).
+        headerEl.classList.remove('d-none');
+        document.getElementById('chat-header-info')?.classList.add('d-none');
+    }
 
     // Фаза 2.2.4: очистить селект модели (нет активного чата)
     const selectEl = document.getElementById('chat-model-select');

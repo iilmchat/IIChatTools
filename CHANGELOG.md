@@ -18,7 +18,15 @@
 
 ## [Unreleased]
 
-_(пусто — планируется для v1.4.x / v1.5.0)_
+### Added
+- **Chat UI — collapse/expand sidebar (KI-079, DeepSeek-style, v1.4.x)**:
+  - Кнопка «Свернуть боковую панель» внутри sidebar (SVG panel-left, рядом с «+ Новый чат»).
+  - Кнопка «Открыть боковую панель» в chat-header (видна только в collapsed).
+  - Анимация `width .2s ease`; collapsed → `.chat-container.chat-sidebar-collapsed` (`width: 0`).
+  - Сохранение состояния в `localStorage["chat.sidebarCollapsed"]`, восстановление при загрузке.
+  - Горячая клавиша `Ctrl+B` (toggle, `preventDefault` — не конфликтует с закладками браузера).
+  - Mobile (< 768px): collapse отключён, sidebar всегда виден.
+  - Локализация RU + EN (`ChatSidebarCollapse` / `ChatSidebarExpand`).
 
 ### Planned
 - **v1.4.x**: KI-047 (PATCH/DELETE fallback), KI-049 (tokensIn/Out через tiktoken), KI-053 (multi-user approvals), KI-067 (per-user retention), KI-076 (статистика по агентам), KI-077 (model:null при PUT), KI-078 (внутричатовый поиск + подсветка), KI-079 (collapse sidebar), KI-080 (поле ввода на всю ширину).
