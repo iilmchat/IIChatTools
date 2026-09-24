@@ -240,6 +240,7 @@
   <data name="ChatSearchGlobalHint" xml:space="preserve"><value>Введите запрос или выберите чат</value></data>
   <data name="ChatSearchGlobalNoResults" xml:space="preserve"><value>Ничего не найдено</value></data>
   <data name="ChatSearchGlobalClose" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="ChatSearchGlobalClear" xml:space="preserve"><value>Очистить поле</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Свернуть боковую панель</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Открыть боковую панель</value></data>  
   

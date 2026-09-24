@@ -27,7 +27,8 @@
   - Защита от гонок fetch (`globalSearchRequestId`).
   - Fix: SVG 🔍 в collapsed sidebar теперь открывает ⌘K-модалку (было — разворот sidebar).
   - Блокировка скролла body на время открытой модалки.
-  - Локализация RU + EN (5 ключей: `ChatSearchGlobal*`).
+  - Fix: кнопка «Очистить поле» (появляется при непустом input; сброс без закрытия модалки).
+  - Локализация RU + EN (6 ключей: `ChatSearchGlobal*`).
 - **Chat API — расширенный поиск с snippet (KI-078B-1, v1.4.x)**:
   - `ChatSearchResultDto` (`Id`, `Title`, `Model`, `UpdatedAt`, `MatchedField`, `Snippet`, `SnippetMatchStart`, `SnippetMatchLength`).
   - `IChatService.SearchUserChatsWithSnippetAsync(userId, search)` — поиск с превью совпадения (≈30 символов до + 100 после), позиция совпадения для подсветки.

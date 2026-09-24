@@ -240,6 +240,7 @@
   <data name="ChatSearchGlobalHint" xml:space="preserve"><value>Type to search or pick a chat</value></data>
   <data name="ChatSearchGlobalNoResults" xml:space="preserve"><value>No results</value></data>
   <data name="ChatSearchGlobalClose" xml:space="preserve"><value>Close</value></data>
+  <data name="ChatSearchGlobalClear" xml:space="preserve"><value>Clear field</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Collapse sidebar</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Open sidebar</value></data>        
 

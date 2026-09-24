@@ -216,6 +216,17 @@ function bindEvents() {
                 });
             }
         });
+
+        // KI-078B fix: кнопка «Очистить поле» — сброс input без закрытия модалки.
+        document.getElementById('chat-global-search-clear')
+            ?.addEventListener('click', () => {
+                const input = document.getElementById('chat-global-search-input');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+                onGlobalSearchInput('');
+            });
     }
 
     // KI-068: поиск по чатам — server-side (title + content), debounce 300ms
@@ -592,6 +603,10 @@ function onGlobalSearchInput(query) {
     }
 
     const trimmed = (query || '').trim();
+
+    // KI-078B fix: показать/скрыть кнопку «Очистить поле».
+    const clearBtn = document.getElementById('chat-global-search-clear');
+    if (clearBtn) clearBtn.hidden = trimmed.length === 0;
 
     if (trimmed.length === 0) {
         state.globalSearchResults = [];
