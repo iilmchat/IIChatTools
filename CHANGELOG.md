@@ -31,6 +31,14 @@
   - 3 теста `AgentStatsServiceTests`.
 
 ### Added
+- **Chat — расширенная статистика генерации (KI-084a, v1.4.x)**:
+  - `ChatMessage` +3 nullable-поля: `DurationMs`, `FirstTokenMs`, `FinishReason`.
+  - `ChatStreamService` — Stopwatch (общая длительность) + время до первого delta + последний `finish_reason`.
+  - `ChatStreamEvent.Done` +3 параметра (`durationMs`, `firstTokenMs`, `finishReason`).
+  - `ChatMessageDto` +3 поля; `ChatController.GetChatAsync` — маппинг.
+  - `chat.js` — meta: `123 / 45 токенов · 7.4 tok/s · 9.1 с`.
+  - `.resx` (RU + EN): +2 ключа (`ChatMessageTokPerSec`, `ChatMessageDuration`).
+  - **Требует миграции** `AddChatMessageStats` (SqlServer) / удаления `.db` (Sqlite, EnsureCreated).
 - **Chat — токены в SSE-событиях `start` и `done` (KI-084b, v1.4.x)**:
   - `ChatStreamEvent.Start` — опциональный 3-й параметр `userTokens` (tiktoken).
   - `ChatStreamService`: `start` передаёт токены user-сообщения (из tiktoken или из БД при Regenerate); `done` передаёт **посчитанные** `contextTokens`/`completionTokens` (раньше — сырые `usage`, часто null).

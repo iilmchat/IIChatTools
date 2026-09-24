@@ -60,5 +60,24 @@ namespace IIChatTools.Data.Entities
         /// Количество токенов completion (опционально).
         /// </summary>
         public int? TokensOut { get; set; }
+
+        /// <summary>
+        /// KI-084a: общая длительность генерации ответа (мс).
+        /// <c>null</c> — статистика не собрана (старые сообщения / user / tool).
+        /// </summary>
+        public long? DurationMs { get; set; }
+
+        /// <summary>
+        /// KI-084a: время до первого delta-токена (мс).
+        /// Используется для расчёта tok/s: <c>tokensOut / (DurationMs - FirstTokenMs) * 1000</c>.
+        /// <c>null</c> — если delta не было.
+        /// </summary>
+        public long? FirstTokenMs { get; set; }
+
+        /// <summary>
+        /// KI-084a: причина завершения от LM Studio
+        /// (<c>stop</c>, <c>length</c>, <c>tool_calls</c>, <c>content_filter</c>).
+        /// </summary>
+        public string FinishReason { get; set; }
     }
 }

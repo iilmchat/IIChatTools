@@ -114,6 +114,21 @@ namespace IIChatTools.Services.DTO.Chat
         /// <c>null</c> — не подсчитано (для user/tool).
         /// </summary>
         public int? TokensOut { get; set; }
+
+        /// <summary>
+        /// KI-084a: общая длительность генерации (мс).
+        /// </summary>
+        public long? DurationMs { get; set; }
+
+        /// <summary>
+        /// KI-084a: время до первого delta (мс).
+        /// </summary>
+        public long? FirstTokenMs { get; set; }
+
+        /// <summary>
+        /// KI-084a: причина завершения (<c>stop</c>, <c>length</c>, <c>tool_calls</c>).
+        /// </summary>
+        public string FinishReason { get; set; }
     }
 
     /// <summary>

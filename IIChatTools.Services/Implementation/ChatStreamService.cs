@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -254,6 +255,11 @@ namespace IIChatTools.Services.Implementation
             int? tokensOut = null;
             Exception streamError = null;
 
+            // KI-084a: статистика генерации (Stopwatch — от старта до done).
+            var requestStopwatch = Stopwatch.StartNew();
+            long? firstTokenMs = null;
+            string lastFinishReason = null;
+
             for (var iteration = 1; iteration <= MaxToolIterations && !cancellationToken.IsCancellationRequested; iteration++)
             {
                 var accumulator = new ToolCallsAccumulator();
@@ -285,6 +291,9 @@ namespace IIChatTools.Services.Implementation
 
                         if (!string.IsNullOrEmpty(chunk.DeltaContent))
                         {
+                            // KI-084a: фиксируем время до первого delta (один раз).
+                            firstTokenMs ??= requestStopwatch.ElapsedMilliseconds;
+
                             textBuffer.Append(chunk.DeltaContent);
                             finalAssistantContent.Append(chunk.DeltaContent);
                             yield return ChatStreamEvent.Delta(chunk.DeltaContent);
@@ -299,6 +308,12 @@ namespace IIChatTools.Services.Implementation
                         {
                             tokensIn = chunk.Usage.PromptTokens;
                             tokensOut = chunk.Usage.CompletionTokens;
+                        }
+
+                        // KI-084a: запоминаем последний непустой finish_reason.
+                        if (!string.IsNullOrEmpty(chunk.FinishReason))
+                        {
+                            lastFinishReason = chunk.FinishReason;
                         }
 
                         if (chunk.IsDone) break;
@@ -331,6 +346,10 @@ namespace IIChatTools.Services.Implementation
                     var completionTokens = tokensOut
                         ?? _tokenCounter.CountTokens(partialContent);
 
+                    // KI-084a: останавливаем Stopwatch — финальный ответ готов.
+                    requestStopwatch.Stop();
+                    var totalDurationMs = requestStopwatch.ElapsedMilliseconds;
+
                     // Перезаписываем tokensIn/tokensOut — пригодятся в Done и в
                     // дальнейшей логике (limit-message ниже).
                     tokensIn = contextTokens;
@@ -345,7 +364,11 @@ namespace IIChatTools.Services.Implementation
                                 Role = RoleAssistant,
                                 Content = partialContent,
                                 TokensIn = contextTokens,
-                                TokensOut = completionTokens
+                                TokensOut = completionTokens,
+                                // KI-084a: статистика генерации.
+                                DurationMs = totalDurationMs,
+                                FirstTokenMs = firstTokenMs,
+                                FinishReason = lastFinishReason
                             },
                             cancellationToken);
                     }
@@ -361,9 +384,15 @@ namespace IIChatTools.Services.Implementation
                         yield break;
                     }
 
-                    // KI-084b: передаём посчитанные значения — UI покажет токены
+                    // KI-084b + KI-084a: передаём статистику — UI покажет всё
                     // сразу, без F5 + GET /api/chats/{id}.
-                    yield return ChatStreamEvent.Done(finalMsg.Id, tokensIn, tokensOut);
+                    yield return ChatStreamEvent.Done(
+                        finalMsg.Id,
+                        tokensIn,
+                        tokensOut,
+                        totalDurationMs,
+                        firstTokenMs,
+                        lastFinishReason);
                     yield break;
                 }
 
@@ -583,6 +612,7 @@ namespace IIChatTools.Services.Implementation
             ChatMessage limitMsg = null;
             int? limitTokensIn = null;
             int? limitTokensOut = null;
+            long? limitDurationMs = null;
             try
             {
                 // KI-084b: считаем токены для limit-сообщения.
@@ -593,6 +623,10 @@ namespace IIChatTools.Services.Implementation
                             Content: m["content"]?.ToString() ?? string.Empty)));
                 limitTokensOut = _tokenCounter.CountTokens(limitMessage);
 
+                // KI-084a: статистика для limit-сообщения.
+                requestStopwatch.Stop();
+                limitDurationMs = requestStopwatch.ElapsedMilliseconds;
+
                 limitMsg = await _chatService.AddMessageAsync(
                     request.ChatId, userId,
                     new ChatMessage
@@ -600,7 +634,10 @@ namespace IIChatTools.Services.Implementation
                         Role = RoleAssistant,
                         Content = limitMessage,
                         TokensIn = limitTokensIn,
-                        TokensOut = limitTokensOut
+                        TokensOut = limitTokensOut,
+                        DurationMs = limitDurationMs,
+                        FirstTokenMs = firstTokenMs,
+                        FinishReason = lastFinishReason
                     },
                     cancellationToken);
             }
@@ -613,7 +650,13 @@ namespace IIChatTools.Services.Implementation
 
             if (limitMsg != null)
             {
-                yield return ChatStreamEvent.Done(limitMsg.Id, limitTokensIn, limitTokensOut);
+                yield return ChatStreamEvent.Done(
+                    limitMsg.Id,
+                    limitTokensIn,
+                    limitTokensOut,
+                    limitDurationMs,
+                    firstTokenMs,
+                    lastFinishReason);
             }
         }
 

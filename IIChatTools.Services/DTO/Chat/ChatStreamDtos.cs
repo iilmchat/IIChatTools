@@ -83,12 +83,27 @@ namespace IIChatTools.Services.DTO.Chat
         /// <param name="assistantMessageId">ID сохранённого assistant message</param>
         /// <param name="tokensIn">Токенов prompt (опционально)</param>
         /// <param name="tokensOut">Токенов completion (опционально)</param>
+        /// <param name="durationMs">
+        /// KI-084a: общая длительность генерации (мс). <c>null</c> — не измерялась.
+        /// </param>
+        /// <param name="firstTokenMs">
+        /// KI-084a: время до первого delta (мс). <c>null</c> — delta не было.
+        /// </param>
+        /// <param name="finishReason">
+        /// KI-084a: причина завершения (<c>stop</c>, <c>length</c>, <c>tool_calls</c>).
+        /// </param>
         /// <returns>Событие стрима</returns>
-        public static ChatStreamEvent Done(int assistantMessageId, int? tokensIn = null, int? tokensOut = null)
+        public static ChatStreamEvent Done(
+            int assistantMessageId,
+            int? tokensIn = null,
+            int? tokensOut = null,
+            long? durationMs = null,
+            long? firstTokenMs = null,
+            string finishReason = null)
             => new ChatStreamEvent
             {
                 Type = "done",
-                Data = new { assistantMessageId, tokensIn, tokensOut }
+                Data = new { assistantMessageId, tokensIn, tokensOut, durationMs, firstTokenMs, finishReason }
             };
 
         /// <summary>

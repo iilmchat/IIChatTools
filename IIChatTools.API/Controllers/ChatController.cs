@@ -143,7 +143,11 @@ namespace IIChatTools.API.Controllers
                         CreatedAt = m.CreatedAt,
                         // KI-049b: токены для отображения в meta-строке.
                         TokensIn = m.TokensIn,
-                        TokensOut = m.TokensOut
+                        TokensOut = m.TokensOut,
+                        // KI-084a: статистика генерации.
+                        DurationMs = m.DurationMs,
+                        FirstTokenMs = m.FirstTokenMs,
+                        FinishReason = m.FinishReason
                     }).ToList()
                 };
 

@@ -237,6 +237,8 @@
   <data name="ChatSearchInChatClose" xml:space="preserve"><value>Close</value></data>
   <data name="ChatTokensUser" xml:space="preserve"><value>{0} tokens</value></data>
   <data name="ChatTokensAssistant" xml:space="preserve"><value>{0} / {1} tokens</value></data>
+  <data name="ChatMessageTokPerSec" xml:space="preserve"><value>{0} tok/s</value></data>
+  <data name="ChatMessageDuration" xml:space="preserve"><value>{0} s</value></data>
   <data name="ChatSearchGlobalOpen" xml:space="preserve"><value>Search chats</value></data>
   <data name="ChatSearchGlobalPlaceholder" xml:space="preserve"><value>Search in chat content…</value></data>
   <data name="ChatSearchGlobalHint" xml:space="preserve"><value>Type to search or pick a chat</value></data>

@@ -834,13 +834,22 @@
 ---
 
 ### KI-084 — Расширенная статистика генерации (как в LM Studio)
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
-- **Обнаружено:** 2026-09-25
-- **Файлы (план):** `ChatMessage.cs`, `ChatStreamService.cs`, `chat.js`
-- **Описание:** LM Studio показывает `tok/sec`, `elapsed`, `stop reason`. Сейчас мы сохраняем только `TokensIn`/`TokensOut` (KI-049a). Расширение: `DurationMs`, `FirstTokenMs`, `FinishReason` в `ChatMessage` + UI-отображение в meta-строке assistant-сообщения (`123 / 45 токенов · 7.4 tok/s · 9.1 s`).
-- **Требует:** миграция БД (+3 nullable-поля в `ChatMessages`).
-- **Связанные:** KI-049a (tiktoken — сделано).
-- **Не блокер:** базовая статистика (токены) уже есть.
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.x
+- **Обнаружено:** 2026-09-25 | **Устранено:** 2026-09-25
+- **Файлы:**
+  - `IIChatTools.Data/Entities/ChatMessage.cs` — +3 nullable-поля.
+  - `IIChatTools.Services/Implementation/ChatStreamService.cs` — Stopwatch + firstToken + finishReason.
+  - `IIChatTools.Services/DTO/Chat/ChatDtos.cs` — `ChatMessageDto` +3 поля.
+  - `IIChatTools.Services/DTO/Chat/ChatStreamDtos.cs` — `Done` +3 параметра.
+  - `IIChatTools.API/Controllers/ChatController.cs` — маппинг.
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` — tok/s + длительность в meta.
+  - `.resx` (RU + EN) — +2 ключа.
+- **Решение:**
+  - **Backend (KI-084a):** `ChatStreamService` замеряет `Stopwatch` (общая длительность), время до первого delta, последний `finish_reason` LM Studio. Всё сохраняется в `ChatMessage` + передаётся в SSE `done`.
+  - **Frontend:** meta-строка assistant-сообщения → `123 / 45 токенов · 7.4 tok/s · 9.1 с`.
+  - **Расчёт tok/s:** `tokensOut / ((DurationMs - FirstTokenMs) / 1000)`.
+- **Требует миграции** `AddChatMessageStats` (SqlServer) / удаления `.db` (Sqlite — EnsureCreated).
+- **Связанные:** KI-049a (tiktoken), KI-084b (SSE start/done).
 
 ---
 
@@ -958,9 +967,8 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Fixed (v1.4.x) | 7 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081, KI-067, KI-049 -->
-| Deferred | 5 |                      <!-- KI-047, KI-053, KI-082, KI-084 -->
-| Fixed (v1.4.x) | 1 |                <!-- KI-079 -->
+| Fixed (v1.4.x) | 8 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081, KI-067, KI-049, KI-084 -->
+| Deferred | 4 |                      <!-- KI-047, KI-053, KI-082 -->
 | Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075, KI-085 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->

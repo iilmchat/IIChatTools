@@ -1502,9 +1502,14 @@ function handleSseEvent(name, data, assistantBubble) {
             // Фаза 2.2.1b: флаг успешного завершения — для maybeGenerateTitle.
             if (assistantBubble) assistantBubble.dataset.streamCompleted = '1';
 
-            // KI-084b: токены assistant-сообщения — сразу, без F5.
+            // KI-084b + KI-084a: токены + tok/s + длительность — сразу, без F5.
             if (assistantBubble && (data?.tokensIn != null || data?.tokensOut != null)) {
-                updateBubbleMeta(assistantBubble, data.tokensIn, data.tokensOut);
+                updateBubbleMeta(
+                    assistantBubble,
+                    data.tokensIn,
+                    data.tokensOut,
+                    data.durationMs,
+                    data.firstTokenMs);
             }
             break;
 
@@ -1680,13 +1685,17 @@ function handleApprovalResolved(data) {
 // ============ Рендер сообщений ============
 
 /**
- * KI-049b/084b: форматирует ТОЛЬКО текстовую часть токенов (без времени).
+ * KI-049b/084a/084b: форматирует ТОЛЬКО текстовую часть статистики (без времени).
+ * User:      '15 токенов'
+ * Assistant: '123 / 45 токенов' + опционально ' · 7.4 tok/s · 9.1 с'
  * @param {boolean} isUser
  * @param {number|null} tokensIn
  * @param {number|null} tokensOut
- * @returns {string} — '15 токенов' / '123 / 45 токенов' / ''
+ * @param {number|null} durationMs
+ * @param {number|null} firstTokenMs
+ * @returns {string}
  */
-function formatTokenMetaText(isUser, tokensIn, tokensOut) {
+function formatTokenMetaText(isUser, tokensIn, tokensOut, durationMs, firstTokenMs) {
     const container = document.getElementById('chat-messages');
     const tin = Number.isFinite(tokensIn) ? tokensIn : null;
     const tout = Number.isFinite(tokensOut) ? tokensOut : null;
@@ -1702,19 +1711,39 @@ function formatTokenMetaText(isUser, tokensIn, tokensOut) {
     if (!hasIn && !hasOut) return '';
 
     const tpl = container?.dataset.labelTokensAssistant || '{0} / {1} токенов';
-    return tpl
+    const tokensPart = tpl
         .replace('{0}', hasIn ? String(tin) : '—')
         .replace('{1}', hasOut ? String(tout) : '—');
+
+    // KI-084a: сборка tok/s + длительности (только для assistant).
+    const stats = [];
+    if (Number.isFinite(durationMs) && durationMs > 0) {
+        // tok/s — только если есть firstTokenMs и есть время генерации.
+        if (Number.isFinite(firstTokenMs) && durationMs > firstTokenMs && hasOut) {
+            const genSec = (durationMs - firstTokenMs) / 1000;
+            if (genSec > 0.05) {
+                const tokPerSec = tout / genSec;
+                const tplTok = container?.dataset.labelTokPerSec || '{0} tok/s';
+                stats.push(tplTok.replace('{0}', tokPerSec.toFixed(1)));
+            }
+        }
+        const tplDur = container?.dataset.labelDuration || '{0} с';
+        stats.push(tplDur.replace('{0}', (durationMs / 1000).toFixed(1)));
+    }
+
+    return [tokensPart, ...stats].join(' · ');
 }
 
 /**
- * KI-084b: обновляет meta-строку bubble (добавляет токены к существующему времени).
+ * KI-084b/084a: обновляет meta-строку bubble (токены + tok/s + длительность).
  * Используется в live-стриме при SSE-событиях `start` (user) и `done` (assistant).
  * @param {HTMLElement} bubble
  * @param {number|null} tokensIn
  * @param {number|null} tokensOut
+ * @param {number|null} [durationMs]
+ * @param {number|null} [firstTokenMs]
  */
-function updateBubbleMeta(bubble, tokensIn, tokensOut) {
+function updateBubbleMeta(bubble, tokensIn, tokensOut, durationMs, firstTokenMs) {
     if (!bubble) return;
 
     const metaEl = bubble.querySelector('.chat-message-meta');
@@ -1723,7 +1752,7 @@ function updateBubbleMeta(bubble, tokensIn, tokensOut) {
     const isUser = bubble.classList.contains('user');
     const roleLabel = bubble.dataset.roleLabel || (isUser ? 'Вы' : 'Ассистент');
     const time = bubble.dataset.time || '';
-    const tokenPart = formatTokenMetaText(isUser, tokensIn, tokensOut);
+    const tokenPart = formatTokenMetaText(isUser, tokensIn, tokensOut, durationMs, firstTokenMs);
 
     metaEl.innerHTML = tokenPart
         ? `${escapeHtml(roleLabel)} · ${escapeHtml(time)} · ${escapeHtml(tokenPart)}`
@@ -1731,14 +1760,18 @@ function updateBubbleMeta(bubble, tokensIn, tokensOut) {
 }
 
 /**
- * KI-049b: форматирует meta-строку с токенами (для renderMessage).
- * Возвращает '' (пустую строку), если токены недоступны.
+ * KI-049b/084a: форматирует meta-строку статистики (для renderMessage при F5-загрузке).
  * @param {object} msg — DTO сообщения
  * @param {boolean} isUser — user или assistant
  * @returns {string}
  */
 function formatTokenMeta(msg, isUser) {
-    return formatTokenMetaText(isUser, msg.tokensIn, msg.tokensOut);
+    return formatTokenMetaText(
+        isUser,
+        msg.tokensIn,
+        msg.tokensOut,
+        msg.durationMs,
+        msg.firstTokenMs);
 }
 
 function renderMessages(messages) {
