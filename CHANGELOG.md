@@ -21,6 +21,12 @@
 _(пусто — планируется для v1.4.2 / v1.5.0)_
 
 ### Added
+- **Docs — финальная чистка legacy, часть 5 (v1.4.x, финал)**:
+  - `scripts/migrations/` (2 legacy `.ps1`) → `scripts/migrations/archive/v1.0.x/`.
+  - `scripts/migrations/README.md` — новый.
+  - `docs/development/ARCHITECTURE.md` § 3.5 — добавлены команды для создания миграций (SqlServer / Sqlite).
+
+### Added
 - **Docs — финальная чистка legacy, часть 4 (v1.4.x)**:
   - `scripts/build/` (8 legacy `.bat`/`.ps1`) → `scripts/build/archive/v1.0.x/`.
   - `scripts/build/README.md` — новый.

@@ -132,6 +132,18 @@
 
 **Sqlite (dev):** `EnsureCreatedAsync` — не мигрирует. При изменении модели — удалять `.db` (RULES § 4.25, KI-070).
 
+**Команды для создания миграций (отдельные папки по провайдеру):**
+
+```powershell
+# SqlServer (используется по умолчанию)
+dotnet ef migrations add <Name> --project IIChatTools.Data --startup-project IIChatTools.API --output-dir Migrations/SqlServer
+
+# Sqlite (запланировано, KI-070)
+dotnet ef migrations add <Name> --project IIChatTools.Data --startup-project IIChatTools.API --output-dir Migrations/Sqlite
+
+# Применение
+dotnet ef database update --project IIChatTools.Data --startup-project IIChatTools.API
+
 ---
 
 ## § 4. DI-контейнер (ключевые lifetime)
