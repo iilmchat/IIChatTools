@@ -636,19 +636,33 @@
 
 ## v1.3.2 — Performance (2026-09-24)
 
-### KI-073 — Медленный первый `dotnet test` на Windows (Defender)
+### KI-073 — Медленный первый `dotnet test` на Windows (testhost boot)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
-- **Обнаружено:** 2026-09-24 | **Устранено:** —
-- **Файлы:** — (инфраструктурная проблема)
-- **Описание:** Первый `dotnet test IIChatTools.sln --no-build` после холодной сборки (`Remove-Item bin,obj`) на Windows занимает **~125 секунд** вместо ожидаемых 2–5 с. Повторный прогон — **2.4 с** (ускорение в ~70 раз).
-- **Причина:** Windows Defender сканирует каждый `.dll` (`xunit.runner.visualstudio`, `Moq`, `EFCore.InMemory`, `SQLitePCLRaw`, `Microsoft.AspNetCore.Mvc.Testing`, etc.) и процессы (`testhost.exe`, `VBCSCompiler.exe`) при первом запуске после пересборки. У разработчика **нет прав администратора** — исключения не добавить.
+- **Обнаружено:** 2026-09-24 | **Устранено:** — (обходной путь)
+- **Файлы:** `IIChatTools.Tests/IIChatTools.Tests.csproj` (ProjectReference на API)
+- **Описание:** Первый `dotnet test IIChatTools.sln --no-build` после холодной сборки занимает **~43-60 с**. Discovery — **24 с**, реальные тесты — <1 с, overhead VSTest (артефакт xUnit queue) — ~17 с. Повторный прогон — **1.5-2.4 с**.
+- **Диагностика (два эксперимента):**
+  - **Defender exclusions** (`C:\Program Files\dotnet`, temp, vstest) → **60 с** (было 125 с, ускорение 2×, но не до 5 с).
+  - **Defender Real-Time Protection OFF** (`Set-MpPreference -DisableRealtimeMonitoring $true`) → **44 с** — **то же самое, что с ON+exclusions**.
+  - **Вывод:** Defender — **не главная причина**. Реальная причина — **testhost boot**: загрузка 30+ транзитивных DLL из `IIChatTools.API` (ASP.NET Core, EF Core, JWT, **PuppeteerSharp** ~200 МБ, Prometheus, HtmlAgilityPack, ...) + JIT.
 - **Замеры:**
-  - `Run 1` (после cold build): 125.77 с (discovery: 72 с, тесты: 50 с).
-  - `Run 2` (тот же `bin/`): 2.37 с (тесты: 705 ms).
-- **Решение (для машин с admin-правами):** `scripts/setup/configure-defender.ps1` — добавляет exclusions:
-  - **Пути:** проект, `~/.nuget/packages`, **`C:\Program Files\dotnet`**, `~/.dotnet`, `%TEMP%`, `%LOCALAPPDATA%\Temp`.
-  - **Процессы:** `dotnet.exe`, `VBCSCompiler.exe`, `testhost.exe`, `MSBuild.exe`, `vstest.console.exe`, `vstest.discoveryengine.exe`, `vstest.executionengine.exe`.
-  - **Ключевой момент:** без `C:\Program Files\dotnet` в exclusions первый cold build остаётся медленным (~123 с) — Defender сканирует SDK, JIT, `vstest.console.dll`.
+  - Cold build → `dotnet test`: 44-60 с (discovery 24 с).
+  - Warm `dotnet test --no-build`: 1.5-2.4 с.
+- **Решение (обходной путь, dev-workflow):** `dotnet watch test IIChatTools.sln --project IIChatTools.Tests` — testhost boot-ится **один раз**, дальше incremental restart 1-2 с на изменение файла.
+- **Решение (долгосрочное, KI-074):** split `IIChatTools.Tests` на `Tests.Unit` (без ссылки на API) + `Tests.Integration` (со ссылкой). Только `LocalizationSyncTests` реально использует типы API — остальные 38 тестов покрываются `IIChatTools.Services`.
+- **Скрипт `scripts/setup/configure-defender.ps1`:** оставлен в репо (даёт 2× ускорение, полезен).
+
+---
+
+### KI-074 — Split тестового проекта на Unit / Integration
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
+- **Обнаружено:** 2026-09-24 (в ходе диагностики KI-073)
+- **Описание:** `IIChatTools.Tests` ссылается на `IIChatTools.API` — это тянет PuppeteerSharp и 30+ DLL в testhost, что даёт **24 с discovery**. Только `LocalizationSyncTests` реально использует типы API.
+- **Решение (план):**
+  - Создать `IIChatTools.Tests.Unit` — `ProjectReference` только на `IIChatTools.Services` + `IIChatTools.Data`. Перенести 38 unit-тестов.
+  - Оставить `IIChatTools.Tests.Integration` — со ссылкой на API. Оставить `LocalizationSyncTests`.
+  - CI: два workflow-job'а (unit — быстро, integration — параллельно).
+- **Ожидаемый эффект:** unit-прогон — **2-3 с** (без boot PuppeteerSharp).
 
 ---
 

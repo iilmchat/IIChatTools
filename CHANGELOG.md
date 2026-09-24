@@ -29,7 +29,7 @@
 
 ### Fixed
 
-- **KI-073 (Documented)**: первый `dotnet test` на Windows после холодной сборки занимает ~125 с (Defender). Добавлен `scripts/setup/configure-defender.ps1` для машин с admin-правами. См. KNOWN_ISSUES.
+- **KI-073 (Documented)**: первый `dotnet test` на Windows после cold build занимает ~44-60 с. Диагностика: **Defender — не главная причина** (отключение Real-Time Protection дало те же 44 с). Реальная причина — **testhost boot** (30+ транзитивных DLL из API, включая PuppeteerSharp ~200 МБ). Обходной путь: `dotnet watch test`. См. KNOWN_ISSUES + KI-074 (split тестов).
 
 ### Changed
 - **v1.4.0 Фаза 2 (KI-052)**: `ModelOverride` + `SystemPromptOverride` в суб-агентах.
