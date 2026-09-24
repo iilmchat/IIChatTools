@@ -645,9 +645,10 @@
 - **Замеры:**
   - `Run 1` (после cold build): 125.77 с (discovery: 72 с, тесты: 50 с).
   - `Run 2` (тот же `bin/`): 2.37 с (тесты: 705 ms).
-- **Решение (для машин с admin-правами):** `scripts/setup/configure-defender.ps1` — добавляет exclusions для пути проекта, `~/.nuget/packages`, `~/.dotnet`, процессов `dotnet.exe`, `VBCSCompiler.exe`, `testhost.exe`, `MSBuild.exe`.
-- **Обходной путь без admin:** первый прогон после `Remove-Item bin,obj` — медленный (1 раз за сессию). Второй+ прогоны — 2–5 с. CI (Ubuntu) не затронут.
-- **Не блокер:** производительность страдает 1 раз, не мешает разработке.
+- **Решение (для машин с admin-правами):** `scripts/setup/configure-defender.ps1` — добавляет exclusions:
+  - **Пути:** проект, `~/.nuget/packages`, **`C:\Program Files\dotnet`**, `~/.dotnet`, `%TEMP%`, `%LOCALAPPDATA%\Temp`.
+  - **Процессы:** `dotnet.exe`, `VBCSCompiler.exe`, `testhost.exe`, `MSBuild.exe`, `vstest.console.exe`, `vstest.discoveryengine.exe`, `vstest.executionengine.exe`.
+  - **Ключевой момент:** без `C:\Program Files\dotnet` в exclusions первый cold build остаётся медленным (~123 с) — Defender сканирует SDK, JIT, `vstest.console.dll`.
 
 ---
 

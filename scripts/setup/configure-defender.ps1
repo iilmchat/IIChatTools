@@ -15,16 +15,33 @@ $projectPath = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Write-Host "Проект: $projectPath" -ForegroundColor Cyan
 
 $paths = @(
+    # Проект и его bin/obj
     $projectPath,
+
+    # NuGet-кэш
     "$env:USERPROFILE\.nuget\packages",
-    "$env:USERPROFILE\.dotnet"
+
+    # .NET SDK (главный источник тормозов — здесь живут dotnet.exe, JIT, testhost, vstest.console)
+    "C:\Program Files\dotnet",
+    "C:\Program Files (x86)\dotnet",
+
+    # Точки установки от пользователя
+    "$env:USERPROFILE\.dotnet",
+    "$env:LOCALAPPDATA\Microsoft\dotnet",
+
+    # Временные папки (сюда dotnet распаковывает сборки для загрузки)
+    "$env:TEMP",
+    "$env:LOCALAPPDATA\Temp"
 )
 
 $processes = @(
     'dotnet.exe',
     'VBCSCompiler.exe',
     'testhost.exe',
-    'MSBuild.exe'
+    'MSBuild.exe',
+    'vstest.console.exe',
+    'vstest.discoveryengine.exe',
+    'vstest.executionengine.exe'
 )
 
 Write-Host "`nДобавление исключений для путей:" -ForegroundColor Yellow
@@ -49,3 +66,5 @@ Write-Host "  Get-ChildItem -Recurse -Directory -Include bin,obj | Remove-Item -
 Write-Host "  dotnet restore IIChatTools.sln --configfile NuGet.Config.online --force"
 Write-Host "  dotnet build IIChatTools.sln --no-restore"
 Write-Host "  dotnet test IIChatTools.sln --no-build"
+Write-Host "`nПроверка Controlled Folder Access (должно быть 0):" -ForegroundColor Cyan
+Get-MpPreference | Select-Object EnableControlledFolderAccess
