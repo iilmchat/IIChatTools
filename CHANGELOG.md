@@ -21,6 +21,13 @@
 _(пусто — планируется для v1.4.2 / v1.5.0)_
 
 ### Added
+- **Docs — финальная чистка legacy, часть 2 (v1.4.x)**:
+  - `scripts/git/` (5 legacy-скриптов + 2 обёртки) → `scripts/git/archive/v1.0.x/`.
+  - `scripts/git/README.md` — новый (описание почему каталог пуст).
+  - Завершена чистка `scripts/setup/` (удалены 4 одноразовые обёртки).
+  - **KI-088** — Planned: `docs/TESTING.md` (чек-лист ручной приёмки, v1.5.0).
+
+### Added
 - **Docs — финальная чистка legacy (v1.4.x)**:
   - `docs/guides/` (3 файла) + `docs/testing/` (2 файла) → `docs/development/archive/v1.0.x/guides-testing/`.
   - `scripts/setup/archive/v1.0.x/` — 8 legacy-скриптов (downloader*.ps1, check-packages, create_structure).
