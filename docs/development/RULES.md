@@ -42,7 +42,9 @@
 | 2.5 | **`docs/development/vX.Y/DESIGN.md`** — дизайн-документ для крупных фаз (Chat UI, RAG) |
 | 2.6 | Секреты/credentials — **никогда** в git (только User Secrets / env / secret manager) |
 | 2.7 | После релиза — обновить `Directory.Build.props` (`<Version>`) + `AppVersion.Current` |
-| 2.8 | Ссылки на KI в commit message — обязательны, если фикс связан с реестром |
+| 2.8 | Ссылки на KI в commit message — обязательны, если фикс связан с реестром. |
+| 2.9 | **`docs/development/RELEASES.md` — единый чек-лист релиза.** Обновляется при изменении процесса (новые файлы в § 2, автоматизация в § 9). См. KI-071-инцидент (пропущенный Release v1.3.0). |
+| 2.10 | **Markdown-файлы с внутренними code-блоками — выводить в 4 бэктиках снаружи** (````). Иначе при копировании из чата DeepSeek внешняя обёртка ```markdown «съедает» внутренние ```powershell/```csharp/```yaml — файл приходит с битой разметкой (2 инцидента: DESIGN.md v1.4.0, RELEASES.md). Правило действует для всех будущих .md-файлов, содержащих fenced code blocks. |
 
 **Типы записей в CHANGELOG:** `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
