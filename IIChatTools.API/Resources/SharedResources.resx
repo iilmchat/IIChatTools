@@ -227,4 +227,50 @@
   <data name="ChatModelEmpty" xml:space="preserve"><value>No models</value></data>
   <data name="ChatSearchPlaceholder" xml:space="preserve"><value>Search chats…</value></data>
   <data name="ChatSearchNoResults" xml:space="preserve"><value>No results</value></data>        
+
+  <data name="AdminTabAgents" xml:space="preserve">
+      <value>Agents</value>
+  </data>
+  <data name="AgentColumnName" xml:space="preserve">
+      <value>Technical name</value>
+  </data>
+  <data name="AgentColumnDisplayName" xml:space="preserve">
+      <value>Display name</value>
+  </data>
+  <data name="AgentColumnModel" xml:space="preserve">
+      <value>Model</value>
+  </data>
+  <data name="AgentColumnTools" xml:space="preserve">
+      <value>Tools count</value>
+  </data>
+  <data name="AgentColumnApproval" xml:space="preserve">
+      <value>Approval</value>
+  </data>
+  <data name="AgentColumnEnabled" xml:space="preserve">
+      <value>Enabled</value>
+  </data>
+  <data name="AgentColumnActions" xml:space="preserve">
+      <value>Actions</value>
+  </data>
+  <data name="AgentEditTitle" xml:space="preserve">
+      <value>Edit agent</value>
+  </data>
+  <data name="AgentResetConfirm" xml:space="preserve">
+      <value>Reset agent to defaults?</value>
+  </data>
+  <data name="AgentResetSuccess" xml:space="preserve">
+      <value>Agent reset</value>
+  </data>
+  <data name="AgentSaveSuccess" xml:space="preserve">
+      <value>Agent saved</value>
+  </data>
+  <data name="AgentStatsTotal" xml:space="preserve">
+      <value>Total runs</value>
+  </data>
+  <data name="AgentStatsAvgTime" xml:space="preserve">
+      <value>Average time</value>
+  </data>
+  <data name="AgentStatsSuccessRate" xml:space="preserve">
+      <value>Success rate</value>
+  </data>
 </root>

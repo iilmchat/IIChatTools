@@ -26,6 +26,14 @@
   - 6 агентов в `appsettings.json` (+ в Development): `file_system_agent`, `code_agent`, `web_agent`, `git_agent`, `github_agent`, `planner_agent`.
   - 4 unit-теста (`SubAgentRegistryTests`).
   - `docs/development/v1.4/DESIGN.md` — дизайн-документ фазы.
+- **v1.4.0 Фаза 6.1-6.4 (KI-052)**: backend админки агентов.
+  - DTO: `AgentListItemDto`, `UpdateAgentRequest`.
+  - `AdminAgentsController`: `GET /api/admin/agents`, `PUT /api/admin/agents/{name}`, `POST /api/admin/agents/{name}/reset`.
+  - Persist override'ов: JSON в `AppSettings` по ключу `SubAgents.{name}` (upsert).
+  - Применение in-memory (немедленно) + persist в БД.
+  - Восстановление при старте: `Program.LoadSubAgentOverridesAsync`.
+  - Локализация: 15 ключей в `.resx` (RU + EN).
+  - **Не входит:** статистика по агентам (KI-076, Deferred), frontend (Фаза 6.5-6.6).
 
 ### Fixed
 

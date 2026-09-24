@@ -226,5 +226,51 @@
   <data name="ChatModelSuffixUnavailable" xml:space="preserve"><value>недоступна</value></data>
   <data name="ChatModelEmpty" xml:space="preserve"><value>Нет моделей</value></data>
   <data name="ChatSearchPlaceholder" xml:space="preserve"><value>Поиск по чатам…</value></data>
-  <data name="ChatSearchNoResults" xml:space="preserve"><value>Ничего не найдено</value></data>      
+  <data name="ChatSearchNoResults" xml:space="preserve"><value>Ничего не найдено</value></data>  
+  
+    <data name="AdminTabAgents" xml:space="preserve">
+      <value>Агенты</value>
+    </data>
+    <data name="AgentColumnName" xml:space="preserve">
+      <value>Техническое имя</value>
+    </data>
+    <data name="AgentColumnDisplayName" xml:space="preserve">
+      <value>Отображаемое имя</value>
+    </data>
+    <data name="AgentColumnModel" xml:space="preserve">
+      <value>Модель</value>
+    </data>
+    <data name="AgentColumnTools" xml:space="preserve">
+      <value>Инструментов</value>
+    </data>
+    <data name="AgentColumnApproval" xml:space="preserve">
+      <value>Approval</value>
+    </data>
+    <data name="AgentColumnEnabled" xml:space="preserve">
+      <value>Включён</value>
+    </data>
+    <data name="AgentColumnActions" xml:space="preserve">
+      <value>Действия</value>
+    </data>
+    <data name="AgentEditTitle" xml:space="preserve">
+      <value>Редактировать агента</value>
+    </data>
+    <data name="AgentResetConfirm" xml:space="preserve">
+      <value>Сбросить агента к значениям по умолчанию?</value>
+    </data>
+    <data name="AgentResetSuccess" xml:space="preserve">
+      <value>Агент сброшен</value>
+    </data>
+    <data name="AgentSaveSuccess" xml:space="preserve">
+      <value>Агент сохранён</value>
+    </data>
+    <data name="AgentStatsTotal" xml:space="preserve">
+      <value>Всего запусков</value>
+    </data>
+    <data name="AgentStatsAvgTime" xml:space="preserve">
+      <value>Среднее время</value>
+    </data>
+    <data name="AgentStatsSuccessRate" xml:space="preserve">
+      <value>Успешных</value>
+    </data>
 </root>

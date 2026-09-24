@@ -654,6 +654,20 @@
 
 ---
 
+### KI-076 — Статистика по агентам в админке
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
+- **Обнаружено:** 2026-09-24 (Фаза 6 KI-052)
+- **Файлы:** `IIChatTools.Data/Entities/AgentState.cs`, `AdminAgentsController`
+- **Описание:** В админке агентов хотим показывать статистику (TotalRuns, AvgTime, SuccessRate, LastRun). Источник данных — `AgentStates`. **Проблема:** в `AgentState` нет поля `AgentName` — только `SessionId` (GUID). Невозможно сгруппировать по агенту.
+- **Варианты решения:**
+  1. **Добавить `AgentName` в `AgentState`** (требует миграции — KI-070: Sqlite EnsureCreated не мигрирует, нужен delete .db).
+  2. **Парсить `AuditLogs`** по `ToolName` = `file_system_agent` / `code_agent` / etc. Работает без миграции, но неполно: вызовы из Chat не всегда пишутся в AuditLogs.
+  3. **Парсить `CodeSnapshotJson`** — там `usedTools`, но по ним нельзя однозначно определить агента.
+- **Решение:** отложить до v1.4.x. Сейчас API возвращает только дескрипторы (без stats).
+- **В коде:** `AdminAgentsController.GET /api/admin/agents` возвращает только список без секции `stats`. Поля `TotalRuns`/`AvgTime` в DTO отсутствуют.
+
+---
+
 ### KI-075 — ToolRegistry логирует при каждом scope
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.0 (Фаза 5.x)
 - **Обнаружено:** 2026-09-24 | **Устранено:** 2026-09-24

@@ -1,7 +1,9 @@
 using System;
+using System.Linq;                // v1.4.0 Фаза 6 (KI-052)
 using System.Threading.Tasks;
 using IIChatTools.API.Extensions;
 using IIChatTools.Data;
+using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 6 (KI-052)
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Hosting;
@@ -10,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;             // v1.4.0 Фаза 6 (KI-052)
 
 namespace IIChatTools.API
 {
@@ -258,6 +261,10 @@ namespace IIChatTools.API
                 var syncedCount = await settingsService.SyncDefaultsFromConfigurationAsync();
                 logger.LogInformation("Синхронизировано настроек по умолчанию: {Count}", syncedCount);
 
+                // ---------- 5. SubAgent overrides (v1.4.0 Фаза 6, KI-052) ----------
+                // Читаем сохранённые в AppSettings override'ы агентов и применяем к реестру.
+                await LoadSubAgentOverridesAsync(services, logger);
+
                 logger.LogInformation(
                     "=== IIChatTools v{Version} готов к работе ===",
                     AppVersion.Current);
@@ -267,6 +274,62 @@ namespace IIChatTools.API
                 logger.LogCritical(ex,
                     "Критическая ошибка инициализации. Приложение будет остановлено.");
                 throw;
+            }
+        }
+        /// <summary>
+        /// Загружает override'ы специализированных суб-агентов из AppSettings
+        /// и применяет их к <see cref="ISubAgentRegistry"/> (v1.4.0 Фаза 6, KI-052).
+        ///
+        /// Override'ы хранятся как JSON по ключу <c>SubAgents.{name}</c>
+        /// (см. <c>AdminAgentsController.SaveAgentOverrideAsync</c>).
+        /// </summary>
+        /// <param name="services">Провайдер сервисов (уже в scope)</param>
+        /// <param name="logger">Логгер</param>
+        private static async Task LoadSubAgentOverridesAsync(IServiceProvider services, ILogger logger)
+        {
+            try
+            {
+                var settingsService = services.GetRequiredService<IAppSettingsService>();
+                var registry = services.GetRequiredService<ISubAgentRegistry>();
+
+                var settings = await settingsService.GetAllAsync();
+                var overrides = settings
+                    .Where(s => s.Key.StartsWith("SubAgents.", StringComparison.OrdinalIgnoreCase)
+                                && !string.IsNullOrWhiteSpace(s.Value))
+                    .ToList();
+
+                if (overrides.Count == 0)
+                {
+                    logger.LogInformation("SubAgent overrides: нет");
+                    return;
+                }
+
+                var applied = 0;
+                foreach (var s in overrides)
+                {
+                    try
+                    {
+                        var descriptor = JsonConvert.DeserializeObject<SubAgentDescriptor>(s.Value);
+                        if (descriptor == null || string.IsNullOrWhiteSpace(descriptor.Name))
+                        {
+                            logger.LogWarning("SubAgent override {Key}: пустой дескриптор", s.Key);
+                            continue;
+                        }
+
+                        registry.Update(descriptor);
+                        applied++;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "SubAgent override {Key}: ошибка разбора JSON", s.Key);
+                    }
+                }
+
+                logger.LogInformation("SubAgent overrides: применено {Applied} из {Total}", applied, overrides.Count);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "SubAgent overrides: не удалось загрузить");
             }
         }
     }
