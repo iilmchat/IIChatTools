@@ -235,6 +235,11 @@
   <data name="ChatSearchInChatPrev" xml:space="preserve"><value>Предыдущее</value></data>
   <data name="ChatSearchInChatNext" xml:space="preserve"><value>Следующее</value></data>
   <data name="ChatSearchInChatClose" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="ChatSearchGlobalOpen" xml:space="preserve"><value>Поиск по чатам</value></data>
+  <data name="ChatSearchGlobalPlaceholder" xml:space="preserve"><value>Поиск по содержимому чата…</value></data>
+  <data name="ChatSearchGlobalHint" xml:space="preserve"><value>Введите запрос или выберите чат</value></data>
+  <data name="ChatSearchGlobalNoResults" xml:space="preserve"><value>Ничего не найдено</value></data>
+  <data name="ChatSearchGlobalClose" xml:space="preserve"><value>Закрыть</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Свернуть боковую панель</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Открыть боковую панель</value></data>  
   

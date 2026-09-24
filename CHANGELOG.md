@@ -19,6 +19,15 @@
 ## [Unreleased]
 
 ### Added
+- **Chat UI — ⌘K-модалка поиска по чатам (KI-078B-2, v1.4.x)**:
+  - Модалка по центру (`Ctrl+K` или SVG 🔍 в collapsed sidebar).
+  - Input с debounce 200ms → `GET /api/chats?search=` (backend KI-078B-1).
+  - Список результатов: title + относительная дата + snippet с подсветкой `<mark>`.
+  - Навигация ↑/↓ (циклическая), Enter — открыть чат, Esc / клик вне / ✕ — закрыть.
+  - Защита от гонок fetch (`globalSearchRequestId`).
+  - Fix: SVG 🔍 в collapsed sidebar теперь открывает ⌘K-модалку (было — разворот sidebar).
+  - Блокировка скролла body на время открытой модалки.
+  - Локализация RU + EN (5 ключей: `ChatSearchGlobal*`).
 - **Chat API — расширенный поиск с snippet (KI-078B-1, v1.4.x)**:
   - `ChatSearchResultDto` (`Id`, `Title`, `Model`, `UpdatedAt`, `MatchedField`, `Snippet`, `SnippetMatchStart`, `SnippetMatchLength`).
   - `IChatService.SearchUserChatsWithSnippetAsync(userId, search)` — поиск с превью совпадения (≈30 символов до + 100 после), позиция совпадения для подсветки.

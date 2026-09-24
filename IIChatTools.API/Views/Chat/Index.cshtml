@@ -147,6 +147,41 @@
     </main>
 </div>
 
+<!-- KI-078B: ⌘K-модалка поиска по всем чатам (Ctrl+K) -->
+<div id="chat-global-search"
+     class="chat-global-search"
+     hidden
+     data-label-no-results="@Localizer["ChatSearchGlobalNoResults"]"
+     data-label-hint="@Localizer["ChatSearchGlobalHint"]">
+    <div class="chat-global-search-backdrop" data-action="close"></div>
+    <div class="chat-global-search-dialog" role="dialog" aria-modal="true"
+         aria-labelledby="chat-global-search-title">
+        <h2 id="chat-global-search-title" class="visually-hidden">@Localizer["ChatSearchGlobalOpen"]</h2>
+        <div class="chat-global-search-input-wrap">
+            <span class="chat-global-search-icon" aria-hidden="true">🔍</span>
+            <input id="chat-global-search-input"
+                   type="text"
+                   class="chat-global-search-input"
+                   autocomplete="off"
+                   placeholder="@Localizer["ChatSearchGlobalPlaceholder"]"
+                   aria-label="@Localizer["ChatSearchGlobalPlaceholder"]" />
+            <button type="button"
+                    class="chat-global-search-close"
+                    data-action="close"
+                    title="@Localizer["ChatSearchGlobalClose"]"
+                    aria-label="@Localizer["ChatSearchGlobalClose"]">✕</button>
+        </div>
+        <div id="chat-global-search-results"
+             class="chat-global-search-results"
+             role="listbox"
+             aria-label="@Localizer["ChatSearchGlobalOpen"]">
+            <div class="chat-global-search-hint">
+                @Localizer["ChatSearchGlobalHint"]
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Модалка подтверждения tool call (используется с Фазы 1.7) -->
 <partial name="_ApprovalModal" />
 

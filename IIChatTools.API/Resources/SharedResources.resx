@@ -235,6 +235,11 @@
   <data name="ChatSearchInChatPrev" xml:space="preserve"><value>Previous</value></data>
   <data name="ChatSearchInChatNext" xml:space="preserve"><value>Next</value></data>
   <data name="ChatSearchInChatClose" xml:space="preserve"><value>Close</value></data>
+  <data name="ChatSearchGlobalOpen" xml:space="preserve"><value>Search chats</value></data>
+  <data name="ChatSearchGlobalPlaceholder" xml:space="preserve"><value>Search in chat content…</value></data>
+  <data name="ChatSearchGlobalHint" xml:space="preserve"><value>Type to search or pick a chat</value></data>
+  <data name="ChatSearchGlobalNoResults" xml:space="preserve"><value>No results</value></data>
+  <data name="ChatSearchGlobalClose" xml:space="preserve"><value>Close</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Collapse sidebar</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Open sidebar</value></data>        
 

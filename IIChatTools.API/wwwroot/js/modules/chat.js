@@ -35,6 +35,11 @@ const state = {
     chatSearchMarks: [],         // массив <mark> в порядке появления
     chatSearchIndex: -1,         // индекс активного совпадения (-1 = нет)
     chatSearchDebounce: null,    // таймер debounce ввода
+    // KI-078B: ⌘K-модалка поиска по всем чатам
+    globalSearchResults: [],     // массив ChatListItemDto с snippet
+    globalSearchIndex: 0,        // индекс активного результата
+    globalSearchDebounce: null,  // таймер debounce ввода
+    globalSearchRequestId: 0,    // защита от гонок fetch
 };
 
 // ============ Инициализация ============
@@ -115,13 +120,9 @@ function bindEvents() {
     document.getElementById('btn-collapse-sidebar')
         ?.addEventListener('click', toggleSidebar);
 
-    // KI-079 fix: поиск в collapsed — раскрыть sidebar и сфокусировать input.
-    // В KI-078B переделаем на открытие ⌘K-модалки.
+    // KI-078B: поиск в collapsed sidebar → открыть ⌘K-модалку.
     document.getElementById('btn-search-sidebar')
-        ?.addEventListener('click', () => {
-            applySidebarCollapsed(false);
-            setTimeout(() => document.getElementById('chat-search')?.focus(), 250);
-        });
+        ?.addEventListener('click', openGlobalSearch);
 
     // KI-078A: кнопка 🔍 в chat-header — открыть панель поиска по активному чату.
     document.getElementById('btn-search-in-chat')
@@ -162,6 +163,61 @@ function bindEvents() {
             ?.addEventListener('click', closeChatSearch);
     }
 
+    // KI-078B: ⌘K-модалка — input, закрытие, клик вне, клик по результату.
+    const globalSearchModal = document.getElementById('chat-global-search');
+    if (globalSearchModal) {
+        const gsInput = document.getElementById('chat-global-search-input');
+
+        gsInput?.addEventListener('input', (e) => onGlobalSearchInput(e.target.value));
+
+        gsInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                moveGlobalSearchActive(+1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                moveGlobalSearchActive(-1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const items = state.globalSearchResults;
+                if (items.length > 0 && state.globalSearchIndex >= 0) {
+                    const target = items[state.globalSearchIndex];
+                    if (target && target.id) {
+                        openChatFromGlobalSearch(target.id);
+                    }
+                }
+            }
+        });
+
+        // Клик по backdrop / ✕ — закрыть.
+        globalSearchModal.querySelectorAll('[data-action="close"]')
+            .forEach(el => el.addEventListener('click', closeGlobalSearch));
+
+        // Клик по результату — открыть чат.
+        const gsResults = document.getElementById('chat-global-search-results');
+        gsResults?.addEventListener('click', (e) => {
+            const item = e.target.closest('.chat-global-search-item');
+            if (!item) return;
+            const chatId = parseInt(item.dataset.chatId, 10);
+            if (Number.isFinite(chatId)) {
+                openChatFromGlobalSearch(chatId);
+            }
+        });
+
+        // Hover по результату — синхронизировать активный индекс.
+        gsResults?.addEventListener('mouseover', (e) => {
+            const item = e.target.closest('.chat-global-search-item');
+            if (!item) return;
+            const idx = parseInt(item.dataset.index, 10);
+            if (Number.isFinite(idx)) {
+                state.globalSearchIndex = idx;
+                gsResults.querySelectorAll('.chat-global-search-item').forEach((el, i) => {
+                    el.classList.toggle('chat-global-search-item-active', i === idx);
+                });
+            }
+        });
+    }
+
     // KI-068: поиск по чатам — server-side (title + content), debounce 300ms
     const searchInput = document.getElementById('chat-search');
     if (searchInput) {
@@ -200,7 +256,8 @@ function bindEvents() {
 
     // KI-079: глобальный хоткей Ctrl+B (toggle sidebar).
     // KI-078A: Ctrl+F (поиск в активном чате), Escape (закрыть панель).
-    // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B/F.
+    // KI-078B: Ctrl+K (⌘K-модалка поиска по всем чатам).
+    // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B/F/K.
     // Работает только на /chat (модуль подключён только там).
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey && !e.shiftKey && !e.altKey) {
@@ -215,12 +272,26 @@ function bindEvents() {
                 openChatSearch();
                 return;
             }
+            if (k === 'k') {
+                e.preventDefault();
+                openGlobalSearch();
+                return;
+            }
         }
         if (e.key === 'Escape') {
+            // Приоритет 1: ⌘K-модалка (если открыта — закрываем только её).
+            const gsModal = document.getElementById('chat-global-search');
+            if (gsModal && !gsModal.hidden) {
+                e.preventDefault();
+                closeGlobalSearch();
+                return;
+            }
+            // Приоритет 2: панель поиска по активному чату (KI-078A).
             const bar = document.getElementById('chat-search-bar');
             if (bar && !bar.hidden) {
                 e.preventDefault();
                 closeChatSearch();
+                return;
             }
         }
     });
@@ -461,6 +532,205 @@ function updateChatSearchCounter(current, total) {
     counter.textContent = template
         .replace('{0}', String(current))
         .replace('{1}', String(total));
+}
+
+// ============ KI-078B: ⌘K-модалка поиска по всем чатам (Ctrl+K) ============
+
+/** Задержка debounce при вводе в ⌘K-модалке (мс). */
+const GLOBAL_SEARCH_DEBOUNCE_MS = 200;
+
+/** Ключ localStorage для запоминания последнего запроса (опционально). */
+const LS_KEY_GLOBAL_SEARCH = 'chat.globalSearch.lastQuery';
+
+/**
+ * KI-078B: открывает ⌘K-модалку, ставит фокус в input, показывает подсказку.
+ */
+function openGlobalSearch() {
+    const modal = document.getElementById('chat-global-search');
+    if (!modal) return;
+
+    modal.hidden = false;
+    document.body.classList.add('chat-global-search-open');
+
+    const input = document.getElementById('chat-global-search-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+
+    state.globalSearchResults = [];
+    state.globalSearchIndex = 0;
+    renderGlobalSearchResults([], '');
+}
+
+/**
+ * KI-078B: закрывает ⌘K-модалку, сбрасывает state.
+ */
+function closeGlobalSearch() {
+    const modal = document.getElementById('chat-global-search');
+    if (!modal) return;
+
+    modal.hidden = true;
+    document.body.classList.remove('chat-global-search-open');
+
+    if (state.globalSearchDebounce) {
+        clearTimeout(state.globalSearchDebounce);
+        state.globalSearchDebounce = null;
+    }
+
+    state.globalSearchResults = [];
+    state.globalSearchIndex = 0;
+}
+
+/**
+ * KI-078B: обработчик ввода — debounce → fetch /api/chats?search=.
+ * @param {string} query
+ */
+function onGlobalSearchInput(query) {
+    if (state.globalSearchDebounce) {
+        clearTimeout(state.globalSearchDebounce);
+    }
+
+    const trimmed = (query || '').trim();
+
+    if (trimmed.length === 0) {
+        state.globalSearchResults = [];
+        state.globalSearchIndex = 0;
+        renderGlobalSearchResults([], '');
+        return;
+    }
+
+    state.globalSearchDebounce = setTimeout(async () => {
+        state.globalSearchDebounce = null;
+
+        const requestId = ++state.globalSearchRequestId;
+
+        try {
+            const res = await apiGet(`/api/chats?search=${encodeURIComponent(trimmed)}`);
+            if (requestId !== state.globalSearchRequestId) return;   // гонка — отбрасываем
+
+            const items = res.success ? (res.data || []) : [];
+            state.globalSearchResults = items;
+            state.globalSearchIndex = items.length > 0 ? 0 : -1;
+            renderGlobalSearchResults(items, trimmed);
+        } catch (ex) {
+            console.warn('[chat] Ошибка ⌘K-поиска:', ex);
+            if (requestId === state.globalSearchRequestId) {
+                state.globalSearchResults = [];
+                state.globalSearchIndex = -1;
+                renderGlobalSearchResults([], trimmed);
+            }
+        }
+    }, GLOBAL_SEARCH_DEBOUNCE_MS);
+}
+
+/**
+ * KI-078B: рендер списка результатов в ⌘K-модалке.
+ * @param {Array} items ChatListItemDto с snippet
+ * @param {string} query
+ */
+function renderGlobalSearchResults(items, query) {
+    const container = document.getElementById('chat-global-search-results');
+    const modal = document.getElementById('chat-global-search');
+    if (!container || !modal) return;
+
+    if (!items || items.length === 0) {
+        if ((query || '').trim().length === 0) {
+            const hint = modal.dataset.labelHint || 'Начните вводить запрос';
+            container.innerHTML = `<div class="chat-global-search-hint">${escapeHtml(hint)}</div>`;
+        } else {
+            const noResults = modal.dataset.labelNoResults || 'Ничего не найдено';
+            container.innerHTML = `<div class="chat-global-search-empty">${escapeHtml(noResults)}</div>`;
+        }
+        return;
+    }
+
+    container.innerHTML = items.map((item, idx) => {
+        const active = idx === state.globalSearchIndex ? ' chat-global-search-item-active' : '';
+        const title = escapeHtml(item.title || 'Без названия');
+        const meta = escapeHtml(formatRelativeDate(item.updatedAt));
+        const snippetHtml = renderGlobalSearchSnippet(item);
+
+        return `
+            <div class="chat-global-search-item${active}"
+                 data-chat-id="${item.id}"
+                 data-index="${idx}"
+                 role="option"
+                 tabindex="-1">
+                <div class="chat-global-search-item-header">
+                    <div class="chat-global-search-item-title">${title}</div>
+                    <div class="chat-global-search-item-meta">${meta}</div>
+                </div>
+                ${snippetHtml}
+            </div>`;
+    }).join('');
+
+    // Авто-скролл к активному
+    scrollGlobalSearchActiveIntoView();
+}
+
+/**
+ * KI-078B: рендер snippet с подсветкой совпадения (<mark>).
+ * @param {object} item
+ * @returns {string} HTML или ''
+ */
+function renderGlobalSearchSnippet(item) {
+    if (!item.snippet) return '';
+
+    if (item.snippetMatchStart == null || item.snippetMatchLength == null) {
+        return `<div class="chat-global-search-item-snippet">${escapeHtml(item.snippet)}</div>`;
+    }
+
+    const before = item.snippet.substring(0, item.snippetMatchStart);
+    const match = item.snippet.substring(
+        item.snippetMatchStart,
+        item.snippetMatchStart + item.snippetMatchLength
+    );
+    const after = item.snippet.substring(item.snippetMatchStart + item.snippetMatchLength);
+
+    return `<div class="chat-global-search-item-snippet">${
+        escapeHtml(before)}<mark>${escapeHtml(match)}</mark>${escapeHtml(after)}</div>`;
+}
+
+/**
+ * KI-078B: меняет активный результат (↑/↓), циклически.
+ * @param {number} delta -1 = вверх, +1 = вниз
+ */
+function moveGlobalSearchActive(delta) {
+    const items = state.globalSearchResults;
+    if (!items || items.length === 0) return;
+
+    const n = items.length;
+    state.globalSearchIndex = ((state.globalSearchIndex + delta) % n + n) % n;
+
+    const container = document.getElementById('chat-global-search-results');
+    if (container) {
+        container.querySelectorAll('.chat-global-search-item').forEach((el, idx) => {
+            el.classList.toggle('chat-global-search-item-active', idx === state.globalSearchIndex);
+        });
+    }
+    scrollGlobalSearchActiveIntoView();
+}
+
+/**
+ * KI-078B: скроллит активный результат в видимую часть списка.
+ */
+function scrollGlobalSearchActiveIntoView() {
+    const container = document.getElementById('chat-global-search-results');
+    if (!container) return;
+    const active = container.querySelector('.chat-global-search-item-active');
+    if (active) {
+        active.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+/**
+ * KI-078B: открывает выбранный чат и закрывает ⌘K-модалку.
+ * @param {number} chatId
+ */
+async function openChatFromGlobalSearch(chatId) {
+    closeGlobalSearch();
+    await selectChat(chatId);
 }
 
 // ============ Модели и список чатов ============
