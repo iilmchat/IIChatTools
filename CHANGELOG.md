@@ -19,6 +19,16 @@
 ## [Unreleased]
 
 ### Added
+- **Tests — KI-078B (v1.4.x)**: 8 тестов для `SearchUserChatsWithSnippetAsync`:
+  - `EmptyQuery_ReturnsEmpty` — семантика «пустой запрос → пусто» (в отличие от `SearchUserChatsAsync`).
+  - `ByTitle_ReturnsMatchedFieldTitle` — `MatchedField="title"`, `Snippet=null`.
+  - `ByContent_ReturnsSnippetWithOffsets` — `MatchedField="content"`, offsets указывают на совпадение.
+  - `PrioritizesTitleOverContent` — при совпадении и в title, и в content приоритет у title.
+  - `SnippetHasEllipsis` — «…» по краям, когда совпадение в середине.
+  - `DoesNotLeakOtherUsersChats` — фильтр по userId.
+  - `NoMatches_ReturnsEmpty` — пустой результат.
+  - `TruncatesLongQuery` — обрезка > 200 символов.
+  - Всего тестов: **47 → 55**.
 - **Chat UI — ⌘K-модалка поиска по чатам (KI-078B-2, v1.4.x)**:
   - Модалка по центру (`Ctrl+K` или SVG 🔍 в collapsed sidebar).
   - Input с debounce 200ms → `GET /api/chats?search=` (backend KI-078B-1).

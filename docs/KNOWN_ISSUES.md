@@ -674,6 +674,7 @@
   - `IIChatTools.Services/Implementation/ChatService.cs` — реализация с snippet.
   - `IIChatTools.Services/DTO/Chat/ChatDtos.cs` — расширение `ChatListItemDto`.
   - `IIChatTools.API/Controllers/ChatController.cs` — использует расширенный метод при `search != null`.
+- **Тесты:** `ChatServiceSearchTests` + 8 новых тестов для `SearchUserChatsWithSnippetAsync` (KI-078B-3). Всего: **55/55**.
 - **Связанные:** KI-068 (server-side поиск по чатам — Fixed v1.3.1).
 - **Обнаружено:** 2026-09-24 (по мотивам DeepSeek)
 - **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js` (планируется)

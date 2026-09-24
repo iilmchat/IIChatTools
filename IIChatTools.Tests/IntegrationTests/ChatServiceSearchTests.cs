@@ -145,5 +145,188 @@ namespace IIChatTools.Tests.IntegrationTests
 
             Assert.Empty(result);
         }
+
+        // ============================================================
+        // KI-078B: SearchUserChatsWithSnippetAsync — превью для ⌘K-модалки
+        // ============================================================
+
+        /// <summary>
+        /// KI-078B: пустой запрос → пустой список (в отличие от SearchUserChatsAsync,
+        /// который возвращает все чаты — семантика «вернуть всё»).
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_EmptyQuery_ReturnsEmpty()
+        {
+            var service = CreateService();
+            await service.CreateChatAsync(1, "test-model", "Чат A");
+            await service.CreateChatAsync(1, "test-model", "Чат B");
+
+            var result = await service.SearchUserChatsWithSnippetAsync(1, "");
+
+            Assert.Empty(result);
+        }
+
+        /// <summary>
+        /// KI-078B: совпадение в title → MatchedField="title", Snippet=null,
+        /// SnippetMatchStart/Length=null.
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_ByTitle_ReturnsMatchedFieldTitle()
+        {
+            var service = CreateService();
+            await service.CreateChatAsync(1, "test-model", "Приветствие в чате");
+
+            var result = await service.SearchUserChatsWithSnippetAsync(1, "прив");
+
+            Assert.Single(result);
+            var r = result[0];
+            Assert.Equal("title", r.MatchedField);
+            Assert.Null(r.Snippet);
+            Assert.Null(r.SnippetMatchStart);
+            Assert.Null(r.SnippetMatchLength);
+            Assert.Equal("Приветствие в чате", r.Title);
+        }
+
+        /// <summary>
+        /// KI-078B: совпадение в content → MatchedField="content",
+        /// Snippet заполнен, offsets указывают на правильную позицию.
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_ByContent_ReturnsSnippetWithOffsets()
+        {
+            var service = CreateService();
+            var chat = await service.CreateChatAsync(1, "test-model", "Обычный чат");
+
+            await service.AddMessageAsync(chat.Id, 1, new ChatMessage
+            {
+                Role = "user",
+                Content = "Расскажи пожалуйста про Dockerfile best practices и как его писать"
+            });
+
+            var result = await service.SearchUserChatsWithSnippetAsync(1, "Dockerfile");
+
+            Assert.Single(result);
+            var r = result[0];
+            Assert.Equal("content", r.MatchedField);
+            Assert.NotNull(r.Snippet);
+            Assert.NotNull(r.SnippetMatchStart);
+            Assert.NotNull(r.SnippetMatchLength);
+
+            // Проверяем, что SnippetMatchStart действительно указывает
+            // на «Dockerfile» в snippet.
+            var start = r.SnippetMatchStart.Value;
+            var len = r.SnippetMatchLength.Value;
+            var matched = r.Snippet.Substring(start, len);
+            Assert.Equal("Dockerfile", matched, ignoreCase: true);
+        }
+
+        /// <summary>
+        /// KI-078B: если совпадение и в title, и в content —
+        /// приоритет у title (MatchedField="title", Snippet=null).
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_PrioritizesTitleOverContent()
+        {
+            var service = CreateService();
+            var chat = await service.CreateChatAsync(1, "test-model", "Dockerfile настройка");
+
+            await service.AddMessageAsync(chat.Id, 1, new ChatMessage
+            {
+                Role = "user",
+                Content = "Расскажи про Dockerfile"
+            });
+
+            var result = await service.SearchUserChatsWithSnippetAsync(1, "Dockerfile");
+
+            Assert.Single(result);
+            Assert.Equal("title", result[0].MatchedField);
+            Assert.Null(result[0].Snippet);
+        }
+
+        /// <summary>
+        /// KI-078B: snippet содержит «…» по краям, если совпадение не в начале
+        /// и не в конце исходного сообщения.
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_SnippetHasEllipsis()
+        {
+            var service = CreateService();
+            var chat = await service.CreateChatAsync(1, "test-model", "Просто чат");
+
+            // 60 символов префикса + ключевое слово + 120 символов суффикса.
+            var content = new string('A', 60) + "КЛЮЧ" + new string('B', 120);
+            await service.AddMessageAsync(chat.Id, 1, new ChatMessage
+            {
+                Role = "user",
+                Content = content
+            });
+
+            var result = await service.SearchUserChatsWithSnippetAsync(1, "КЛЮЧ");
+
+            Assert.Single(result);
+            var snippet = result[0].Snippet;
+            Assert.NotNull(snippet);
+
+            // Префикс 30 симв. до — значит «…» есть (не с начала).
+            Assert.StartsWith("…", snippet);
+            // Суффикс 100 симв. — значит «…» в конце есть.
+            Assert.EndsWith("…", snippet);
+        }
+
+        /// <summary>
+        /// KI-078B: не утекают чаты других пользователей.
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_DoesNotLeakOtherUsersChats()
+        {
+            var service = CreateService();
+            var chat1 = await service.CreateChatAsync(1, "test-model", "Мой чат");
+            await service.AddMessageAsync(chat1.Id, 1, new ChatMessage
+            {
+                Role = "user",
+                Content = "Секретный файл"
+            });
+
+            var chat2 = await service.CreateChatAsync(2, "test-model", "Чужой чат");
+            await service.AddMessageAsync(chat2.Id, 2, new ChatMessage
+            {
+                Role = "user",
+                Content = "Секретный файл"
+            });
+
+            var result = await service.SearchUserChatsWithSnippetAsync(1, "секретный");
+
+            Assert.Single(result);
+            Assert.Equal("Мой чат", result[0].Title);
+        }
+
+        /// <summary>
+        /// KI-078B: нет совпадений → пустой список.
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_NoMatches_ReturnsEmpty()
+        {
+            var service = CreateService();
+            await service.CreateChatAsync(1, "test-model", "Один чат");
+
+            var result = await service.SearchUserChatsWithSnippetAsync(1, "zzzzzzzzz");
+
+            Assert.Empty(result);
+        }
+
+        /// <summary>
+        /// KI-078B: слишком длинный запрос (>200 символов) обрезается, без падения.
+        /// </summary>
+        [Fact]
+        public async Task SearchUserChatsWithSnippetAsync_TruncatesLongQuery()
+        {
+            var service = CreateService();
+            await service.CreateChatAsync(1, "test-model", "a");
+
+            var longQuery = new string('x', 300);
+            var result = await service.SearchUserChatsWithSnippetAsync(1, longQuery);
+
+            Assert.Empty(result);
+        }
     }
 }

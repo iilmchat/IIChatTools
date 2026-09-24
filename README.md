@@ -560,7 +560,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 47/47 тестов проходят (unit + integration).
+**Статус**: 55/55 тестов проходят (unit + integration).
 
 ---
 
