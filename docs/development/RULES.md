@@ -60,6 +60,7 @@
 | 3.4 | **Перед коммитом** — `git status --short` для проверки untracked/staged |
 | 3.5 | **После push** — проверить Actions (CI + Docker Publish) |
 | 3.6 | **Локально** — `dotnet build` **0 warnings, 0 errors** (обязательно) |
+| 3.6a | **Первый `dotnet test` на Windows после cold build — ~125 с** (Defender сканирует DLL). Второй+ прогон — 2–5 с. Не паниковать: это не регрессия тестов. См. KI-073 и `scripts/setup/configure-defender.ps1`. |
 | 3.7 | **Тесты** — все зелёные перед push (`dotnet test`) |
 | 3.8 | **Fallback** — при «не работает локально vs CI» — искать untracked/пропущенные файлы |
 | 3.9 | **`dotnet restore --configfile NuGet.Config.online`** — после смены версий пакетов |

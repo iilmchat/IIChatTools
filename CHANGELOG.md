@@ -27,6 +27,10 @@
   - 4 unit-теста (`SubAgentRegistryTests`).
   - `docs/development/v1.4/DESIGN.md` — дизайн-документ фазы.
 
+### Fixed
+
+- **KI-073 (Documented)**: первый `dotnet test` на Windows после холодной сборки занимает ~125 с (Defender). Добавлен `scripts/setup/configure-defender.ps1` для машин с admin-правами. См. KNOWN_ISSUES.
+
 ### Changed
 - **v1.4.0 Фаза 2 (KI-052)**: `ModelOverride` + `SystemPromptOverride` в суб-агентах.
   - `ILmStudioClient.CompleteAsync(..., string model = null)` — перегрузка с явной моделью (обратносовместимо).

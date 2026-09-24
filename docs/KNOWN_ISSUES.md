@@ -634,6 +634,23 @@
 
 ---
 
+## v1.3.2 — Performance (2026-09-24)
+
+### KI-073 — Медленный первый `dotnet test` на Windows (Defender)
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-24 | **Устранено:** —
+- **Файлы:** — (инфраструктурная проблема)
+- **Описание:** Первый `dotnet test IIChatTools.sln --no-build` после холодной сборки (`Remove-Item bin,obj`) на Windows занимает **~125 секунд** вместо ожидаемых 2–5 с. Повторный прогон — **2.4 с** (ускорение в ~70 раз).
+- **Причина:** Windows Defender сканирует каждый `.dll` (`xunit.runner.visualstudio`, `Moq`, `EFCore.InMemory`, `SQLitePCLRaw`, `Microsoft.AspNetCore.Mvc.Testing`, etc.) и процессы (`testhost.exe`, `VBCSCompiler.exe`) при первом запуске после пересборки. У разработчика **нет прав администратора** — исключения не добавить.
+- **Замеры:**
+  - `Run 1` (после cold build): 125.77 с (discovery: 72 с, тесты: 50 с).
+  - `Run 2` (тот же `bin/`): 2.37 с (тесты: 705 ms).
+- **Решение (для машин с admin-правами):** `scripts/setup/configure-defender.ps1` — добавляет exclusions для пути проекта, `~/.nuget/packages`, `~/.dotnet`, процессов `dotnet.exe`, `VBCSCompiler.exe`, `testhost.exe`, `MSBuild.exe`.
+- **Обходной путь без admin:** первый прогон после `Remove-Item bin,obj` — медленный (1 раз за сессию). Второй+ прогоны — 2–5 с. CI (Ubuntu) не затронут.
+- **Не блокер:** производительность страдает 1 раз, не мешает разработке.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
