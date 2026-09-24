@@ -50,7 +50,13 @@
   - `code_agent`: обязательно проверять код запуском, анализировать ошибки.
   - `git_agent`: начинать с `git_status`, не делать force-push.
   - `github_agent`: начинать с `gh_auth_status`.
-  - `planner_agent`: использовать `save_memory` / `get_system_info` по назначению.    
+  - `planner_agent`: использовать `save_memory` / `get_system_info` по назначению.
+- **v1.4.0 Фаза 5 (KI-052)**: Chat использует `SubAgentRegistry` вместо `SubAgent:DefaultAllowedTools`.
+  - `ChatStreamService`: в конструктор добавлен `ISubAgentRegistry`.
+  - Список tools = `SubAgentRegistry.GetEnabled()` (6 агентов) + `consult_secondary_agent` (fallback).
+  - Убран `excludeNames` — whitelist явный.
+  - Логирование `Chat tools: N инструментов (...)`.
+  - **Эффект:** Chat видит **7 инструментов** вместо 12. LLM вызывает `file_system_agent` вместо `list_directory` + `read_file` + `save_file` по отдельности.
 
 ### Planned
 - **v1.4.0**: KI-052 (специализированные суб-агенты — Фазы 2-9), KI-053 (multi-user approvals), KI-049 (tiktoken).

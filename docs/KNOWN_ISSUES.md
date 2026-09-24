@@ -637,32 +637,29 @@
 ## v1.3.2 — Performance (2026-09-24)
 
 ### KI-073 — Медленный первый `dotnet test` на Windows (testhost boot)
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
-- **Обнаружено:** 2026-09-24 | **Устранено:** — (обходной путь)
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.0 (dev-environment)
+- **Обнаружено:** 2026-09-24 | **Устранено:** 2026-09-24
 - **Файлы:** `IIChatTools.Tests/IIChatTools.Tests.csproj` (ProjectReference на API)
-- **Описание:** Первый `dotnet test IIChatTools.sln --no-build` после холодной сборки занимает **~43-60 с**. Discovery — **24 с**, реальные тесты — <1 с, overhead VSTest (артефакт xUnit queue) — ~17 с. Повторный прогон — **1.5-2.4 с**.
-- **Диагностика (два эксперимента):**
-  - **Defender exclusions** (`C:\Program Files\dotnet`, temp, vstest) → **60 с** (было 125 с, ускорение 2×, но не до 5 с).
-  - **Defender Real-Time Protection OFF** (`Set-MpPreference -DisableRealtimeMonitoring $true`) → **44 с** — **то же самое, что с ON+exclusions**.
-  - **Вывод:** Defender — **не главная причина**. Реальная причина — **testhost boot**: загрузка 30+ транзитивных DLL из `IIChatTools.API` (ASP.NET Core, EF Core, JWT, **PuppeteerSharp** ~200 МБ, Prometheus, HtmlAgilityPack, ...) + JIT.
-- **Замеры:**
-  - Cold build → `dotnet test`: 44-60 с (discovery 24 с).
-  - Warm `dotnet test --no-build`: 1.5-2.4 с.
-- **Решение (обходной путь, dev-workflow):** `dotnet watch test IIChatTools.sln --project IIChatTools.Tests` — testhost boot-ится **один раз**, дальше incremental restart 1-2 с на изменение файла.
-- **Решение (долгосрочное, KI-074):** split `IIChatTools.Tests` на `Tests.Unit` (без ссылки на API) + `Tests.Integration` (со ссылкой). Только `LocalizationSyncTests` реально использует типы API — остальные 38 тестов покрываются `IIChatTools.Services`.
-- **Скрипт `scripts/setup/configure-defender.ps1`:** оставлен в репо (даёт 2× ускорение, полезен).
+- **Описание:** Первый `dotnet test IIChatTools.sln --no-build` после холодной сборки занимал **~43-60 с** (discovery — 24 с). Реальные тесты — <1 с; overhead VSTest (артефакт xUnit queue) — ~17 с.
+- **Диагностика:**
+  - Defender exclusions (`C:\Program Files\dotnet`, temp, vstest) → 60 с (было 125 с, ускорение 2×).
+  - Defender Real-Time Protection OFF → **44 с** (то же самое, что с ON+exclusions) → **Defender — не главная причина**.
+  - **Реальная причина:** testhost boot: загрузка 30+ транзитивных DLL из `IIChatTools.API` (ASP.NET Core, EF Core, JWT, PuppeteerSharp, Prometheus, HtmlAgilityPack) + JIT.
+- **Что помогло:**
+  1. `scripts/setup/configure-defender.ps1` — exclusions для SDK, temp, vstest-процессов.
+  2. **Dev Drive protection отключён** (`Параметры защиты диска разработчика`).
+  3. Reboot системы.
+  - **Итог:** `dotnet test --no-build` после cold build — **1.4 с**.
+- **Не блокер:** dev-workflow нормализован. См. KI-074 (split тестов) — опционально.
 
 ---
 
 ### KI-074 — Split тестового проекта на Unit / Integration
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x (опционально)
 - **Обнаружено:** 2026-09-24 (в ходе диагностики KI-073)
-- **Описание:** `IIChatTools.Tests` ссылается на `IIChatTools.API` — это тянет PuppeteerSharp и 30+ DLL в testhost, что даёт **24 с discovery**. Только `LocalizationSyncTests` реально использует типы API.
-- **Решение (план):**
-  - Создать `IIChatTools.Tests.Unit` — `ProjectReference` только на `IIChatTools.Services` + `IIChatTools.Data`. Перенести 38 unit-тестов.
-  - Оставить `IIChatTools.Tests.Integration` — со ссылкой на API. Оставить `LocalizationSyncTests`.
-  - CI: два workflow-job'а (unit — быстро, integration — параллельно).
-- **Ожидаемый эффект:** unit-прогон — **2-3 с** (без boot PuppeteerSharp).
+- **Описание:** `IIChatTools.Tests` ссылается на `IIChatTools.API` → тянет PuppeteerSharp и 30+ DLL. Только `LocalizationSyncTests` реально использует типы API.
+- **Решение (план, если понадобится):** разделить на `Tests.Unit` (только Services/Data) + `Tests.Integration` (с API). Ожидаемый эффект: unit — 2-3 с.
+- **Отсрочка:** после KI-073 тесты работают за 1.4 с — приоритет низкий.
 
 ---
 

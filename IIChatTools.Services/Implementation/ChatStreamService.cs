@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
+using IIChatTools.Services.Implementation.Agents; 
 using IIChatTools.Services.Implementation.ChatTools;
 using IIChatTools.Services.Implementation.Tools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Interfaces;
@@ -36,6 +37,7 @@ namespace IIChatTools.Services.Implementation
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;
         private readonly IToolRegistry _toolRegistry;
+        private readonly ISubAgentRegistry _subAgentRegistry;
         private readonly IWorkspaceResolver _workspaceResolver;
         private readonly IChatApprovalCoordinator _approvalCoordinator;
         private readonly IConfiguration _configuration;
@@ -47,15 +49,17 @@ namespace IIChatTools.Services.Implementation
         /// <param name="chatService">Сервис CRUD чатов</param>
         /// <param name="lmStudioClient">Клиент LM Studio (SSE)</param>
         /// <param name="toolRegistry">Реестр инструментов (для tool calling в чате)</param>
+        /// <param name="subAgentRegistry">Реестр специализированных суб-агентов (v1.4.0 Фаза 5, KI-052)</param>
         /// <param name="workspaceResolver">Резолвер рабочего пространства пользователя</param>
         /// <param name="approvalCoordinator">Координатор подтверждений tool call (Singleton)</param>
-        /// <param name="configuration">Конфигурация приложения (для SubAgent:DefaultAllowedTools)</param>
+        /// <param name="configuration">Конфигурация приложения</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatStreamService(
             IChatService chatService,
             ILmStudioClient lmStudioClient,
             IToolRegistry toolRegistry,
+            ISubAgentRegistry subAgentRegistry,
             IWorkspaceResolver workspaceResolver,
             IChatApprovalCoordinator approvalCoordinator,
             IConfiguration configuration,
@@ -64,6 +68,7 @@ namespace IIChatTools.Services.Implementation
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
             _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+            _subAgentRegistry = subAgentRegistry ?? throw new ArgumentNullException(nameof(subAgentRegistry));
             _workspaceResolver = workspaceResolver ?? throw new ArgumentNullException(nameof(workspaceResolver));
             _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -194,18 +199,32 @@ namespace IIChatTools.Services.Implementation
                 yield break;
             }
 
-            // 6. Формируем tools (10 инструментов из конфига SubAgent:DefaultAllowedTools)
+            // 6. Формируем tools (v1.4.0 Фаза 5, KI-052):
+            //    Chat видит 6 специализированных агентов + consult_secondary_agent (fallback).
+            //    Список резолвится из SubAgentRegistry (singleton), а не из SubAgent:DefaultAllowedTools.
             JArray tools = null;
             if (request.UseTools)
             {
-                var allowed = _configuration
-                    .GetSection("SubAgent:DefaultAllowedTools")
-                    .Get<IReadOnlyList<string>>();
+                var enabledAgents = _subAgentRegistry.GetEnabled();
+                var allowedNames = enabledAgents
+                    .Select(a => a.Name)
+                    .ToList();
+
+                // consult_secondary_agent — универсальный fallback (browser + всё остальное).
+                // Всегда доступен, независимо от реестра.
+                if (!allowedNames.Contains(ParentToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(ParentToolName);
+                }
 
                 tools = ToolDefinitionsBuilder.Build(
                     _toolRegistry.GetAllDescriptors(),
-                    allowedNames: allowed,
-                    excludeNames: new[] { ParentToolName });
+                    allowedNames: allowedNames);
+
+                _logger.LogInformation(
+                    "Chat tools: {Count} инструментов ({Names})",
+                    tools.Count,
+                    string.Join(", ", allowedNames));
             }
 
             // 7. Multi-turn loop (до MaxToolIterations итераций)

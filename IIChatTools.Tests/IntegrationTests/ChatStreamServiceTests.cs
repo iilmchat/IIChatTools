@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
+using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 5 (KI-052)
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -199,12 +200,51 @@ namespace IIChatTools.Tests.IntegrationTests
         }
 
         /// <summary>
+        /// Fake-реестр специализированных суб-агентов (v1.4.0 Фаза 5, KI-052).
+        /// Возвращает дескрипторы с заданными именами — Chat использует их как whitelist tools.
+        /// В тестах вместо реальных агентов (`file_system_agent`, ...) регистрируем
+        /// имена инструментов напрямую — так проще проверить tool calling loop.
+        /// </summary>
+        private sealed class FakeSubAgentRegistry : ISubAgentRegistry
+        {
+            private readonly List<SubAgentDescriptor> _agents = new List<SubAgentDescriptor>();
+
+            /// <summary>Зарегистрировать дескриптор с указанным именем (enabled).</summary>
+            public void Register(string name) => _agents.Add(new SubAgentDescriptor
+            {
+                Name = name,
+                Disabled = false,
+                AllowedTools = new List<string>()
+            });
+
+            public IReadOnlyList<SubAgentDescriptor> GetAll() => _agents;
+
+            public IReadOnlyList<SubAgentDescriptor> GetEnabled()
+                => _agents.Where(a => !a.Disabled).ToList();
+
+            public SubAgentDescriptor Get(string name)
+                => _agents.FirstOrDefault(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
+
+            public void Update(SubAgentDescriptor descriptor) { /* not used in tests */ }
+
+            public void Reset(string name) { /* not used in tests */ }
+        }
+
+        /// <summary>
         /// Создаёт сервис с реальным ChatService на InMemory-БД.
         /// </summary>
+        /// <param name="registry">Fake-реестр инструментов (или EmptyToolRegistry).</param>
+        /// <param name="model">Модель чата.</param>
+        /// <param name="config">Конфигурация (устаревший параметр, оставлен для совместимости).</param>
+        /// <param name="enabledTools">
+        /// v1.4.0 Фаза 5 (KI-052): имена «агентов» (в реальности — инструментов),
+        /// которые Chat увидит в списке tools. Пустой список = без tools.
+        /// </param>
         private static (ChatStreamService Service, ChatService ChatService, int UserId, int ChatId, FakeLmStudioClient LmClient, IToolRegistry Registry) CreateService(
             IToolRegistry registry = null,
             string model = "test-model",
-            IConfiguration config = null)
+            IConfiguration config = null,
+            params string[] enabledTools)
         {
             var db = TestDbContextFactory.Create();
             var chatService = new ChatService(db, NullLogger<ChatService>.Instance);
@@ -214,12 +254,21 @@ namespace IIChatTools.Tests.IntegrationTests
             var fakeResolver = new FakeWorkspaceResolver();
             var fakeApproval = new FakeApprovalCoordinator();
 
+            // v1.4.0 Фаза 5 (KI-052): Chat теперь резолвит tools из ISubAgentRegistry.
+            var fakeSubAgentRegistry = new FakeSubAgentRegistry();
+            if (enabledTools != null)
+            {
+                foreach (var name in enabledTools)
+                    fakeSubAgentRegistry.Register(name);
+            }
+
             var effectiveConfig = config ?? new ConfigurationBuilder().Build();
 
             var service = new ChatStreamService(
                 chatService,
                 fakeLm,
                 effectiveRegistry,
+                fakeSubAgentRegistry,
                 fakeResolver,
                 fakeApproval,
                 effectiveConfig,
@@ -333,7 +382,8 @@ namespace IIChatTools.Tests.IntegrationTests
                 })
                 .Build();
 
-            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(registry, config: config);
+            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(
+                registry, config: config, enabledTools: new[] { "list_directory" });
 
             // Итерация 1: LLM вызывает list_directory.
             // Строим JObject программно — экранирование JSON в verbatim-строке ломается.
@@ -436,7 +486,8 @@ namespace IIChatTools.Tests.IntegrationTests
                 })
                 .Build();
 
-            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(registry, config: config);
+            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(
+                registry, config: config, enabledTools: new[] { "save_file" });
 
             // Итерация 1: LLM вызывает save_file.
             var toolCallJObject = new JObject
