@@ -556,13 +556,17 @@
 ## v1.4.0 — Multi-Agent (roadmap)
 
 ### KI-052 — Специализированные суб-агенты по группам инструментов
-- **Приоритет:** 🟡 Medium | **Статус:** Deferred | **Запланировано:** v1.4.0
-- **Обнаружено:** 2026-09-21
-- **Файлы:** `IIChatTools.Services/Implementation/SubAgentService.cs` (текущий универсальный), новые `*AgentService.cs` для каждой группы
-- **Описание:** Одна модель (особенно 4B-7B) плохо выбирает инструмент из **40**. В `SubAgent:DefaultAllowedTools` уже зафиксирован рабочий лимит — **10 инструментов**. Решение: разбить на **специализированных суб-агентов** по группам (FileSystem, Code, Web, Git, Planner). Оркестратор (Chat) вызывает их через 5-6 «верхнеуровневых» инструментов.
-- **Плюсы:** маленькие промпты, точнее выбор, возможность тонкой настройки модели под группу.
-- **Минусы:** сложность, двойной проход, дороже по токенам.
-- **Решение (запланировано):** новая фаза после Chat UI. Требует design doc.
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.4.0
+- **Реализовано:** 2026-09-24 (Фазы 0-9)
+- **Что сделано:**
+  - Реестр `SubAgentRegistry` (singleton, `SubAgents:*`).
+  - 6 агентов: `file_system_agent` (13), `code_agent` (3), `web_agent` (3), `git_agent` (7), `github_agent` (7), `planner_agent` (2) + `consult_secondary_agent` (fallback).
+  - Chat видит **7 инструментов** вместо 12 (было `SubAgent:DefaultAllowedTools`).
+  - Админка `/admin → Агенты`: список, редактирование (DisplayName, Model, MaxSteps, SystemPrompt, AllowedTools, RequiresApproval, Disabled), сброс.
+  - Persist override'ов в `AppSettings` (JSON по ключу `SubAgents.{name}`).
+  - 11 тестов (4 unit `SubAgentRegistryTests` + 7 integration `AgentToolBaseTests`).
+  - Дизайн: `docs/development/v1.4/DESIGN.md`.
+- **Связанные KI:** KI-076 (статистика — Deferred), KI-077 (`model: null` — Documented).
 
 ---
 
@@ -830,7 +834,9 @@
 | Fixed (v1.1.1) | 11 |
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
-| Deferred | 3 |                      <!-- KI-047, KI-053, KI-067 -->
+| Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
+| Deferred | 8 |                      <!-- KI-047, KI-053, KI-067, KI-076, KI-078, KI-079, KI-080 -->
+| Documented | 4 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->

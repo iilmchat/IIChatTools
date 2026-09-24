@@ -18,6 +18,18 @@
 
 ## [Unreleased]
 
+_(пусто — планируется для v1.4.x / v1.5.0)_
+
+### Planned
+- **v1.4.x**: KI-047 (PATCH/DELETE fallback), KI-049 (tokensIn/Out через tiktoken), KI-053 (multi-user approvals), KI-067 (per-user retention), KI-076 (статистика по агентам), KI-077 (model:null при PUT), KI-078 (внутричатовый поиск + подсветка), KI-079 (collapse sidebar), KI-080 (поле ввода на всю ширину).
+- **v1.5.0**: RAG (Qdrant / embeddings), Knowledge base.
+
+---
+
+## [1.4.0] — 2026-09-24
+
+**Multi-Agent (KI-052)** — Chat работает через 6 специализированных суб-агентов + универсальный `consult_secondary_agent`.
+
 ### Added
 - **v1.4.0 Фаза 1 (KI-052)**: реестр специализированных суб-агентов.
   - DTO `SubAgentDescriptor` — Name, DisplayName (RU), Description, SystemPrompt, AllowedTools, Model, MaxSteps, RequiresApprovalByDefault, Disabled.
@@ -30,10 +42,8 @@
   - DTO: `AgentListItemDto`, `UpdateAgentRequest`.
   - `AdminAgentsController`: `GET /api/admin/agents`, `PUT /api/admin/agents/{name}`, `POST /api/admin/agents/{name}/reset`.
   - Persist override'ов: JSON в `AppSettings` по ключу `SubAgents.{name}` (upsert).
-  - Применение in-memory (немедленно) + persist в БД.
   - Восстановление при старте: `Program.LoadSubAgentOverridesAsync`.
   - Локализация: 15 ключей в `.resx` (RU + EN).
-  - **Не входит:** статистика по агентам (KI-076, Deferred), frontend (Фаза 6.5-6.6).
 - **v1.4.0 Фаза 6.5-6.6 (KI-052)**: frontend админки агентов.
   - `Admin.cshtml`: 7-я вкладка «Агенты» (таблица: техническое имя, отображаемое, модель, инструментов, approval, вкл/выкл, действия).
   - `admin-agents.js`: модуль вкладки (загрузка, редактирование, сброс); ленивая инициализация через `shown.bs.tab`.
@@ -41,12 +51,7 @@
   - Модалка редактирования: DisplayName, Description, Model, MaxSteps, SystemPrompt, AllowedTools (textarea построчно), RequiresApproval, Disabled.
 - **v1.4.0 Фаза 7 (KI-052)**: тесты `AgentToolBase` (7 новых).
   - `AgentToolBaseTests` (Integration): пустой/длинный task, unknown/disabled агент, передача дескриптора в `SubAgentTaskRequest`, clamp maxSteps к 30.
-  - Всего тестов: **47/47** (было 40).    
-
-### Fixed
-
-- **KI-073 (Fixed)**: первый `dotnet test` на Windows после cold build занимал ~44-60 с. Диагностика: **Defender — не главная причина** — виноват **testhost boot** (30+ DLL из API, PuppeteerSharp). Решено: `scripts/setup/configure-defender.ps1` + отключение Dev Drive protection + reboot → **1.4 с**. См. KNOWN_ISSUES.
-- **KI-075**: `ToolRegistry` логировал «инициализирован» на `LogInformation` при каждом scope — спам в проде. Понижено до `LogDebug`.
+  - Всего тестов: **47/47** (было 40).
 
 ### Changed
 - **v1.4.0 Фаза 2 (KI-052)**: `ModelOverride` + `SystemPromptOverride` в суб-агентах.
@@ -58,26 +63,27 @@
   - `AgentToolBase` — единый базовый класс (params, resolve дескриптора, вызов `SubAgentService` через `Func<ISubAgentService>` — разрыв DI-цикла).
   - 6 наследников: `FileSystemAgentTool`, `CodeAgentTool`, `WebAgentTool`, `GitAgentTool`, `GitHubAgentTool`, `PlannerAgentTool`.
   - `RequiresApprovalByDefault` резолвится из дескриптора (`SubAgents:X.RequiresApproval`).
-  - Регистрация в `Startup.RegisterSpecializedAgentTools`.
   - `SubAgentService`: расширена защита от рекурсии — запрет `consult_secondary_agent` + любого `*_agent` внутри суб-агента.
-  - В Chat новые агенты **пока не видны** (переключение — Фаза 5).
 - **v1.4.0 Фаза 4 (KI-052)**: усилены system-промпты всех 6 агентов.
-  - `web_agent`: КРИТИЧНО использовать инструменты перед ответом (не отвечать из знаний), указывать источник.
-  - `file_system_agent`: проверять `list_directory` перед операциями, не галлюцинировать имена.
-  - `code_agent`: обязательно проверять код запуском, анализировать ошибки.
+  - `web_agent`: обязательно использовать инструменты перед ответом, указывать источник.
+  - `file_system_agent`: проверять `list_directory` перед операциями.
+  - `code_agent`: обязательно проверять код запуском.
   - `git_agent`: начинать с `git_status`, не делать force-push.
   - `github_agent`: начинать с `gh_auth_status`.
-  - `planner_agent`: использовать `save_memory` / `get_system_info` по назначению.
+  - `planner_agent`: `save_memory` / `get_system_info` по назначению.
 - **v1.4.0 Фаза 5 (KI-052)**: Chat использует `SubAgentRegistry` вместо `SubAgent:DefaultAllowedTools`.
   - `ChatStreamService`: в конструктор добавлен `ISubAgentRegistry`.
   - Список tools = `SubAgentRegistry.GetEnabled()` (6 агентов) + `consult_secondary_agent` (fallback).
-  - Убран `excludeNames` — whitelist явный.
-  - Логирование `Chat tools: N инструментов (...)`.
   - **Эффект:** Chat видит **7 инструментов** вместо 12. LLM вызывает `file_system_agent` вместо `list_directory` + `read_file` + `save_file` по отдельности.
 
-### Planned
-- **v1.4.0**: KI-052 (специализированные суб-агенты — Фазы 2-9), KI-053 (multi-user approvals), KI-049 (tiktoken).
-- **v1.4.x / v1.5.0**: KI-078 (внутричатовый поиск + подсветка), KI-079 (collapse sidebar), KI-080 (поле ввода на всю ширину), KI-067 (per-user retention), KI-047 (PATCH/DELETE fallback).
+### Fixed
+- **KI-073 (Fixed)**: первый `dotnet test` на Windows после cold build занимал ~44-60 с. Диагностика: **Defender — не главная причина** — виноват **testhost boot** (30+ DLL из API, PuppeteerSharp). Решено: `scripts/setup/configure-defender.ps1` + отключение Dev Drive protection + reboot → **1.4 с**.
+- **KI-075**: `ToolRegistry` логировал «инициализирован» на `LogInformation` при каждом scope — спам в проде. Понижено до `LogDebug`.
+
+### Documented
+- **KI-076** (Deferred, v1.4.x): статистика по агентам (TotalRuns, AvgTime, SuccessRate) в админке.
+- **KI-077** (Documented): `model: null` при PUT агента = «сбросить на default», а не «не менять».
+- **KI-078, KI-079, KI-080** (Deferred, v1.4.x): по мотивам DeepSeek — внутричатовый поиск + подсветка, collapse sidebar, поле ввода на всю ширину.
 
 ---
 
