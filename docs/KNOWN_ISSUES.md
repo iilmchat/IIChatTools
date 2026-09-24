@@ -853,7 +853,27 @@
 
 ---
 
-### KI-085 — SQLite `database is locked` при открытом внешнем клиенте
+### KI-083 — RAG / Knowledge Base (Retrieval-Augmented Generation)
+- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.5.0
+- **Обнаружено:** 2026-09-25
+- **DESIGN:** [`docs/development/v1.5/DESIGN.md`](development/v1.5/DESIGN.md) — согласован 2026-09-25.
+- **Что войдёт:**
+  - `IEmbeddingService` (LM Studio `/v1/embeddings`, nomic-embed-text-v1.5, 768 dim).
+  - `IVectorStore` (InMemory MVP → Qdrant в v1.5.x).
+  - Chunking (recursive / sentence / fixed; 500 токенов, overlap 64).
+  - `PlainTextParser` (21 расширение: текст, код, разметка).
+  - `DocumentIngestionService` (parse → chunk → embed → store).
+  - 3 tool для LLM: `search_knowledge_base`, `search_chat_history`, `search_workspace`.
+  - Attached files в чат (📎, 1–5 файлов, ≤30 MB).
+  - Admin `/admin → Knowledge Base` (4 индекса, reindex, настройки).
+  - Profile: workspace index (opt-in).
+- **4 индекса:** `project_docs` (global), `my_rag_docs` (per-chat), `chat_history` (per-user), `workspace` (per-user).
+- **План:** 8 фаз, ~45 ч. Фаза 0 (DESIGN) — ✅ Done.
+- **Связанные:** KI-086 (sources / citations — v1.6.0), KI-049 (tiktoken), KI-067 (UserSettings).
+
+---
+
+### KI-086 — Вывод источников (sources / citations) под ответом ассистента
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-09-25
 - **Файлы:** `appsettings.Development.json` (Sqlite-провайдер)
@@ -988,7 +1008,7 @@
 | Fixed (v1.4.1) | 9 |                <!-- KI-049, 067, 076, 078, 079, 080, 081, 084, 085 -->
 | Deferred | 5 |                      <!-- KI-047, KI-053, KI-082, KI-086, KI-083 (planned) -->
 | Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075, KI-085 -->
-| In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->
+| In Progress (v1.5.0) | 1 |           <!-- KI-083 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
 | Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->

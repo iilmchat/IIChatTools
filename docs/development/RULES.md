@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.8
+**Версия:** 1.4.9
 **Обновлено:** 2026-09-25
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -170,7 +170,7 @@
 | KI-080 | 🟢 | Fixed (v1.4.1) | Поле ввода на всю ширину | ✅ |
 | KI-081 | 🟢 | Fixed (v1.4.1) | Логотип IIChatTools | ✅ |
 | KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.5.0+ |
-| KI-083 | 🟡 | Planned | RAG / embeddings (Qdrant) | v1.5.0 |
+| KI-083 | 🟡 | In Progress | RAG / Knowledge Base (DESIGN ✅, фазы 0-8) | v1.5.0 |
 | KI-084 | 🟢 | Fixed (v1.4.1) | Расширенная статистика (tok/s, duration) | ✅ |
 | KI-085 | 🟢 | Documented | SQLite `database is locked` (внешний клиент) | — |
 | KI-086 | 🟢 | Deferred | Sources / citations под ответом | v1.6.0 |
@@ -199,6 +199,7 @@
 | 2026-09-25 | 1.4.6 | Правило 4.32 (два пакета ML.Tokenizers: API + Data). **KI-085** — SQLite locked. |
 | 2026-09-25 | 1.4.7 | Правило 2.11 (большие MD — только diff). **KI-084b** — токены в SSE + fix CS0103. |
 | 2026-09-25 | 1.4.8 | § 7 — актуализация KI-выжимки. **Релиз v1.4.1** — Chat UX + retention + tiktoken. |
+| 2026-09-25 | 1.4.9 | **DESIGN v1.5.0** (RAG) — согласован, KI-083 → In Progress. |
 
 ---
 

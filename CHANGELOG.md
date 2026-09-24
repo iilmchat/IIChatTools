@@ -22,7 +22,7 @@ _(пусто — планируется для v1.4.2 / v1.5.0)_
 
 ### Planned
 - **v1.4.x**: KI-047 (PATCH/DELETE fallback), KI-053 (multi-user approvals — крупная), KI-077 (model:null при PUT), KI-082 (модалка-редактор).
-- **v1.5.0**: RAG (Qdrant / embeddings), Knowledge base, `search_knowledge_base` / `search_chat_history` / `search_workspace`.
+- **v1.5.0**: RAG / Knowledge Base (KI-083) — дизайн согласован, см. [`docs/development/v1.5/DESIGN.md`](docs/development/v1.5/DESIGN.md). План: 8 фаз, ~45 ч.
 - **v1.6.0**: KI-086 (вывод источников / citations из tool_result).
 
 ---
