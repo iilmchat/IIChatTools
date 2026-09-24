@@ -205,19 +205,118 @@
     width: 80%;
 }
 
-/* ============ Поле ввода ============ */
+/* ============ Поле ввода (KI-080: DeepSeek-style, full-width) ============ */
 
 .chat-input {
     flex-shrink: 0;
-    padding: .75rem 1rem;
+    padding: .5rem 1rem .85rem;
     border-top: 1px solid #dee2e6;
     background: #fff;
 }
 
-.chat-input textarea {
+/* Обёртка поля: закруглённая, с фоном, растягивается на всю ширину */
+.chat-input-box {
+    display: flex;
+    align-items: flex-end;
+    gap: .35rem;
+    padding: .35rem .35rem .35rem .75rem;
+    background: #f6f8fa;
+    border: 1px solid #dee2e6;
+    border-radius: 1.5rem;
+    transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+
+.chat-input-box:focus-within {
+    background: #fff;
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
+}
+
+/* Textarea внутри поля: прозрачная, без бордера, растёт вверх */
+.chat-input-textarea {
+    flex: 1 1 auto;
+    min-width: 0;
     resize: none;
-    max-height: 200px;
     overflow-y: auto;
+    padding: .4rem .5rem;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #212529;
+    font-family: inherit;
+    font-size: .95rem;
+    line-height: 1.5;
+    min-height: calc(1.5em + .8rem);
+    max-height: 200px;
+    box-sizing: border-box;
+    transition: height .1s;
+}
+
+.chat-input-textarea::placeholder {
+    color: #adb5bd;
+}
+
+.chat-input-textarea:disabled {
+    background: transparent;
+    cursor: not-allowed;
+    opacity: .6;
+}
+
+/* Круглые action-кнопки внутри поля */
+.chat-input-action {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color .15s, color .15s, transform .1s;
+}
+
+.chat-input-action:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+.chat-input-action:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.chat-input-action[hidden] {
+    display: none !important;
+}
+
+/* Send — синяя круглая со стрелкой вверх */
+.chat-input-action-send {
+    background: #0d6efd;
+    color: #fff;
+}
+
+.chat-input-action-send:hover:not(:disabled) {
+    background: #0b5ed7;
+}
+
+.chat-input-action-send:active:not(:disabled) {
+    transform: scale(.94);
+}
+
+/* Stop — красная круглая с квадратом */
+.chat-input-action-stop {
+    background: #dc3545;
+    color: #fff;
+}
+
+.chat-input-action-stop:hover:not(:disabled) {
+    background: #bb2d3b;
+}
+
+.chat-input-action-stop:active:not(:disabled) {
+    transform: scale(.94);
 }
 
 /* ============ Адаптивность ============ */
@@ -422,47 +521,6 @@
 .chat-tool-result.error {
     border-left-color: #dc3545;
     background: #f8d7da;
-}
-
-/* textarea — автоувеличение */
-.chat-input .input-group {
-    /* Растягиваем textarea и кнопки по высоте друг друга */
-    align-items: stretch;
-    border-radius: .375rem;
-    transition: box-shadow .15s;
-}
-
-/* KI-061a: focus-ring на весь input-group вместо textarea.
-   Иначе Bootstrap box-shadow на textarea вылезает вправо и перекрывает кнопку. */
-.chat-input .input-group:focus-within {
-    box-shadow: 0 0 0 .25rem rgba(13, 110, 253, .25);
-}
-
-.chat-input textarea {
-    resize: none;
-    overflow-y: auto;
-    /* min-height — стандартный размер form-control Bootstrap:
-       1.5em (line-height) + 0.75rem (padding) + 2px (border) ≈ 38px.
-       Без min-height textarea с одним рядом текста «проседает» ниже кнопки. */
-    min-height: calc(1.5em + 0.75rem + 2px);
-    max-height: 200px;
-    transition: height .1s;
-}
-
-.chat-input textarea:focus {
-    /* Убираем box-shadow у самого textarea — он перекрывал кнопку.
-       Focus-ring теперь на .input-group:focus-within (выше). */
-    box-shadow: none;
-}
-
-.chat-input .input-group > .btn {
-    /* Кнопка растягивается на всю высоту textarea */
-    align-self: stretch;
-    height: auto;
-}
-
-.chat-input .input-group > .btn:focus {
-    box-shadow: none;
 }
 
 /* ============ Drag-and-drop модалки approval (v1.3 Фаза 2.0.4 fix) ============ */

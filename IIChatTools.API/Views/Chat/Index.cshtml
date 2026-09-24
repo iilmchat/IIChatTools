@@ -129,18 +129,26 @@
             </div>
         </div>
 
-        <!-- Поле ввода -->
+        <!-- Поле ввода (KI-080: DeepSeek-style, full-width rounded) -->
         <div class="chat-input">
-            <div class="input-group">
-                <textarea id="chat-input" class="form-control" rows="1"
+            <div class="chat-input-box">
+                <textarea id="chat-input" class="chat-input-textarea" rows="1"
                           placeholder="@Localizer["Введите сообщение…"]"
+                          aria-label="@Localizer["Введите сообщение…"]"
                           disabled></textarea>
-                <button id="btn-stop" type="button" class="btn btn-outline-danger" hidden
+                <button id="btn-stop" type="button" class="chat-input-action chat-input-action-stop" hidden
                         title="@Localizer["Остановить"]" aria-label="@Localizer["Остановить"]">
-                    ⏹
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                         viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <rect x="3" y="3" width="10" height="10" rx="1.5"/>
+                    </svg>
                 </button>
-                <button id="btn-send" type="button" class="btn btn-primary" disabled>
-                    @Localizer["Отправить"]
+                <button id="btn-send" type="button" class="chat-input-action chat-input-action-send" disabled
+                        title="@Localizer["Отправить"]" aria-label="@Localizer["Отправить"]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                         viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M8 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 2.707V14.5a.5.5 0 0 0 .5.5"/>
+                    </svg>
                 </button>
             </div>
         </div>

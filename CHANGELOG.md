@@ -18,6 +18,15 @@
 
 ## [Unreleased]
 
+### Changed
+- **Chat UI — поле ввода на всю ширину (KI-080, DeepSeek-style, v1.4.x)**:
+  - `.input-group` → `.chat-input-box`: закруглённое поле (`border-radius: 1.5rem`) на всю ширину `.chat-main`, светлый фон (`#f6f8fa`).
+  - Textarea: прозрачная внутри поля, без бордера, растёт вверх (`max-height: 200px`).
+  - Кнопки Send/Stop: круглые SVG-иконки (стрелка вверх / квадрат) внутри поля справа.
+  - Focus-ring на `.chat-input-box:focus-within` (убраны Bootstrap `box-shadow` на textarea).
+  - Удалён мёртвый CSS KI-061a (правила для `.input-group`).
+  - `enableInput`/`setStreamingUI` без изменений (те же `#btn-send`/`#btn-stop`).
+
 ### Added
 - **Tests — KI-078B (v1.4.x)**: 8 тестов для `SearchUserChatsWithSnippetAsync`:
   - `EmptyQuery_ReturnsEmpty` — семантика «пустой запрос → пусто» (в отличие от `SearchUserChatsAsync`).
