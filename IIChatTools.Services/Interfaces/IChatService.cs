@@ -165,5 +165,26 @@ namespace IIChatTools.Services.Interfaces
             int userId,
             string search,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// KI-078B: расширенный поиск с превью совпадения — для ⌘K-модалки (Ctrl+K).
+        /// Возвращает для каждого найденного чата сниппет (~150 символов) вокруг
+        /// первого совпадения и позицию совпадения для подсветки на клиенте.
+        ///
+        /// Приоритет: сначала проверяется title, потом — content. Один чат —
+        /// один результат (первое найденное совпадение).
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <param name="search">
+        /// Поисковый запрос. Пустой / <c>null</c> → пустой список.
+        /// Обрезается до 200 символов.
+        /// </param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Список результатов (сортировка по UpdatedAt desc, как в <see cref="GetUserChatsAsync"/>)</returns>
+        Task<IReadOnlyList<IIChatTools.Services.DTO.Chat.ChatSearchResultDto>>
+            SearchUserChatsWithSnippetAsync(
+                int userId,
+                string search,
+                CancellationToken cancellationToken = default);
     }
 }

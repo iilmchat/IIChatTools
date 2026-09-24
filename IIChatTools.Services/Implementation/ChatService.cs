@@ -452,5 +452,139 @@ namespace IIChatTools.Services.Implementation
                     || chatIdsWithContentMatch.Contains(c.Id))
                 .ToList();
         }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyList<ChatSearchResultDto>> SearchUserChatsWithSnippetAsync(
+            int userId,
+            string search,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return Array.Empty<ChatSearchResultDto>();
+            }
+
+            var term = search.Trim();
+            if (term.Length > 200)
+            {
+                term = term.Substring(0, 200);
+            }
+
+            var allChats = await GetUserChatsAsync(userId, cancellationToken);
+            if (allChats.Count == 0)
+            {
+                return Array.Empty<ChatSearchResultDto>();
+            }
+
+            var chatIds = allChats.Select(c => c.Id).ToList();
+
+            // KI-078B: тянем (ChatId, Content) — lightweight-проекция.
+            // OrderBy(Id) — для стабильного «первого совпадения» при нескольких матчах.
+            // Фильтрация — в памяти через OrdinalIgnoreCase (см. §4.26: SQLite
+            // LOWER() не работает с кириллицей).
+            var messageSnapshots = await _dbContext.ChatMessages
+                .AsNoTracking()
+                .Where(m => chatIds.Contains(m.ChatId))
+                .OrderBy(m => m.Id)
+                .Select(m => new { m.ChatId, m.Content })
+                .ToListAsync(cancellationToken);
+
+            var messagesByChat = messageSnapshots
+                .Where(m => !string.IsNullOrEmpty(m.Content))
+                .GroupBy(m => m.ChatId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.Content).ToList());
+
+            const int ContextBefore = 30;
+            const int ContextAfter = 100;
+            const int MaxSnippetLength = 150;
+
+            var results = new List<ChatSearchResultDto>();
+
+            foreach (var chat in allChats)
+            {
+                // 1. Title — приоритетнее.
+                if (!string.IsNullOrEmpty(chat.Title))
+                {
+                    var titleIdx = chat.Title.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+                    if (titleIdx >= 0)
+                    {
+                        results.Add(new ChatSearchResultDto
+                        {
+                            Id = chat.Id,
+                            Title = chat.Title,
+                            Model = chat.Model,
+                            UpdatedAt = chat.UpdatedAt,
+                            MatchedField = "title",
+                            Snippet = null,
+                            SnippetMatchStart = null,
+                            SnippetMatchLength = null
+                        });
+                        continue;
+                    }
+                }
+
+                // 2. Content — первое совпадение в первом (по Id) сообщении.
+                if (!messagesByChat.TryGetValue(chat.Id, out var contents))
+                {
+                    continue;
+                }
+
+                string snippet = null;
+                int snippetMatchStart = 0;
+                int snippetMatchLength = 0;
+
+                foreach (var content in contents)
+                {
+                    var idx = content.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+                    if (idx < 0)
+                    {
+                        continue;
+                    }
+
+                    var rawStart = Math.Max(0, idx - ContextBefore);
+                    var rawEnd = Math.Min(content.Length, idx + term.Length + ContextAfter);
+
+                    var prefixEllipsis = rawStart > 0 ? "…" : string.Empty;
+                    var suffixEllipsis = rawEnd < content.Length ? "…" : string.Empty;
+
+                    var raw = content.Substring(rawStart, rawEnd - rawStart);
+                    snippet = prefixEllipsis + raw + suffixEllipsis;
+
+                    // Позиция совпадения в snippet — с учётом префикса «…» (1 символ).
+                    snippetMatchStart = prefixEllipsis.Length + (idx - rawStart);
+                    snippetMatchLength = term.Length;
+
+                    // Обрезаем слишком длинный snippet (защита от гигантских сообщений).
+                    if (snippet.Length > MaxSnippetLength + 2)
+                    {
+                        snippet = snippet.Substring(0, MaxSnippetLength + 2);
+                    }
+                    break;
+                }
+
+                if (snippet != null)
+                {
+                    results.Add(new ChatSearchResultDto
+                    {
+                        Id = chat.Id,
+                        Title = chat.Title,
+                        Model = chat.Model,
+                        UpdatedAt = chat.UpdatedAt,
+                        MatchedField = "content",
+                        Snippet = snippet,
+                        SnippetMatchStart = snippetMatchStart,
+                        SnippetMatchLength = snippetMatchLength
+                    });
+                }
+            }
+
+            _logger.LogDebug(
+                "SearchUserChatsWithSnippet: userId={UserId}, term=\"{Term}\", found={Count}",
+                userId, term, results.Count);
+
+            return results;
+        }
     }
 }

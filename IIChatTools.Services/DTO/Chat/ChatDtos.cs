@@ -5,6 +5,8 @@ namespace IIChatTools.Services.DTO.Chat
 {
     /// <summary>
     /// Краткая информация о чате для списка в sidebar.
+    /// KI-078B: при поиске (GET /api/chats?search=) заполняются дополнительные
+    /// поля для превью совпадения в ⌘K-модалке (Ctrl+K).
     /// </summary>
     public class ChatListItemDto
     {
@@ -22,6 +24,30 @@ namespace IIChatTools.Services.DTO.Chat
 
         /// <summary>Количество сообщений в чате.</summary>
         public int MessageCount { get; set; }
+
+        /// <summary>
+        /// KI-078B: поле, в котором найдено совпадение (<c>"title"</c> / <c>"content"</c>).
+        /// <c>null</c>, если <c>search</c> не был указан.
+        /// </summary>
+        public string MatchedField { get; set; }
+
+        /// <summary>
+        /// KI-078B: превью совпадения (≈150 символов, с «…» по краям).
+        /// <c>null</c>, если поиск не выполнялся или совпадение в title.
+        /// </summary>
+        public string Snippet { get; set; }
+
+        /// <summary>
+        /// KI-078B: позиция совпадения в <see cref="Snippet"/> (0-based).
+        /// <c>null</c>, если поиск не выполнялся или совпадение в title.
+        /// </summary>
+        public int? SnippetMatchStart { get; set; }
+
+        /// <summary>
+        /// KI-078B: длина совпадения в <see cref="Snippet"/>.
+        /// <c>null</c>, если поиск не выполнялся или совпадение в title.
+        /// </summary>
+        public int? SnippetMatchLength { get; set; }
     }
 
     /// <summary>

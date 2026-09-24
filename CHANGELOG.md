@@ -19,6 +19,12 @@
 ## [Unreleased]
 
 ### Added
+- **Chat API — расширенный поиск с snippet (KI-078B-1, v1.4.x)**:
+  - `ChatSearchResultDto` (`Id`, `Title`, `Model`, `UpdatedAt`, `MatchedField`, `Snippet`, `SnippetMatchStart`, `SnippetMatchLength`).
+  - `IChatService.SearchUserChatsWithSnippetAsync(userId, search)` — поиск с превью совпадения (≈30 символов до + 100 после), позиция совпадения для подсветки.
+  - Приоритет: сначала title, потом content. Один чат — один результат.
+  - `ChatListItemDto` расширен 4 nullable-полями (`MatchedField`, `Snippet`, `SnippetMatchStart`, `SnippetMatchLength`) — заполняются только при `search`.
+  - `ChatController.GetChatsAsync`: при `search != null` — использует расширенный метод.
 - **Chat UI — внутричатовый поиск (KI-078A, v1.4.x)**:
   - Панель поиска в правом верхнем углу `.chat-main` (Ctrl+F / кнопка 🔍 в header).
   - Подсветка совпадений `<mark class="chat-search-hit">` в ленте активного чата (user + assistant).

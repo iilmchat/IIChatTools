@@ -61,9 +61,31 @@ namespace IIChatTools.API.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                var chats = await _chatService.SearchUserChatsAsync(userId, search);
                 var counts = await _chatService.GetMessageCountsAsync(userId);
 
+                // KI-078B: при наличии поискового запроса — используем расширенный
+                // метод с превью совпадения (для ⌘K-модалки / Ctrl+K).
+                // Без search — плоский список (sidebar): snippet-поля = null.
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var results = await _chatService.SearchUserChatsWithSnippetAsync(userId, search);
+                    var dataWithSnippet = results.Select(r => new ChatListItemDto
+                    {
+                        Id = r.Id,
+                        Title = r.Title,
+                        Model = r.Model,
+                        UpdatedAt = r.UpdatedAt,
+                        MessageCount = counts.TryGetValue(r.Id, out var cnt) ? cnt : 0,
+                        MatchedField = r.MatchedField,
+                        Snippet = r.Snippet,
+                        SnippetMatchStart = r.SnippetMatchStart,
+                        SnippetMatchLength = r.SnippetMatchLength
+                    }).ToList();
+
+                    return Ok(new { success = true, data = dataWithSnippet });
+                }
+
+                var chats = await _chatService.SearchUserChatsAsync(userId, null);
                 var data = chats.Select(c => new ChatListItemDto
                 {
                     Id = c.Id,
