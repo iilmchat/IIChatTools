@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.6
+**Версия:** 1.4.7
 **Обновлено:** 2026-09-25
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -45,6 +45,7 @@
 | 2.8 | Ссылки на KI в commit message — обязательны, если фикс связан с реестром. |
 | 2.9 | **`docs/development/RELEASES.md` — единый чек-лист релиза.** Обновляется при изменении процесса (новые файлы в § 2, автоматизация в § 9). См. KI-071-инцидент (пропущенный Release v1.3.0). |
 | 2.10 | **Markdown-файлы с внутренними code-блоками — выводить в 4 бэктиках снаружи** (````). Иначе при копировании из чата DeepSeek внешняя обёртка ```markdown «съедает» внутренние ```powershell/```csharp/```yaml — файл приходит с битой разметкой (2 инцидента: DESIGN.md v1.4.0, RELEASES.md). Правило действует для всех будущих .md-файлов, содержащих fenced code blocks. |
+| 2.11 | **Большие MD-файлы (README, CHANGELOG, RULES, KNOWN_ISSUES, RELEASES) — НЕ выводить целиком в чате.** Вместо этого — **точечный diff** («Найти X / Заменить на Y») или отдельная секция (в 4 бэктиках снаружи, 3 внутри). Причина: третья итерация с развалившейся разметкой README.md (28 KB, ~800 строк) — при копировании внутренние code-блоки слипаются, восстанавливать вручную долго. Правило согласовано 2026-09-25. |
 
 **Типы записей в CHANGELOG:** `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
@@ -108,6 +109,7 @@
 | 4.30 | **`cref` в XML-doc с перегрузками → CS0419.** После добавления перегрузки метода все `cref="Type.Method"` становятся неоднозначными. **Решение:** либо уточнять сигнатуру (`Type.Method(int, CancellationToken)`), либо использовать `<c>Text</c>` вместо `<see>`. При добавлении перегрузки — grep по `cref="MethodName"` в проекте. См. `ChatRetentionService.cs` (KI-067-2). |
 | 4.31 | **`Chat:Retention:Enabled = false` в `appsettings.Development.json` — намеренно.** Чтобы не удалять тестовые чаты при каждом запуске dev-сервера. Для проверки retention: временно `Enabled = true` + `CleanupIntervalHours = 1` + перезапуск. Первый прогон — через **2 минуты** после старта (Task.Delay), дальше — по `PeriodicTimer`. В логах искать: `ChatRetentionService запущен: интервал=1ч, срок=Nд`. См. KI-067-3 (smoke). |
 | 4.32 | **`Microsoft.ML.Tokenizers` — это API, без данных.** Для `TiktokenTokenizer.CreateForEncoding("cl100k_base")` нужны **два пакета одной версии**: `Microsoft.ML.Tokenizers` (API) + `Microsoft.ML.Tokenizers.Data.Cl100kBase` (BPE-словарь). Иначе — `InvalidOperationException: The tokenizer data file ... could not be loaded`. Аналогично: `o200k_base` → `Microsoft.ML.Tokenizers.Data.O200kBase`, `p50k_base` → `...Data.P50kBase`. См. KI-049a. |
+| 4.33 | **`yield return` и scope переменных.** В `IAsyncEnumerable<T>`-методах переменные, используемые в `yield return`, должны быть объявлены **вне** `try-catch`. Если объявить внутри `try` (например, `var contextTokens = ...` перед `AddMessageAsync`), то `yield return Done(..., contextTokens, ...)` после `try` даст **CS0103**. Решение: hoist объявление до `try`. См. KI-084b (ChatStreamService). |
 
 ---
 
@@ -190,6 +192,7 @@
 | 2026-09-25 | 1.4.4 | Правило 4.31 (Retention:Enabled в Development). **KI-049** — tokensIn/Out через tiktoken. |
 | 2026-09-25 | 1.4.5 | Правило 3.14 (остановить приложение перед build). **KI-049a** — пакет Data.Cl100kBase. |
 | 2026-09-25 | 1.4.6 | Правило 4.32 (два пакета ML.Tokenizers: API + Data). **KI-085** — SQLite locked. |
+| 2026-09-25 | 1.4.7 | Правило 2.11 (большие MD — только diff). **KI-084b** — токены в SSE + fix CS0103. |
 
 ---
 

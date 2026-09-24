@@ -1455,6 +1455,11 @@ function handleSseEvent(name, data, assistantBubble) {
                 if (lastUser) {
                     lastUser.dataset.messageId = String(data.userMessageId);
 
+                    // KI-084b: показать токены user-сообщения сразу (без F5).
+                    if (data.userTokens != null) {
+                        updateBubbleMeta(lastUser, data.userTokens, null);
+                    }
+
                     const actionsEl = lastUser.querySelector('.chat-message-actions');
                     if (actionsEl && !actionsEl.querySelector('[data-action="edit"]')) {
                         actionsEl.insertAdjacentHTML('afterbegin', `
@@ -1496,6 +1501,11 @@ function handleSseEvent(name, data, assistantBubble) {
             finalizeAssistantBubble(assistantBubble, data);
             // Фаза 2.2.1b: флаг успешного завершения — для maybeGenerateTitle.
             if (assistantBubble) assistantBubble.dataset.streamCompleted = '1';
+
+            // KI-084b: токены assistant-сообщения — сразу, без F5.
+            if (assistantBubble && (data?.tokensIn != null || data?.tokensOut != null)) {
+                updateBubbleMeta(assistantBubble, data.tokensIn, data.tokensOut);
+            }
             break;
 
         case 'error':
@@ -1670,34 +1680,65 @@ function handleApprovalResolved(data) {
 // ============ Рендер сообщений ============
 
 /**
- * KI-049b: форматирует meta-строку с токенами.
+ * KI-049b/084b: форматирует ТОЛЬКО текстовую часть токенов (без времени).
+ * @param {boolean} isUser
+ * @param {number|null} tokensIn
+ * @param {number|null} tokensOut
+ * @returns {string} — '15 токенов' / '123 / 45 токенов' / ''
+ */
+function formatTokenMetaText(isUser, tokensIn, tokensOut) {
+    const container = document.getElementById('chat-messages');
+    const tin = Number.isFinite(tokensIn) ? tokensIn : null;
+    const tout = Number.isFinite(tokensOut) ? tokensOut : null;
+
+    if (isUser) {
+        if (tin == null || tin <= 0) return '';
+        const tpl = container?.dataset.labelTokensUser || '{0} токенов';
+        return tpl.replace('{0}', String(tin));
+    }
+
+    const hasIn = tin != null && tin > 0;
+    const hasOut = tout != null && tout > 0;
+    if (!hasIn && !hasOut) return '';
+
+    const tpl = container?.dataset.labelTokensAssistant || '{0} / {1} токенов';
+    return tpl
+        .replace('{0}', hasIn ? String(tin) : '—')
+        .replace('{1}', hasOut ? String(tout) : '—');
+}
+
+/**
+ * KI-084b: обновляет meta-строку bubble (добавляет токены к существующему времени).
+ * Используется в live-стриме при SSE-событиях `start` (user) и `done` (assistant).
+ * @param {HTMLElement} bubble
+ * @param {number|null} tokensIn
+ * @param {number|null} tokensOut
+ */
+function updateBubbleMeta(bubble, tokensIn, tokensOut) {
+    if (!bubble) return;
+
+    const metaEl = bubble.querySelector('.chat-message-meta');
+    if (!metaEl) return;
+
+    const isUser = bubble.classList.contains('user');
+    const roleLabel = bubble.dataset.roleLabel || (isUser ? 'Вы' : 'Ассистент');
+    const time = bubble.dataset.time || '';
+    const tokenPart = formatTokenMetaText(isUser, tokensIn, tokensOut);
+
+    metaEl.innerHTML = tokenPart
+        ? `${escapeHtml(roleLabel)} · ${escapeHtml(time)} · ${escapeHtml(tokenPart)}`
+        : `${escapeHtml(roleLabel)} · ${escapeHtml(time)}`;
+}
+
+/**
+ * KI-049b: форматирует meta-строку с токенами (для renderMessage).
  * Возвращает '' (пустую строку), если токены недоступны.
  * @param {object} msg — DTO сообщения
  * @param {boolean} isUser — user или assistant
  * @returns {string}
  */
 function formatTokenMeta(msg, isUser) {
-    const container = document.getElementById('chat-messages');
-    if (!container) return '';
-
-    const tin = Number.isFinite(msg.tokensIn) ? msg.tokensIn : null;
-    const tout = Number.isFinite(msg.tokensOut) ? msg.tokensOut : null;
-
-    if (isUser) {
-        if (tin == null || tin <= 0) return '';
-        const tpl = container.dataset.labelTokensUser || '{0} токенов';
-        return tpl.replace('{0}', String(tin));
-    }
-
-    // assistant / tool — показываем in / out
-    const hasIn = tin != null && tin > 0;
-    const hasOut = tout != null && tout > 0;
-    if (!hasIn && !hasOut) return '';
-
-    const tpl = container.dataset.labelTokensAssistant || '{0} / {1} токенов';
-    return tpl
-        .replace('{0}', hasIn ? String(tin) : '—')
-        .replace('{1}', hasOut ? String(tout) : '—');
+    return formatTokenMetaText(isUser, msg.tokensIn, msg.tokensOut);
 }
 
 function renderMessages(messages) {
@@ -1836,16 +1877,25 @@ function appendUserMessage(text) {
     container.querySelector('.chat-empty-state')?.remove();
 
     const now = new Date().toISOString();
+    const time = formatTime(now);
     const html = `
         <div class="chat-message user">
             <div class="chat-message-avatar">👤</div>
             <div class="chat-message-body">
-                <div class="chat-message-meta">Вы · ${escapeHtml(formatTime(now))}</div>
+                <div class="chat-message-meta">Вы · ${escapeHtml(time)}</div>
                 <div class="chat-message-content">${renderUserContent(text)}</div>
                 ${renderMessageActions(text)}
             </div>
         </div>`;
     container.insertAdjacentHTML('beforeend', html);
+
+    // KI-084b: сохраняем время и роль для обновления meta (токены).
+    const lastBubble = container.lastElementChild;
+    if (lastBubble) {
+        lastBubble.dataset.time = time;
+        lastBubble.dataset.roleLabel = 'Вы';
+    }
+
     // enhanceCodeBlocks для user не нужен — там plain text без <pre><code>
     scrollToBottom();
 }
@@ -1861,11 +1911,12 @@ function appendAssistantBubble() {
     container.querySelector('.chat-empty-state')?.remove();
 
     const now = new Date().toISOString();
+    const time = formatTime(now);
     const html = `
         <div class="chat-message assistant chat-message-streaming">
             <div class="chat-message-avatar">🤖</div>
             <div class="chat-message-body">
-                <div class="chat-message-meta">Ассистент · ${escapeHtml(formatTime(now))}</div>
+                <div class="chat-message-meta">Ассистент · ${escapeHtml(time)}</div>
                 <div class="chat-message-tools"></div>
                 <div class="chat-message-content" data-stream-content></div>
                 <div class="chat-typing-indicator" data-typing hidden>
@@ -1876,8 +1927,16 @@ function appendAssistantBubble() {
         </div>`;
 
     container.insertAdjacentHTML('beforeend', html);
+
+    // KI-084b: сохраняем время и роль для обновления meta (токены).
+    const bubble = container.lastElementChild;
+    if (bubble) {
+        bubble.dataset.time = time;
+        bubble.dataset.roleLabel = 'Ассистент';
+    }
+
     scrollToBottom();
-    return container.lastElementChild;
+    return bubble;
 }
 
 /**

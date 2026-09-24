@@ -52,12 +52,17 @@ namespace IIChatTools.Services.DTO.Chat
         /// </summary>
         /// <param name="userMessageId">ID сохранённого user message</param>
         /// <param name="chatId">ID чата</param>
+        /// <param name="userTokens">
+        /// KI-084b: количество токенов user-сообщения (tiktoken).
+        /// <c>null</c> — не подсчитано. Позволяет UI показать токены сразу,
+        /// не дожидаясь F5 + <c>GET /api/chats/{id}</c>.
+        /// </param>
         /// <returns>Событие стрима</returns>
-        public static ChatStreamEvent Start(int userMessageId, int chatId)
+        public static ChatStreamEvent Start(int userMessageId, int chatId, int? userTokens = null)
             => new ChatStreamEvent
             {
                 Type = "start",
-                Data = new { userMessageId, chatId }
+                Data = new { userMessageId, chatId, userTokens }
             };
 
         /// <summary>

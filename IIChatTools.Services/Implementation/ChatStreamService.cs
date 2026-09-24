@@ -113,6 +113,10 @@ namespace IIChatTools.Services.Implementation
             //    - Обычный flow: сохраняем новое user-сообщение.
             int startUserMessageId;
 
+            // KI-084b: токены user-сообщения — для SSE-события `start`.
+            // В Regenerate-flow читаем из БД (могут быть null для старых сообщений).
+            int? startUserTokens = null;
+
             if (request.Regenerate)
             {
                 int deleted = 0;
@@ -149,6 +153,7 @@ namespace IIChatTools.Services.Implementation
                 }
 
                 startUserMessageId = lastUser.Id;
+                startUserTokens = lastUser.TokensIn;   // KI-084b
 
                 _logger.LogInformation(
                     "Regenerate: чат {ChatId}, удалено {Deleted}, startUserId={UserId}",
@@ -173,6 +178,8 @@ namespace IIChatTools.Services.Implementation
                             TokensIn = userTokens
                         },
                         cancellationToken);
+
+                    startUserTokens = userTokens;   // KI-084b
                 }
                 catch (Exception ex)
                 {
@@ -190,7 +197,8 @@ namespace IIChatTools.Services.Implementation
             }
 
             // 4. Сигнализируем начало стрима
-            yield return ChatStreamEvent.Start(startUserMessageId, request.ChatId);
+            //    KI-084b: передаём токены user-сообщения, чтобы UI показал сразу.
+            yield return ChatStreamEvent.Start(startUserMessageId, request.ChatId, startUserTokens);
 
             // 5. Формируем историю для LM Studio
             JArray messages = null;
@@ -310,18 +318,26 @@ namespace IIChatTools.Services.Implementation
                 {
                     ChatMessage finalMsg = null;
                     string saveErr = null;
+
+                    // KI-049: если LM Studio отдала usage (не stream) — используем
+                    // точные значения; иначе считаем через tiktoken.
+                    // KI-084b: переносим объявление ДО try — значения нужны
+                    // для `yield return Done` после try-блока (scope).
+                    var contextTokens = tokensIn
+                        ?? _tokenCounter.CountConversation(
+                            messages.Select(m => (
+                                Role: m["role"]?.ToString() ?? "user",
+                                Content: m["content"]?.ToString() ?? string.Empty)));
+                    var completionTokens = tokensOut
+                        ?? _tokenCounter.CountTokens(partialContent);
+
+                    // Перезаписываем tokensIn/tokensOut — пригодятся в Done и в
+                    // дальнейшей логике (limit-message ниже).
+                    tokensIn = contextTokens;
+                    tokensOut = completionTokens;
+
                     try
                     {
-                        // KI-049: если LM Studio отдала usage (не stream) — используем
-                        // точные значения; иначе считаем через tiktoken.
-                        var contextTokens = tokensIn
-                            ?? _tokenCounter.CountConversation(
-                                messages.Select(m => (
-                                    Role: m["role"]?.ToString() ?? "user",
-                                    Content: m["content"]?.ToString() ?? string.Empty)));
-                        var completionTokens = tokensOut
-                            ?? _tokenCounter.CountTokens(partialContent);
-
                         finalMsg = await _chatService.AddMessageAsync(
                             request.ChatId, userId,
                             new ChatMessage
@@ -345,6 +361,8 @@ namespace IIChatTools.Services.Implementation
                         yield break;
                     }
 
+                    // KI-084b: передаём посчитанные значения — UI покажет токены
+                    // сразу, без F5 + GET /api/chats/{id}.
                     yield return ChatStreamEvent.Done(finalMsg.Id, tokensIn, tokensOut);
                     yield break;
                 }
@@ -563,11 +581,27 @@ namespace IIChatTools.Services.Implementation
                              + "Пожалуйста, переформулируйте задачу или задайте более конкретный вопрос.";
 
             ChatMessage limitMsg = null;
+            int? limitTokensIn = null;
+            int? limitTokensOut = null;
             try
             {
+                // KI-084b: считаем токены для limit-сообщения.
+                limitTokensIn = tokensIn
+                    ?? _tokenCounter.CountConversation(
+                        messages.Select(m => (
+                            Role: m["role"]?.ToString() ?? "user",
+                            Content: m["content"]?.ToString() ?? string.Empty)));
+                limitTokensOut = _tokenCounter.CountTokens(limitMessage);
+
                 limitMsg = await _chatService.AddMessageAsync(
                     request.ChatId, userId,
-                    new ChatMessage { Role = RoleAssistant, Content = limitMessage },
+                    new ChatMessage
+                    {
+                        Role = RoleAssistant,
+                        Content = limitMessage,
+                        TokensIn = limitTokensIn,
+                        TokensOut = limitTokensOut
+                    },
                     cancellationToken);
             }
             catch (Exception ex)
@@ -579,7 +613,7 @@ namespace IIChatTools.Services.Implementation
 
             if (limitMsg != null)
             {
-                yield return ChatStreamEvent.Done(limitMsg.Id, tokensIn, tokensOut);
+                yield return ChatStreamEvent.Done(limitMsg.Id, limitTokensIn, limitTokensOut);
             }
         }
 

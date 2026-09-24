@@ -31,6 +31,13 @@
   - 3 теста `AgentStatsServiceTests`.
 
 ### Added
+- **Chat — токены в SSE-событиях `start` и `done` (KI-084b, v1.4.x)**:
+  - `ChatStreamEvent.Start` — опциональный 3-й параметр `userTokens` (tiktoken).
+  - `ChatStreamService`: `start` передаёт токены user-сообщения (из tiktoken или из БД при Regenerate); `done` передаёт **посчитанные** `contextTokens`/`completionTokens` (раньше — сырые `usage`, часто null).
+  - Limit-message (когда исчерпаны 5 итераций): токены тоже считаются и сохраняются.
+  - `chat.js`: `updateBubbleMeta()` — обновление meta-строки live; `formatTokenMetaText()` — вынесена из `formatTokenMeta`.
+  - Токены теперь видны **сразу** во время стрима (не только после F5).
+  - `appendUserMessage`/`appendAssistantBubble`: сохраняют `dataset.time` и `dataset.roleLabel` для последующего обновления meta.
 - **Chat UI — отображение токенов в meta-строке (KI-049b, v1.4.x)**:
   - `ChatMessageDto`: +2 nullable-поля (`TokensIn`, `TokensOut`).
   - `ChatController.GetChatAsync`: маппинг токенов.
@@ -38,7 +45,6 @@
   - `Chat/Index.cshtml`: `data-label-tokens-user` / `data-label-tokens-assistant`.
   - `.resx` (RU + EN): +2 ключа (`ChatTokensUser`, `ChatTokensAssistant`).
   - Токены отображаются только при наличии (не null).
-  - ⚠️ Live-стрим токенов не получает сразу — только после F5 (расширение SSE `done` — в KI-084).
 - **Chat — подсчёт токенов через tiktoken (KI-049a, v1.4.x)**:
   - Пакеты `Microsoft.ML.Tokenizers` + `Microsoft.ML.Tokenizers.Data.Cl100kBase` 1.0.0
     (API + BPE-словарь; одно без другого не работает).

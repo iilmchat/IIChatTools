@@ -575,6 +575,58 @@ dotnet test IIChatTools.sln -c Release
 
 ---
 
+## Разработка
+
+### Полезные сниппеты
+
+**Проверить токены сообщений через DevTools Console** (для активного чата):
+
+```javascript
+const chatId = new URL(window.location.href).searchParams.get('chatId');
+const d = await fetch(`/api/chats/${chatId}`).then(x => x.json());
+console.table(d.data.messages.map(m => ({
+    id: m.id,
+    role: m.role,
+    tokensIn: m.tokensIn,
+    tokensOut: m.tokensOut,
+    preview: (m.content || '').substring(0, 40)
+})));
+```
+
+**Проверить токены через sqlite3 CLI** (dev-БД):
+
+```powershell
+sqlite3 IIChatTools.API\Data\iichattools-dev.db "SELECT Id, Role, TokensIn, TokensOut, SUBSTR(Content, 1, 40) FROM ChatMessages ORDER BY Id DESC LIMIT 5;"
+```
+
+**Открыть БД в DB Browser** — только в режиме **Read Only**
+(иначе KI-085: `database is locked`, запись блокируется на 30 с).
+
+### Проверка retention
+
+`Chat:Retention:Enabled = false` в `appsettings.Development.json` — намеренно (RULES § 4.31).
+Для проверки:
+
+1. Установить `Chat:Retention:Enabled = true`, `CleanupIntervalHours = 1`.
+2. Перезапустить приложение.
+3. Подождать **2 минуты** (первый прогон через `Task.Delay`) + интервал.
+4. В логах: `ChatRetentionService запущен: интервал=1ч, срок=Nд`.
+5. Проверить, что старые чаты удалены (в БД или через `/api/chats`).
+
+### CI/CD
+
+- **CI** — `dotnet build` + `dotnet test` на каждый push в `main`.
+- **Docker Publish** — образ в `ghcr.io` на `main` и на теги `v*`.
+- **Локально** перед push:
+  ```powershell
+  Get-Process IIChatTools.API -ErrorAction SilentlyContinue | Stop-Process -Force
+  dotnet build IIChatTools.sln
+  dotnet test IIChatTools.sln --no-build
+  ```
+  (RULES § 3.14 — остановить приложение, иначе MSB3027/MSB3021.)
+
+---
+
 ## Развёртывание
 
 1. Установите **.NET 10 Runtime** на целевой сервер:
