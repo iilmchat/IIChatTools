@@ -293,6 +293,8 @@ namespace IIChatTools.API
             services.AddScoped<IWorkspaceResolver, WorkspaceResolver>();
             services.AddScoped<IAppSettingsService, AppSettingsService>();
             services.AddScoped<IUserAdminService, UserAdminService>();
+            // v1.4.x (KI-067): per-user настройки (override глобальных).
+            services.AddScoped<IUserSettingsService, UserSettingsService>();
             services.AddSingleton<IProcessRunner, ProcessRunner>();
 
             // ============ Chat service (v1.3) ============

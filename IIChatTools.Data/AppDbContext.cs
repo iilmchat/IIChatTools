@@ -31,6 +31,8 @@ namespace IIChatTools.Data
         /// </summary>
         public DbSet<ChatMessage> ChatMessages { get; set; }
 
+        public DbSet<UserSetting> UserSettings { get; set; }        
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -103,7 +105,20 @@ namespace IIChatTools.Data
                 // Индекс для загрузки истории чата
                 entity.HasIndex(e => new { e.ChatId, e.CreatedAt })
                     .HasDatabaseName("IX_ChatMessages_ChatId_CreatedAt");
-            });                
+            });
+
+            modelBuilder.Entity<UserSetting>(entity =>
+            {
+                entity.ToTable("UserSettings");
+                entity.HasIndex(s => new { s.UserId, s.Key }).IsUnique();
+                entity.Property(s => s.Key).IsRequired().HasMaxLength(200);
+                entity.Property(s => s.Value).HasMaxLength(4000);
+                entity.Property(s => s.Type).HasMaxLength(20);
+                entity.HasOne(s => s.User)
+                    .WithMany()
+                    .HasForeignKey(s => s.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
