@@ -21,6 +21,12 @@
 _(пусто — планируется для v1.4.2 / v1.5.0)_
 
 ### Added
+- **Docs — финальная чистка legacy, часть 3 (v1.4.x)**:
+  - `scripts/diagnostics/` (3 legacy в архив, 3 удалены) → `scripts/diagnostics/archive/v1.0.x/`.
+  - `scripts/diagnostics/README.md` — новый.
+  - **PROMPT_V2.md v2.1 → v2.2**: секция «Формат вывода кода и ответа» (структура блоков, обязательные секции, правило «не выдумывай»).
+
+### Added
 - **Docs — финальная чистка legacy, часть 2 (v1.4.x)**:
   - `scripts/git/` (5 legacy-скриптов + 2 обёртки) → `scripts/git/archive/v1.0.x/`.
   - `scripts/git/README.md` — новый (описание почему каталог пуст).
