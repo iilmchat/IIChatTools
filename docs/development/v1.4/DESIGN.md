@@ -1,10 +1,11 @@
 # DESIGN v1.4.0 — Multi-Agent (специализированные суб-агенты)
 
-**Версия:** 1.4.0-draft
-**Дата:** 2026-09-23
+**Версия:** 1.4.0
+**Дата:** 2026-09-24
 **Автор:** IIChatTools Team
-**Статус:** Design (согласовано, ждём реализации)
+**Статус:** **Implemented** (Фазы 0-9, v1.4.0)
 **Связанные KI:** KI-052 (основной), KI-053 (multi-user approvals — v1.4.0.x), KI-049 (tiktoken — v1.4.0.x)
+**Реализовано:** 2026-09-24 (см. CHANGELOG `[1.4.0]`)
 
 ---
 
@@ -510,16 +511,16 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
 
 | Фаза | Что | Файлы | Оценка |
 |:---:|---|---|:---:|
-| **0** | DESIGN.md (этот документ) + согласование | `docs/development/v1.4/DESIGN.md` | ~2 ч ✅ |
-| **1** | DTO + `ISubAgentRegistry` + `SubAgentRegistry` + unit-тесты | `Services/DTO/SubAgent/`, `Services/Interfaces/`, `Services/Implementation/Agents/` | ~4 ч |
-| **2** | Перегрузка `ILmStudioClient.CompleteAsync(..., string model)` + `SystemPromptOverride`/`ModelOverride` в `SubAgentService` | `ILmStudioClient`, `LmStudioClient`, `SubAgentService` | ~3 ч |
-| **3** | `AgentToolBase` + 6 наследников + регистрация в `Startup.cs` | `Tools/SubAgent/` | ~4 ч |
-| **4** | `appsettings.json` + `appsettings.Development.json` (секция `SubAgents`) | Конфиги | ~2 ч |
-| **5** | Chat: переключение на `SubAgentRegistry.GetEnabled()` | `ChatStreamService` | ~2 ч |
-| **6** | Админка: вкладка «Агенты» + API endpoints + локализация | `admin.js`, `Admin.cshtml`, `.resx`, `AdminAgentsController` | ~6 ч |
-| **7** | Тесты: 4 unit + 1 integration | `IIChatTools.Tests/` | ~3 ч |
-| **8** | Документация (CHANGELOG, README, KNOWN_ISSUES, RULES § 7) | Docs | ~2 ч |
-| **9** | Smoke + релиз v1.4.0 | — | ~2 ч |
+| **0** | DESIGN.md (этот документ) + согласование | `docs/development/v1.4/DESIGN.md` | ✅ |
+| **1** | DTO + `ISubAgentRegistry` + `SubAgentRegistry` + unit-тесты | `Services/DTO/SubAgent/`, `Services/Interfaces/`, `Services/Implementation/Agents/` | ✅ |
+| **2** | Перегрузка `ILmStudioClient.CompleteAsync(..., string model)` + `SystemPromptOverride`/`ModelOverride` в `SubAgentService` | `ILmStudioClient`, `LmStudioClient`, `SubAgentService` | ✅ |
+| **3** | `AgentToolBase` + 6 наследников + регистрация в `Startup.cs` | `Tools/SubAgent/` | ✅ |
+| **4** | `appsettings.json` + `appsettings.Development.json` (секция `SubAgents` + усиленные промпты) | Конфиги | ✅ |
+| **5** | Chat: переключение на `SubAgentRegistry.GetEnabled()` | `ChatStreamService` | ✅ |
+| **6** | Админка: вкладка «Агенты» + API endpoints + локализация (6.1-6.6) | `admin.js`, `admin-agents.js`, `Admin.cshtml`, `.resx`, `AdminAgentsController` | ✅ |
+| **7** | Тесты: 4 unit (`SubAgentRegistryTests`) + 7 integration (`AgentToolBaseTests`) | `IIChatTools.Tests/` | ✅ |
+| **8** | Документация (README, DESIGN, CHANGELOG, KNOWN_ISSUES, RULES § 7) | Docs | ✅ |
+| **9** | Smoke + релиз v1.4.0 | — | 🔜 |
 
 **Итого:** ~30 ч (≈4 рабочих дня).
 

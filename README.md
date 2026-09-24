@@ -20,6 +20,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 ## Ключевые возможности
 
 - **💬 Chat UI** — полноценный чат с LLM (как ChatGPT): sidebar с историей диалогов, стриминг SSE, переименование/удаление чатов, автоскролл, копирование, approvals прямо из чата.
+- **🤖 Multi-Agent (v1.4.0)** — Chat общается с **7 верхнеуровневыми инструментами** (6 специализированных агентов + `consult_secondary_agent`). Каждый агент — со своим system prompt, моделью и белым списком инструментов. Управление через админку `/admin → Агенты`.
 - **40 инструментов** для LLM (файловая система, код, веб, Git/GitHub, браузер, суб-агенты, утилиты).
 - **Tool calling в чате** — LLM сама вызывает инструменты в multi-turn loop (до 5 итераций).
 - **Approvals в чате** — mutating-инструменты требуют подтверждения через модалку (drag-and-drop, countdown, approve/reject).
@@ -306,6 +307,9 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/chat/approvals/{callId}/approve` | Подтвердить вызов инструмента в чате |
 | `POST` | `/api/chat/approvals/{callId}/reject` | Отклонить вызов инструмента в чате |
 | `GET` | `/api/models` | Список моделей LM Studio (без embedding) |
+| `GET` | `/api/admin/agents` | Список специализированных суб-агентов (v1.4.0) |
+| `PUT` | `/api/admin/agents/{name}` | Обновить дескриптор агента (v1.4.0) |
+| `POST` | `/api/admin/agents/{name}/reset` | Сбросить агента к appsettings.json (v1.4.0) |
 | `POST` | `/api/chat/regenerate` | Перегенерировать последний ответ ассистента |
 | `POST` | `/api/chat/messages/{id}/edit` | Редактировать user-сообщение (удаляет всё после) |
 | `POST` | `/api/chats/{id}/generate-title` | AI-генерация названия из первого сообщения |
@@ -324,7 +328,13 @@ dotnet run --project IIChatTools.API
 | Браузер (PuppeteerSharp) | 4 | 1 |
 | Суб-агенты | 1 | 1 |
 | Утилиты | 2 | 0 |
-| **Итого** | **40** | **18** |
+| **Итого (в реестре)** | **40** | **18** |
+| **+ Агенты (v1.4.0)** | **+6** | **(по агенту)** |
+| **Итого (ToolRegistry)** | **46** | — |
+
+> **Примечание:** Chat теперь видит **7 инструментов** (6 агентов + `consult_secondary_agent`),
+> а не 12 из `SubAgent:DefaultAllowedTools`. Все 40 «сырых» инструментов доступны
+> **внутри** агентов.
 
 ---
 
@@ -361,6 +371,47 @@ dotnet run --project IIChatTools.API
 - API: `/api/chats`, `/api/chat/stream`, `/api/chat/regenerate`, `/api/chat/messages/{id}/edit`, `/api/chat/approvals/*`, `/api/chats/{id}/generate-title`, `/api/models`
 
 **Скриншоты** — в [docs/development/v1.3/DESIGN.md](docs/development/v1.3/DESIGN.md).
+
+---
+
+## Multi-Agent (v1.4.0)
+
+Chat работает через **7 верхнеуровневых инструментов** — 6 специализированных
+суб-агентов + универсальный fallback:
+
+| Агент | Инструментов | Модель (по умолчанию) | Approval |
+|:---|:---:|:---:|:---:|
+| `file_system_agent` | 13 | `qwen/qwen3-4b-2507` | ✅ |
+| `code_agent` | 3 | `gemma-4-12b-coder...` | ✅ |
+| `web_agent` | 3 | `qwen/qwen3-4b-2507` | ❌ |
+| `git_agent` | 7 | `qwen/qwen3-4b-2507` | ✅ |
+| `github_agent` | 7 | `qwen/qwen3-4b-2507` | ✅ |
+| `planner_agent` | 2 | `gemma-4-12b-coder...` | ❌ |
+| `consult_secondary_agent` | *(browser + fallback)* | `LmStudio:Model` | ✅ |
+
+**Зачем:** одна модель (особенно 4B) плохо выбирает инструмент из 40.
+Внутри агента — узкий набор (2-13 инструментов) + свой system prompt →
+точнее выбор, меньше токенов.
+
+**Как работает:**
+1. Пользователь пишет задачу.
+2. Chat (LLM) выбирает агента → SSE `tool_call`.
+3. Модалка approval: «Агент X хочет выполнить задачу: ...» → approve.
+4. Внутри агента — multi-turn loop (до `MaxSteps`, обычно 10) с **белым списком** инструментов.
+5. Финальный ответ агента → Chat формулирует ответ пользователю.
+
+**Управление:** `/admin` → вкладка **«Агенты»** — список, редактирование (DisplayName,
+Model, MaxSteps, SystemPrompt, AllowedTools, RequiresApproval, Disabled), сброс к defaults.
+Изменения сохраняются в БД (`AppSettings`, ключ `SubAgents.{name}`) и восстанавливаются
+при старте приложения.
+
+**API:**
+- `GET  /api/admin/agents` — список агентов.
+- `PUT  /api/admin/agents/{name}` — обновить дескриптор.
+- `POST /api/admin/agents/{name}/reset` — сбросить к appsettings.json.
+
+**Конфигурация:** секция `SubAgents` в `appsettings.json` (6 агентов × настройки).
+Описания и промпты — в [docs/development/v1.4/DESIGN.md](docs/development/v1.4/DESIGN.md).
 
 ---
 
@@ -443,18 +494,20 @@ Prometheus-метрики доступны по `/metrics` (публичный, 
 LM Studio (LLM) :8034
       ↓ HTTP (OpenAI-совместимый API)
 IIChatTools.API  (net10.0)
-  ├── Controllers: Home, Auth, Tools, Approvals, Admin, Status, Chat, ChatStream, ChatView, Models
+  ├── Controllers: Home, Auth, Tools, Approvals, Admin, AdminAgents, Status, Chat, ChatStream, ChatView, Models
   ├── Razor Views (RU/EN через IStringLocalizer<SharedResources>)
-  ├── ES-модули: api, ui, status, approvals, admin, test, chat
-  ├── Program.cs: ConfigureDefaultProxy + миграции по провайдеру
-  └── Startup.cs: DI + 40 инструментов + Chat services
+  ├── ES-модули: api, ui, status, approvals, admin, admin-agents, test, chat
+  ├── Program.cs: ConfigureDefaultProxy + миграции по провайдеру + LoadSubAgentOverrides
+  └── Startup.cs: DI + 46 инструментов (40 raw + 6 агентов) + Chat services
       ↓ DI
 IIChatTools.Services  (net10.0)
-  ├── ToolRegistry (40 инструментов, auto-discovery)
+  ├── ToolRegistry (46 инструментов: 40 raw + 6 агентов)
+  ├── Agents: SubAgentRegistry (Singleton, v1.4.0)
   ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator (Singleton)
-  ├── LmStudioClient (SSE-стриминг + tool calling)
+  ├── LmStudioClient (SSE-стриминг + tool calling + ModelOverride)
   ├── Cross-cutting services (аудит, подтверждения, workspace, браузер)
-  └── Tools/ (8 групп)
+  ├── Tools/ (8 групп)
+  └── Tools/SubAgent/ (AgentToolBase + 6 наследников: FileSystem, Code, Web, Git, GitHub, Planner)
       ↓ EF Core 10
 IIChatTools.Data  (net10.0)
   ├── ApplicationUser + Identity (Admin, User)
@@ -505,7 +558,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 40/40 тестов проходят (unit + integration).
+**Статус**: 47/47 тестов проходят (unit + integration).
 
 ---
 
