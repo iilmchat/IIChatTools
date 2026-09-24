@@ -77,6 +77,7 @@
 
 ### Planned
 - **v1.4.0**: KI-052 (специализированные суб-агенты — Фазы 2-9), KI-053 (multi-user approvals), KI-049 (tiktoken).
+- **v1.4.x / v1.5.0**: KI-078 (внутричатовый поиск + подсветка), KI-079 (collapse sidebar), KI-080 (поле ввода на всю ширину), KI-067 (per-user retention), KI-047 (PATCH/DELETE fallback).
 
 ---
 
