@@ -20,6 +20,13 @@
 
 _(пусто — планируется для v1.4.2 / v1.5.0)_
 
+### Added
+- **Docs — актуальный обзор архитектуры (KI-087, v1.5.x)**:
+  - `docs/development/ARCHITECTURE.md` — сводный документ (9 разделов): слои, схема БД, DI-lifetime, поток Chat (SSE + approvals + regenerate), 46 инструментов, внешние зависимости, 10 ADR-style решений.
+  - `docs/architecture/` (12 legacy-файлов эпохи v1.0 → v1.1) перенесены в `docs/development/archive/v1.0.x/architecture/`.
+  - `archive/README.md` — обновлена структура.
+  - `PROMPT_V2.md` — усилено правило о форматировании MD (в начале).
+
 ### Planned
 - **v1.4.x**: KI-047 (PATCH/DELETE fallback), KI-053 (multi-user approvals — крупная), KI-077 (model:null при PUT), KI-082 (модалка-редактор).
 - **v1.5.0**: RAG / Knowledge Base (KI-083) — дизайн согласован, см. [`docs/development/v1.5/DESIGN.md`](docs/development/v1.5/DESIGN.md). План: 8 фаз, ~45 ч.

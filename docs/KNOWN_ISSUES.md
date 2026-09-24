@@ -906,6 +906,19 @@
 
 ---
 
+### KI-087 — Актуальный обзор архитектуры (docs/development/ARCHITECTURE.md)
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.x
+- **Обнаружено:** 2026-09-25 | **Устранено:** 2026-09-25
+- **Файлы:**
+  - `docs/development/ARCHITECTURE.md` — новый сводный документ (9 разделов).
+  - `docs/development/archive/v1.0.x/architecture/` — 12 legacy-файлов (перенесены из `docs/architecture/`).
+  - `docs/development/archive/README.md` — обновлена структура.
+  - `docs/development/PROMPT_V2.md` — усилено правило форматирования MD.
+- **Решение:** создан `ARCHITECTURE.md` (~700 строк): слои, схема БД, DI-lifetime, поток Chat, 46 инструментов, внешние зависимости, 10 ADR-style записей.
+- **Связанные:** DESIGN v1.3/v1.4/v1.5 — источники.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -1006,7 +1019,8 @@
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
 | Fixed (v1.4.1) | 9 |                <!-- KI-049, 067, 076, 078, 079, 080, 081, 084, 085 -->
-| Deferred | 5 |                      <!-- KI-047, KI-053, KI-082, KI-086, KI-083 (planned) -->
+| Fixed (v1.4.x) | 1 |                <!-- KI-087-->
+| Deferred | 6 |                      <!-- KI-047, KI-053, KI-082, KI-086, KI-083 (planned), KI-087 -->
 | Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075, KI-085 -->
 | In Progress (v1.5.0) | 1 |           <!-- KI-083 -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
