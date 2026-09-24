@@ -654,6 +654,15 @@
 
 ---
 
+### KI-075 — ToolRegistry логирует при каждом scope
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.0 (Фаза 5.x)
+- **Обнаружено:** 2026-09-24 | **Устранено:** 2026-09-24
+- **Файлы:** `IIChatTools.Services/Implementation/ToolRegistry.cs`
+- **Описание:** `IToolRegistry` зарегистрирован как **scoped** (каждый HTTP-запрос — новый экземпляр). Конструктор логировал `LogInformation("ToolRegistry инициализирован...")` — в проде с сотнями запросов это создаёт шум в логах. Заметили при разборе лога Фазы 5: строчка появилась внутри обработки `/api/chat/approvals/.../approve`.
+- **Решение:** `LogInformation` → `LogDebug`. Уровень можно поднять через `appsettings.json`: `Logging:LogLevel:IIChatTools.Services.Implementation.ToolRegistry=Information`.
+
+---
+
 ### KI-074 — Split тестового проекта на Unit / Integration
 - **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x (опционально)
 - **Обнаружено:** 2026-09-24 (в ходе диагностики KI-073)

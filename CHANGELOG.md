@@ -29,7 +29,8 @@
 
 ### Fixed
 
-- **KI-073 (Documented)**: первый `dotnet test` на Windows после cold build занимает ~44-60 с. Диагностика: **Defender — не главная причина** (отключение Real-Time Protection дало те же 44 с). Реальная причина — **testhost boot** (30+ транзитивных DLL из API, включая PuppeteerSharp ~200 МБ). Обходной путь: `dotnet watch test`. См. KNOWN_ISSUES + KI-074 (split тестов).
+- **KI-073 (Fixed)**: первый `dotnet test` на Windows после cold build занимал ~44-60 с. Диагностика: **Defender — не главная причина** — виноват **testhost boot** (30+ DLL из API, PuppeteerSharp). Решено: `scripts/setup/configure-defender.ps1` + отключение Dev Drive protection + reboot → **1.4 с**. См. KNOWN_ISSUES.
+- **KI-075**: `ToolRegistry` логировал «инициализирован» на `LogInformation` при каждом scope — спам в проде. Понижено до `LogDebug`.
 
 ### Changed
 - **v1.4.0 Фаза 2 (KI-052)**: `ModelOverride` + `SystemPromptOverride` в суб-агентах.

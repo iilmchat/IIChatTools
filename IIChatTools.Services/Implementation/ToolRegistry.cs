@@ -48,7 +48,9 @@ namespace IIChatTools.Services.Implementation
                 _tools[tool.Name] = tool;
             }
 
-            _logger.LogInformation("ToolRegistry инициализирован. Зарегистрировано инструментов: {Count}", _tools.Count);
+            // KI-075: понижено до Debug — ToolRegistry scoped, лог спамит при каждом запросе.
+            // Переключить на Information можно в appsettings.json: Logging:LogLevel:IIChatTools.Services.Implementation.ToolRegistry=Information
+            _logger.LogDebug("ToolRegistry инициализирован. Зарегистрировано инструментов: {Count}", _tools.Count);
         }
 
         /// <inheritdoc />
