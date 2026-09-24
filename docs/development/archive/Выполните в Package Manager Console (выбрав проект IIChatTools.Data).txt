@@ -1,2 +1,0 @@
-Add-Migration InitialCreate -Context AppDbContext -OutputDir Migrations
-Update-Database
