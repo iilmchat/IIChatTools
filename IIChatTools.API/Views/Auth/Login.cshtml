@@ -10,6 +10,13 @@
     <div class="col-md-5">
         <div class="card shadow-sm">
             <div class="card-body">
+                <!-- KI-081: логотип над формой -->
+                <div class="text-center mb-3">
+                    <img src="~/images/logo-full.svg"
+                        alt="IIRuChating — IIChatTools"
+                        class="auth-logo"
+                        asp-append-version="true" />
+                </div>
                 @if (ViewData["RateLimitError"] != null && (bool)ViewData["RateLimitError"])
                 {
                     <div class="alert alert-danger" role="alert">

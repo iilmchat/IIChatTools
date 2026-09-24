@@ -32,6 +32,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **Аудит** всех действий: БД + опциональный JSONL-файл (`logs/audit/`).
 - **Безопасность**: `PathHelper`, `ArgumentList`, whitelist команд, лимиты размеров, TTL-сессии.
 - **Offline-развёртывание**: сборка без доступа к интернету через `LocalPackages/`.
+- **Логотип (KI-081):** фирменный знак IIChatTools (шестиугольник с переплетением) — в navbar, на главной (hero), на страницах входа/регистрации и в empty state чата. Favicon — SVG + PNG (16/32) + apple-touch-icon. Файлы: `wwwroot/images/logo-icon.svg`, `logo-full.svg`, `site.webmanifest`.
 
 ---
 

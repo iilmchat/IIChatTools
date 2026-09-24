@@ -30,6 +30,19 @@
   - 2 новых ключа `.resx` (`AgentStatsLastRun`, `AgentStatsEmpty`).
   - 3 теста `AgentStatsServiceTests`.
 
+### Added
+- **UI — фирменный логотип IIChatTools (KI-081, v1.4.x)**:
+  - `wwwroot/images/logo-icon.svg` — иконка (шестиугольник + переплетение), inline SVG.
+  - `wwwroot/images/logo-full.svg` — иконка + текст «IIRuChating».
+  - `wwwroot/site.webmanifest` — PWA-манифест (иконки 192/512).
+  - Favicon: SVG (primary) + PNG 16/32 + apple-touch-icon (от realfavicongenerator).
+  - Navbar-brand: логотип-иконка + «IIChatTools vX.Y.Z».
+  - Hero на главной: логотип с текстом (240px).
+  - Login / Register: логотип с текстом (200px).
+  - Empty state в `/chat` (нет чата / пустой чат): иконка-логотип (64px) вместо 💬.
+  - `site.css`: `.navbar-brand-logo`, `.home-hero-logo`, `.auth-logo`.
+  - `chat.css`: `.chat-empty-logo`.
+
 ### Changed
 - **Chat UI — поле ввода на всю ширину (KI-080, DeepSeek-style, v1.4.x)**:
   - `.input-group` → `.chat-input-box`: закруглённое поле (`border-radius: 1.5rem`) на всю ширину `.chat-main`, светлый фон (`#f6f8fa`).

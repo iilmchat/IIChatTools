@@ -17,6 +17,15 @@
                         @Localizer["Попробуйте снова через"] @ViewData["RetryAfter"] @Localizer["секунд."]
                     </div>
                 }                
+
+                <!-- KI-081: логотип над формой -->
+                <div class="text-center mb-3">
+                    <img src="~/images/logo-full.svg"
+                        alt="IIRuChating — IIChatTools"
+                        class="auth-logo"
+                        asp-append-version="true" />
+                </div>
+
                 <h3 class="card-title mb-3">@Localizer["Регистрация"]</h3>
                 <p class="text-muted small">@Localizer["Первый зарегистрированный пользователь получает роль администратора."]</p>
 

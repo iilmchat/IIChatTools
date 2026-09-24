@@ -8,8 +8,16 @@
 }
 
 <div class="container mt-4">
-    <h1 class="mb-3">@string.Format(Localizer["WelcomeTitle"].Value, AppVersion.Current)</h1>
-    <p class="text-muted">@Localizer["Управляйте инструментами, пользователями и настройками."]</p>
+    <!-- KI-081: hero-логотип -->
+    <div class="text-center mb-4">
+        <img src="~/images/logo-full.svg"
+             alt="IIRuChating — IIChatTools"
+             class="home-hero-logo"
+             asp-append-version="true" />
+    </div>
+
+    <h1 class="mb-3 text-center">@string.Format(Localizer["WelcomeTitle"].Value, AppVersion.Current)</h1>
+    <p class="text-muted text-center">@Localizer["Управляйте инструментами, пользователями и настройками."]</p>
 
     <div class="row g-3 mt-3">
         <div class="col-md-4">

@@ -121,3 +121,40 @@ pre {
         grid-template-columns: 1fr;
     }
 }
+
+/* ============ KI-081: логотип IIChatTools ============ */
+
+/* Navbar-brand: иконка + текст */
+.navbar-brand-logo {
+    height: 28px;
+    width: auto;
+    display: block;
+}
+
+/* Hero-логотип на главной */
+.home-hero-logo {
+    max-width: 240px;
+    height: auto;
+    display: inline-block;
+}
+
+/* Логотип на страницах Login / Register */
+.auth-logo {
+    max-width: 200px;
+    height: auto;
+    display: inline-block;
+}
+
+@media (max-width: 575.98px) {
+    .home-hero-logo {
+        max-width: 180px;
+    }
+
+    .auth-logo {
+        max-width: 160px;
+    }
+
+    .navbar-brand-logo {
+        height: 24px;
+    }
+}

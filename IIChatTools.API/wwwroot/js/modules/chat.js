@@ -1677,7 +1677,10 @@ function renderMessages(messages) {
         container.innerHTML = `
             <div class="chat-empty-state">
                 <div class="text-muted text-center">
-                    <div style="font-size: 3rem;">💬</div>
+                    <img src="/images/logo-icon.svg"
+                         alt="IIChatTools"
+                         class="chat-empty-logo"
+                         aria-hidden="true" />
                     <p class="mb-0">История пуста. Начните диалог.</p>
                 </div>
             </div>`;
@@ -2097,7 +2100,10 @@ function showEmptyState() {
         container.innerHTML = `
             <div class="chat-empty-state">
                 <div class="text-muted text-center">
-                    <div style="font-size: 3rem;">💬</div>
+                    <img src="/images/logo-icon.svg"
+                         alt="IIChatTools"
+                         class="chat-empty-logo"
+                         aria-hidden="true" />
                     <p class="mb-0">Выберите чат или создайте новый</p>
                 </div>
             </div>`;

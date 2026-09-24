@@ -782,18 +782,25 @@
 - **Связанные:** KI-069 (inline-edit названия чата), KI-078B (⌘K-модалка — эталон стиля).
 
 ### KI-081 — Логотип IIChatTools как фирменный элемент UI
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
-- **Обнаружено:** 2026-09-25
-- **Файлы (план):** `IIChatTools.API/Views/Shared/_Layout.cshtml`, `wwwroot/images/`, `wwwroot/css/site.css`, `wwwroot/favicon.ico`
-- **Описание:** В UI отсутствует фирменный логотип IIChatTools. Сейчас `favicon.ico` — заглушка (`data:,`). Логотип (шестиугольник с переплетением + `IIRuChating`) есть, но не используется.
-- **Scope (безопасный, без потери читаемости):**
-  - `favicon.ico` — логотип (PNG → ICO 32×32).
-  - Главная `/` — логотип как hero-картинка.
-  - Логин / Регистрация — логотип сверху формы.
-  - Empty state в `/chat` (нет чата / пустой чат) — заменить 💬 на логотип.
-- **НЕ рекомендуется:** логотип как фон под активным чатом или на всём приложении — снижает контраст текста и code blocks (WCAG AA), визуальный шум.
-- **Не блокер:** UX-украшение, не функциональность.
-- **Связанные:** KI-033 (`favicon.ico` → `data:,` — заглушка).
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.x
+- **Обнаружено:** 2026-09-25 | **Устранено:** 2026-09-25
+- **Файлы:**
+  - `IIChatTools.API/wwwroot/images/logo-icon.svg` — иконка (inline SVG).
+  - `IIChatTools.API/wwwroot/images/logo-full.svg` — иконка + текст.
+  - `IIChatTools.API/wwwroot/site.webmanifest` — PWA-манифест.
+  - `IIChatTools.API/Views/Shared/_Layout.cshtml` — favicon + navbar-brand.
+  - `IIChatTools.API/Views/Home/Index.cshtml` — hero-логотип.
+  - `IIChatTools.API/Views/Auth/Login.cshtml` + `Register.cshtml` — логотип над формой.
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` — empty state.
+  - `IIChatTools.API/wwwroot/css/site.css` + `chat.css` — стили.
+- **Решение:** Inline SVG (по референсу) + PNG-favicon от realfavicongenerator.
+  - Favicon: `<link rel="icon" type="image/svg+xml">` + PNG 16/32 + apple-touch-icon.
+  - Navbar-brand: иконка + текст (28px).
+  - Hero на главной: логотип с текстом (240px).
+  - Login / Register: логотип с текстом (200px).
+  - Empty state в `/chat`: иконка (64px, `opacity: .45`).
+- **НЕ реализовано (осознанно):** логотип как фон под активным чатом или на всём приложении (снижение контраста, WCAG AA).
+- **Связанные:** KI-033 (favicon-заглушка — устранено).
 
 ---
 
@@ -896,8 +903,8 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Fixed (v1.4.x) | 4 |                <!-- KI-079, KI-078, KI-080, KI-076 -->
-| Deferred | 6 |                      <!-- KI-047, KI-049, KI-053, KI-067, KI-081, KI-082 -->
+| Fixed (v1.4.x) | 5 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081 -->
+| Deferred | 5 |                      <!-- KI-047, KI-049, KI-053, KI-067, KI-082 -->
 | Fixed (v1.4.x) | 1 |                <!-- KI-079 -->
 | Documented | 4 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->

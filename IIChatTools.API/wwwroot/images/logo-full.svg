@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 96" fill="none">
+  <!-- Иконка (центр X=120, верх) -->
+  <g transform="translate(88, 4) scale(1)" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 4 L56 18 L56 46 L32 60 L8 46 L8 18 Z"/>
+    <path d="M32 10 L46 24 L32 38 L18 24 Z"/>
+    <path d="M32 26 L46 40 L32 54 L18 40 Z"/>
+    <path d="M32 18 L42 32 L32 46 L22 32 Z"/>
+    <path d="M8 18 L32 60"/>
+    <path d="M8 46 L32 4"/>
+    <path d="M56 18 L32 60"/>
+    <path d="M56 46 L32 4"/>
+  </g>
+
+  <!-- Текст "IIRuChating" -->
+  <text x="120" y="90"
+        text-anchor="middle"
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="24"
+        font-weight="700"
+        fill="currentColor"
+        stroke="none">IIRuChating</text>
+</svg>

@@ -9,7 +9,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] — IIChatTools</title>
-    <link rel="icon" href="data:," />
+
+    <!-- KI-081: favicon (SVG primary + PNG fallback от realfavicongenerator) -->
+    <link rel="icon" type="image/svg+xml" href="~/images/logo-icon.svg" asp-append-version="true" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/images/favicon-32x32.png" asp-append-version="true" />
+    <link rel="icon" type="image/png" sizes="16x16" href="~/images/favicon-16x16.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/images/apple-touch-icon.png" asp-append-version="true" />
+    <link rel="manifest" href="~/site.webmanifest" asp-append-version="true" />
 
     <!-- Bootstrap 5 CSS (локально) -->
     <link rel="stylesheet"
@@ -26,9 +32,15 @@
     <header>
         <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container">
-                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
-                    <strong>@AppVersion.ProductName</strong>
-                    <span class="text-muted small">v@(AppVersion.Current)</span>
+                <a class="navbar-brand d-flex align-items-center gap-2" asp-controller="Home" asp-action="Index">
+                    <img src="~/images/logo-icon.svg"
+                         alt="@AppVersion.ProductName"
+                         class="navbar-brand-logo"
+                         asp-append-version="true" />
+                    <span>
+                        <strong>@AppVersion.ProductName</strong>
+                        <span class="text-muted small">v@(AppVersion.Current)</span>
+                    </span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse">
                     <span class="navbar-toggler-icon"></span>

@@ -1419,3 +1419,16 @@ body.chat-global-search-open {
         font-size: .95rem;
     }
 }
+
+/* ============ KI-081: логотип в empty state чата ============ */
+
+.chat-empty-logo {
+    display: block;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto .75rem;
+    opacity: .45;
+    /* Логотип наследует цвет текста (currentColor в SVG) */
+    color: #6c757d;
+    filter: grayscale(1);
+}
