@@ -115,6 +115,12 @@ namespace IIChatTools.Services.Interfaces
         /// <param name="messages">История сообщений (JArray, формат OpenAI)</param>
         /// <param name="tools">Список инструментов (JArray, формат OpenAI Function Calling) или null</param>
         /// <param name="cancellationToken">Токен отмены</param>
+        /// <param name="model">
+        /// Модель LM Studio (v1.4.0 Фаза 2, KI-052). Если <c>null</c> или пусто —
+        /// используется <c>LmStudio:Model</c> из appsettings.json.
+        /// Позволяет специализированным суб-агентам работать со своей моделью
+        /// (code_agent → coder-модель, web_agent → быстрая модель и т.п.).
+        /// </param>
         /// <returns>Ответ модели</returns>
         /// <exception cref="System.ArgumentNullException">Если messages равен null</exception>
         /// <exception cref="System.TimeoutException">Если LM Studio не ответил за отведённое время</exception>
@@ -122,7 +128,8 @@ namespace IIChatTools.Services.Interfaces
         Task<ChatCompletionResponse> CompleteAsync(
             JArray messages,
             JArray tools,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            string model = null);
 
         /// <summary>
         /// Стримит chat completion от LM Studio через SSE.

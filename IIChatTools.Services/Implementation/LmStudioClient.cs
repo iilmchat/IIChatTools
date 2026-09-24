@@ -46,19 +46,26 @@ namespace IIChatTools.Services.Implementation
         public async Task<ChatCompletionResponse> CompleteAsync(
             JArray messages,
             JArray tools,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string model = null)
         {
             if (messages == null) throw new ArgumentNullException(nameof(messages));
 
             var baseUrl = _configuration["LmStudio:BaseUrl"] ?? "http://localhost:8034";
-            var model = _configuration["LmStudio:Model"] ?? "local-model";
             var temperature = GetDouble("LmStudio:Temperature", 0.7);
             var maxTokens = GetInt("LmStudio:MaxTokens", 8192);
             var timeoutSeconds = GetInt("LmStudio:RequestTimeoutSeconds", 300);
 
+            // v1.4.0 Фаза 2 (KI-052): приоритет — переданный model,
+            // иначе — LmStudio:Model из конфига.
+            // Позволяет специализированным суб-агентам работать со своей моделью.
+            var actualModel = !string.IsNullOrWhiteSpace(model)
+                ? model
+                : (_configuration["LmStudio:Model"] ?? "local-model");
+
             var payload = new JObject
             {
-                ["model"] = model,
+                ["model"] = actualModel,
                 ["messages"] = messages,
                 ["temperature"] = temperature,
                 ["max_tokens"] = maxTokens,
@@ -122,7 +129,7 @@ namespace IIChatTools.Services.Implementation
                     "LM Studio: model={Model}, finish={FinishReason}, " +
                     "prompt={PromptTokens}, completion={CompletionTokens}, reasoning={ReasoningTokens}, " +
                     "contentLen={ContentLen}, reasoningLen={ReasoningLen}, toolCalls={ToolCalls}",
-                    model,
+                    actualModel,
                     finishReason,
                     result.Usage?.PromptTokens ?? 0,
                     result.Usage?.CompletionTokens ?? 0,

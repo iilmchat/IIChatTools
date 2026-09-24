@@ -38,8 +38,17 @@ namespace IIChatTools.Tests.IntegrationTests
             public List<ChatCompletionChunk> Chunks =>
                 Iterations.Count == 0 ? null : Iterations[0];
 
+            /// <summary>
+            /// Fake-заглушка: реальный вызов не выполняется (тесты стрима используют
+            /// <see cref="ChatStreamAsync"/>). Сигнатура соответствует расширенному
+            /// интерфейсу (v1.4.0 Фаза 2, KI-052).
+            /// </summary>
+            /// <param name="messages">История сообщений</param>
+            /// <param name="tools">Список инструментов</param>
+            /// <param name="cancellationToken">Токен отмены</param>
+            /// <param name="model">Опциональная модель (v1.4.0 Фаза 2)</param>
             public Task<ChatCompletionResponse> CompleteAsync(
-                JArray messages, JArray tools, CancellationToken cancellationToken)
+                JArray messages, JArray tools, CancellationToken cancellationToken, string model = null)
                 => throw new NotImplementedException();
 
             public Task<IReadOnlyList<string>> GetModelIdsAsync(CancellationToken cancellationToken)

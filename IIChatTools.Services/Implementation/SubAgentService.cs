@@ -95,9 +95,11 @@ namespace IIChatTools.Services.Implementation
                 sessionId, context.UserId, Truncate(request.Task, 200), maxSteps);
 
             // 2. Формируем системный промпт и историю
+            //    v1.4.0 Фаза 2 (KI-052): SystemPromptOverride из SubAgentDescriptor
+            //    (передаётся AgentToolBase через SubAgentTaskRequest).
             var messages = new JArray
             {
-                BuildSystemMessage(maxSteps),
+                BuildSystemMessage(maxSteps, request.SystemPromptOverride),
                 BuildUserMessage(request.Task, request.Context)
             };
 
@@ -127,7 +129,9 @@ namespace IIChatTools.Services.Implementation
                 ChatCompletionResponse response;
                 try
                 {
-                    response = await _lmStudioClient.CompleteAsync(messages, tools, context.CancellationToken);
+                    // v1.4.0 Фаза 2 (KI-052): ModelOverride из SubAgentDescriptor.
+                    response = await _lmStudioClient.CompleteAsync(
+                        messages, tools, context.CancellationToken, request.ModelOverride);
                 }
                 catch (Exception ex)
                 {
@@ -237,7 +241,9 @@ namespace IIChatTools.Services.Implementation
                         ["role"] = "user",
                         ["content"] = "Достигнут лимит шагов. Кратко подведи итог выполненной работы."
                     });
-                    var wrap = await _lmStudioClient.CompleteAsync(messages, null, context.CancellationToken);
+                    // v1.4.0 Фаза 2 (KI-052): тот же ModelOverride.
+                    var wrap = await _lmStudioClient.CompleteAsync(
+                        messages, null, context.CancellationToken, request.ModelOverride);
                     finalAnswer = wrap.Content ?? "Задача не завершена в отведённое число шагов.";
                 }
                 catch (Exception ex)
@@ -253,7 +259,9 @@ namespace IIChatTools.Services.Implementation
             {
                 try
                 {
-                    debugReview = await RunReviewerAsync(messages, finalAnswer, context, stepsLog);
+                    // v1.4.0 Фаза 2 (KI-052): reviewer использует ту же модель, что и агент.
+                    debugReview = await RunReviewerAsync(
+                        messages, finalAnswer, context, stepsLog, request.ModelOverride);
                 }
                 catch (Exception ex)
                 {
@@ -296,15 +304,20 @@ namespace IIChatTools.Services.Implementation
 
         /// <summary>
         /// Формирует системное сообщение для суб-агента.
+        /// v1.4.0 Фаза 2 (KI-052): если передан <paramref name="overridePrompt"/>,
+        /// используется он; иначе — <c>SubAgent:SystemPrompt</c> из конфига.
         /// </summary>
         /// <param name="maxSteps">Лимит шагов</param>
+        /// <param name="overridePrompt">Переопределённый system prompt (или null)</param>
         /// <returns>JObject сообщения</returns>
-        private JObject BuildSystemMessage(int maxSteps)
+        private JObject BuildSystemMessage(int maxSteps, string overridePrompt = null)
         {
-            var prompt = _configuration["SubAgent:SystemPrompt"]
-                ?? "Ты — автономный вторичный агент IIChatTools. Твоя задача — выполнить порученную работу, " +
-                   "используя доступные инструменты. Действуй пошагово, проверяй результаты и заверши работу финальным ответом. " +
-                   "Отвечай на русском языке. У тебя максимум {{maxSteps}} шагов.";
+            var prompt = !string.IsNullOrWhiteSpace(overridePrompt)
+                ? overridePrompt
+                : (_configuration["SubAgent:SystemPrompt"]
+                   ?? "Ты — автономный вторичный агент IIChatTools. Твоя задача — выполнить порученную работу, " +
+                      "используя доступные инструменты. Действуй пошагово, проверяй результаты и заверши работу финальным ответом. " +
+                      "Отвечай на русском языке. У тебя максимум {{maxSteps}} шагов.");
 
             prompt = prompt.Replace("{{maxSteps}}", maxSteps.ToString());
 
@@ -487,17 +500,21 @@ namespace IIChatTools.Services.Implementation
 
         /// <summary>
         /// Запускает агента-рецензента для проверки финального результата.
+        /// v1.4.0 Фаза 2 (KI-052): использует ту же модель, что и основной агент
+        /// (<paramref name="modelOverride"/>), чтобы не смешивать модели в одной сессии.
         /// </summary>
         /// <param name="originalMessages">История суб-агента</param>
         /// <param name="finalAnswer">Финальный ответ</param>
         /// <param name="context">Контекст выполнения</param>
         /// <param name="steps">Шаги (для дополнения лога)</param>
+        /// <param name="modelOverride">Модель LM Studio (или null — из конфига)</param>
         /// <returns>Текст рецензии</returns>
         private async Task<string> RunReviewerAsync(
             JArray originalMessages,
             string finalAnswer,
             ToolExecutionContext context,
-            List<SubAgentStep> steps)
+            List<SubAgentStep> steps,
+            string modelOverride = null)
         {
             var reviewerSystem = _configuration["SubAgent:ReviewerSystemPrompt"]
                 ?? "Ты — критичный рецензент. Проверь финальный ответ другого агента на полноту и корректность. " +
@@ -514,7 +531,8 @@ namespace IIChatTools.Services.Implementation
                 }
             };
 
-            var review = await _lmStudioClient.CompleteAsync(reviewerMessages, null, context.CancellationToken);
+            var review = await _lmStudioClient.CompleteAsync(
+                reviewerMessages, null, context.CancellationToken, modelOverride);
             var reviewText = review.Content ?? string.Empty;
 
             steps.Add(new SubAgentStep

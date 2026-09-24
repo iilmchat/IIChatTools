@@ -27,6 +27,13 @@
   - 4 unit-теста (`SubAgentRegistryTests`).
   - `docs/development/v1.4/DESIGN.md` — дизайн-документ фазы.
 
+### Changed
+- **v1.4.0 Фаза 2 (KI-052)**: `ModelOverride` + `SystemPromptOverride` в суб-агентах.
+  - `ILmStudioClient.CompleteAsync(..., string model = null)` — перегрузка с явной моделью (обратносовместимо).
+  - `LmStudioClient`: если `model` передан — используется он; иначе `LmStudio:Model`.
+  - `SubAgentService`: `BuildSystemMessage(maxSteps, overridePrompt)` — `SystemPromptOverride` имеет приоритет над `SubAgent:SystemPrompt`.
+  - Основной цикл, финальное резюме и reviewer — все используют `request.ModelOverride`.
+
 ### Planned
 - **v1.4.0**: KI-052 (специализированные суб-агенты — Фазы 2-9), KI-053 (multi-user approvals), KI-049 (tiktoken).
 
