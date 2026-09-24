@@ -35,7 +35,7 @@
   - `wwwroot/images/logo-icon.svg` — иконка (шестиугольник + переплетение), inline SVG.
   - `wwwroot/images/logo-full.svg` — иконка + текст «IIRuChating».
   - `wwwroot/site.webmanifest` — PWA-манифест (иконки 192/512).
-  - Favicon: SVG (primary) + PNG 16/32 + apple-touch-icon (от realfavicongenerator).
+  - Favicon: SVG + ICO + PNG 96 + apple-touch-icon + manifest (от realfavicongenerator).
   - Navbar-brand: логотип-иконка + «IIChatTools vX.Y.Z».
   - Hero на главной: логотип с текстом (240px).
   - Login / Register: логотип с текстом (200px).
