@@ -40,6 +40,7 @@ namespace IIChatTools.Services.Implementation
         private readonly ISubAgentRegistry _subAgentRegistry;
         private readonly IWorkspaceResolver _workspaceResolver;
         private readonly IChatApprovalCoordinator _approvalCoordinator;
+        private readonly ITokenCounter _tokenCounter;
         private readonly IConfiguration _configuration;
         private readonly ILogger<ChatStreamService> _logger;
 
@@ -52,6 +53,7 @@ namespace IIChatTools.Services.Implementation
         /// <param name="subAgentRegistry">Реестр специализированных суб-агентов (v1.4.0 Фаза 5, KI-052)</param>
         /// <param name="workspaceResolver">Резолвер рабочего пространства пользователя</param>
         /// <param name="approvalCoordinator">Координатор подтверждений tool call (Singleton)</param>
+        /// <param name="tokenCounter">Счётчик токенов (v1.4.x, KI-049)</param>
         /// <param name="configuration">Конфигурация приложения</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
@@ -62,6 +64,7 @@ namespace IIChatTools.Services.Implementation
             ISubAgentRegistry subAgentRegistry,
             IWorkspaceResolver workspaceResolver,
             IChatApprovalCoordinator approvalCoordinator,
+            ITokenCounter tokenCounter,
             IConfiguration configuration,
             ILogger<ChatStreamService> logger)
         {
@@ -71,6 +74,7 @@ namespace IIChatTools.Services.Implementation
             _subAgentRegistry = subAgentRegistry ?? throw new ArgumentNullException(nameof(subAgentRegistry));
             _workspaceResolver = workspaceResolver ?? throw new ArgumentNullException(nameof(workspaceResolver));
             _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
+            _tokenCounter = tokenCounter ?? throw new ArgumentNullException(nameof(tokenCounter));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -156,10 +160,18 @@ namespace IIChatTools.Services.Implementation
                 string userMsgError = null;
                 try
                 {
+                    // KI-049: считаем токены user-сообщения (tiktoken-приближение).
+                    var userTokens = _tokenCounter.CountTokens(request.Message);
+
                     userMsg = await _chatService.AddMessageAsync(
                         request.ChatId,
                         userId,
-                        new ChatMessage { Role = RoleUser, Content = request.Message },
+                        new ChatMessage
+                        {
+                            Role = RoleUser,
+                            Content = request.Message,
+                            TokensIn = userTokens
+                        },
                         cancellationToken);
                 }
                 catch (Exception ex)
@@ -300,14 +312,24 @@ namespace IIChatTools.Services.Implementation
                     string saveErr = null;
                     try
                     {
+                        // KI-049: если LM Studio отдала usage (не stream) — используем
+                        // точные значения; иначе считаем через tiktoken.
+                        var contextTokens = tokensIn
+                            ?? _tokenCounter.CountConversation(
+                                messages.Select(m => (
+                                    Role: m["role"]?.ToString() ?? "user",
+                                    Content: m["content"]?.ToString() ?? string.Empty)));
+                        var completionTokens = tokensOut
+                            ?? _tokenCounter.CountTokens(partialContent);
+
                         finalMsg = await _chatService.AddMessageAsync(
                             request.ChatId, userId,
                             new ChatMessage
                             {
                                 Role = RoleAssistant,
                                 Content = partialContent,
-                                TokensIn = tokensIn,
-                                TokensOut = tokensOut
+                                TokensIn = contextTokens,
+                                TokensOut = completionTokens
                             },
                             cancellationToken);
                     }

@@ -305,6 +305,10 @@ namespace IIChatTools.API
             // будут ходить в AppSettings (нужна потокобезопасность).
             services.AddSingleton<ISubAgentRegistry, SubAgentRegistry>();
 
+            // ============ Token counter (v1.4.x, KI-049) ============
+            // Singleton: токенизатор тяжело инициализируется, потокобезопасен.
+            services.AddSingleton<ITokenCounter, TokenCounter>();
+
             // ============ Chat title service (v1.3 Фаза 2.2.1) ============
             // AI-генерация короткого названия из первого сообщения (ChatGPT-style).
             services.AddScoped<IChatTitleService, ChatTitleService>();

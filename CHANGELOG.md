@@ -30,7 +30,19 @@
   - 2 новых ключа `.resx` (`AgentStatsLastRun`, `AgentStatsEmpty`).
   - 3 теста `AgentStatsServiceTests`.
 
+### Added
+- **Chat — подсчёт токенов через tiktoken (KI-049a, v1.4.x)**:
+  - Пакеты `Microsoft.ML.Tokenizers` + `Microsoft.ML.Tokenizers.Data.Cl100kBase` 1.0.0
+    (API + BPE-словарь; одно без другого не работает).
+  - `ITokenCounter` + `TokenCounter` (Singleton): `CountTokens(string)`, `CountConversation(messages)`.
+  - `ChatStreamService`: заполняет `TokensIn`/`TokensOut` для user и assistant сообщений.
+    - Если LM Studio отдала `usage` (non-stream) — использует точные значения.
+    - Иначе — считает через tiktoken (приближение ±5-10%).
+  - 7 unit-тестов (`TokenCounterTests`).
+- **RULES v1.4.4**: § 4.31 (Retention:Enabled в Development — намеренно false).
+
 ### Fixed
+- **KI-049a (fix)**: добавлен пакет `Microsoft.ML.Tokenizers.Data.Cl100kBase` — без него `TiktokenTokenizer.CreateForEncoding("cl100k_base")` падает с `InvalidOperationException: The tokenizer data file ... could not be loaded`.
 - **KI-067-2 (fix)**: `ExecuteDeleteAsync` не поддерживается InMemory-провайдером EF Core 10. Решение: fallback — загрузка сущностей в память + `RemoveRange` + `SaveChangesAsync` (для тестов). Для SqlServer/Sqlite — прежний bulk-DELETE.
 
 ### Added

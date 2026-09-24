@@ -36,6 +36,9 @@
     <NewtonsoftJsonVersion>13.0.3</NewtonsoftJsonVersion>
     <HtmlAgilityPackVersion>1.12.1</HtmlAgilityPackVersion>
     <PuppeteerSharpVersion>7.1.0</PuppeteerSharpVersion>
+    <!-- KI-049: токенизация для подсчёта tokensIn/Out (tiktoken-совместимый). -->
+    <!-- ВАЖНО: два пакета — API + Data.Cl100kBase (словарь), одной версии. -->
+    <MLTokenizersVersion>1.0.0</MLTokenizersVersion>
     <XunitVersion>2.9.2</XunitVersion>
     <XunitRunnerVisualStudioVersion>2.8.2</XunitRunnerVisualStudioVersion>
     <MoqVersion>4.20.72</MoqVersion>

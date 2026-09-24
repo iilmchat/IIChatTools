@@ -318,7 +318,16 @@
 ---
 
 ### KI-049 — tokensIn / tokensOut = null в SSE-стриме
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.3.x
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.x
+- **Обнаружено:** 2026-09-21 | **Устранено:** 2026-09-25
+- **Файлы:**
+  - `IIChatTools.Services/Interfaces/ITokenCounter.cs` — интерфейс.
+  - `IIChatTools.Services/Implementation/TokenCounter.cs` — tiktoken-обёртка.
+  - `IIChatTools.Services/Implementation/ChatStreamService.cs` — заполнение TokensIn/Out.
+  - `IIChatTools.API/Startup.cs` — регистрация Singleton.
+  - `Directory.Build.props` + `.csproj` — пакет `Microsoft.ML.Tokenizers`.
+- **Решение:** tiktoken-совместимый счётчик (`cl100k_base`). Если LM Studio отдаёт `usage` (non-stream) — используем точное значение; иначе — приближение через tiktoken (±5-10% для Qwen/Gemma).
+- **Расширение (Deferred, KI-084):** `DurationMs` + `FirstTokenMs` + `FinishReason` в `ChatMessage` + UI «как в LM Studio» (tok/sec, stop reason).
 - **Обнаружено:** 2026-09-21
 - **Файлы:** `IIChatTools.Services/Implementation/LmStudioClient.cs` (ChatStreamAsync), `IIChatTools.Services/Implementation/ChatStreamService.cs`
 - **Описание:** В SSE-стриме LM Studio не отдаёт `usage` (в отличие от `stream=false`). В последнем чанке `tokensIn`/`tokensOut` = null, хотя в `ChatCompletionResponse` (non-streaming) usage приходит.
@@ -824,6 +833,17 @@
 
 ---
 
+### KI-084 — Расширенная статистика генерации (как в LM Studio)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
+- **Обнаружено:** 2026-09-25
+- **Файлы (план):** `ChatMessage.cs`, `ChatStreamService.cs`, `chat.js`
+- **Описание:** LM Studio показывает `tok/sec`, `elapsed`, `stop reason`. Сейчас мы сохраняем только `TokensIn`/`TokensOut` (KI-049a). Расширение: `DurationMs`, `FirstTokenMs`, `FinishReason` в `ChatMessage` + UI-отображение в meta-строке assistant-сообщения (`123 / 45 токенов · 7.4 tok/s · 9.1 s`).
+- **Требует:** миграция БД (+3 nullable-поля в `ChatMessages`).
+- **Связанные:** KI-049a (tiktoken — сделано).
+- **Не блокер:** базовая статистика (токены) уже есть.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -923,8 +943,8 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Fixed (v1.4.x) | 6 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081, KI-067 -->
-| Deferred | 5 |                      <!-- KI-047, KI-049, KI-053, KI-082 -->
+| Fixed (v1.4.x) | 7 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081, KI-067, KI-049 -->
+| Deferred | 5 |                      <!-- KI-047, KI-053, KI-082, KI-084 -->
 | Fixed (v1.4.x) | 1 |                <!-- KI-079 -->
 | Documented | 4 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->

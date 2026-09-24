@@ -8,6 +8,7 @@ using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 5 (KI-052)
 using IIChatTools.Services.Implementation;
+using IIChatTools.Services.Implementation.Tools.SubAgent;  // KI-049
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -271,6 +272,7 @@ namespace IIChatTools.Tests.IntegrationTests
                 fakeSubAgentRegistry,
                 fakeResolver,
                 fakeApproval,
+                new TokenCounter(),   // KI-049
                 effectiveConfig,
                 NullLogger<ChatStreamService>.Instance);
 

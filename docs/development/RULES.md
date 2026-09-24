@@ -1,7 +1,7 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.3
-**Обновлено:** 2026-09-24
+**Версия:** 1.4.5
+**Обновлено:** 2026-09-25
 **Назначение:** единый свод правил для команды и ассистента.
 
 При работе над проектом **все** изменения должны соответствовать этим правилам.
@@ -68,6 +68,7 @@
 | 3.11 | **На новой машине** — `git config user.email/name` **до** первого коммита |
 | 3.12 | **Перед push** — `git log --all -p \| grep 'password\|secret'` (проверка на утечки) |
 | 3.13 | **Удаление мусора** — после задач удалять временные скрипты (`fix-*.ps1`) |
+| 3.14 | **Перед `dotnet build` — остановить запущенное приложение.** Иначе `MSB3027`/`MSB3021`: DLL залочены процессом `IIChatTools.API` (например, из `dotnet run`). **Fix:** `Get-Process IIChatTools.API -ErrorAction SilentlyContinue \| Stop-Process -Force`. Симптом в логе: `The process cannot access the file ... "IIChatTools.API (PID)" блокирует этот файл`. | |
 
 ---
 
@@ -105,6 +106,7 @@
 | 4.28 | **Внешние HTTP-инструменты (Wikipedia, Web, FetchWebContent) — всегда явный `Timeout` (15s) + 1 retry.** Дефолтный `HttpClient.Timeout = 100s` недопустим: через корпоративный прокси SSL-обрыв превращается в 40+ секунд зависания чата. Retry — только при transient-ошибках (`HttpRequestException`, `TaskCanceledException`), **не при внешней отмене** (`context.CancellationToken.IsCancellationRequested`). См. KI-064. |
 | 4.29 | **`ExecuteDeleteAsync`/`ExecuteUpdateAsync` не поддерживаются InMemory-провайдером EF Core 10.** Тесты на InMemory падают с `InvalidOperationException`. **Решение:** определять провайдер через `_dbContext.Database.ProviderName` (Contains "InMemory") и использовать fallback (`ToList` + `RemoveRange` + `SaveChangesAsync`). Для SqlServer/Sqlite — bulk-DELETE. См. `ChatService.DeleteOldChatsInternalAsync` (KI-067-2). |
 | 4.30 | **`cref` в XML-doc с перегрузками → CS0419.** После добавления перегрузки метода все `cref="Type.Method"` становятся неоднозначными. **Решение:** либо уточнять сигнатуру (`Type.Method(int, CancellationToken)`), либо использовать `<c>Text</c>` вместо `<see>`. При добавлении перегрузки — grep по `cref="MethodName"` в проекте. См. `ChatRetentionService.cs` (KI-067-2). |
+| 4.31 | **`Chat:Retention:Enabled = false` в `appsettings.Development.json` — намеренно.** Чтобы не удалять тестовые чаты при каждом запуске dev-сервера. Для проверки retention: временно `Enabled = true` + `CleanupIntervalHours = 1` + перезапуск. Первый прогон — через **2 минуты** после старта (Task.Delay), дальше — по `PeriodicTimer`. В логах искать: `ChatRetentionService запущен: интервал=1ч, срок=Nд`. См. KI-067-3 (smoke). |
 
 ---
 
@@ -184,6 +186,8 @@
 | 2026-09-24 | 1.4.1 | Правила 4.25 (Sqlite stale DB), 4.26 (LOWER в SQLite и не-ASCII), 4.27 (даты без `Z`), 4.28 (Timeout+retry для HTTP-инструментов). **Релиз v1.3.1.** |
 | 2026-09-24 | 1.4.2 | Правила 2.9 (RELEASES.md — чек-лист релиза), 2.10 (MD-файлы в 4 бэктиках), 3.6a (testhost boot ~44-60 с). **Релиз v1.4.0** — Multi-Agent (KI-052). |
 | 2026-09-24 | 1.4.3 | Правила 4.29 (InMemory + ExecuteDeleteAsync), 4.30 (cref + перегрузки). **KI-067** — per-user retention. |
+| 2026-09-25 | 1.4.4 | Правило 4.31 (Retention:Enabled в Development). **KI-049** — tokensIn/Out через tiktoken. |
+| 2026-09-25 | 1.4.5 | Правило 3.14 (остановить приложение перед build). **KI-049a** — пакет Data.Cl100kBase. |
 
 ---
 
