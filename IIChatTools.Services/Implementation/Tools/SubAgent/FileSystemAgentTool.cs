@@ -1,0 +1,39 @@
+using System;
+using IIChatTools.Services.Interfaces;
+using Microsoft.Extensions.Logging;
+
+namespace IIChatTools.Services.Implementation.Tools.SubAgent
+{
+    /// <summary>
+    /// Инструмент-обёртка вокруг агента файловой системы (v1.4.0 Фаза 3, KI-052).
+    /// Внутри агента доступны 13 FS-инструментов (см. <c>SubAgents:file_system_agent</c>).
+    /// </summary>
+    public class FileSystemAgentTool : AgentToolBase
+    {
+        /// <inheritdoc />
+        public override string Name => "file_system_agent";
+
+        /// <inheritdoc />
+        public override string Description =>
+            "Агент файловой системы. Выполняет задачи с файлами в workspace пользователя: " +
+            "чтение, запись, поиск, копирование, перемещение, удаление, метаданные. " +
+            "Используй для любых операций с файлами. Требует подтверждения (approval).";
+
+        /// <inheritdoc />
+        protected override string AgentName => "file_system_agent";
+
+        /// <summary>
+        /// Создаёт инструмент.
+        /// </summary>
+        /// <param name="subAgentServiceFactory">Фабрика сервиса суб-агента</param>
+        /// <param name="registry">Реестр суб-агентов</param>
+        /// <param name="logger">Логгер</param>
+        public FileSystemAgentTool(
+            Func<ISubAgentService> subAgentServiceFactory,
+            ISubAgentRegistry registry,
+            ILogger<FileSystemAgentTool> logger)
+            : base(subAgentServiceFactory, registry, logger)
+        {
+        }
+    }
+}

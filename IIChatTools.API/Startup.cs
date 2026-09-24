@@ -336,6 +336,9 @@ namespace IIChatTools.API
             RegisterUtilityTools(services);
             RegisterSubAgentTools(services);
 
+            // v1.4.0 Фаза 3 (KI-052): 6 специализированных агентов
+            RegisterSpecializedAgentTools(services);
+
             // ============ 11. Политики авторизации ============
             services.AddAuthorization(options =>
             {
@@ -524,6 +527,26 @@ namespace IIChatTools.API
         private static void RegisterSubAgentTools(IServiceCollection services)
         {
             services.AddScoped<ITool, ConsultSecondaryAgentTool>();
+        }
+
+        /// <summary>
+        /// Регистрирует инструменты-обёртки вокруг специализированных суб-агентов
+        /// (v1.4.0 Фаза 3, KI-052). Всего 6 агентов.
+        ///
+        /// <para>
+        /// В Chat они пока не видны (переключение — Фаза 5). Сейчас доступны только
+        /// через прямые вызовы /api/tools/execute (для smoke-тестов).
+        /// </para>
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        private static void RegisterSpecializedAgentTools(IServiceCollection services)
+        {
+            services.AddScoped<ITool, FileSystemAgentTool>();
+            services.AddScoped<ITool, CodeAgentTool>();
+            services.AddScoped<ITool, WebAgentTool>();
+            services.AddScoped<ITool, GitAgentTool>();
+            services.AddScoped<ITool, GitHubAgentTool>();
+            services.AddScoped<ITool, PlannerAgentTool>();
         }
 
         /// <summary>

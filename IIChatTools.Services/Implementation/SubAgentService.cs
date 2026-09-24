@@ -27,6 +27,12 @@ namespace IIChatTools.Services.Implementation
         /// </summary>
         public const string ParentToolName = "consult_secondary_agent";
 
+        /// <summary>
+        /// Суффикс имён инструментов-агентов (v1.4.0 Фаза 3, KI-052).
+        /// Любой вызов <c>*_agent</c> внутри суб-агента запрещён (защита от рекурсии).
+        /// </summary>
+        public const string AgentToolSuffix = "_agent";
+
         private readonly ILmStudioClient _lmStudioClient;
         private readonly IToolRegistry _toolRegistry;
         private readonly AppDbContext _dbContext;
@@ -182,11 +188,20 @@ namespace IIChatTools.Services.Implementation
                     if (string.IsNullOrWhiteSpace(functionName))
                         continue;
 
-                    if (string.Equals(functionName, ParentToolName, StringComparison.OrdinalIgnoreCase))
+                    // Защита от рекурсии: consult_secondary_agent и любой *_agent
+                    // (v1.4.0 Фаза 3: file_system_agent, code_agent, ... — нельзя вызывать изнутри).
+                    var isAgentCall =
+                        string.Equals(functionName, ParentToolName, StringComparison.OrdinalIgnoreCase) ||
+                        functionName.EndsWith(AgentToolSuffix, StringComparison.OrdinalIgnoreCase);
+
+                    if (isAgentCall)
                     {
-                        // Защита от рекурсии
                         messages.Add(BuildToolResultMessage(callId,
-                            JsonConvert.SerializeObject(new { success = false, message = "Вложенный вызов суб-агента запрещён." })));
+                            JsonConvert.SerializeObject(new
+                            {
+                                success = false,
+                                message = "Вложенный вызов агента запрещён (защита от рекурсии)."
+                            })));
                         continue;
                     }
 

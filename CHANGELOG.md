@@ -33,6 +33,13 @@
   - `LmStudioClient`: если `model` передан — используется он; иначе `LmStudio:Model`.
   - `SubAgentService`: `BuildSystemMessage(maxSteps, overridePrompt)` — `SystemPromptOverride` имеет приоритет над `SubAgent:SystemPrompt`.
   - Основной цикл, финальное резюме и reviewer — все используют `request.ModelOverride`.
+- **v1.4.0 Фаза 3 (KI-052)**: `AgentToolBase` + 6 инструментов-обёрток.
+  - `AgentToolBase` — единый базовый класс (params, resolve дескриптора, вызов `SubAgentService` через `Func<ISubAgentService>` — разрыв DI-цикла).
+  - 6 наследников: `FileSystemAgentTool`, `CodeAgentTool`, `WebAgentTool`, `GitAgentTool`, `GitHubAgentTool`, `PlannerAgentTool`.
+  - `RequiresApprovalByDefault` резолвится из дескриптора (`SubAgents:X.RequiresApproval`).
+  - Регистрация в `Startup.RegisterSpecializedAgentTools`.
+  - `SubAgentService`: расширена защита от рекурсии — запрет `consult_secondary_agent` + любого `*_agent` внутри суб-агента.
+  - В Chat новые агенты **пока не видны** (переключение — Фаза 5).  
 
 ### Planned
 - **v1.4.0**: KI-052 (специализированные суб-агенты — Фазы 2-9), KI-053 (multi-user approvals), KI-049 (tiktoken).
