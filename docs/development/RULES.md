@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.7
+**Версия:** 1.4.8
 **Обновлено:** 2026-09-25
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -152,25 +152,30 @@
 
 | KI | Приоритет | Статус | Суть | План |
 |----|-----------|--------|------|------|
-| KI-043 | 🟡 | Fixed (v1.3.x) | Утечка памяти в `RateLimitingMiddleware` | ✅ v1.3.x |
-| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.3.x |
-| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.3.x |
-| KI-049 | 🟢 | Documented | `tokensIn`/`tokensOut` = null в SSE (ограничение LM Studio) | v1.4 |
-| KI-052 | 🟡 | Deferred | Специализированные суб-агенты по группам инструментов | v1.4.0 |
-| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.4.0 |
-| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.3.x |
-| KI-064 | 🟢 | Fixed (v1.3.x) | SSL-обрыв к `ru.wikipedia.org` (корпоративный прокси) | ✅ v1.3.x |
-| KI-067 | 🟢 | Deferred | Per-user retention чатов (override глобальной) | v1.3.x |
-| KI-068 | 🟢 | Fixed (v1.3.x) | Поиск по содержимому сообщений (не только title) | ✅ v1.3.x |
-| KI-069 | 🟢 | Fixed (v1.3.x) | Inline-edit названия чата в sidebar (двойной клик) | ✅ v1.3.x |
-| KI-052 | 🟡 | Fixed (v1.4.0) | Специализированные суб-агенты по группам инструментов | ✅ v1.4.0 |
-| KI-076 | 🟢 | Deferred | Статистика по агентам в админке | v1.4.x |
-| KI-077 | 🟢 | Documented | `model: null` при PUT агента = «сброс», а не «не менять» | — |
-| KI-078 | 🟢 | Deferred | Внутричатовый поиск (Ctrl+F-style) + подсветка | v1.4.x |
-| KI-079 | 🟢 | Deferred | Свернуть/развернуть боковую панель | v1.4.x |
-| KI-080 | 🟢 | Deferred | Поле ввода чата на всю ширину (DeepSeek-style) | v1.4.x |
+| KI-043 | 🟡 | Fixed (v1.3.x) | Утечка памяти в `RateLimitingMiddleware` | ✅ |
+| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.5.0 |
+| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.4.2 |
+| KI-049 | 🟢 | Fixed (v1.4.1) | `tokensIn`/`tokensOut` = null в SSE | ✅ (tiktoken) |
+| KI-052 | 🟡 | Fixed (v1.4.0) | Специализированные суб-агенты | ✅ |
+| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.4.2+ |
+| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.5.0 |
+| KI-064 | 🟢 | Fixed (v1.3.x) | SSL-обрыв к `ru.wikipedia.org` | ✅ |
+| KI-067 | 🟢 | Fixed (v1.4.1) | Per-user retention чатов | ✅ |
+| KI-068 | 🟢 | Fixed (v1.3.x) | Поиск по содержимому сообщений | ✅ |
+| KI-069 | 🟢 | Fixed (v1.3.x) | Inline-edit названия чата в sidebar | ✅ |
+| KI-076 | 🟢 | Fixed (v1.4.1) | Статистика по агентам в админке | ✅ |
+| KI-077 | 🟢 | Documented | `model: null` при PUT агента = «сброс» | — |
+| KI-078 | 🟢 | Fixed (v1.4.1) | Поиск (A: внутричатовый, B: ⌘K) | ✅ |
+| KI-079 | 🟢 | Fixed (v1.4.1) | Свернуть/развернуть sidebar | ✅ |
+| KI-080 | 🟢 | Fixed (v1.4.1) | Поле ввода на всю ширину | ✅ |
+| KI-081 | 🟢 | Fixed (v1.4.1) | Логотип IIChatTools | ✅ |
+| KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.5.0+ |
+| KI-083 | 🟡 | Planned | RAG / embeddings (Qdrant) | v1.5.0 |
+| KI-084 | 🟢 | Fixed (v1.4.1) | Расширенная статистика (tok/s, duration) | ✅ |
+| KI-085 | 🟢 | Documented | SQLite `database is locked` (внешний клиент) | — |
+| KI-086 | 🟢 | Deferred | Sources / citations под ответом | v1.6.0 |
 
-**Всего в реестре:** 55 KI. **Fixed/Resolved:** 52 (v1.0.x–v1.4.0). **Deferred:** 8. **Documented:** 4.
+**Всего в реестре:** 60+ KI. **Fixed/Resolved:** 55+ (v1.0.x–v1.4.1). **Deferred:** 5. **Documented:** 5.
 
 > KI-068 (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
 
@@ -193,6 +198,7 @@
 | 2026-09-25 | 1.4.5 | Правило 3.14 (остановить приложение перед build). **KI-049a** — пакет Data.Cl100kBase. |
 | 2026-09-25 | 1.4.6 | Правило 4.32 (два пакета ML.Tokenizers: API + Data). **KI-085** — SQLite locked. |
 | 2026-09-25 | 1.4.7 | Правило 2.11 (большие MD — только diff). **KI-084b** — токены в SSE + fix CS0103. |
+| 2026-09-25 | 1.4.8 | § 7 — актуализация KI-выжимки. **Релиз v1.4.1** — Chat UX + retention + tiktoken. |
 
 ---
 

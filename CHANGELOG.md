@@ -18,8 +18,21 @@
 
 ## [Unreleased]
 
+_(пусто — планируется для v1.4.2 / v1.5.0)_
+
+### Planned
+- **v1.4.x**: KI-047 (PATCH/DELETE fallback), KI-053 (multi-user approvals — крупная), KI-077 (model:null при PUT), KI-082 (модалка-редактор).
+- **v1.5.0**: RAG (Qdrant / embeddings), Knowledge base, `search_knowledge_base` / `search_chat_history` / `search_workspace`.
+- **v1.6.0**: KI-086 (вывод источников / citations из tool_result).
+
+---
+
+## [1.4.1] — 2026-09-25
+
+**Chat UX polish + per-user retention + tiktoken-статистика.**
+
 ### Added
-- **Admin UI — статистика запусков агентов (KI-076, v1.4.x)**:
+- **Admin UI — статистика запусков агентов (KI-076)**:
   - `AgentStatsDto` (`AgentName`, `DisplayName`, `TotalRuns`, `SuccessRuns`, `ErrorRuns`, `AvgDurationMs`, `LastRunAt`, `SuccessRate`).
   - `IAgentStatsService` + `AgentStatsService` — агрегация `AuditLogs` с `ToolName LIKE 'agent.%'` (один SQL-запрос с `GroupBy`).
   - `AgentToolBase` → инжектит `IAuditService`, пишет запись при каждом запуске агента (`ToolName = "agent.{AgentName}"`, `Status = Success / Error / Cancelled`, `DurationMs`, `ResultJson`).

@@ -868,6 +868,24 @@
 
 ---
 
+### KI-086 — Вывод источников (sources / citations) под ответом ассистента
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.6.0 (после RAG)
+- **Обнаружено:** 2026-09-25
+- **Файлы (план):**
+  - `ChatMessage.cs` — новое поле `MetadataJson` (или `SourcesJson`).
+  - `ChatToolResultDto` — расширить `sources: [{ url, title, snippet }]`.
+  - Web-инструменты (`WikipediaSearchTool`, `WebSearchTool`, `FetchWebContentTool`) — возвращать список источников.
+  - `chat.js` — блок «Источники: [1] [2] [3]» под assistant-сообщением.
+- **Описание:** Web-инструменты уже возвращают URL (например, `finalAnswer` от `web_agent` содержит `Источник: [https://ru.wikipedia.org/wiki/...]`). Но эти данные «закопаны» в JSON `tool_result` и не видны пользователю. Аналогично Perplexity/ChatGPT-with-browse — нужен аккуратный блок «Источники» с кликабельными ссылками под ответом.
+- **Решение (план):**
+  - Явное поле в `tool_result` от Web-инструментов: список `{ url, title }`.
+  - Сохранение в `ChatMessage.MetadataJson` (требует миграции — 1 поле).
+  - UI: `.chat-message-sources` под `.chat-message-content` — нумерованный список.
+- **Обоснование отсрочки:** RAG (v1.5.0) вводит концепцию «документов-источников» (chunks + их origin). Логичнее сначала сделать RAG, потом унифицировать sources для всех инструментов (Web, KnowledgeBase, Chats, Workspace).
+- **Связанные:** KI-083 (RAG / embeddings — v1.5.0).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -967,8 +985,8 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Fixed (v1.4.x) | 8 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081, KI-067, KI-049, KI-084 -->
-| Deferred | 4 |                      <!-- KI-047, KI-053, KI-082 -->
+| Fixed (v1.4.1) | 9 |                <!-- KI-049, 067, 076, 078, 079, 080, 081, 084, 085 -->
+| Deferred | 5 |                      <!-- KI-047, KI-053, KI-082, KI-086, KI-083 (planned) -->
 | Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075, KI-085 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->
 | Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
