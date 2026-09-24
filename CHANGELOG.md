@@ -43,7 +43,14 @@
   - `RequiresApprovalByDefault` резолвится из дескриптора (`SubAgents:X.RequiresApproval`).
   - Регистрация в `Startup.RegisterSpecializedAgentTools`.
   - `SubAgentService`: расширена защита от рекурсии — запрет `consult_secondary_agent` + любого `*_agent` внутри суб-агента.
-  - В Chat новые агенты **пока не видны** (переключение — Фаза 5).  
+  - В Chat новые агенты **пока не видны** (переключение — Фаза 5).
+- **v1.4.0 Фаза 4 (KI-052)**: усилены system-промпты всех 6 агентов.
+  - `web_agent`: КРИТИЧНО использовать инструменты перед ответом (не отвечать из знаний), указывать источник.
+  - `file_system_agent`: проверять `list_directory` перед операциями, не галлюцинировать имена.
+  - `code_agent`: обязательно проверять код запуском, анализировать ошибки.
+  - `git_agent`: начинать с `git_status`, не делать force-push.
+  - `github_agent`: начинать с `gh_auth_status`.
+  - `planner_agent`: использовать `save_memory` / `get_system_info` по назначению.    
 
 ### Planned
 - **v1.4.0**: KI-052 (специализированные суб-агенты — Фазы 2-9), KI-053 (multi-user approvals), KI-049 (tiktoken).
