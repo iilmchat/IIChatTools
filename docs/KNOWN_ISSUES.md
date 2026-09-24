@@ -493,13 +493,25 @@
 ---
 
 ### KI-067 — Per-user retention чатов (override глобальной)
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.3.x
-- **Обнаружено:** 2026-09-23
-- **Файлы:** `IIChatTools.Services/Implementation/ChatRetentionService.cs`, `IIChatTools.Services/Implementation/ChatRetentionOptions.cs`
-- **Описание:** Сейчас retention чатов — глобальный (`Chat:Retention:DefaultDays` в appsettings). Пользователь не может настроить свой срок хранения (например, «хранить 7 дней» для приватных чатов или «365 дней» для архива). DESIGN § 13.2 предлагал override через `AppSettings` (поле `Chat.RetentionDays` per-user).
-- **Реализовано в v1.3 Фаза 2.2.5:** глобальный retention через `ChatRetentionService` (BackgroundService, bulk DELETE).
-- **TODO v1.3.x:** добавить per-user override через `AppSettings` (ключ `Chat.RetentionDays`) + UI в профиле пользователя.
-- **Не блокер:** текущий глобальный retention покрывает 95% сценариев.
+- **Приоритет:** 🟢 Low | **Статус:** Partially Fixed | **Исправлено в:** v1.4.x (backend)
+- **Обнаружено:** 2026-09-23 | **Устранено (backend):** 2026-09-24
+- **Файлы (backend):**
+  - `IIChatTools.Data/Entities/UserSetting.cs` — таблица UserSettings.
+  - `IIChatTools.Services/Interfaces/IUserSettingsService.cs` + реализация.
+  - `IIChatTools.Services/Interfaces/IChatService.cs` — `DeleteOldChatsAsync(retentionDays, excludedUserIds)` + `DeleteOldChatsForUserAsync`.
+  - `IIChatTools.Services/Implementation/ChatService.cs` — реализация.
+  - `IIChatTools.Services/Implementation/ChatRetentionService.cs` — per-user overrides + DoNotDelete.
+- **Решение (backend):**
+  - Отдельная таблица `UserSettings` (UserId + Key + Value + Type; unique index).
+  - Ключи: `Chat.RetentionDays` (int), `Chat.DoNotDelete` (bool).
+  - `ChatRetentionService` раз в N часов:
+    1. Читает все `Chat.*` настройки (один SQL).
+    2. `DoNotDelete = true` → пользователь исключается.
+    3. `RetentionDays = N` → per-user bulk-DELETE.
+    4. Остальные → глобальный bulk-DELETE с исключением `excludedUserIds`.
+  - `DoNotDelete` побеждает `RetentionDays`.
+- **TODO:** UI (в `/admin` → пользователи + новая `/profile`) — KI-067-3.
+- **Не блокер:** backend работает через прямые SQL/PUT-запросы.
 
 ---
 
@@ -904,7 +916,8 @@
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
 | Fixed (v1.4.x) | 5 |                <!-- KI-079, KI-078, KI-080, KI-076, KI-081 -->
-| Deferred | 5 |                      <!-- KI-047, KI-049, KI-053, KI-067, KI-082 -->
+| Partially Fixed (v1.4.x) | 1 |       <!-- KI-067 (backend) -->
+| Deferred | 5 |                      <!-- KI-047, KI-049, KI-053, KI-082 -->
 | Fixed (v1.4.x) | 1 |                <!-- KI-079 -->
 | Documented | 4 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->

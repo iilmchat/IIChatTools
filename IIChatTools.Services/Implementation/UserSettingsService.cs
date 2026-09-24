@@ -51,6 +51,24 @@ namespace IIChatTools.Services.Implementation
         }
 
         /// <inheritdoc />
+        public async Task<IReadOnlyList<UserSetting>> GetAllWithKeyPrefixAsync(
+            string keyPrefix,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyPrefix))
+            {
+                return Array.Empty<UserSetting>();
+            }
+
+            // EF Core транслирует StartsWith в LIKE 'prefix%'.
+            // Для SqlServer/Sqlite/InMemory работает одинаково.
+            return await _dbContext.UserSettings
+                .AsNoTracking()
+                .Where(s => s.Key.StartsWith(keyPrefix))
+                .ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc />
         public async Task<string> GetStringAsync(
             int userId,
             string key,

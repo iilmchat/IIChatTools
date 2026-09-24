@@ -159,5 +159,39 @@ namespace IIChatTools.Tests.IntegrationTests
             Assert.Equal("30", forUser1);
             Assert.Equal("60", forUser2);
         }
+
+        /// <summary>
+        /// KI-067-2: GetAllWithKeyPrefixAsync возвращает только настройки
+        /// с указанным префиксом (по всем пользователям).
+        /// </summary>
+        [Fact]
+        public async Task GetAllWithKeyPrefixAsync_ReturnsOnlyMatchingPrefix()
+        {
+            var service = CreateService();
+
+            await service.SetAsync(1, "Chat.RetentionDays", "30", "int");
+            await service.SetAsync(1, "Chat.DoNotDelete", "true", "bool");
+            await service.SetAsync(2, "Chat.RetentionDays", "60", "int");
+            await service.SetAsync(1, "Other.SomeKey", "value", "string");
+
+            var result = await service.GetAllWithKeyPrefixAsync("Chat.");
+
+            Assert.Equal(3, result.Count);
+            Assert.All(result, s => Assert.StartsWith("Chat.", s.Key));
+        }
+
+        /// <summary>
+        /// KI-067-2: GetAllWithKeyPrefixAsync с пустым префиксом → пустой результат.
+        /// </summary>
+        [Fact]
+        public async Task GetAllWithKeyPrefixAsync_EmptyPrefix_ReturnsEmpty()
+        {
+            var service = CreateService();
+            await service.SetAsync(1, "Chat.RetentionDays", "30", "int");
+
+            var result = await service.GetAllWithKeyPrefixAsync("");
+
+            Assert.Empty(result);
+        }
     }
 }

@@ -30,7 +30,19 @@
   - 2 новых ключа `.resx` (`AgentStatsLastRun`, `AgentStatsEmpty`).
   - 3 теста `AgentStatsServiceTests`.
 
+### Fixed
+- **KI-067-2 (fix)**: `ExecuteDeleteAsync` не поддерживается InMemory-провайдером EF Core 10. Решение: fallback — загрузка сущностей в память + `RemoveRange` + `SaveChangesAsync` (для тестов). Для SqlServer/Sqlite — прежний bulk-DELETE.
+
 ### Added
+- **Users — per-user retention чатов (KI-067-2, v1.4.x)**:
+  - `IUserSettingsService.GetAllWithKeyPrefixAsync(prefix)` — получить все настройки по префиксу (для фонового сервиса).
+  - `IChatService.DeleteOldChatsAsync(retentionDays, excludedUserIds)` — bulk-DELETE с исключением пользователей.
+  - `IChatService.DeleteOldChatsForUserAsync(userId, retentionDays)` — bulk-DELETE для одного пользователя.
+  - `ChatRetentionService`: чтение per-user overrides `Chat.RetentionDays` (int) и `Chat.DoNotDelete` (bool).
+    - `DoNotDelete = true` — пользователь исключается полностью.
+    - `RetentionDays = N` — свой срок хранения (clamp к `Chat:Retention:MaxDays`).
+    - `DoNotDelete` побеждает `RetentionDays`.
+  - 6 новых тестов (2 — `UserSettingsServiceTests`, 4 — `ChatServiceRetentionTests`).
 - **UI — фирменный логотип IIChatTools (KI-081, v1.4.x)**:
   - `wwwroot/images/logo-icon.svg` — иконка (шестиугольник + переплетение), inline SVG.
   - `wwwroot/images/logo-full.svg` — иконка + текст «IIRuChating».

@@ -206,9 +206,64 @@ namespace IIChatTools.Services.Implementation
         }
 
         /// <inheritdoc />
-        public async Task<int> DeleteOldChatsAsync(
+        public Task<int> DeleteOldChatsAsync(
             int retentionDays,
             CancellationToken cancellationToken = default)
+        {
+            // Без исключений — общий путь (обратная совместимость).
+            return DeleteOldChatsInternalAsync(
+                retentionDays,
+                excludedUserIds: null,
+                userId: null,
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<int> DeleteOldChatsAsync(
+            int retentionDays,
+            IReadOnlyCollection<int> excludedUserIds,
+            CancellationToken cancellationToken = default)
+        {
+            return DeleteOldChatsInternalAsync(
+                retentionDays,
+                excludedUserIds,
+                userId: null,
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<int> DeleteOldChatsForUserAsync(
+            int userId,
+            int retentionDays,
+            CancellationToken cancellationToken = default)
+        {
+            return DeleteOldChatsInternalAsync(
+                retentionDays,
+                excludedUserIds: null,
+                userId: userId,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Общая реализация bulk-DELETE старых чатов (v1.4.x, KI-067).
+        /// Поддерживает:
+        /// <list type="bullet">
+        ///   <item>фильтр по одному пользователю (<paramref name="userId"/>) — per-user override;</item>
+        ///   <item>исключение пользователей с <c>DoNotDelete = true</c> (<paramref name="excludedUserIds"/>).</item>
+        /// </list>
+        ///
+        /// <para>
+        /// <b>InMemory-провайдер не поддерживает <c>ExecuteDeleteAsync</c></b>
+        /// (EF Core 10, см. KI-067-2 fix). Для него используется fallback:
+        /// загрузка сущностей в память + <c>RemoveRange</c> + <c>SaveChangesAsync</c>.
+        /// Для SqlServer/Sqlite — bulk-DELETE (один SQL-запрос).
+        /// </para>
+        /// </summary>
+        private async Task<int> DeleteOldChatsInternalAsync(
+            int retentionDays,
+            IReadOnlyCollection<int> excludedUserIds,
+            int? userId,
+            CancellationToken cancellationToken)
         {
             if (retentionDays <= 0)
             {
@@ -217,21 +272,66 @@ namespace IIChatTools.Services.Implementation
 
             var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
 
-            // EF Core 7+ — ExecuteDeleteAsync для bulk-DELETE.
-            // Сначала удаляем сообщения, потом чаты (FK cascade не всегда работает с ExecuteDeleteAsync).
-            var messageCount = await _dbContext.ChatMessages
-                .Where(m => m.Chat.UpdatedAt < cutoff)
-                .ExecuteDeleteAsync(cancellationToken);
+            // 1. Выбираем только ID (для bulk-DELETE) — lightweight.
+            //    Загружаем в память, чтобы решить: bulk-путь или fallback.
+            var msgQuery = _dbContext.ChatMessages
+                .Where(m => m.Chat.UpdatedAt < cutoff);
 
-            var chatCount = await _dbContext.Chats
-                .Where(c => c.UpdatedAt < cutoff)
-                .ExecuteDeleteAsync(cancellationToken);
+            var chatQuery = _dbContext.Chats
+                .Where(c => c.UpdatedAt < cutoff);
+
+            if (userId.HasValue)
+            {
+                msgQuery = msgQuery.Where(m => m.Chat.UserId == userId.Value);
+                chatQuery = chatQuery.Where(c => c.UserId == userId.Value);
+            }
+
+            if (excludedUserIds != null && excludedUserIds.Count > 0)
+            {
+                // EF Core транслирует Contains в `NOT IN (...)`.
+                // Для сотен пользователей может упираться в лимит параметров
+                // SQL Server (2100). Для десятков/сотен — приемлемо.
+                msgQuery = msgQuery.Where(m => !excludedUserIds.Contains(m.Chat.UserId));
+                chatQuery = chatQuery.Where(c => !excludedUserIds.Contains(c.UserId));
+            }
+
+            // 2. Проверяем провайдер: InMemory не поддерживает ExecuteDeleteAsync.
+            var providerName = _dbContext.Database.ProviderName ?? string.Empty;
+            var supportsBulkDelete = !providerName.Contains(
+                "InMemory", StringComparison.OrdinalIgnoreCase);
+
+            int messageCount;
+            int chatCount;
+
+            if (supportsBulkDelete)
+            {
+                // 3a. Bulk-DELETE (SqlServer / Sqlite) — два SQL-запроса.
+                messageCount = await msgQuery.ExecuteDeleteAsync(cancellationToken);
+                chatCount = await chatQuery.ExecuteDeleteAsync(cancellationToken);
+            }
+            else
+            {
+                // 3b. Fallback для InMemory: загрузка + RemoveRange.
+                var messages = await msgQuery.ToListAsync(cancellationToken);
+                var chats = await chatQuery.ToListAsync(cancellationToken);
+
+                messageCount = messages.Count;
+                chatCount = chats.Count;
+
+                if (messages.Count > 0) _dbContext.ChatMessages.RemoveRange(messages);
+                if (chats.Count > 0) _dbContext.Chats.RemoveRange(chats);
+
+                if (messages.Count > 0 || chats.Count > 0)
+                {
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
 
             if (chatCount > 0)
             {
                 _logger.LogInformation(
-                    "Retention чатов: удалено {ChatCount} чатов и {MessageCount} сообщений старше {Cutoff:u}",
-                    chatCount, messageCount, cutoff);
+                    "Retention чатов: удалено {ChatCount} чатов и {MessageCount} сообщений старше {Cutoff:u} (userId={UserId})",
+                    chatCount, messageCount, cutoff, userId.HasValue ? userId.Value.ToString() : "all");
             }
 
             return chatCount;

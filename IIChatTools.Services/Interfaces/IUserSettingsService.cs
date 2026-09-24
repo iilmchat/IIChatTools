@@ -27,6 +27,20 @@ namespace IIChatTools.Services.Interfaces
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Возвращает все настройки всех пользователей, у которых ключ начинается
+        /// с указанного префикса (v1.4.x, KI-067).
+        ///
+        /// Используется фоновым <c>ChatRetentionService</c> для получения
+        /// per-user overrides: <c>Chat.RetentionDays</c> и <c>Chat.DoNotDelete</c>.
+        /// </summary>
+        /// <param name="keyPrefix">Префикс ключа (например, <c>Chat.</c>)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Список настроек (UserId + Key + Value + Type)</returns>
+        Task<IReadOnlyList<UserSetting>> GetAllWithKeyPrefixAsync(
+            string keyPrefix,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Возвращает строковое значение настройки или <c>null</c>, если не задано.
         /// </summary>
         /// <param name="userId">Идентификатор пользователя</param>

@@ -108,6 +108,32 @@ namespace IIChatTools.Services.Interfaces
         Task<int> DeleteOldChatsAsync(int retentionDays, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// KI-067: удаляет старые чаты, исключая пользователей с
+        /// <c>Chat.DoNotDelete = true</c>.
+        /// </summary>
+        /// <param name="retentionDays">Срок хранения (в днях)</param>
+        /// <param name="excludedUserIds">ID пользователей, которых не трогаем (может быть пусто)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Количество удалённых чатов</returns>
+        Task<int> DeleteOldChatsAsync(
+            int retentionDays,
+            IReadOnlyCollection<int> excludedUserIds,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// KI-067: удаляет старые чаты только одного пользователя
+        /// (per-user retention override).
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <param name="retentionDays">Срок хранения (в днях, &gt; 0)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Количество удалённых чатов</returns>
+        Task<int> DeleteOldChatsForUserAsync(
+            int userId,
+            int retentionDays,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Удаляет последний обмен в чате: последний assistant-ответ и все tool-сообщения,
         /// которые к нему относятся (до предыдущего user-сообщения включительно).
         /// Используется для Regenerate — после удаления чат возвращается в состояние,
