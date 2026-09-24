@@ -289,4 +289,10 @@
     <data name="AgentStatsSuccessRate" xml:space="preserve">
       <value>Успешных</value>
     </data>
+    <data name="AgentStatsLastRun" xml:space="preserve">
+      <value>Последний запуск</value>
+    </data>
+    <data name="AgentStatsEmpty" xml:space="preserve">
+      <value>Пока нет запусков агентов</value>
+    </data>
 </root>

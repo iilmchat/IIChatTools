@@ -26,12 +26,14 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
         /// </summary>
         /// <param name="subAgentServiceFactory">Фабрика сервиса суб-агента</param>
         /// <param name="registry">Реестр суб-агентов</param>
+        /// <param name="auditService">Сервис аудита (v1.4.x, KI-076)</param>
         /// <param name="logger">Логгер</param>
         public GitHubAgentTool(
             Func<ISubAgentService> subAgentServiceFactory,
             ISubAgentRegistry registry,
+            IAuditService auditService,
             ILogger<GitHubAgentTool> logger)
-            : base(subAgentServiceFactory, registry, logger)
+            : base(subAgentServiceFactory, registry, auditService, logger)
         {
         }
     }

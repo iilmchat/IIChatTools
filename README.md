@@ -405,6 +405,8 @@ Chat работает через **7 верхнеуровневых инстру
 
 **Управление:** `/admin` → вкладка **«Агенты»** — список, редактирование (DisplayName,
 Model, MaxSteps, SystemPrompt, AllowedTools, RequiresApproval, Disabled), сброс к defaults.
+**Статистика (KI-076):** карточки над списком — TotalRuns, AvgTime, SuccessRate, LastRun
+по каждому агенту (источник — `AuditLogs`, `GET /api/admin/agents/stats`).
 Изменения сохраняются в БД (`AppSettings`, ключ `SubAgents.{name}`) и восстанавливаются
 при старте приложения.
 

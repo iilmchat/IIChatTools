@@ -726,16 +726,27 @@
 ---
 
 ### KI-076 — Статистика по агентам в админке
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x
-- **Обнаружено:** 2026-09-24 (Фаза 6 KI-052)
-- **Файлы:** `IIChatTools.Data/Entities/AgentState.cs`, `AdminAgentsController`
-- **Описание:** В админке агентов хотим показывать статистику (TotalRuns, AvgTime, SuccessRate, LastRun). Источник данных — `AgentStates`. **Проблема:** в `AgentState` нет поля `AgentName` — только `SessionId` (GUID). Невозможно сгруппировать по агенту.
-- **Варианты решения:**
-  1. **Добавить `AgentName` в `AgentState`** (требует миграции — KI-070: Sqlite EnsureCreated не мигрирует, нужен delete .db).
-  2. **Парсить `AuditLogs`** по `ToolName` = `file_system_agent` / `code_agent` / etc. Работает без миграции, но неполно: вызовы из Chat не всегда пишутся в AuditLogs.
-  3. **Парсить `CodeSnapshotJson`** — там `usedTools`, но по ним нельзя однозначно определить агента.
-- **Решение:** отложить до v1.4.x. Сейчас API возвращает только дескрипторы (без stats).
-- **В коде:** `AdminAgentsController.GET /api/admin/agents` возвращает только список без секции `stats`. Поля `TotalRuns`/`AvgTime` в DTO отсутствуют.
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.x
+- **Обнаружено:** 2026-09-24 (Фаза 6 KI-052) | **Устранено:** 2026-09-25
+- **Файлы:**
+  - `IIChatTools.Services/DTO/Admin/AgentStatsDto.cs` — новый DTO.
+  - `IIChatTools.Services/Interfaces/IAgentStatsService.cs` — интерфейс.
+  - `IIChatTools.Services/Implementation/AgentStatsService.cs` — агрегация.
+  - `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs` — запись запуска в `AuditLogs`.
+  - `IIChatTools.Services/Implementation/Tools/SubAgent/*AgentTool.cs` (6) — +`IAuditService` в конструктор.
+  - `IIChatTools.API/Controllers/AdminAgentsController.cs` — `GET /stats`.
+  - `IIChatTools.API/Startup.cs` — регистрация `IAgentStatsService`.
+  - `IIChatTools.API/Views/Home/Admin.cshtml` — карточки статистики.
+  - `IIChatTools.API/wwwroot/js/modules/admin-agents.js` — `loadAgentStats`.
+  - `IIChatTools.API/wwwroot/css/site.css` — `.agent-stat-card`.
+- **Решение (Вариант A — без миграции):**
+  - `AgentToolBase` при каждом запуске пишет в `AuditLogs` запись с `ToolName = "agent.{AgentName}"`.
+  - `AgentStatsService` агрегирует через `GroupBy(ToolName)` — один SQL-запрос.
+  - Джойнит с `ISubAgentRegistry` для `DisplayName`.
+  - `Status` = `Success` / `Error` / `Cancelled` (по `OperationCanceledException`).
+- **Ограничение:** задача НЕ логируется целиком (без PII) — только флаг `hasTask`.
+- **Тесты:** 3 новых (`AgentStatsServiceTests`). Всего: **58/58**.
+- **В коде:** `AdminAgentsController.GET /api/admin/agents/stats` — новый endpoint.
 
 ---
 
@@ -885,8 +896,8 @@
 | Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Fixed (v1.4.x) | 3 |                <!-- KI-079, KI-078, KI-080 -->
-| Deferred | 7 |                      <!-- KI-047, KI-049, KI-053, KI-067, KI-076, KI-081, KI-082 -->
+| Fixed (v1.4.x) | 4 |                <!-- KI-079, KI-078, KI-080, KI-076 -->
+| Deferred | 6 |                      <!-- KI-047, KI-049, KI-053, KI-067, KI-081, KI-082 -->
 | Fixed (v1.4.x) | 1 |                <!-- KI-079 -->
 | Documented | 4 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075 -->
 | In Progress | 1 |                   <!-- KI-052 (v1.4.0, Фаза 1/9) -->

@@ -30,10 +30,109 @@ export function initAgentsTab() {
 
     tab.addEventListener('shown.bs.tab', () => {
         loadAgents();
+        loadAgentStats();   // KI-076
     }, { once: true });
 
     const btn = document.getElementById('btn-refresh-agents');
-    if (btn) btn.addEventListener('click', loadAgents);
+    if (btn) btn.addEventListener('click', () => {
+        loadAgents();
+        loadAgentStats();   // KI-076
+    });
+}
+
+// ---------- Статистика агентов (KI-076) ----------
+
+/**
+ * Загружает и рендерит карточки статистики запусков агентов.
+ * Источник: GET /api/admin/agents/stats.
+ */
+async function loadAgentStats() {
+    const grid = document.getElementById('agent-stats-grid');
+    if (!grid) return;
+
+    const res = await apiGet('/api/admin/agents/stats');
+    if (!res.success) {
+        grid.innerHTML = `<div class="text-danger small">${escapeHtml(res.message || 'Ошибка загрузки статистики')}</div>`;
+        return;
+    }
+
+    const stats = res.data || [];
+    if (stats.length === 0) {
+        const empty = grid.dataset.labelEmpty || 'Пока нет запусков агентов.';
+        grid.innerHTML = `<div class="text-muted small">${escapeHtml(empty)}</div>`;
+        return;
+    }
+
+    const labelTotal = grid.dataset.labelTotal || 'Всего запусков';
+    const labelAvgTime = grid.dataset.labelAvgtime || 'Среднее время';
+    const labelSuccess = grid.dataset.labelSuccess || 'Успешных';
+    const labelLastRun = grid.dataset.labelLastrun || 'Последний запуск';
+
+    grid.innerHTML = stats.map(s => `
+        <div class="agent-stat-card">
+            <div class="agent-stat-card-header">
+                <span class="agent-stat-card-title">${escapeHtml(s.displayName || s.agentName)}</span>
+                <code class="agent-stat-card-name">${escapeHtml(s.agentName)}</code>
+            </div>
+            <div class="agent-stat-card-metrics">
+                <div class="agent-stat-metric">
+                    <div class="agent-stat-value">${s.totalRuns}</div>
+                    <div class="agent-stat-label">${escapeHtml(labelTotal)}</div>
+                </div>
+                <div class="agent-stat-metric">
+                    <div class="agent-stat-value">${formatDuration(s.avgDurationMs)}</div>
+                    <div class="agent-stat-label">${escapeHtml(labelAvgTime)}</div>
+                </div>
+                <div class="agent-stat-metric">
+                    <div class="agent-stat-value">${formatPercent(s.successRate)}</div>
+                    <div class="agent-stat-label">${escapeHtml(labelSuccess)}</div>
+                </div>
+            </div>
+            <div class="agent-stat-card-footer">
+                <span class="text-muted small">${escapeHtml(labelLastRun)}: ${formatLastRun(s.lastRunAt)}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+/**
+ * Форматирует длительность (мс → «1.2 с» / «345 мс»).
+ * @param {number} ms
+ * @returns {string}
+ */
+function formatDuration(ms) {
+    if (!ms || ms < 0) return '—';
+    if (ms < 1000) return `${ms} мс`;
+    return `${(ms / 1000).toFixed(1)} с`;
+}
+
+/**
+ * Форматирует процент (0–100 → «95%»).
+ * @param {number} pct
+ * @returns {string}
+ */
+function formatPercent(pct) {
+    if (pct == null || isNaN(pct)) return '—';
+    return `${pct.toFixed(1)}%`;
+}
+
+/**
+ * Форматирует дату последнего запуска (относительная или абсолютная).
+ * @param {string|null} iso
+ * @returns {string}
+ */
+function formatLastRun(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMin = Math.floor((now - d) / 60000);
+    if (diffMin < 1) return 'только что';
+    if (diffMin < 60) return `${diffMin} мин назад`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH} ч назад`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 7) return `${diffD} д назад`;
+    return d.toLocaleDateString();
 }
 
 // ---------- Загрузка списка ----------

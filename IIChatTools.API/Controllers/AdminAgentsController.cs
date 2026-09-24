@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.API.Resources;
 using IIChatTools.Data.Entities;
@@ -48,22 +49,32 @@ namespace IIChatTools.API.Controllers
         private readonly ISubAgentRegistry _registry;
         private readonly IAppSettingsService _settingsService;
         private readonly IAuditService _auditService;
+        private readonly IAgentStatsService _statsService;
         private readonly ILogger<AdminAgentsController> _logger;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
         /// <summary>
         /// Создаёт экземпляр контроллера.
         /// </summary>
+        /// <param name="registry">Реестр суб-агентов</param>
+        /// <param name="settingsService">Сервис настроек (persist override'ов)</param>
+        /// <param name="auditService">Сервис аудита (запись действий админа)</param>
+        /// <param name="statsService">Сервис статистики (v1.4.x, KI-076)</param>
+        /// <param name="logger">Логгер</param>
+        /// <param name="localizer">Локализатор</param>
+        /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public AdminAgentsController(
             ISubAgentRegistry registry,
             IAppSettingsService settingsService,
             IAuditService auditService,
+            IAgentStatsService statsService,
             ILogger<AdminAgentsController> logger,
             IStringLocalizer<SharedResources> localizer)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
+            _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         }
@@ -85,6 +96,29 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения списка суб-агентов");
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        // ============ СТАТИСТИКА (KI-076) ============
+
+        /// <summary>
+        /// Возвращает агрегированную статистику запусков всех специализированных
+        /// суб-агентов (v1.4.x, KI-076). Источник — <c>AuditLogs</c>.
+        /// </summary>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>JSON { success, data: AgentStatsDto[] }</returns>
+        [HttpGet("stats")]
+        public async Task<IActionResult> GetAgentStatsAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var stats = await _statsService.GetAllStatsAsync(cancellationToken);
+                return Ok(new { success = true, data = stats });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка получения статистики агентов");
                 return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
             }
         }

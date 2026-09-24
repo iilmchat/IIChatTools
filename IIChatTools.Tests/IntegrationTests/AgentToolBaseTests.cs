@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.SubAgent;
 using IIChatTools.Services.Implementation.Tools.SubAgent;
@@ -28,6 +29,21 @@ namespace IIChatTools.Tests.IntegrationTests
         // ============================================================
         // Fake-зависимости
         // ============================================================
+
+        /// <summary>
+        /// Fake-сервис аудита: не пишет в БД, только запоминает вызовы (для ассертов).
+        /// v1.4.x (KI-076): AgentToolBase инжектит IAuditService.
+        /// </summary>
+        private sealed class FakeAuditService : IAuditService
+        {
+            public List<AuditLog> LoggedEntries { get; } = new List<AuditLog>();
+
+            public Task LogActionAsync(AuditLog logEntry)
+            {
+                if (logEntry != null) LoggedEntries.Add(logEntry);
+                return Task.CompletedTask;
+            }
+        }
 
         /// <summary>
         /// Fake <see cref="ISubAgentService"/> — запоминает последний request,
@@ -102,8 +118,9 @@ namespace IIChatTools.Tests.IntegrationTests
             public TestAgentTool(
                 Func<ISubAgentService> factory,
                 ISubAgentRegistry registry,
+                IAuditService auditService,
                 string agentName)
-                : base(factory, registry, NullLogger.Instance)
+                : base(factory, registry, auditService, NullLogger.Instance)
             {
                 _agentName = agentName;
             }
@@ -150,11 +167,12 @@ namespace IIChatTools.Tests.IntegrationTests
                 registry.Add(descriptorOrNull);
 
             var fakeSubAgent = new FakeSubAgentService();
+            var fakeAudit = new FakeAuditService();   // v1.4.x (KI-076)
 
             // Лямбда-фабрика: возвращает тот же Fake (проверяем корректность вызова).
             Func<ISubAgentService> factory = () => fakeSubAgent;
 
-            var tool = new TestAgentTool(factory, registry, agentName);
+            var tool = new TestAgentTool(factory, registry, fakeAudit, agentName);
             return (tool, fakeSubAgent, registry);
         }
 

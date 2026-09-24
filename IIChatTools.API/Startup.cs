@@ -281,6 +281,8 @@ namespace IIChatTools.API
 
             services.AddScoped<IAuditQueryService, AuditQueryService>();
             services.AddScoped<IApprovalService, ApprovalService>();
+            // v1.4.x (KI-076): статистика запусков суб-агентов.
+            services.AddScoped<IAgentStatsService, AgentStatsService>();
             services.AddSingleton<AppUptimeTracker>();
             services.AddScoped<IDependencyChecker, DependencyChecker>();
             services.AddScoped<IAuditService, AuditService>();

@@ -18,6 +18,18 @@
 
 ## [Unreleased]
 
+### Added
+- **Admin UI — статистика запусков агентов (KI-076, v1.4.x)**:
+  - `AgentStatsDto` (`AgentName`, `DisplayName`, `TotalRuns`, `SuccessRuns`, `ErrorRuns`, `AvgDurationMs`, `LastRunAt`, `SuccessRate`).
+  - `IAgentStatsService` + `AgentStatsService` — агрегация `AuditLogs` с `ToolName LIKE 'agent.%'` (один SQL-запрос с `GroupBy`).
+  - `AgentToolBase` → инжектит `IAuditService`, пишет запись при каждом запуске агента (`ToolName = "agent.{AgentName}"`, `Status = Success / Error / Cancelled`, `DurationMs`, `ResultJson`).
+  - `AdminAgentsController`: `GET /api/admin/agents/stats`.
+  - `Admin.cshtml` → вкладка «Агенты»: карточки статистики (`agent-stats-grid`).
+  - `admin-agents.js`: `loadAgentStats()`, `formatDuration`, `formatPercent`, `formatLastRun`.
+  - `site.css`: стили `.agent-stat-card`.
+  - 2 новых ключа `.resx` (`AgentStatsLastRun`, `AgentStatsEmpty`).
+  - 3 теста `AgentStatsServiceTests`.
+
 ### Changed
 - **Chat UI — поле ввода на всю ширину (KI-080, DeepSeek-style, v1.4.x)**:
   - `.input-group` → `.chat-input-box`: закруглённое поле (`border-radius: 1.5rem`) на всю ширину `.chat-main`, светлый фон (`#f6f8fa`).
