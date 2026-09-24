@@ -19,6 +19,15 @@
 ## [Unreleased]
 
 ### Added
+- **Chat UI — внутричатовый поиск (KI-078A, v1.4.x)**:
+  - Панель поиска в правом верхнем углу `.chat-main` (Ctrl+F / кнопка 🔍 в header).
+  - Подсветка совпадений `<mark class="chat-search-hit">` в ленте активного чата (user + assistant).
+  - Активное совпадение — `.chat-search-hit-active` (жёлтый фон + синяя рамка) + авто-скролл.
+  - Счётчик «N из M», кнопки ↑ / ↓ (циклический переход), Enter / Shift+Enter.
+  - Закрытие: `Esc`, клик вне панели, кнопка ✕.
+  - Debounce 150ms; поиск по `.chat-message-content` (tool-блоки не трогаем).
+  - Авто-закрытие при переключении чата.
+  - Локализация RU + EN (7 ключей: `ChatSearchInChat*`).
 - **Chat UI — collapse/expand sidebar (KI-079, DeepSeek-style, v1.4.x)**:
   - Collapsed-состояние — mini-rail 56px с иконками (SVG): «+» (новый чат), 🔍 (поиск), `«`/`»` (toggle).
   - Кнопка «+ Новый чат» — текст в expanded, SVG `+` в collapsed.

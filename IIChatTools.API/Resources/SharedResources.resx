@@ -228,6 +228,13 @@
   <data name="ChatSearchPlaceholder" xml:space="preserve"><value>Search chats…</value></data>
   <data name="ChatSearchNoResults" xml:space="preserve"><value>No results</value></data>
   <data name="ChatSearchLabel" xml:space="preserve"><value>Search</value></data>
+  <data name="ChatSearchInChatOpen" xml:space="preserve"><value>Search in chat</value></data>
+  <data name="ChatSearchInChatPlaceholder" xml:space="preserve"><value>Search in chat…</value></data>
+  <data name="ChatSearchInChatNoResults" xml:space="preserve"><value>No results</value></data>
+  <data name="ChatSearchInChatCounter" xml:space="preserve"><value>{0} of {1}</value></data>
+  <data name="ChatSearchInChatPrev" xml:space="preserve"><value>Previous</value></data>
+  <data name="ChatSearchInChatNext" xml:space="preserve"><value>Next</value></data>
+  <data name="ChatSearchInChatClose" xml:space="preserve"><value>Close</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Collapse sidebar</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Open sidebar</value></data>        
 

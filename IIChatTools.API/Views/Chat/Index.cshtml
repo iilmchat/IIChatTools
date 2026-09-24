@@ -79,13 +79,44 @@
                                 data-label-unavailable="@Localizer["ChatModelSuffixUnavailable"]"
                                 data-label-empty="@Localizer["ChatModelEmpty"]"></select>
                     </div>
-                    <button id="btn-delete-chat" type="button"
-                            class="btn btn-outline-danger btn-sm flex-shrink-0"
-                            title="@Localizer["Удалить чат"]">
-                        🗑
-                    </button>
+                    <div class="d-flex gap-1 flex-shrink-0">
+                        <!-- KI-078A: поиск по активному чату (Ctrl+F) -->
+                        <button id="btn-search-in-chat"
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                title="@Localizer["ChatSearchInChatOpen"]"
+                                aria-label="@Localizer["ChatSearchInChatOpen"]">🔍</button>
+                        <button id="btn-delete-chat" type="button"
+                                class="btn btn-outline-danger btn-sm flex-shrink-0"
+                                title="@Localizer["Удалить чат"]">
+                            🗑
+                        </button>
+                    </div>
                 </div>
             </div>
+        </div>
+
+        <!-- KI-078A: панель поиска по активному чату (Ctrl+F) -->
+        <div id="chat-search-bar"
+             class="chat-search-bar"
+             hidden
+             data-label-counter="@Localizer["ChatSearchInChatCounter"]"
+             data-label-noresults="@Localizer["ChatSearchInChatNoResults"]">
+            <input id="chat-search-input"
+                   type="text"
+                   class="chat-search-input"
+                   autocomplete="off"
+                   placeholder="@Localizer["ChatSearchInChatPlaceholder"]" />
+            <span class="chat-search-counter" id="chat-search-counter">0 / 0</span>
+            <button type="button" class="chat-search-btn" data-action="prev"
+                    title="@Localizer["ChatSearchInChatPrev"]"
+                    aria-label="@Localizer["ChatSearchInChatPrev"]">↑</button>
+            <button type="button" class="chat-search-btn" data-action="next"
+                    title="@Localizer["ChatSearchInChatNext"]"
+                    aria-label="@Localizer["ChatSearchInChatNext"]">↓</button>
+            <button type="button" class="chat-search-btn" data-action="close"
+                    title="@Localizer["ChatSearchInChatClose"]"
+                    aria-label="@Localizer["ChatSearchInChatClose"]">✕</button>
         </div>
 
         <!-- Лента сообщений -->

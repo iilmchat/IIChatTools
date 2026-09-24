@@ -1041,3 +1041,101 @@ body.approval-dragging {
         padding: .25rem .5rem;
     }
 }
+
+/* ============ KI-078A: Внутричатовый поиск (Ctrl+F) ============ */
+
+/* Панель поиска — плавающая в правом верхнем углу .chat-main */
+.chat-search-bar {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .35rem .5rem;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: .375rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+}
+
+.chat-search-bar[hidden] {
+    display: none !important;
+}
+
+.chat-search-input {
+    width: 220px;
+    padding: .25rem .5rem;
+    font-size: .85rem;
+    border: 1px solid #dee2e6;
+    border-radius: .25rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.chat-search-input:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .25);
+}
+
+.chat-search-counter {
+    font-size: .75rem;
+    color: #6c757d;
+    min-width: 60px;
+    text-align: center;
+    font-family: var(--bs-font-monospace);
+    white-space: nowrap;
+}
+
+.chat-search-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: .25rem;
+    background: transparent;
+    color: #495057;
+    cursor: pointer;
+    font-size: .85rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color .15s, color .15s;
+}
+
+.chat-search-btn:hover {
+    background: #f1f3f5;
+    color: #0d6efd;
+}
+
+.chat-search-btn:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 1px;
+}
+
+/* Подсветка совпадений */
+mark.chat-search-hit {
+    background: #fff3a3;
+    color: inherit;
+    padding: 0 .05em;
+    border-radius: .15rem;
+}
+
+mark.chat-search-hit.chat-search-hit-active {
+    background: #ffd84d;
+    box-shadow: 0 0 0 2px #0d6efd;
+}
+
+/* На мобильных — панель на всю ширину */
+@media (max-width: 575.98px) {
+    .chat-search-bar {
+        left: 8px;
+        right: 8px;
+    }
+    .chat-search-input {
+        flex: 1 1 auto;
+        width: auto;
+    }
+}

@@ -31,6 +31,10 @@ const state = {
     abortController: null,       // Фаза 2.1.3: AbortController для Stop
     editingChatId: null,         // KI-069: id чата в режиме inline-edit (или null)
     sidebarCollapsed: false,     // KI-079: sidebar свёрнут (DeepSeek-style)
+    // KI-078A: внутричатовый поиск
+    chatSearchMarks: [],         // массив <mark> в порядке появления
+    chatSearchIndex: -1,         // индекс активного совпадения (-1 = нет)
+    chatSearchDebounce: null,    // таймер debounce ввода
 };
 
 // ============ Инициализация ============
@@ -119,6 +123,45 @@ function bindEvents() {
             setTimeout(() => document.getElementById('chat-search')?.focus(), 250);
         });
 
+    // KI-078A: кнопка 🔍 в chat-header — открыть панель поиска по активному чату.
+    document.getElementById('btn-search-in-chat')
+        ?.addEventListener('click', openChatSearch);
+
+    // KI-078A: панель поиска — input, кнопки ↑/↓/✕.
+    const inChatSearchBar = document.getElementById('chat-search-bar');
+    if (inChatSearchBar) {
+        const searchInput = document.getElementById('chat-search-input');
+
+        searchInput?.addEventListener('input', (e) => {
+            const q = e.target.value;
+            if (state.chatSearchDebounce) {
+                clearTimeout(state.chatSearchDebounce);
+            }
+            state.chatSearchDebounce = setTimeout(() => {
+                state.chatSearchDebounce = null;
+                applyChatSearch(q);
+            }, CHAT_SEARCH_DEBOUNCE_MS);
+        });
+
+        searchInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                setActiveChatSearchMark(
+                    state.chatSearchIndex + (e.shiftKey ? -1 : 1)
+                );
+            }
+        });
+
+        inChatSearchBar.querySelector('[data-action="prev"]')
+            ?.addEventListener('click', () =>
+                setActiveChatSearchMark(state.chatSearchIndex - 1));
+        inChatSearchBar.querySelector('[data-action="next"]')
+            ?.addEventListener('click', () =>
+                setActiveChatSearchMark(state.chatSearchIndex + 1));
+        inChatSearchBar.querySelector('[data-action="close"]')
+            ?.addEventListener('click', closeChatSearch);
+    }
+
     // KI-068: поиск по чатам — server-side (title + content), debounce 300ms
     const searchInput = document.getElementById('chat-search');
     if (searchInput) {
@@ -156,14 +199,40 @@ function bindEvents() {
     }
 
     // KI-079: глобальный хоткей Ctrl+B (toggle sidebar).
-    // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B (закладки).
+    // KI-078A: Ctrl+F (поиск в активном чате), Escape (закрыть панель).
+    // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B/F.
     // Работает только на /chat (модуль подключён только там).
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && !e.shiftKey && !e.altKey
-            && e.key.toLowerCase() === 'b') {
-            e.preventDefault();
-            toggleSidebar();
+        if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+            const k = e.key.toLowerCase();
+            if (k === 'b') {
+                e.preventDefault();
+                toggleSidebar();
+                return;
+            }
+            if (k === 'f') {
+                e.preventDefault();
+                openChatSearch();
+                return;
+            }
         }
+        if (e.key === 'Escape') {
+            const bar = document.getElementById('chat-search-bar');
+            if (bar && !bar.hidden) {
+                e.preventDefault();
+                closeChatSearch();
+            }
+        }
+    });
+
+    // KI-078A: клик вне панели поиска — закрыть (кроме клика по самой панели
+    // и по кнопке-триггеру 🔍 в header).
+    document.addEventListener('click', (e) => {
+        const bar = document.getElementById('chat-search-bar');
+        if (!bar || bar.hidden) return;
+        if (bar.contains(e.target)) return;
+        if (e.target.closest('#btn-search-in-chat')) return;
+        closeChatSearch();
     });
 }
 
@@ -203,6 +272,195 @@ function applySidebarCollapsed(collapsed) {
  */
 function toggleSidebar() {
     applySidebarCollapsed(!state.sidebarCollapsed);
+}
+
+// ============ KI-078A: Внутричатовый поиск (Ctrl+F) ============
+
+/** Задержка debounce при вводе поискового запроса (мс). */
+const CHAT_SEARCH_DEBOUNCE_MS = 150;
+
+/**
+ * KI-078A: открывает панель поиска, ставит фокус в input, сбрасывает счётчик.
+ */
+function openChatSearch() {
+    const bar = document.getElementById('chat-search-bar');
+    if (!bar) return;
+
+    bar.hidden = false;
+    const input = document.getElementById('chat-search-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+    updateChatSearchCounter(0, 0);
+}
+
+/**
+ * KI-078A: закрывает панель, снимает все подсветки, сбрасывает state.
+ */
+function closeChatSearch() {
+    const bar = document.getElementById('chat-search-bar');
+    if (!bar) return;
+
+    bar.hidden = true;
+    removeAllChatSearchMarks();
+    state.chatSearchMarks = [];
+    state.chatSearchIndex = -1;
+    if (state.chatSearchDebounce) {
+        clearTimeout(state.chatSearchDebounce);
+        state.chatSearchDebounce = null;
+    }
+    updateChatSearchCounter(0, 0);
+}
+
+/**
+ * KI-078A: применяет поиск — подсвечивает совпадения во всех .chat-message-content.
+ * @param {string} query
+ */
+function applyChatSearch(query) {
+    removeAllChatSearchMarks();
+    state.chatSearchMarks = [];
+    state.chatSearchIndex = -1;
+
+    const trimmed = (query || '').trim();
+    if (trimmed.length === 0) {
+        updateChatSearchCounter(0, 0);
+        return;
+    }
+
+    const contents = document.querySelectorAll(
+        '#chat-messages .chat-message .chat-message-content'
+    );
+    const marks = [];
+    for (const content of contents) {
+        walkAndHighlight(content, trimmed, marks);
+    }
+
+    state.chatSearchMarks = marks;
+
+    if (marks.length === 0) {
+        updateChatSearchCounter(0, 0);
+        return;
+    }
+
+    setActiveChatSearchMark(0);
+}
+
+/**
+ * KI-078A: снимает все <mark class="chat-search-hit">, восстанавливая текстовые узлы.
+ * Идемпотентно: повторный вызов на чистом DOM — no-op.
+ */
+function removeAllChatSearchMarks() {
+    document.querySelectorAll('mark.chat-search-hit').forEach(mark => {
+        const parent = mark.parentNode;
+        if (!parent) return;
+        while (mark.firstChild) {
+            parent.insertBefore(mark.firstChild, mark);
+        }
+        parent.removeChild(mark);
+        parent.normalize();
+    });
+}
+
+/**
+ * KI-078A: обходит текстовые узлы внутри rootEl и оборачивает совпадения в <mark>.
+ * Регистронезависимый поиск через toLowerCase (для Unicode — кириллица работает).
+ * @param {HTMLElement} rootEl
+ * @param {string} query
+ * @param {HTMLElement[]} marksOut
+ */
+function walkAndHighlight(rootEl, query, marksOut) {
+    const lowerQuery = query.toLowerCase();
+    const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let n;
+    while ((n = walker.nextNode())) textNodes.push(n);
+
+    for (const textNode of textNodes) {
+        const text = textNode.nodeValue;
+        if (!text) continue;
+
+        const lowerText = text.toLowerCase();
+        let pos = 0;
+        let idx;
+        const parts = [];
+
+        while ((idx = lowerText.indexOf(lowerQuery, pos)) !== -1) {
+            if (idx > pos) {
+                parts.push({ text: text.substring(pos, idx), hit: false });
+            }
+            parts.push({
+                text: text.substring(idx, idx + query.length),
+                hit: true
+            });
+            pos = idx + query.length;
+        }
+
+        if (parts.length === 0) continue;
+        if (pos < text.length) {
+            parts.push({ text: text.substring(pos), hit: false });
+        }
+
+        const fragment = document.createDocumentFragment();
+        for (const p of parts) {
+            if (p.hit) {
+                const mark = document.createElement('mark');
+                mark.className = 'chat-search-hit';
+                mark.textContent = p.text;
+                fragment.appendChild(mark);
+                marksOut.push(mark);
+            } else {
+                fragment.appendChild(document.createTextNode(p.text));
+            }
+        }
+        textNode.parentNode.replaceChild(fragment, textNode);
+    }
+}
+
+/**
+ * KI-078A: делает mark с указанным индексом активным и скроллит к нему.
+ * Индекс циклически нормализуется — выход за границы не бросает.
+ * @param {number} index
+ */
+function setActiveChatSearchMark(index) {
+    const marks = state.chatSearchMarks;
+    if (!marks || marks.length === 0) return;
+
+    for (const m of marks) {
+        m.classList.remove('chat-search-hit-active');
+    }
+
+    const n = marks.length;
+    index = ((index % n) + n) % n;
+
+    state.chatSearchIndex = index;
+    const active = marks[index];
+    active.classList.add('chat-search-hit-active');
+    active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    updateChatSearchCounter(index + 1, n);
+}
+
+/**
+ * KI-078A: обновляет счётчик совпадений «N из M» (или «Ничего не найдено»).
+ * @param {number} current
+ * @param {number} total
+ */
+function updateChatSearchCounter(current, total) {
+    const counter = document.getElementById('chat-search-counter');
+    const bar = document.getElementById('chat-search-bar');
+    if (!counter) return;
+
+    if (total === 0) {
+        const noResults = bar?.dataset.labelNoresults || 'Ничего не найдено';
+        counter.textContent = noResults;
+        return;
+    }
+
+    const template = bar?.dataset.labelCounter || '{0} / {1}';
+    counter.textContent = template
+        .replace('{0}', String(current))
+        .replace('{1}', String(total));
 }
 
 // ============ Модели и список чатов ============
@@ -405,6 +663,9 @@ async function selectChat(chatId) {
     state.activeChat = res.data;
     state.activeChatMessageCount = (res.data.messages || []).length;
     state.autoScroll = true;   // при переключении чата — прилипаем к низу
+
+    // KI-078A: при переключении чата — закрыть панель поиска (marks устарели).
+    closeChatSearch();
 
     updateUrl(chatId);
     renderChatList();
