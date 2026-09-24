@@ -102,6 +102,18 @@ namespace IIChatTools.Services.DTO.Chat
 
         /// <summary>Дата создания сообщения.</summary>
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// KI-049b: количество входных токенов (prompt / контекст).
+        /// <c>null</c> — не подсчитано.
+        /// </summary>
+        public int? TokensIn { get; set; }
+
+        /// <summary>
+        /// KI-049b: количество выходных токенов (completion).
+        /// <c>null</c> — не подсчитано (для user/tool).
+        /// </summary>
+        public int? TokensOut { get; set; }
     }
 
     /// <summary>

@@ -235,6 +235,8 @@
   <data name="ChatSearchInChatPrev" xml:space="preserve"><value>Предыдущее</value></data>
   <data name="ChatSearchInChatNext" xml:space="preserve"><value>Следующее</value></data>
   <data name="ChatSearchInChatClose" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="ChatTokensUser" xml:space="preserve"><value>{0} токенов</value></data>
+  <data name="ChatTokensAssistant" xml:space="preserve"><value>{0} / {1} токенов</value></data>
   <data name="ChatSearchGlobalOpen" xml:space="preserve"><value>Поиск по чатам</value></data>
   <data name="ChatSearchGlobalPlaceholder" xml:space="preserve"><value>Поиск по содержимому чата…</value></data>
   <data name="ChatSearchGlobalHint" xml:space="preserve"><value>Введите запрос или выберите чат</value></data>

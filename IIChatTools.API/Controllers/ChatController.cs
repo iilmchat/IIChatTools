@@ -140,7 +140,10 @@ namespace IIChatTools.API.Controllers
                         ToolCallsJson = m.ToolCallsJson,
                         ToolCallId = m.ToolCallId,
                         ToolName = m.ToolName,
-                        CreatedAt = m.CreatedAt
+                        CreatedAt = m.CreatedAt,
+                        // KI-049b: токены для отображения в meta-строке.
+                        TokensIn = m.TokensIn,
+                        TokensOut = m.TokensOut
                     }).ToList()
                 };
 

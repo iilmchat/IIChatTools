@@ -1669,6 +1669,37 @@ function handleApprovalResolved(data) {
 
 // ============ Рендер сообщений ============
 
+/**
+ * KI-049b: форматирует meta-строку с токенами.
+ * Возвращает '' (пустую строку), если токены недоступны.
+ * @param {object} msg — DTO сообщения
+ * @param {boolean} isUser — user или assistant
+ * @returns {string}
+ */
+function formatTokenMeta(msg, isUser) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return '';
+
+    const tin = Number.isFinite(msg.tokensIn) ? msg.tokensIn : null;
+    const tout = Number.isFinite(msg.tokensOut) ? msg.tokensOut : null;
+
+    if (isUser) {
+        if (tin == null || tin <= 0) return '';
+        const tpl = container.dataset.labelTokensUser || '{0} токенов';
+        return tpl.replace('{0}', String(tin));
+    }
+
+    // assistant / tool — показываем in / out
+    const hasIn = tin != null && tin > 0;
+    const hasOut = tout != null && tout > 0;
+    if (!hasIn && !hasOut) return '';
+
+    const tpl = container.dataset.labelTokensAssistant || '{0} / {1} токенов';
+    return tpl
+        .replace('{0}', hasIn ? String(tin) : '—')
+        .replace('{1}', hasOut ? String(tout) : '—');
+}
+
 function renderMessages(messages) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
@@ -1719,6 +1750,10 @@ function renderMessage(msg, opts = {}) {
     const avatar = isUser ? '👤' : '🤖';
     const roleLabel = isUser ? 'Вы' : 'Ассистент';
 
+    // KI-049b: токены в meta-строке (опционально).
+    const tokenMeta = formatTokenMeta(msg, isUser);
+    const tokenMetaHtml = tokenMeta ? ` · ${escapeHtml(tokenMeta)}` : '';
+
     let toolCallsHtml = '';
     if (msg.toolCallsJson) {
         toolCallsHtml = renderToolCallsFromJson(msg.toolCallsJson);
@@ -1750,7 +1785,7 @@ function renderMessage(msg, opts = {}) {
         <div class="chat-message ${isUser ? 'user' : 'assistant'}" data-message-id="${msg.id}">
             <div class="chat-message-avatar">${avatar}</div>
             <div class="chat-message-body">
-                <div class="chat-message-meta">${roleLabel} · ${escapeHtml(formatTime(msg.createdAt))}</div>
+                <div class="chat-message-meta">${roleLabel} · ${escapeHtml(formatTime(msg.createdAt))}${tokenMetaHtml}</div>
                 ${toolCallsHtml}
                 ${contentHtml}
                 ${actionsHtml}

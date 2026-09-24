@@ -31,6 +31,14 @@
   - 3 теста `AgentStatsServiceTests`.
 
 ### Added
+- **Chat UI — отображение токенов в meta-строке (KI-049b, v1.4.x)**:
+  - `ChatMessageDto`: +2 nullable-поля (`TokensIn`, `TokensOut`).
+  - `ChatController.GetChatAsync`: маппинг токенов.
+  - `chat.js`: `formatTokenMeta()` — user `15 токенов`, assistant `123 / 45 токенов`.
+  - `Chat/Index.cshtml`: `data-label-tokens-user` / `data-label-tokens-assistant`.
+  - `.resx` (RU + EN): +2 ключа (`ChatTokensUser`, `ChatTokensAssistant`).
+  - Токены отображаются только при наличии (не null).
+  - ⚠️ Live-стрим токенов не получает сразу — только после F5 (расширение SSE `done` — в KI-084).
 - **Chat — подсчёт токенов через tiktoken (KI-049a, v1.4.x)**:
   - Пакеты `Microsoft.ML.Tokenizers` + `Microsoft.ML.Tokenizers.Data.Cl100kBase` 1.0.0
     (API + BPE-словарь; одно без другого не работает).
