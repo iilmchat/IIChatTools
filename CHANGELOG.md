@@ -22,6 +22,17 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 4C.3: DocumentIngestionServiceTests (v1.5.0, KI-083)**:
+  - 11 тестов: IngestAsync Text/File/UnsupportedFormat/FileTooLarge,
+    SameHash Skips/Reindexes, UpdatesVectorStore,
+    DeleteDocumentAsync DB/VectorStore, ClearIndexAsync, ChatId-изоляция.
+  - Fake-зависимости: `FakeEmbeddingService` (детерминированные 3-компонентные векторы, без HTTP).
+  - Реальные: `PlainTextParser`, `RagDocumentParserRegistry`, `RecursiveChunkingStrategy`,
+    `ChunkingStrategyResolver`, `InMemoryVectorStore`, `TokenCounter`.
+  - `AppDbContext` — InMemory через `TestDbContextFactory`.
+  - **Фаза 4 (Parser + Ingestion) закрыта.**
+
+### Added
 - **RAG / Knowledge Base — Шаг 4C.2a: MaxFileSizeBytes проверка (v1.5.0, KI-083)**:
   - `DocumentIngestionService`: при `SourceType = File` — проверка размера файла.
   - Лимит: `Rag:Ingestion:MaxFileSizeBytes` (default **32 MB** = `33_554_432` байт).
