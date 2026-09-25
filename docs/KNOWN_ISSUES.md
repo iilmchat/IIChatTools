@@ -938,6 +938,20 @@
 
 ---
 
+### KI-089 — Секция конфигурации эмбеддингов (`Rag:Embedding` vs `LmStudio:Embedding*`)
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** после Фазы 1 KI-083 (при необходимости)
+- **Обнаружено:** 2026-09-25
+- **Файлы:** `IIChatTools.API/appsettings.json`, `IIChatTools.API/appsettings.Development.json`, `IIChatTools.Services/Implementation/LmStudioClient.cs`
+- **Описание:** Эмбеддинги конфигурируются в секции `Rag:Embedding` (Model, Dimensions, BatchSize, TimeoutSeconds, CacheEnabled), хотя клиент — `LmStudioClient` (для chat читает `LmStudio:*`). В Фазе 1 (KI-083) оставлено как в DESIGN.md § 8.1 для совместимости с будущими подсекциями (`Rag:Chunking`, `Rag:Ingestion`, `Rag:Retrieval`, `Rag:Attachments`).
+- **Варианты решения:**
+  - **A)** Оставить как есть (`Rag:Embedding`) — единая RAG-секция.
+  - **B)** Перенести в `LmStudio:Embedding*` — клиентские параметры к LM Studio.
+  - **C)** Разделить: клиентские (`Model`, `TimeoutSeconds`) → `LmStudio:Embedding*`; RAG-параметры (`Dimensions`, `BatchSize`) → `Rag:Embedding*`.
+- **Пока не критично:** работает по DESIGN.md. Изменение конфига — обратно-совместимо (можно поддержать оба ключа с fallback через `??`).
+- **Связанные:** KI-083 (RAG / Knowledge Base).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия

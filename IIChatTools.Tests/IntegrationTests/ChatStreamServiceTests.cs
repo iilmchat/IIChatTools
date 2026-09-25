@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
+using IIChatTools.Services.DTO.LmStudio;   // v1.5.0 (KI-083): EmbeddingResponse
 using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 5 (KI-052)
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.Tools.SubAgent;  // KI-049
@@ -55,6 +56,14 @@ namespace IIChatTools.Tests.IntegrationTests
 
             public Task<IReadOnlyList<string>> GetModelIdsAsync(CancellationToken cancellationToken)
                 => Task.FromResult<IReadOnlyList<string>>(new List<string>());
+
+            /// <summary>
+            /// v1.5.0 (KI-083): в тестах ChatStreamService embeddings не используются —
+            /// заглушка бросает <see cref="NotImplementedException"/>.
+            /// </summary>
+            public Task<EmbeddingResponse> GetEmbeddingsAsync(
+                IReadOnlyList<string> inputs, string model, CancellationToken cancellationToken)
+                => throw new NotImplementedException();
 
             public async IAsyncEnumerable<ChatCompletionChunk> ChatStreamAsync(
                 JArray messages,

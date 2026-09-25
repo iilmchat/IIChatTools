@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Services.DTO.LmStudio;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -326,6 +327,142 @@ namespace IIChatTools.Services.Implementation
                 _logger.LogError(ex, "Ошибка получения списка моделей LM Studio: {Url}", url);
                 throw;
             }
+        }
+
+        /// <inheritdoc />
+        public async Task<EmbeddingResponse> GetEmbeddingsAsync(
+            IReadOnlyList<string> inputs,
+            string model = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (inputs == null)
+                throw new ArgumentNullException(nameof(inputs));
+
+            if (inputs.Count == 0)
+                throw new ArgumentException("Список входных текстов не может быть пустым", nameof(inputs));
+
+            var baseUrl = _configuration["LmStudio:BaseUrl"] ?? "http://localhost:8034";
+
+            // v1.5.0 (KI-083, Фаза 1): конфиг — Rag:Embedding:* (см. DESIGN § 8.1, KI-089).
+            var actualModel = !string.IsNullOrWhiteSpace(model)
+                ? model
+                : (_configuration["Rag:Embedding:Model"] ?? "text-embedding-nomic-embed-text-v1.5");
+
+            var timeoutSeconds = GetInt("Rag:Embedding:TimeoutSeconds", 60);
+
+            // LM Studio /v1/embeddings принимает либо одиночную строку, либо массив строк.
+            // Используем массив — единый формат для одиночного и батчевого вызова.
+            var inputArray = new JArray();
+            foreach (var text in inputs)
+            {
+                // null / пустой текст заменяем на пустую строку — LM Studio вернёт
+                // нулевой вектор, но не упадёт. Валидацию пустых делает вызывающий код.
+                inputArray.Add(text ?? string.Empty);
+            }
+
+            var payload = new JObject
+            {
+                ["model"] = actualModel,
+                ["input"] = inputArray
+            };
+
+            var url = baseUrl.TrimEnd('/') + "/v1/embeddings";
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
+                var content = new StringContent(
+                    payload.ToString(Formatting.None),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PostAsync(url, content, cancellationToken);
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning(
+                        "LM Studio embeddings вернул {StatusCode}: {Body}",
+                        response.StatusCode, Truncate(responseBody, 500));
+
+                    throw new InvalidOperationException(
+                        $"LM Studio вернул ошибку {(int)response.StatusCode}: {Truncate(responseBody, 500)}");
+                }
+
+                var json = JObject.Parse(responseBody);
+                var dataArray = json["data"] as JArray;
+
+                if (dataArray == null || dataArray.Count == 0)
+                    throw new InvalidOperationException("LM Studio не вернул data[] в ответе /v1/embeddings");
+
+                var result = new EmbeddingResponse
+                {
+                    Data = new List<EmbeddingData>(dataArray.Count),
+                    Usage = ParseEmbeddingUsage(json["usage"] as JObject)
+                };
+
+                foreach (var item in dataArray)
+                {
+                    var embeddingToken = item["embedding"];
+                    if (embeddingToken == null)
+                    {
+                        _logger.LogWarning("LM Studio embeddings: элемент без поля embedding — пропущен");
+                        continue;
+                    }
+
+                    var data = new EmbeddingData
+                    {
+                        Index = item["index"]?.Value<int>() ?? result.Data.Count,
+                        Embedding = embeddingToken.ToObject<float[]>() ?? Array.Empty<float>()
+                    };
+                    result.Data.Add(data);
+                }
+
+                // Сортируем по index — LM Studio обычно отдаёт в порядке, но подстрахуемся.
+                result.Data.Sort((a, b) => a.Index.CompareTo(b.Index));
+
+                _logger.LogInformation(
+                    "LM Studio embeddings: model={Model}, count={Count}, dim={Dim}, " +
+                    "prompt_tokens={PromptTokens}, total_tokens={TotalTokens}",
+                    actualModel,
+                    result.Data.Count,
+                    result.Data.Count > 0 ? result.Data[0].Embedding?.Length ?? 0 : 0,
+                    result.Usage?.PromptTokens ?? 0,
+                    result.Usage?.TotalTokens ?? 0);
+
+                return result;
+            }
+            catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (TaskCanceledException)
+            {
+                throw new TimeoutException($"LM Studio не ответил за {timeoutSeconds} секунд (embeddings)");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при обращении к LM Studio /v1/embeddings: {Url}", url);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Разбирает блок usage из ответа LM Studio (embeddings).
+        /// </summary>
+        /// <param name="usage">JObject usage или null</param>
+        /// <returns>Объект с расходом токенов или null</returns>
+        private static EmbeddingUsage ParseEmbeddingUsage(JObject usage)
+        {
+            if (usage == null) return null;
+
+            return new EmbeddingUsage
+            {
+                PromptTokens = usage["prompt_tokens"]?.Value<int>() ?? 0,
+                TotalTokens = usage["total_tokens"]?.Value<int>() ?? 0
+            };
         }
 
         /// <summary>

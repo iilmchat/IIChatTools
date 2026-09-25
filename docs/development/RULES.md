@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.10
+**Версия:** 1.4.11
 **Обновлено:** 2026-09-25
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -110,6 +110,8 @@
 | 4.31 | **`Chat:Retention:Enabled = false` в `appsettings.Development.json` — намеренно.** Чтобы не удалять тестовые чаты при каждом запуске dev-сервера. Для проверки retention: временно `Enabled = true` + `CleanupIntervalHours = 1` + перезапуск. Первый прогон — через **2 минуты** после старта (Task.Delay), дальше — по `PeriodicTimer`. В логах искать: `ChatRetentionService запущен: интервал=1ч, срок=Nд`. См. KI-067-3 (smoke). |
 | 4.32 | **`Microsoft.ML.Tokenizers` — это API, без данных.** Для `TiktokenTokenizer.CreateForEncoding("cl100k_base")` нужны **два пакета одной версии**: `Microsoft.ML.Tokenizers` (API) + `Microsoft.ML.Tokenizers.Data.Cl100kBase` (BPE-словарь). Иначе — `InvalidOperationException: The tokenizer data file ... could not be loaded`. Аналогично: `o200k_base` → `Microsoft.ML.Tokenizers.Data.O200kBase`, `p50k_base` → `...Data.P50kBase`. См. KI-049a. |
 | 4.33 | **`yield return` и scope переменных.** В `IAsyncEnumerable<T>`-методах переменные, используемые в `yield return`, должны быть объявлены **вне** `try-catch`. Если объявить внутри `try` (например, `var contextTokens = ...` перед `AddMessageAsync`), то `yield return Done(..., contextTokens, ...)` после `try` даст **CS0103**. Решение: hoist объявление до `try`. См. KI-084b (ChatStreamService). |
+| 4.34 | **Расширение интерфейса → grep по ВСЕМ реализациям, включая fake-заглушки в тестах.** После добавления метода в интерфейс (например, `ILmStudioClient.GetEmbeddingsAsync`) сборка `IIChatTools.Tests` может упасть с **CS0535** — `Fake*Client` в тестах не реализует новый член. Фейки должны реализовывать **все** члены интерфейса — либо реальной заглушкой, либо `throw new NotImplementedException()`. Перед `dotnet build` после правки интерфейса — прогнать `Select-String -Path IIChatTools.Tests\**\*.cs -Pattern ': ILmStudioClient'` (и аналогично для других интерфейсов). Симптом: **CS0535** в тестовом проекте. См. KI-083 Фаза 1. |
+| 4.35 | **Mock `HttpMessageHandler` в тестах `HttpClient` должен уважать `CancellationToken`.** При тестировании `HttpClient.Timeout` handler **обязан** передавать `ct` в `Task.Delay` / `Task.WaitAsync` (`await Task.Delay(3s, ct)`), иначе `HttpClient` не отменит операцию — `SendAsync` не бросит `TaskCanceledException`. Причина: `HttpClient.Timeout` реализован через `CancellationTokenSource.CancelAfter`, и handler должен реагировать на отмену. Симптом: тест `*_Timeout_Throws` проходит без исключения (падает `Assert.Throws`). См. KI-083 Фаза 1. |
 
 ---
 
@@ -202,6 +204,7 @@
 | 2026-09-25 | 1.4.8 | § 7 — актуализация KI-выжимки. **Релиз v1.4.1** — Chat UX + retention + tiktoken. |
 | 2026-09-25 | 1.4.9 | **DESIGN v1.5.0** (RAG) — согласован, KI-083 → In Progress. |
 | 2026-09-25 | 1.4.10 | **KI-087** — актуальный ARCHITECTURE.md + архив docs/architecture/. |
+| 2026-09-25 | 1.4.11 | Правила 4.34 (расширение интерфейса → grep по fake-заглушкам), 4.35 (mock HttpMessageHandler + CancellationToken). **KI-083 Фаза 1** — Embedding Service. |
 
 ---
 

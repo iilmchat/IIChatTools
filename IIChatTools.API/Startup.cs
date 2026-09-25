@@ -7,6 +7,7 @@ using IIChatTools.Data;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТЬ
+using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): EmbeddingService
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
@@ -324,8 +325,14 @@ namespace IIChatTools.API
             services.AddScoped<IToolRegistry, ToolRegistry>();
 
             // ============ 8. Клиент LM Studio и суб-агент ============
-            services.AddScoped<ILmStudioClient, LmStudioClient>();
+            // v1.5.0 (KI-083, Фаза 1): ILmStudioClient переведён в Singleton —
+            // для совместимости с EmbeddingService (Singleton). LmStudioClient
+            // не держит состояния, использует IHttpClientFactory (Singleton-совместим).
+            services.AddSingleton<ILmStudioClient, LmStudioClient>();
             services.AddScoped<ISubAgentService, SubAgentService>();
+
+            // v1.5.0 (KI-083, Фаза 1): сервис эмбеддингов для RAG (Singleton).
+            services.AddSingleton<IEmbeddingService, EmbeddingService>();
 
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Services.DTO.LmStudio;
 using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Interfaces
@@ -153,5 +154,31 @@ namespace IIChatTools.Services.Interfaces
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Список идентификаторов моделей</returns>
         Task<IReadOnlyList<string>> GetModelIdsAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Возвращает эмбеддинги для списка входных текстов
+        /// (v1.5.0, KI-083, Фаза 1 — POST <c>/v1/embeddings</c>).
+        ///
+        /// <para>
+        /// LM Studio принимает до 64 входов за один запрос. Разбивка
+        /// большего количества на батчи — задача вызывающего кода
+        /// (см. <c>IEmbeddingService</c>).
+        /// </para>
+        /// </summary>
+        /// <param name="inputs">Список входных текстов (не пустой)</param>
+        /// <param name="model">
+        /// Модель эмбеддингов. Если <c>null</c> или пусто — берётся
+        /// <c>Rag:Embedding:Model</c> из appsettings.json.
+        /// </param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Ответ с векторами + usage</returns>
+        /// <exception cref="System.ArgumentNullException">Если <paramref name="inputs"/> равен null</exception>
+        /// <exception cref="System.ArgumentException">Если <paramref name="inputs"/> пустой</exception>
+        /// <exception cref="System.TimeoutException">Если LM Studio не ответил за отведённое время</exception>
+        /// <exception cref="System.InvalidOperationException">Если LM Studio вернул ошибку</exception>
+        Task<EmbeddingResponse> GetEmbeddingsAsync(
+            IReadOnlyList<string> inputs,
+            string model = null,
+            CancellationToken cancellationToken = default);
     }
 }

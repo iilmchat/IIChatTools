@@ -18,7 +18,17 @@
 
 ## [Unreleased]
 
-_(пусто — планируется для v1.4.2 / v1.5.0)_
+_(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
+
+### Added
+- **RAG / Knowledge Base — Фаза 1: Embedding Service (v1.5.0, KI-083)**:
+  - DTO `EmbeddingResponse` / `EmbeddingData` / `EmbeddingUsage` (`IIChatTools.Services/DTO/LmStudio/`).
+  - `ILmStudioClient.GetEmbeddingsAsync(inputs, model, ct)` — POST `/v1/embeddings` (LM Studio).
+  - `IEmbeddingService` + `EmbeddingService` (Singleton, батч 64, модель `nomic-embed-text-v1.5`, 768 dim).
+  - **DI:** `ILmStudioClient` → **Singleton** (для совместимости с `EmbeddingService`); `IEmbeddingService` → Singleton.
+  - `appsettings.json` + `.Development.json` — секция `Rag:Embedding` (Model, Dimensions, BatchSize, TimeoutSeconds, CacheEnabled).
+  - **Тесты:** `EmbeddingServiceTests` (6) + `LmStudioEmbeddingTests` (6, mock HTTP).
+  - Design: `docs/development/v1.5/DESIGN.md` § 4.1.
 
 ### Added
 - **Docs — финальная чистка legacy, часть 5 (v1.4.x, финал)**:
