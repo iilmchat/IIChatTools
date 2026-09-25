@@ -339,6 +339,16 @@ namespace IIChatTools.API
             // ReaderWriterLockSlim каждого индекса при shutdown.
             services.AddSingleton<IVectorStore, InMemoryVectorStore>();
 
+            // v1.5.0 (KI-083, Шаг 3C): стратегии чанкинга + resolver.
+            // Все три — stateless, регистрируются как Singleton через интерфейс.
+            // Резолвер собирает их в словарь Name → Strategy.
+            // ВАЖНО: не инжектить IChunkingStrategy напрямую — DI вернёт
+            // последнюю зарегистрированную (Fixed). Для выбора — IChunkingStrategyResolver.
+            services.AddSingleton<IChunkingStrategy, RecursiveChunkingStrategy>();
+            services.AddSingleton<IChunkingStrategy, SentenceChunkingStrategy>();
+            services.AddSingleton<IChunkingStrategy, FixedChunkingStrategy>();
+            services.AddSingleton<IChunkingStrategyResolver, ChunkingStrategyResolver>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 
