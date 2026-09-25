@@ -182,3 +182,16 @@ pre {
 #rag-chunks-tbody td {
     vertical-align: middle;
 }
+
+/* ============ v1.5.0 (KI-083, Шаг 7C.2): Workspace index (profile) ============ */
+
+/* Небольшая высота progress-бара (для карточки профиля) */
+.profile-workspace-progress {
+    height: 14px;
+    border-radius: .25rem;
+}
+
+/* Ошибка индексации — компактная плашка */
+#profile-workspace-error {
+    border-left: 3px solid #ffc107;
+}

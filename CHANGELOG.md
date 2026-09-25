@@ -22,6 +22,39 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 7C.2: Workspace Index UI (v1.5.0, KI-083)**:
+  - **`Views/Profile/Index.cshtml`:** карточка `#profile-workspace-card` под
+    карточкой «Хранение чатов»:
+    - checkbox «Включить семантический поиск по файлам workspace» + hint;
+    - строка статуса (Отключён / Индексация… / Включён · N файлов · M чанков);
+    - progress-bar (Bootstrap `.progress`) с процентом — только при `isIndexing`;
+    - плашка последней ошибки (`lastError`);
+    - кнопка «Переиндексировать» (disabled, если не enabled или идёт индексация).
+  - **`wwwroot/js/modules/profile-workspace.js`** (новый модуль):
+    - `loadStatus()` — `GET /api/profile/workspace-index` при загрузке страницы.
+    - `onToggleEnable` — POST `/enable` (без confirm) или POST `/disable`
+      (с `confirm()`, т.к. удаляются все чанки).
+    - `onReindex` — POST `/reindex` с confirm-свободным путём (сервер сам
+      проверяет `enabled`).
+    - **Polling 2 с через `setTimeout`** (не `setInterval`) — гарантирует,
+      что следующий запрос не стартует до завершения предыдущего. Автостоп,
+      как только `isIndexing = false`.
+    - Все строки — через `data-*` атрибуты карточки (RULES § 4.17).
+  - **`.resx` (RU + EN):** +14 ключей (camelCase): `ProfileWorkspaceSection`,
+    `ProfileWorkspaceEnable`, `ProfileWorkspaceEnableHint`,
+    `ProfileWorkspaceStatusLabel`, `ProfileWorkspaceStatusDisabled`,
+    `ProfileWorkspaceStatusEnabled`, `ProfileWorkspaceStatusIndexing`,
+    `ProfileWorkspaceProgress`, `ProfileWorkspaceReindex`,
+    `ProfileWorkspaceEnableSuccess`, `ProfileWorkspaceDisableSuccess`,
+    `ProfileWorkspaceReindexSuccess`, `ProfileWorkspaceDisableConfirm`,
+    `ProfileWorkspaceLastErrorPrefix`.
+  - **`site.css`:** `.profile-workspace-progress` (height 14px) +
+    `#profile-workspace-error` (жёлтая левая полоса).
+  - **KNOWN_ISSUES:** KI-092 (Bootstrap `aria-hidden` warning при закрытии
+    вложенных модалок — задокументировано, не блокер).
+  - **Фаза 7 (Admin Knowledge Base UI + Profile Workspace UI) закрыта.**
+
+### Added
 - **RAG / Knowledge Base — Шаг 7C.1: Workspace Index backend (v1.5.0, KI-083)**:
   - **DTO (`DTO/Rag/`):**
     - `WorkspaceIndexStatusDto` — Enabled, FilesIndexed, ChunkCount, LastIndexedAt,

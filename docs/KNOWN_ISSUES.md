@@ -1007,6 +1007,35 @@
 
 ---
 
+## KI-092 — Bootstrap 5: warning `aria-hidden` при закрытии вложенных модалок
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Обнаружено:** 2026-09-25
+- **Файлы:** `wwwroot/lib/bootstrap/` — сторонняя библиотека (Bootstrap 5.x), не наш код.
+- **Описание:** В консоли браузера при закрытии модалок (`#adminModal`, `#ragChunksModal`)
+  периодически появляется warning:
+Blocked aria-hidden on an element because its descendant retained focus.
+The focus must not be hidden from assistive technology users.
+...
+Ancestor with aria-hidden: <div.modal fade#ragChunksModal>
+Element with focus: <button.btn-close>
+
+text
+Причина: Bootstrap 5.2 (текущая версия в `wwwroot/lib/bootstrap/`) устанавливает
+`aria-hidden="true"` на `.modal` при закрытии, но кнопка `.btn-close` внутри неё
+может сохранять фокус — отсюда предупреждение о конфликте с WCAG.
+- **Влияние на UX:** **нулевое.** Модалка закрывается корректно, фокус после
+закрытия восстанавливается Bootstrap-ом. Warning — информационный (не ошибка).
+- **Решение (при необходимости):**
+1. Обновить Bootstrap до **5.3+** (там вместо `aria-hidden` используется
+   атрибут `inert`, который не даёт такого конфликта).
+2. Или вручную в JS-обёртке: перед `modal.hide()` вызывать `document.activeElement?.blur()`.
+- **Обоснование отсрочки:** не влияет на функциональность. Обновление Bootstrap
+до 5.3 — отдельная задача (проверка обратной совместимости со всеми модалками
+и тултипами проекта), не блокер v1.5.0.
+- **Не баг приложения:** внутреннее поведение библиотеки. Зафиксировано для истории
+(по образцу KI-007, KI-009, KI-032).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия

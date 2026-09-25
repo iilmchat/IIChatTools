@@ -332,6 +332,50 @@
       <value>Сохранить</value>
     </data>
 
+    <!-- ===== Profile: Workspace Index (v1.5.0, KI-083, Шаг 7C.2) ===== -->
+    <data name="ProfileWorkspaceSection" xml:space="preserve">
+      <value>Индексация workspace</value>
+    </data>
+    <data name="ProfileWorkspaceEnable" xml:space="preserve">
+      <value>Включить семантический поиск по файлам workspace</value>
+    </data>
+    <data name="ProfileWorkspaceEnableHint" xml:space="preserve">
+      <value>Индексация идёт в фоне. Можно закрыть страницу — процесс продолжится.</value>
+    </data>
+    <data name="ProfileWorkspaceStatusLabel" xml:space="preserve">
+      <value>Статус</value>
+    </data>
+    <data name="ProfileWorkspaceStatusDisabled" xml:space="preserve">
+      <value>Отключён</value>
+    </data>
+    <data name="ProfileWorkspaceStatusEnabled" xml:space="preserve">
+      <value>Включён · {0} файлов · {1} чанков</value>
+    </data>
+    <data name="ProfileWorkspaceStatusIndexing" xml:space="preserve">
+      <value>Индексация…</value>
+    </data>
+    <data name="ProfileWorkspaceProgress" xml:space="preserve">
+      <value>{0} / {1}</value>
+    </data>
+    <data name="ProfileWorkspaceReindex" xml:space="preserve">
+      <value>Переиндексировать</value>
+    </data>
+    <data name="ProfileWorkspaceEnableSuccess" xml:space="preserve">
+      <value>Workspace index включён — индексация запущена</value>
+    </data>
+    <data name="ProfileWorkspaceDisableSuccess" xml:space="preserve">
+      <value>Workspace index отключён</value>
+    </data>
+    <data name="ProfileWorkspaceReindexSuccess" xml:space="preserve">
+      <value>Переиндексация запущена</value>
+    </data>
+    <data name="ProfileWorkspaceDisableConfirm" xml:space="preserve">
+      <value>Отключить индексацию workspace? Все проиндексированные данные будут удалены.</value>
+    </data>
+    <data name="ProfileWorkspaceLastErrorPrefix" xml:space="preserve">
+      <value>Последняя ошибка:</value>
+    </data>
+
     <!-- ===== RAG / Attachments (v1.5.0, KI-083, Шаг 6D) ===== -->
     <data name="RagAttachButton" xml:space="preserve">
       <value>Прикрепить файл</value>

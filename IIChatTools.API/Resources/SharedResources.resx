@@ -332,6 +332,50 @@
     <value>Save</value>
   </data>
 
+  <!-- ===== Profile: Workspace Index (v1.5.0, KI-083, Шаг 7C.2) ===== -->
+  <data name="ProfileWorkspaceSection" xml:space="preserve">
+      <value>Workspace indexing</value>
+  </data>
+  <data name="ProfileWorkspaceEnable" xml:space="preserve">
+      <value>Enable semantic search over workspace files</value>
+  </data>
+  <data name="ProfileWorkspaceEnableHint" xml:space="preserve">
+      <value>Indexing runs in the background. You can close the page — the process will continue.</value>
+  </data>
+  <data name="ProfileWorkspaceStatusLabel" xml:space="preserve">
+      <value>Status</value>
+  </data>
+  <data name="ProfileWorkspaceStatusDisabled" xml:space="preserve">
+      <value>Disabled</value>
+  </data>
+  <data name="ProfileWorkspaceStatusEnabled" xml:space="preserve">
+      <value>Enabled · {0} files · {1} chunks</value>
+  </data>
+  <data name="ProfileWorkspaceStatusIndexing" xml:space="preserve">
+      <value>Indexing…</value>
+  </data>
+  <data name="ProfileWorkspaceProgress" xml:space="preserve">
+      <value>{0} / {1}</value>
+  </data>
+  <data name="ProfileWorkspaceReindex" xml:space="preserve">
+      <value>Reindex</value>
+  </data>
+  <data name="ProfileWorkspaceEnableSuccess" xml:space="preserve">
+      <value>Workspace index enabled — indexing started</value>
+  </data>
+  <data name="ProfileWorkspaceDisableSuccess" xml:space="preserve">
+      <value>Workspace index disabled</value>
+  </data>
+  <data name="ProfileWorkspaceReindexSuccess" xml:space="preserve">
+      <value>Reindex started</value>
+  </data>
+  <data name="ProfileWorkspaceDisableConfirm" xml:space="preserve">
+      <value>Disable workspace indexing? All indexed data will be removed.</value>
+  </data>
+  <data name="ProfileWorkspaceLastErrorPrefix" xml:space="preserve">
+      <value>Last error:</value>
+  </data>
+
   <!-- ===== RAG / Attachments (v1.5.0, KI-083, Шаг 6D) ===== -->
   <data name="RagAttachButton" xml:space="preserve">
       <value>Attach file</value>

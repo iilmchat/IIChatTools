@@ -48,6 +48,61 @@
                     <span id="profile-save-status" class="ms-2 small"></span>
                 </div>
             </div>
+
+            <!-- v1.5.0 (KI-083, Шаг 7C.2): Workspace Index (opt-in, per-user) -->
+            <div class="card shadow-sm mt-3"
+                 id="profile-workspace-card"
+                 data-label-status-disabled="@Localizer["ProfileWorkspaceStatusDisabled"]"
+                 data-label-status-enabled="@Localizer["ProfileWorkspaceStatusEnabled"]"
+                 data-label-status-indexing="@Localizer["ProfileWorkspaceStatusIndexing"]"
+                 data-label-progress="@Localizer["ProfileWorkspaceProgress"]"
+                 data-label-error="@Localizer["ProfileWorkspaceLastErrorPrefix"]"
+                 data-label-enable-success="@Localizer["ProfileWorkspaceEnableSuccess"]"
+                 data-label-disable-success="@Localizer["ProfileWorkspaceDisableSuccess"]"
+                 data-label-disable-confirm="@Localizer["ProfileWorkspaceDisableConfirm"]"
+                 data-label-reindex-success="@Localizer["ProfileWorkspaceReindexSuccess"]">
+                <div class="card-header">
+                    <h5 class="mb-0">@Localizer["ProfileWorkspaceSection"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input type="checkbox"
+                               id="profile-workspace-enable"
+                               class="form-check-input" />
+                        <label class="form-check-label" for="profile-workspace-enable">
+                            @Localizer["ProfileWorkspaceEnable"]
+                        </label>
+                        <div class="form-text">@Localizer["ProfileWorkspaceEnableHint"]</div>
+                    </div>
+
+                    <div class="mb-2">
+                        <span class="text-muted small">@Localizer["ProfileWorkspaceStatusLabel"]:</span>
+                        <strong id="profile-workspace-status" class="ms-1">—</strong>
+                    </div>
+
+                    <div id="profile-workspace-progress-wrap" class="mb-3" hidden>
+                        <div class="progress profile-workspace-progress" role="progressbar"
+                             aria-label="@Localizer["ProfileWorkspaceStatusIndexing"]"
+                             aria-valuemin="0" aria-valuemax="100">
+                            <div id="profile-workspace-progress-bar"
+                                 class="progress-bar progress-bar-striped progress-bar-animated"
+                                 style="width: 0%;"></div>
+                        </div>
+                        <div class="small text-muted mt-1" id="profile-workspace-progress-text"></div>
+                    </div>
+
+                    <div id="profile-workspace-error"
+                         class="alert alert-warning py-1 px-2 small mb-2"
+                         hidden></div>
+
+                    <button id="btn-profile-workspace-reindex"
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            disabled>
+                        @Localizer["ProfileWorkspaceReindex"]
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -55,6 +110,8 @@
 @section Scripts {
     <script type="module">
         import { initProfilePage } from '/js/modules/profile.js';
+        import { initProfileWorkspaceCard } from '/js/modules/profile-workspace.js';
         initProfilePage();
+        initProfileWorkspaceCard();
     </script>
 }
