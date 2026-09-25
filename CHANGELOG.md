@@ -22,6 +22,23 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 7B: Admin Knowledge Base UI (v1.5.0, KI-083)**:
+  - **`Admin.cshtml`:** 8-я вкладка «База знаний» (`#tab-knowledge` / `#pane-knowledge`) +
+    модалка `#ragChunksModal` для просмотра чанков (pagination, delete).
+  - **`admin-knowledge.js`** (новый модуль): таблица 4 индексов (`name`/`docCount`/`chunkCount`/`lastIndexedAt`),
+    кнопка «Обновить индекс проекта» (POST reindex + toast с количеством чанков и длительностью),
+    кнопка «Настройки RAG» (модалка на базе `showModal` из `admin.js` — 8 полей),
+    просмотр чанков с пагинацией (20/стр.), удаление отдельного чанка (с `confirm`).
+  - **`.resx` (RU + EN):** +29 ключей (camelCase) — `AdminTabKnowledgeBase`,
+    `RagReindex*`, `RagIndexColumn*`, `RagChunk*`, `RagSettings*`, `RagViewChunks`,
+    `RagNoIndexes`, `RagDeleteChunk*`.
+  - **`site.css`:** стили `.rag-chunk-path` (моноширинный, word-break) и
+    `.rag-chunk-preview` (однострочный ellipsis, max-width 500px).
+  - **Локализация через `data-*`** (RULES § 4.17): 19 атрибутов на `#pane-knowledge`.
+  - **Тесты:** UI-тестов нет (как и для других админ-вкладок; smoke — DevTools).
+  - **Зависимости:** `IAdminKnowledgeService` (Шаг 7A, commit `2a05ad2`).
+
+### Added
 - **RAG / Knowledge Base — Шаг 7A: Admin Knowledge Base backend (v1.5.0, KI-083)**:
   - **DTO (`DTO/Rag/`):**
     - `RagIndexDto` — Name, Description, ChunkCount, DocumentCount, LastIndexedAt.

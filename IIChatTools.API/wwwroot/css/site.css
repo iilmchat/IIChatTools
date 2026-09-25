@@ -158,3 +158,27 @@ pre {
         height: 24px;
     }
 }
+
+/* ============ v1.5.0 (KI-083, Шаг 7B): Knowledge Base ============ */
+
+/* Путь документа в таблице чанков (моноширинный, с переносом длинных путей) */
+.rag-chunk-path {
+    font-size: .78rem;
+    color: #57606a;
+    word-break: break-all;
+}
+
+/* Превью текста чанка — однострочное с ellipsis */
+.rag-chunk-preview {
+    font-size: .82rem;
+    color: #57606a;
+    max-width: 500px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Вертикальное выравнивание в таблице чанков */
+#rag-chunks-tbody td {
+    vertical-align: middle;
+}

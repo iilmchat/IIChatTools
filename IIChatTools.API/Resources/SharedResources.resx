@@ -369,4 +369,99 @@
   <data name="RagClearSuccess" xml:space="preserve">
       <value>Chat RAG index cleared</value>
   </data>
+
+  <!-- ===== RAG / Admin Knowledge Base (v1.5.0, KI-083, Шаг 7B) ===== -->
+  <data name="AdminTabKnowledgeBase" xml:space="preserve">
+      <value>Knowledge Base</value>
+  </data>
+  <data name="RagReindexProjectDocs" xml:space="preserve">
+      <value>Reindex project docs</value>
+  </data>
+  <data name="RagReindexInProgress" xml:space="preserve">
+      <value>Indexing…</value>
+  </data>
+  <data name="RagReindexSuccess" xml:space="preserve">
+      <value>Indexed {0} chunks in {1} s</value>
+  </data>
+  <data name="RagNoIndexes" xml:space="preserve">
+      <value>No indexes</value>
+  </data>
+  <data name="RagViewChunks" xml:space="preserve">
+      <value>View</value>
+  </data>
+  <data name="RagChunksTitle" xml:space="preserve">
+      <value>Chunks viewer</value>
+  </data>
+  <data name="RagChunksTotal" xml:space="preserve">
+      <value>Total: {0}</value>
+  </data>
+  <data name="RagChunkColumnPath" xml:space="preserve">
+      <value>Document</value>
+  </data>
+  <data name="RagChunkColumnPosition" xml:space="preserve">
+      <value>#</value>
+  </data>
+  <data name="RagChunkColumnTokens" xml:space="preserve">
+      <value>Tokens</value>
+  </data>
+  <data name="RagChunkColumnText" xml:space="preserve">
+      <value>Text preview</value>
+  </data>
+  <data name="RagChunkEmpty" xml:space="preserve">
+      <value>No chunks</value>
+  </data>
+  <data name="RagDeleteChunkConfirm" xml:space="preserve">
+      <value>Delete this chunk?</value>
+  </data>
+  <data name="RagDeleteChunkSuccess" xml:space="preserve">
+      <value>Chunk deleted</value>
+  </data>
+  <data name="RagSettingsButton" xml:space="preserve">
+      <value>RAG settings</value>
+  </data>
+  <data name="RagSettingsTitle" xml:space="preserve">
+      <value>RAG settings</value>
+  </data>
+  <data name="RagSettingsSaved" xml:space="preserve">
+      <value>RAG settings saved</value>
+  </data>
+  <data name="RagSettingsChunkStrategy" xml:space="preserve">
+      <value>Chunking strategy</value>
+  </data>
+  <data name="RagSettingsChunkSize" xml:space="preserve">
+      <value>Chunk size (tokens)</value>
+  </data>
+  <data name="RagSettingsChunkOverlap" xml:space="preserve">
+      <value>Overlap (tokens)</value>
+  </data>
+  <data name="RagSettingsMinChunkSize" xml:space="preserve">
+      <value>Min chunk size</value>
+  </data>
+  <data name="RagSettingsDefaultTopK" xml:space="preserve">
+      <value>Default TopK</value>
+  </data>
+  <data name="RagSettingsMinScore" xml:space="preserve">
+      <value>Min score</value>
+  </data>
+  <data name="RagSettingsEmbeddingModel" xml:space="preserve">
+      <value>Embedding model</value>
+  </data>
+  <data name="RagSettingsAutoIndex" xml:space="preserve">
+      <value>Auto-index project docs on startup</value>
+  </data>
+  <data name="RagIndexColumnName" xml:space="preserve">
+      <value>Index</value>
+  </data>
+  <data name="RagIndexColumnDocs" xml:space="preserve">
+      <value>Documents</value>
+  </data>
+  <data name="RagIndexColumnChunks" xml:space="preserve">
+      <value>Chunks</value>
+  </data>
+  <data name="RagIndexColumnLastIndexed" xml:space="preserve">
+      <value>Last indexed</value>
+  </data>
+  <data name="RagIndexColumnActions" xml:space="preserve">
+      <value>Actions</value>
+  </data>
 </root>

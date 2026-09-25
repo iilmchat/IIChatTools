@@ -34,6 +34,12 @@
                 @Localizer["AdminTabAgents"]
             </button>
         </li>
+        <!-- v1.5.0 (KI-083, Шаг 7B): Knowledge Base -->
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-knowledge" data-bs-toggle="tab" data-bs-target="#pane-knowledge" type="button" role="tab">
+                @Localizer["AdminTabKnowledgeBase"]
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content border border-top-0 p-3 bg-white">
@@ -178,6 +184,61 @@
                 </table>
             </div>
         </div>
+
+        <!-- Вкладка: База знаний (v1.5.0, KI-083, Шаг 7B) -->
+        <div class="tab-pane fade"
+             id="pane-knowledge"
+             role="tabpanel"
+             data-label-reindex-in-progress="@Localizer["RagReindexInProgress"]"
+             data-label-reindex-success="@Localizer["RagReindexSuccess"]"
+             data-label-no-indexes="@Localizer["RagNoIndexes"]"
+             data-label-view-chunks="@Localizer["RagViewChunks"]"
+             data-label-chunks-title="@Localizer["RagChunksTitle"]"
+             data-label-chunks-empty="@Localizer["RagChunkEmpty"]"
+             data-label-chunks-total="@Localizer["RagChunksTotal"]"
+             data-label-delete-chunk-confirm="@Localizer["RagDeleteChunkConfirm"]"
+             data-label-delete-chunk-success="@Localizer["RagDeleteChunkSuccess"]"
+             data-label-settings-title="@Localizer["RagSettingsTitle"]"
+             data-label-settings-saved="@Localizer["RagSettingsSaved"]"
+             data-label-settings-chunk-strategy="@Localizer["RagSettingsChunkStrategy"]"
+             data-label-settings-chunk-size="@Localizer["RagSettingsChunkSize"]"
+             data-label-settings-chunk-overlap="@Localizer["RagSettingsChunkOverlap"]"
+             data-label-settings-min-chunk-size="@Localizer["RagSettingsMinChunkSize"]"
+             data-label-settings-default-topk="@Localizer["RagSettingsDefaultTopK"]"
+             data-label-settings-min-score="@Localizer["RagSettingsMinScore"]"
+             data-label-settings-embedding-model="@Localizer["RagSettingsEmbeddingModel"]"
+             data-label-settings-auto-index="@Localizer["RagSettingsAutoIndex"]">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex gap-2">
+                    <button id="btn-reindex-project-docs" type="button" class="btn btn-primary btn-sm">
+                        @Localizer["RagReindexProjectDocs"]
+                    </button>
+                    <button id="btn-rag-settings" type="button" class="btn btn-outline-secondary btn-sm">
+                        @Localizer["RagSettingsButton"]
+                    </button>
+                </div>
+                <button id="btn-refresh-knowledge" type="button" class="btn btn-outline-secondary btn-sm">
+                    @Localizer["Обновить"]
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>@Localizer["RagIndexColumnName"]</th>
+                            <th>@Localizer["RagIndexColumnDocs"]</th>
+                            <th>@Localizer["RagIndexColumnChunks"]</th>
+                            <th>@Localizer["RagIndexColumnLastIndexed"]</th>
+                            <th>@Localizer["RagIndexColumnActions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="knowledge-indexes-tbody">
+                        <tr><td colspan="5" class="text-center text-muted">@Localizer["Загрузка"]…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -198,11 +259,53 @@
     </div>
 </div>
 
+<!-- Модалка просмотра чанков индекса (v1.5.0, KI-083, Шаг 7B) -->
+<div class="modal fade" id="ragChunksModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ragChunksModalTitle">@Localizer["RagChunksTitle"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="text-muted small" id="rag-chunks-total"></div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0" id="rag-chunks-pagination"></ul>
+                    </nav>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 60px;">#</th>
+                                <th style="width: 25%;">@Localizer["RagChunkColumnPath"]</th>
+                                <th style="width: 60px;">@Localizer["RagChunkColumnPosition"]</th>
+                                <th style="width: 80px;">@Localizer["RagChunkColumnTokens"]</th>
+                                <th>@Localizer["RagChunkColumnText"]</th>
+                                <th style="width: 60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="rag-chunks-tbody">
+                            <tr><td colspan="6" class="text-center text-muted">@Localizer["Загрузка"]…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@Localizer["Закрыть"]</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script type="module">
         import { initAdminPage } from '/js/modules/admin.js';
         import { initAgentsTab } from '/js/modules/admin-agents.js';
+        import { initKnowledgeTab } from '/js/modules/admin-knowledge.js';
         initAdminPage();
         initAgentsTab();
+        initKnowledgeTab();
     </script>
 }
