@@ -303,6 +303,10 @@ namespace IIChatTools.API
             // ============ Chat service (v1.3) ============
             services.AddScoped<IChatService, ChatService>();
 
+            // v1.5.0 (KI-083, Шаг 6A): сервис вложений чата.
+            // Scoped — работает с AppDbContext + IDocumentIngestionService.
+            services.AddScoped<IChatAttachmentService, ChatAttachmentService>();
+
             // ============ SubAgent registry (v1.4 Фаза 1, KI-052) ============
             // Singleton: реестр читается из appsettings один раз. В Фазе 6 — Update/Reset
             // будут ходить в AppSettings (нужна потокобезопасность).

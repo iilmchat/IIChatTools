@@ -22,6 +22,21 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 6A: ChatAttachment entity + сервис (v1.5.0, KI-083)**:
+  - Entity `ChatAttachment` (`IIChatTools.Data/Entities/ChatAttachment.cs`).
+  - `AppDbContext`: `DbSet<ChatAttachment>` + конфигурация (FK на `Chat` Cascade, 2 индекса).
+  - DTO `ChatAttachmentDto` (`Id, ChatId, UserId, FileName, ContentType, SizeBytes, ChunksCount, UploadedAt`).
+  - `IChatAttachmentService` — контракт: Upload / GetForChat / Delete / ClearForChat.
+  - `ChatAttachmentService` (Scoped):
+    - **Upload:** валидация размера/формата/лимитов; SHA256-дедупликация (тот же файл в том же чате → возвращает существующий); сохранение файла в `{UserWorkspace}/chat-attachments/{chatId}/{guid}.ext`; `IngestionAsync(my_rag_docs, ChatId, UserId)`; при ошибке ingestion — attachment остаётся (ChunksCount=0).
+    - **Delete:** файл + чанки (`my_rag_docs`) + запись БД (best-effort, не падаем на ошибках).
+    - **ClearForChat:** всё то же, но bulk + удаление пустой папки `chat-attachments/{chatId}`.
+  - Конфиг: `Rag:Attachments:{MaxFileSizeBytes, MaxFilesPerChat, MaxTotalSizePerChat, StorageSubfolder}`.
+  - **DI (`Startup.cs`):** `IChatAttachmentService` → `ChatAttachmentService` (Scoped).
+  - Тесты: отдельный Шаг 6A-тесты.
+  - Миграция: `AddChatAttachments`.
+
+### Added
 - **RAG / Knowledge Base — Шаг 5C: search_workspace (v1.5.0, KI-083)**:
   - `SearchWorkspaceTool : ITool` (`search_workspace`) — read-only.
     - Индекс `workspace` (per-user, **opt-in**).

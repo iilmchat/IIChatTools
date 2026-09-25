@@ -39,6 +39,12 @@ namespace IIChatTools.Data
         /// </summary>
         public DbSet<DocumentChunk> DocumentChunks { get; set; }
 
+        /// <summary>
+        /// Вложения к чатам (файлы, проиндексированные в my_rag_docs).
+        /// v1.5.0, KI-083, Шаг 6A.
+        /// </summary>
+        public DbSet<ChatAttachment> ChatAttachments { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -169,6 +175,44 @@ namespace IIChatTools.Data
 
                 // Примечание: FK на ApplicationUser НЕТ — UserId = 0
                 // используется как маркер «глобальный чанк» (project_docs).
+            });
+
+            // ============ ChatAttachments (v1.5.0, KI-083, Шаг 6A) ============
+            modelBuilder.Entity<ChatAttachment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.FileName)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(e => e.ContentType)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.StoragePath)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(e => e.ContentHash)
+                    .HasMaxLength(64)   // SHA256 hex = 64 символа
+                    .IsRequired();
+
+                // FK на Chat с каскадным удалением:
+                // удаление чата → удаление записи вложения.
+                // Физические файлы + чанки — очищаются отдельно
+                // (ChatAttachmentService.ClearForChatAsync / DeleteAsync).
+                entity.HasOne(e => e.Chat)
+                    .WithMany()
+                    .HasForeignKey(e => e.ChatId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Индекс 1: список вложений чата (для UI-чипов).
+                entity.HasIndex(e => e.ChatId)
+                    .HasDatabaseName("IX_ChatAttachments_ChatId");
+
+                // Индекс 2: дедупликация по (UserId, ContentHash).
+                entity.HasIndex(e => new { e.UserId, e.ContentHash })
+                    .HasDatabaseName("IX_ChatAttachments_User_Hash");
             });
         }
     }
