@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.13
+**Версия:** 1.4.14
 **Обновлено:** 2026-09-25
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -115,6 +115,8 @@
 | 4.35 | **Mock `HttpMessageHandler` в тестах `HttpClient` должен уважать `CancellationToken`.** При тестировании `HttpClient.Timeout` handler **обязан** передавать `ct` в `Task.Delay` / `Task.WaitAsync` (`await Task.Delay(3s, ct)`), иначе `HttpClient` не отменит операцию — `SendAsync` не бросит `TaskCanceledException`. Причина: `HttpClient.Timeout` реализован через `CancellationTokenSource.CancelAfter`, и handler должен реагировать на отмену. Симптом: тест `*_Timeout_Throws` проходит без исключения (падает `Assert.Throws`). См. KI-083 Фаза 1. |
 | 4.36 | **В тестах стратегий чанкинга не полагаться на фиксированные `ChunkSize`.** `TokenCounter` (cl100k_base) даёт приближение ±5-10%, и точное число токенов зависит от версии токенизатора. Если тест проверяет «абзац влезает / не влезает» — вычислять `ChunkSize` **динамически** через `Counter.CountTokens(...)` (например, `pTokens + 20%`). Симптом: тест `Chunk_ParagraphsSplitPreferred` падал на фиксированном `ChunkSize=80` — cl100k дал ~25 токенов на абзац вместо ожидаемых 40, два абзаца склеились в один. См. KI-083 Шаг 3B. |
 | 4.37 | **CHANGELOG обновляется в КАЖДОМ коммите с кодом (RULES § 2.1), включая мелкие шаги.** В серии коммитов Фаз 2B-3C (KI-083) запись в `CHANGELOG.md` была пропущена для 5 шагов подряд — документация отстала на несколько коммитов. Перед `git commit` — **всегда** проверять: добавлена ли запись в `[Unreleased]`? Симптом: пользователь спрашивает «мы про документацию не забыли?». Восстановление — отдельный коммит `docs: sync CHANGELOG with code`. |
+| 4.38 | **Не полагаться на `StreamReader` для BOM-детекции.** В .NET 10 комбинация «явный `encoding` + `detectEncodingFromByteOrderMarks: true`» **не гарантирует** стрип BOM. Надёжный подход для парсеров: читать файл байтами (`File.ReadAllBytesAsync`), находить BOM явно (`EF BB BF` = UTF-8, `FF FE` = UTF-16 LE, `FE FF` = UTF-16 BE), декодировать через `Encoding.GetString(bytes, offset, len)`. **Плюс** — defensive strip всех ведущих `\uFEFF` из строки (страховка от рантайм-нюансов). Симптом: тест «*_StripsBom» падает, `text[0]` = `65279`. См. KI-083 Шаг 4A. |
+| 4.39 | **Не использовать `Assert.True(false, msg)` для диагностики в тестах.** Принудительный фейл теста ради вывода значений — плохая практика: (а) xUnit-анализатор ругается (xUnit2020); (б) если забыть удалить, тест всегда падает; (в) MSBuild-инкрементальная сборка может не инвалидировать старую DLL — `dotnet test --no-build` будет использовать **старую** версию теста (stale DLL). Правильно — `Console.WriteLine` (виден в `--logger "console;verbosity=detailed"`) или `ITestOutputHelper`. Если после правки теста `dotnet build` завершается за < 1 с и `--no-build` даёт старый результат — **чистить `bin/obj`** и запускать `dotnet test` **без** `--no-build`. См. KI-083 Шаг 4A. |
 
 ---
 
@@ -210,6 +212,7 @@
 | 2026-09-25 | 1.4.11 | Правила 4.34 (расширение интерфейса → grep по fake-заглушкам), 4.35 (mock HttpMessageHandler + CancellationToken). **KI-083 Фаза 1** — Embedding Service. |
 | 2026-09-25 | 1.4.12 | Правило 3.15 (проверить `Database:Provider` перед `dotnet ef migrations add`). **KI-083 Шаг 2A** — DocumentChunk + KI-090. |
 | 2026-09-25 | 1.4.13 | Правила 4.36 (динамический `ChunkSize` в тестах стратегий), 4.37 (CHANGELOG в каждом коммите с кодом). **KI-083 Шаги 2B-3C** — Vector Store + Chunking. |
+| 2026-09-25 | 1.4.14 | Правила 4.38 (BOM-детект через байты, не StreamReader), 4.39 (не использовать `Assert.True(false)`, чистить `bin/obj` при stale DLL). **KI-083 Шаг 4A** — PlainTextParser. |
 
 ---
 

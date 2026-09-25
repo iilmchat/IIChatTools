@@ -20,6 +20,19 @@
 
 _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
+
+### Added
+- **RAG / Knowledge Base — Шаг 4A: IRagDocumentParser + PlainTextParser (v1.5.0, KI-083)**:
+  - DTO `ParsedDocument` (Text, Metadata, OriginalSizeBytes, PageCount).
+  - `IRagDocumentParser` — контракт (Name, SupportedExtensions, CanParse, ParseAsync).
+  - `PlainTextParser` — 28 расширений (текст, разметка, код, конфиги).
+    - **Чтение байтами** + ручной BOM-детект (`EF BB BF` / `FF FE` / `FE FF`).
+    - Strict UTF-8 → fallback Windows-1251 (`CodePagesEncodingProvider`).
+    - Defensive strip **всех** ведущих `\uFEFF` (BOM-символов).
+    - Нормализация переносов `\r\n` / `\r` → `\n`.
+    - Strip Markdown frontmatter (`--- ... ---`).
+  - Тесты: `PlainTextParserTests` (8) — CanParse T/F, UTF-8, BOM, CP1251, CRLF, MD, empty.
+
 ### Added
 - **RAG / Knowledge Base — Шаг 3C: Sentence/Fixed стратегии + Resolver (v1.5.0, KI-083)**:
   - `SentenceChunkingStrategy` (Name="sentence") — split по `. ! ? \n`, группировка предложений до `ChunkSize`.
