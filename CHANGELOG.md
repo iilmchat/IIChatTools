@@ -22,6 +22,20 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 6A-тесты: ChatAttachmentServiceTests (v1.5.0, KI-083)**:
+  - 11 тестов `ChatAttachmentServiceTests`:
+    - Upload: ValidFile + ChunksCount, TooLarge, UnsupportedFormat,
+      ExceedsFilesPerChat, ExceedsTotalSize, SameHash_Dedup, ChatNotOwned,
+      SavesFileInUserWorkspace.
+    - Delete: RemovesFileAndChunks (файл + ingestion + БД).
+    - ClearForChat: RemovesAll (+ папка chatId удалена).
+    - GetForChat: ReturnsOnlyOwnAttachments.
+  - Fake: `FakeWorkspaceResolver` (temp-root + `users/{userId}`),
+    `FakeIngestionService` (записывает вызовы, настраиваемый результат).
+  - Реальные: `RagDocumentParserRegistry` + `PlainTextParser`,
+    `AppDbContext` через `TestDbContextFactory`.
+
+### Added
 - **RAG / Knowledge Base — Шаг 6A: ChatAttachment entity + сервис (v1.5.0, KI-083)**:
   - Entity `ChatAttachment` (`IIChatTools.Data/Entities/ChatAttachment.cs`).
   - `AppDbContext`: `DbSet<ChatAttachment>` + конфигурация (FK на `Chat` Cascade, 2 индекса).
