@@ -1011,15 +1011,10 @@
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Обнаружено:** 2026-09-25
 - **Файлы:** `wwwroot/lib/bootstrap/` — сторонняя библиотека (Bootstrap 5.x), не наш код.
 - **Описание:** В консоли браузера при закрытии модалок (`#adminModal`, `#ragChunksModal`)
-  периодически появляется warning:
-Blocked aria-hidden on an element because its descendant retained focus.
-The focus must not be hidden from assistive technology users.
-...
-Ancestor with aria-hidden: <div.modal fade#ragChunksModal>
-Element with focus: <button.btn-close>
+  периодически появляется warning: **«Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users»**.
+  Элемент с фокусом — `<button.btn-close>`, предок с `aria-hidden` — `<div.modal fade#ragChunksModal>`.
 
-text
-Причина: Bootstrap 5.2 (текущая версия в `wwwroot/lib/bootstrap/`) устанавливает
+  Причина: Bootstrap 5.2 (текущая версия в `wwwroot/lib/bootstrap/`) устанавливает
 `aria-hidden="true"` на `.modal` при закрытии, но кнопка `.btn-close` внутри неё
 может сохранять фокус — отсюда предупреждение о конфликте с WCAG.
 - **Влияние на UX:** **нулевое.** Модалка закрывается корректно, фокус после
