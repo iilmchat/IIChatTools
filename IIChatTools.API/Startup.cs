@@ -334,6 +334,11 @@ namespace IIChatTools.API
             // v1.5.0 (KI-083, Фаза 1): сервис эмбеддингов для RAG (Singleton).
             services.AddSingleton<IEmbeddingService, EmbeddingService>();
 
+            // v1.5.0 (KI-083, Шаг 2C): векторное хранилище для RAG (Singleton).
+            // InMemoryVectorStore реализует IDisposable — хост освободит
+            // ReaderWriterLockSlim каждого индекса при shutdown.
+            services.AddSingleton<IVectorStore, InMemoryVectorStore>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 
