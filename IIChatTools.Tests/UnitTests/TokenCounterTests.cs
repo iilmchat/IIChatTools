@@ -89,5 +89,38 @@ namespace IIChatTools.Tests.UnitTests
             var result = counter.CountConversation(null);
             Assert.Equal(3, result);
         }
+
+        /// <summary>
+        /// Encode → Decode — обратимость: декодированный текст совпадает с исходным.
+        /// (v1.5.0, KI-083, Шаг 3A)
+        /// </summary>
+        [Fact]
+        public void EncodeDecode_RoundTrip_ReturnsSameText()
+        {
+            var counter = Create();
+            var original = "Hello, world! Привет, мир! 12345.";
+
+            var tokens = counter.Encode(original);
+            var decoded = counter.Decode(tokens);
+
+            Assert.True(tokens.Count > 0);
+            Assert.Equal(original, decoded);
+        }
+
+        /// <summary>
+        /// Encode пустой строки → пустой массив.
+        /// Decode пустого массива → пустая строка.
+        /// (v1.5.0, KI-083, Шаг 3A)
+        /// </summary>
+        [Fact]
+        public void EncodeDecode_Empty_ReturnsEmpty()
+        {
+            var counter = Create();
+
+            Assert.Empty(counter.Encode(""));
+            Assert.Empty(counter.Encode(null));
+            Assert.Equal(string.Empty, counter.Decode(null));
+            Assert.Equal(string.Empty, counter.Decode(new int[0]));
+        }
     }
 }

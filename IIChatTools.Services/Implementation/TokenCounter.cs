@@ -61,5 +61,28 @@ namespace IIChatTools.Services.Implementation
 
             return total;
         }
+
+        /// <inheritdoc />
+        public IReadOnlyList<int> Encode(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return Array.Empty<int>();
+            }
+
+            // TiktokenTokenizer.EncodeToIds возвращает IReadOnlyList<int>.
+            return _tokenizer.EncodeToIds(text);
+        }
+
+        /// <inheritdoc />
+        public string Decode(IReadOnlyList<int> tokens)
+        {
+            if (tokens == null || tokens.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return _tokenizer.Decode(tokens);
+        }
     }
 }

@@ -26,5 +26,30 @@ namespace IIChatTools.Services.Interfaces
         /// <param name="messages">Пары (role, content)</param>
         /// <returns>Оценка количества токенов</returns>
         int CountConversation(System.Collections.Generic.IEnumerable<(string Role, string Content)> messages);
+
+        /// <summary>
+        /// Кодирует текст в последовательность токенов (v1.5.0, KI-083, Шаг 3A).
+        ///
+        /// <para>
+        /// Используется <c>FixedChunkingStrategy</c> для жёсткого разреза
+        /// по границам токенов (а не по символам/предложениям).
+        /// </para>
+        /// </summary>
+        /// <param name="text">Текст (пустой → пустой массив)</param>
+        /// <returns>Список ID токенов</returns>
+        System.Collections.Generic.IReadOnlyList<int> Encode(string text);
+
+        /// <summary>
+        /// Декодирует последовательность токенов обратно в текст
+        /// (v1.5.0, KI-083, Шаг 3A).
+        ///
+        /// <para>
+        /// Кодировка/декодирование обратимы: <c>Decode(Encode(x)) == x</c>
+        /// для большинства текстов (кроме нестандартных Unicode-последовательностей).
+        /// </para>
+        /// </summary>
+        /// <param name="tokens">Последовательность токенов (пустой/null → пустая строка)</param>
+        /// <returns>Декодированный текст</returns>
+        string Decode(System.Collections.Generic.IReadOnlyList<int> tokens);
     }
 }
