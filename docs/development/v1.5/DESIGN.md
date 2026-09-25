@@ -1685,21 +1685,31 @@ public interface IChatAttachmentService
 public class DocumentChunk : BaseEntity
 {
     public string IndexName { get; set; }       // project_docs | my_rag_docs | chat_history | workspace
-    public int? ChatId { get; set; }            // для my_rag_docs / chat_history
-    public int UserId { get; set; }
+    public int? ChatId { get; set; }            // для my_rag_docs; null для остальных
+    public int UserId { get; set; }             // 0 — маркер «глобальный чанк» (project_docs)
     public string DocumentPath { get; set; }    // относительный путь или URL
     public string DocumentHash { get; set; }    // SHA256
     public int ChunkIndex { get; set; }
     public string Text { get; set; }            // nvarchar(max)
     public int Tokens { get; set; }
     public string MetadataJson { get; set; }    // { page, section, offset }
+
+    public virtual Chat Chat { get; set; }      // навигация для my_rag_docs
 }
 ```
 
+**FK-связи (реализовано в `AppDbContext.OnModelCreating`):**
+- **`ChatId` → `Chat`** — `DeleteBehavior.Cascade`, **nullable**.
+  - Удаление чата автоматически удаляет его чанки в `my_rag_docs`.
+  - Для `project_docs` / `chat_history` / `workspace` — `ChatId = null`.
+- **`UserId` — БЕЗ FK на `ApplicationUser`.**
+  - Причина: `project_docs` использует `UserId = 0` как маркер «глобальный чанк». Заводить FK пришлось бы через nullable `int?` или фейкового пользователя Id=0 — оба варианта хуже. Фильтрация по пользователю делается на уровне запросов (`IRetrievalService`).
+  - Для per-user индексов (`chat_history`, `workspace`) `UserId` = реальный ID пользователя.
+
 **Индексы:**
-- `(IndexName, DocumentHash)` — skip re-index.
-- `(IndexName, ChatId, UserId)` — фильтрация при поиске.
-- `(DocumentPath)` — удаление по документу.
+- `IX_DocumentChunks_Index_Hash` — `(IndexName, DocumentHash)` — skip re-index.
+- `IX_DocumentChunks_Index_Chat_User` — `(IndexName, ChatId, UserId)` — фильтрация при поиске.
+- `IX_DocumentChunks_DocumentPath` — `(DocumentPath)` — удаление по документу.
 
 ### § 5.3. `ChatAttachment`
 

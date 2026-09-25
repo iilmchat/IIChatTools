@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.11
+**Версия:** 1.4.12
 **Обновлено:** 2026-09-25
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -70,6 +70,7 @@
 | 3.12 | **Перед push** — `git log --all -p \| grep 'password\|secret'` (проверка на утечки) |
 | 3.13 | **Удаление мусора** — после задач удалять временные скрипты (`fix-*.ps1`) |
 | 3.14 | **Перед `dotnet build` — остановить запущенное приложение.** Иначе `MSB3027`/`MSB3021`: DLL залочены процессом `IIChatTools.API` (например, из `dotnet run`). **Fix:** `Get-Process IIChatTools.API -ErrorAction SilentlyContinue \| Stop-Process -Force`. Симптом в логе: `The process cannot access the file ... "IIChatTools.API (PID)" блокирует этот файл`. | |
+| 3.15 | **Перед `dotnet ef migrations add` — проверить `Database:Provider`** в `appsettings.Development.json`. `dotnet ef` читает провайдер из env `Development` → тип колонок в миграции определяется этим ключом. Для SqlServer-миграций (`Migrations/SqlServer/`) — `Provider = "SqlServer"`; для Sqlite — `"Sqlite"`. После генерации — вернуть `"Sqlite"` для dev-разработки. Симптом ошибки: миграция для SqlServer содержит `TEXT`/`INTEGER`/`Sqlite:Autoincrement`, файлы миграций раздуваются до 60-70 KB из-за `AlterColumn` с `TEXT`→`nvarchar`. См. KI-090. | |
 
 ---
 
@@ -205,6 +206,7 @@
 | 2026-09-25 | 1.4.9 | **DESIGN v1.5.0** (RAG) — согласован, KI-083 → In Progress. |
 | 2026-09-25 | 1.4.10 | **KI-087** — актуальный ARCHITECTURE.md + архив docs/architecture/. |
 | 2026-09-25 | 1.4.11 | Правила 4.34 (расширение интерфейса → grep по fake-заглушкам), 4.35 (mock HttpMessageHandler + CancellationToken). **KI-083 Фаза 1** — Embedding Service. |
+| 2026-09-25 | 1.4.12 | Правило 3.15 (проверить `Database:Provider` перед `dotnet ef migrations add`). **KI-083 Шаг 2A** — DocumentChunk + KI-090. |
 
 ---
 

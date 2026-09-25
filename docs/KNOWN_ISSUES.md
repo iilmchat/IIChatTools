@@ -952,6 +952,17 @@
 
 ---
 
+### KI-090 — SqlServer-migrations содержали Sqlite-типы (snapshot drift)
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Обнаружено:** 2026-09-25
+- **Файлы:** `IIChatTools.Data/Migrations/SqlServer/*.cs` (все предыдущие до `AddDocumentChunks`), `appsettings.Development.json` (`Database:Provider`)
+- **Описание:** При генерации миграций для SqlServer (`Migrations/SqlServer/`) в Development-окружении `Database:Provider` был выставлен в `Sqlite`. `dotnet ef migrations add` читает провайдер из `appsettings.Development.json`, поэтому миграции `AddUserSettings`, `SRVFixPendingChanges`, `AddChatMessageStats` сгенерировались с **Sqlite-типами** (`TEXT`, `INTEGER`) и попали в папку `SqlServer`. Snapshot (`AppDbContextModelSnapshot.cs`) тоже содержал смешанные типы.
+- **Симптом:** при генерации следующей SqlServer-миграции (`AddDocumentChunks`) EF видел расхождения типов и генерировал **большой блок `AlterColumn`** (перевод всей схемы с `TEXT`→`nvarchar`, `INTEGER`→`int`). Дополнительно: файлы предыдущих миграций раздулись (68-72 KB вместо обычных 5-10 KB).
+- **Текущее решение (2026-09-25):** миграция `AddDocumentChunks` фактически исправляет snapshot и приводит схему к SqlServer-виду. Долг устранён.
+- **Правило на будущее (RULES § 3.15, добавлено):** **перед `dotnet ef migrations add` — проверить `Database:Provider` в `appsettings.Development.json`.** Для SqlServer-миграций — `Provider = "SqlServer"`; для Sqlite — `Provider = "Sqlite"`. После генерации — вернуть `Sqlite` для dev-разработки.
+- **Связанные:** KI-083 (RAG — Шаг 2A).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия

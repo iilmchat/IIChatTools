@@ -21,6 +21,14 @@
 _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 ### Added
+- **RAG / Knowledge Base — Шаг 2A: DocumentChunk entity + миграция (v1.5.0, KI-083)**:
+  - Entity `DocumentChunk` (`IIChatTools.Data/Entities/DocumentChunk.cs`).
+  - Конфигурация в `AppDbContext.OnModelCreating`: 3 индекса + FK на `Chat` (Cascade, nullable).
+  - **FK на ApplicationUser НЕТ** (UserId=0 — маркер «глобальный чанк»; см. DESIGN § 5.2).
+  - Миграция `AddDocumentChunks` (`IIChatTools.Data/Migrations/SqlServer/`).
+  - DESIGN.md § 5.2 — уточнение про FK-связи.
+
+### Added
 - **RAG / Knowledge Base — Фаза 1: Embedding Service (v1.5.0, KI-083)**:
   - DTO `EmbeddingResponse` / `EmbeddingData` / `EmbeddingUsage` (`IIChatTools.Services/DTO/LmStudio/`).
   - `ILmStudioClient.GetEmbeddingsAsync(inputs, model, ct)` — POST `/v1/embeddings` (LM Studio).

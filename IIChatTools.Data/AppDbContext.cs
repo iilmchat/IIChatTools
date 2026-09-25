@@ -31,7 +31,13 @@ namespace IIChatTools.Data
         /// </summary>
         public DbSet<ChatMessage> ChatMessages { get; set; }
 
-        public DbSet<UserSetting> UserSettings { get; set; }        
+        public DbSet<UserSetting> UserSettings { get; set; }
+
+        /// <summary>
+        /// Чанки документов для RAG (v1.5.0, KI-083, Шаг 2A).
+        /// Embedding-векторы хранятся отдельно в <c>IVectorStore</c>.
+        /// </summary>
+        public DbSet<DocumentChunk> DocumentChunks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -118,6 +124,51 @@ namespace IIChatTools.Data
                     .WithMany()
                     .HasForeignKey(s => s.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ============ DocumentChunks (v1.5.0, KI-083, Шаг 2A) ============
+            modelBuilder.Entity<DocumentChunk>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.IndexName)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(e => e.DocumentPath)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(e => e.DocumentHash)
+                    .HasMaxLength(64)   // SHA256 hex = 64 символа
+                    .IsRequired();
+
+                entity.Property(e => e.Text);            // nvarchar(max)
+                entity.Property(e => e.MetadataJson);    // nvarchar(max)
+
+                // FK на Chat с каскадным удалением:
+                // удаление чата → удаление чанков my_rag_docs этого чата.
+                // ChatId nullable — для project_docs / chat_history / workspace.
+                entity.HasOne(e => e.Chat)
+                    .WithMany()
+                    .HasForeignKey(e => e.ChatId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired(false);
+
+                // Индекс 1: проверка «уже индексировался» (skip re-index по hash).
+                entity.HasIndex(e => new { e.IndexName, e.DocumentHash })
+                    .HasDatabaseName("IX_DocumentChunks_Index_Hash");
+
+                // Индекс 2: фильтрация чанков при поиске (по индексу + чату + юзеру).
+                entity.HasIndex(e => new { e.IndexName, e.ChatId, e.UserId })
+                    .HasDatabaseName("IX_DocumentChunks_Index_Chat_User");
+
+                // Индекс 3: удаление чанков документа при переиндексации.
+                entity.HasIndex(e => e.DocumentPath)
+                    .HasDatabaseName("IX_DocumentChunks_DocumentPath");
+
+                // Примечание: FK на ApplicationUser НЕТ — UserId = 0
+                // используется как маркер «глобальный чанк» (project_docs).
             });
         }
     }
