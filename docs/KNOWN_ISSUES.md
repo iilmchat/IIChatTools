@@ -873,7 +873,14 @@
   - Фаза 1 (Embedding Service) — ✅ Done (2026-09-25, коммит `a500216`).
   - Фаза 2 (Vector Store + DocumentChunk) — ✅ Done (2026-09-25, коммиты `655daee`, `eb903c9`, `c1aa5a5`).
   - Фаза 3 (Chunking) — ✅ Done (2026-09-25, коммиты `c2fa869`, `f9d9664`, `f2881a1`).
-  - Фазы 4-8 (Parser+Ingestion, Retrieval+Tools, Attachments, Admin+Profile UI, Tests) — впереди.
+  - Фаза 4 (Parser + Ingestion) — ✅ Done (2026-09-25, коммиты `bdf8866` (4A), `4783c71` (4B), `5c1927a`/`00fb044`/`2056d9e`/`9e91512` (4C)).
+  - Фаза 5 (Retrieval + 3 Tools) — ✅ Done (2026-09-25, коммиты `d10966d`, `c83a8fa`, `d3493f5`).
+  - Фаза 6 (Attached Files) — 🚧 In Progress:
+    - 6A (Entity + миграция + сервис + тесты) — ✅ Done (`efd442e`, `e13ae9e`).
+    - 6B (Controller + лимиты multipart + тесты) — ✅ Done (`0176177`).
+    - 6C (Auto-inject top-K в system prompt) — в работе.
+    - 6D (UI: 📎 + chips + «Очистить RAG») — впереди.
+  - Фазы 7-8 (Admin+Profile UI, Tests) — впереди.
 - **Связанные:** KI-086 (sources / citations — v1.6.0), KI-049 (tiktoken), KI-067 (UserSettings), KI-090/KI-091 (SqlServer migrations).
 
 ---

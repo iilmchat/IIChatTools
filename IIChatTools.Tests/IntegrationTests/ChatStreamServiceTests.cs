@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Data;                     // v1.5.0 (KI-083, Шаг 6C): AppDbContext
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
-using IIChatTools.Services.DTO.LmStudio;   // v1.5.0 (KI-083): EmbeddingResponse
-using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 5 (KI-052)
+using IIChatTools.Services.DTO.LmStudio;    // v1.5.0 (KI-083, Фаза 1): EmbeddingResponse
+using IIChatTools.Services.DTO.Rag;         // v1.5.0 (KI-083, Шаг 6C): RetrievedChunkDto
+using IIChatTools.Services.DTO.SubAgent;    // v1.4.0 Фаза 5 (KI-052)
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.Tools.SubAgent;  // KI-049
 using IIChatTools.Services.Interfaces;
@@ -42,6 +44,12 @@ namespace IIChatTools.Tests.IntegrationTests
                 Iterations.Count == 0 ? null : Iterations[0];
 
             /// <summary>
+            /// v1.5.0 (KI-083, Шаг 6C): запоминаем входящие messages каждого
+            /// вызова ChatStreamAsync — для проверки auto-inject в system prompt.
+            /// </summary>
+            public List<JArray> CapturedMessages { get; } = new List<JArray>();
+
+            /// <summary>
             /// Fake-заглушка: реальный вызов не выполняется (тесты стрима используют
             /// <see cref="ChatStreamAsync"/>). Сигнатура соответствует расширенному
             /// интерфейсу (v1.4.0 Фаза 2, KI-052).
@@ -70,6 +78,9 @@ namespace IIChatTools.Tests.IntegrationTests
                 JArray tools,
                 [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
             {
+                // v1.5.0 (KI-083, Шаг 6C): фиксируем messages для ассертов.
+                CapturedMessages.Add(messages);
+
                 var index = StreamCallCount;
                 StreamCallCount++;
 
@@ -87,6 +98,29 @@ namespace IIChatTools.Tests.IntegrationTests
                     yield return chunk;
                     await Task.Yield();
                 }
+            }
+        }
+
+        /// <summary>
+        /// v1.5.0 (KI-083, Шаг 6C): fake IRetrievalService для тестов auto-inject.
+        /// По умолчанию — пустой результат (нет RAG-контекста).
+        /// </summary>
+        private sealed class FakeRetrievalService : IRetrievalService
+        {
+            /// <summary>Список вызовов SearchAsync — для ассертов.</summary>
+            public List<(string Query, string Index, int TopK, int? ChatId, int? UserId)> Calls { get; }
+                = new List<(string, string, int, int?, int?)>();
+
+            /// <summary>Результат, который вернёт SearchAsync. По умолчанию — пустой.</summary>
+            public List<RetrievedChunkDto> NextResult { get; set; } = new List<RetrievedChunkDto>();
+
+            public Task<IReadOnlyList<RetrievedChunkDto>> SearchAsync(
+                string query, string indexName, int topK = 5,
+                int? chatId = null, int? userId = null,
+                CancellationToken cancellationToken = default)
+            {
+                Calls.Add((query, indexName, topK, chatId, userId));
+                return Task.FromResult<IReadOnlyList<RetrievedChunkDto>>(NextResult);
             }
         }
 
@@ -246,14 +280,19 @@ namespace IIChatTools.Tests.IntegrationTests
         /// <param name="registry">Fake-реестр инструментов (или EmptyToolRegistry).</param>
         /// <param name="model">Модель чата.</param>
         /// <param name="config">Конфигурация (устаревший параметр, оставлен для совместимости).</param>
+        /// <param name="retrievalService">
+        /// v1.5.0 (KI-083, Шаг 6C): fake IRetrievalService для тестов auto-inject.
+        /// По умолчанию — <see cref="FakeRetrievalService"/> (пустой результат).
+        /// </param>
         /// <param name="enabledTools">
         /// v1.4.0 Фаза 5 (KI-052): имена «агентов» (в реальности — инструментов),
         /// которые Chat увидит в списке tools. Пустой список = без tools.
         /// </param>
-        private static (ChatStreamService Service, ChatService ChatService, int UserId, int ChatId, FakeLmStudioClient LmClient, IToolRegistry Registry) CreateService(
+        private static (ChatStreamService Service, ChatService ChatService, int UserId, int ChatId, FakeLmStudioClient LmClient, IToolRegistry Registry, AppDbContext Db) CreateService(
             IToolRegistry registry = null,
             string model = "test-model",
             IConfiguration config = null,
+            IRetrievalService retrievalService = null,
             params string[] enabledTools)
         {
             var db = TestDbContextFactory.Create();
@@ -263,6 +302,7 @@ namespace IIChatTools.Tests.IntegrationTests
             var effectiveRegistry = registry ?? new EmptyToolRegistry();
             var fakeResolver = new FakeWorkspaceResolver();
             var fakeApproval = new FakeApprovalCoordinator();
+            var effectiveRetrieval = retrievalService ?? new FakeRetrievalService();
 
             // v1.4.0 Фаза 5 (KI-052): Chat теперь резолвит tools из ISubAgentRegistry.
             var fakeSubAgentRegistry = new FakeSubAgentRegistry();
@@ -283,11 +323,13 @@ namespace IIChatTools.Tests.IntegrationTests
                 fakeApproval,
                 new TokenCounter(),   // KI-049
                 effectiveConfig,
-                NullLogger<ChatStreamService>.Instance);
+                NullLogger<ChatStreamService>.Instance,
+                db,                   // Шаг 6C
+                effectiveRetrieval);  // Шаг 6C
 
             var chat = chatService.CreateChatAsync(1, model, "Test Chat").GetAwaiter().GetResult();
 
-            return (service, chatService, 1, chat.Id, fakeLm, effectiveRegistry);
+            return (service, chatService, 1, chat.Id, fakeLm, effectiveRegistry, db);
         }
 
         // ============================================================
@@ -297,7 +339,7 @@ namespace IIChatTools.Tests.IntegrationTests
         [Fact]
         public async Task StreamAsync_ValidRequest_EmitsStartDeltaDone_AndSavesMessages()
         {
-            var (service, chatService, userId, chatId, fakeLm, _) = CreateService();
+            var (service, chatService, userId, chatId, fakeLm, _, _) = CreateService();
 
             fakeLm.Iterations.Add(new List<ChatCompletionChunk>
             {
@@ -337,7 +379,7 @@ namespace IIChatTools.Tests.IntegrationTests
         [Fact]
         public async Task StreamAsync_ChatNotFound_EmitsError()
         {
-            var (service, _, userId, _, _, _) = CreateService();
+            var (service, _, userId, _, _, _, _) = CreateService();
             var request = new ChatStreamRequest { ChatId = 99999, Message = "Тест" };
 
             var events = new List<ChatStreamEvent>();
@@ -353,7 +395,7 @@ namespace IIChatTools.Tests.IntegrationTests
         [Fact]
         public async Task StreamAsync_EmptyMessage_EmitsError()
         {
-            var (service, _, userId, chatId, _, _) = CreateService();
+            var (service, _, userId, chatId, _, _, _) = CreateService();
             var request = new ChatStreamRequest { ChatId = chatId, Message = "" };
 
             var events = new List<ChatStreamEvent>();
@@ -393,7 +435,7 @@ namespace IIChatTools.Tests.IntegrationTests
                 })
                 .Build();
 
-            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(
+            var (service, chatService, userId, chatId, fakeLm, _, _) = CreateService(
                 registry, config: config, enabledTools: new[] { "list_directory" });
 
             // Итерация 1: LLM вызывает list_directory.
@@ -497,7 +539,7 @@ namespace IIChatTools.Tests.IntegrationTests
                 })
                 .Build();
 
-            var (service, chatService, userId, chatId, fakeLm, _) = CreateService(
+            var (service, chatService, userId, chatId, fakeLm, _, _) = CreateService(
                 registry, config: config, enabledTools: new[] { "save_file" });
 
             // Итерация 1: LLM вызывает save_file.
@@ -577,6 +619,171 @@ namespace IIChatTools.Tests.IntegrationTests
             Assert.Equal(4, messages.Count);
             Assert.Equal("tool", messages[2].Role);
             Assert.Equal("save_file", messages[2].ToolName);
+        }
+
+        // ============================================================
+        // v1.5.0 (KI-083, Шаг 6C): auto-inject RAG-контекста в system prompt
+        // ============================================================
+
+        /// <summary>
+        /// Если в my_rag_docs есть чанки для чата и Retrieval возвращает результат —
+        /// в system prompt вставляется RAG-блок (DESIGN § 4.7.5).
+        /// </summary>
+        [Fact]
+        public async Task StreamAsync_AutoInject_RagContextInSystemPrompt()
+        {
+            // Arrange
+            var fakeRetrieval = new FakeRetrievalService
+            {
+                NextResult = new List<RetrievedChunkDto>
+                {
+                    new RetrievedChunkDto
+                    {
+                        ChunkId = 1,
+                        Text = "RAG fragment text about yield return",
+                        Score = 0.9f,
+                        DocumentPath = "test-attachment.txt",
+                        ChunkIndex = 0,
+                        IndexName = "my_rag_docs"
+                    }
+                }
+            };
+
+            var (service, _, userId, chatId, fakeLm, _, db) = CreateService(
+                retrievalService: fakeRetrieval);
+
+            // Чанк в my_rag_docs — чтобы AnyAsync вернул true.
+            db.DocumentChunks.Add(new DocumentChunk
+            {
+                IndexName = "my_rag_docs",
+                ChatId = chatId,
+                UserId = userId,
+                DocumentPath = "test-attachment.txt",
+                DocumentHash = "test-hash",
+                ChunkIndex = 0,
+                Text = "RAG fragment text about yield return",
+                Tokens = 10
+            });
+            await db.SaveChangesAsync();
+
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
+            {
+                new ChatCompletionChunk { DeltaContent = "OK" },
+                new ChatCompletionChunk { IsDone = true, FinishReason = "stop" }
+            });
+
+            var request = new ChatStreamRequest { ChatId = chatId, Message = "Расскажи про yield return" };
+
+            // Act
+            await foreach (var _ in service.StreamAsync(request, userId)) { }
+
+            // Assert: retrieval вызван 1 раз с правильными параметрами.
+            Assert.Single(fakeRetrieval.Calls);
+            var call = fakeRetrieval.Calls[0];
+            Assert.Equal("my_rag_docs", call.Index);
+            Assert.Equal(chatId, call.ChatId);
+            Assert.Equal(userId, call.UserId);
+            Assert.Equal("Расскажи про yield return", call.Query);
+
+            // Assert: system prompt содержит RAG-блок.
+            Assert.Single(fakeLm.CapturedMessages);
+            var systemMsg = fakeLm.CapturedMessages[0]
+                .FirstOrDefault(m => m["role"]?.ToString() == "system")?["content"]?.ToString();
+            Assert.NotNull(systemMsg);
+            Assert.Contains("релевантные фрагменты", systemMsg);
+            Assert.Contains("RAG fragment text about yield return", systemMsg);
+            Assert.Contains("test-attachment.txt", systemMsg);
+        }
+
+        /// <summary>
+        /// Если в my_rag_docs нет чанков для чата — retrieval НЕ вызывается,
+        /// system prompt без RAG-блока.
+        /// </summary>
+        [Fact]
+        public async Task StreamAsync_AutoInject_NoRagChunks_NoInjection()
+        {
+            var fakeRetrieval = new FakeRetrievalService();
+            // NextResult пустой, в БД тоже пусто.
+
+            var (service, _, userId, chatId, fakeLm, _, _) = CreateService(
+                retrievalService: fakeRetrieval);
+
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
+            {
+                new ChatCompletionChunk { DeltaContent = "OK" },
+                new ChatCompletionChunk { IsDone = true, FinishReason = "stop" }
+            });
+
+            var request = new ChatStreamRequest { ChatId = chatId, Message = "Привет" };
+
+            await foreach (var _ in service.StreamAsync(request, userId)) { }
+
+            // Retrieval не вызывался (нет чанков).
+            Assert.Empty(fakeRetrieval.Calls);
+
+            // В messages нет system-сообщения (у чата пустой SystemPrompt).
+            Assert.Single(fakeLm.CapturedMessages);
+            var systemMsg = fakeLm.CapturedMessages[0]
+                .FirstOrDefault(m => m["role"]?.ToString() == "system");
+            Assert.Null(systemMsg);
+        }
+
+        /// <summary>
+        /// Если все чанки ниже MinScore — RAG-блок не вставляется.
+        /// </summary>
+        [Fact]
+        public async Task StreamAsync_AutoInject_LowScoreFiltered()
+        {
+            var fakeRetrieval = new FakeRetrievalService
+            {
+                NextResult = new List<RetrievedChunkDto>
+                {
+                    new RetrievedChunkDto
+                    {
+                        ChunkId = 1,
+                        Text = "irrelevant text",
+                        Score = 0.1f,   // ниже MinScore (0.35)
+                        DocumentPath = "test.txt",
+                        ChunkIndex = 0,
+                        IndexName = "my_rag_docs"
+                    }
+                }
+            };
+
+            var (service, _, userId, chatId, fakeLm, _, db) = CreateService(
+                retrievalService: fakeRetrieval);
+
+            db.DocumentChunks.Add(new DocumentChunk
+            {
+                IndexName = "my_rag_docs",
+                ChatId = chatId,
+                UserId = userId,
+                DocumentPath = "test.txt",
+                DocumentHash = "h",
+                ChunkIndex = 0,
+                Text = "irrelevant text",
+                Tokens = 5
+            });
+            await db.SaveChangesAsync();
+
+            fakeLm.Iterations.Add(new List<ChatCompletionChunk>
+            {
+                new ChatCompletionChunk { DeltaContent = "OK" },
+                new ChatCompletionChunk { IsDone = true, FinishReason = "stop" }
+            });
+
+            var request = new ChatStreamRequest { ChatId = chatId, Message = "Что-то" };
+
+            await foreach (var _ in service.StreamAsync(request, userId)) { }
+
+            // Retrieval был вызван (есть чанки), но после фильтра — пусто.
+            Assert.Single(fakeRetrieval.Calls);
+
+            // System-сообщения нет (фильтр отсёк низкий score).
+            Assert.Single(fakeLm.CapturedMessages);
+            var systemMsg = fakeLm.CapturedMessages[0]
+                .FirstOrDefault(m => m["role"]?.ToString() == "system");
+            Assert.Null(systemMsg);
         }
     }
 }

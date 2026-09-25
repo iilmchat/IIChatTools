@@ -22,6 +22,25 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 6C: auto-inject top-K в system prompt (v1.5.0, KI-083)**:
+  - `ChatStreamService` инжектит `AppDbContext` + `IRetrievalService` (оба Scoped).
+  - Новый приватный метод `BuildRagContextAsync(chatId, userId, startUserMessageId, ct)`:
+    - Быстрая проверка `AnyAsync` — есть ли чанки в `my_rag_docs` для чата (если нет — retrieval не вызывается).
+    - Берёт текст последнего user-сообщения из БД (по `startUserMessageId` — совместимо с regenerate).
+    - Вызывает `IRetrievalService.SearchAsync(query, "my_rag_docs", topK, chatId, userId)`.
+    - Фильтрует по `Rag:Attachments:AutoInjectMinScore` (default 0.35).
+    - Формирует блок по DESIGN § 4.7.5: «Ниже — релевантные фрагменты… [1] source (фрагмент N): текст».
+    - При ошибке — лог Warning, продолжаем без RAG.
+  - `BuildMessagesAsync`: system prompt = RAG-блок + оригинальный `chat.SystemPrompt` (через `\n\n`).
+  - Конфиг: `Rag:Attachments:{AutoInjectTopK=5, AutoInjectMinScore=0.35}` (fallback в коде).
+  - Тесты: `ChatStreamServiceTests` +3:
+    - `StreamAsync_AutoInject_RagContextInSystemPrompt` — чанки есть → блок в system prompt.
+    - `StreamAsync_AutoInject_NoRagChunks_NoInjection` — нет чанков → retrieval не вызывается.
+    - `StreamAsync_AutoInject_LowScoreFiltered` — score < MinScore → блок не вставляется.
+  - Fake `FakeLmStudioClient` расширен: `CapturedMessages` (все входящие JArray).
+  - Fake `FakeRetrievalService` добавлен (записывает вызовы, настраиваемый результат).
+
+### Added
 - **Docs — синхронизация README/RULES с RAG-прогрессом (v1.5.0, KI-083)**:
   - README: статус тестов 124/124 → **188/188**; Chat видит 10 инструментов (было 7).
   - README: раздел RAG — прогресс фаз 1-5, 6A/6B.

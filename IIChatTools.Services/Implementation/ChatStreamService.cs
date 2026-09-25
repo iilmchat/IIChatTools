@@ -6,13 +6,16 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Data;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
+using IIChatTools.Services.DTO.Rag;
 using IIChatTools.Services.Implementation.Agents; 
 using IIChatTools.Services.Implementation.ChatTools;
 using IIChatTools.Services.Implementation.Tools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -35,6 +38,15 @@ namespace IIChatTools.Services.Implementation
         private const string RoleTool = "tool";
         private const string ParentToolName = "consult_secondary_agent";
 
+        /// <summary>Индекс RAG-чанков, приложенных к чату (v1.5.0, KI-083, Шаг 6C).</summary>
+        private const string MyRagDocsIndex = "my_rag_docs";
+
+        /// <summary>Сколько top-K чанков вставлять в system prompt (по умолчанию).</summary>
+        private const int DefaultAutoInjectTopK = 5;
+
+        /// <summary>Минимальный score для вставки в system prompt (по умолчанию).</summary>
+        private const float DefaultAutoInjectMinScore = 0.35f;
+
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;
         private readonly IToolRegistry _toolRegistry;
@@ -44,6 +56,10 @@ namespace IIChatTools.Services.Implementation
         private readonly ITokenCounter _tokenCounter;
         private readonly IConfiguration _configuration;
         private readonly ILogger<ChatStreamService> _logger;
+
+        // v1.5.0 (KI-083, Шаг 6C): auto-inject top-K из my_rag_docs в system prompt.
+        private readonly AppDbContext _db;
+        private readonly IRetrievalService _retrievalService;
 
         /// <summary>
         /// Создаёт сервис стриминга.
@@ -57,6 +73,8 @@ namespace IIChatTools.Services.Implementation
         /// <param name="tokenCounter">Счётчик токенов (v1.4.x, KI-049)</param>
         /// <param name="configuration">Конфигурация приложения</param>
         /// <param name="logger">Логгер</param>
+        /// <param name="db">Контекст БД (для проверки наличия чанков my_rag_docs, Шаг 6C)</param>
+        /// <param name="retrievalService">Сервис поиска по векторным индексам (Шаг 6C)</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatStreamService(
             IChatService chatService,
@@ -67,7 +85,9 @@ namespace IIChatTools.Services.Implementation
             IChatApprovalCoordinator approvalCoordinator,
             ITokenCounter tokenCounter,
             IConfiguration configuration,
-            ILogger<ChatStreamService> logger)
+            ILogger<ChatStreamService> logger,
+            AppDbContext db,
+            IRetrievalService retrievalService)
         {
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
@@ -78,6 +98,8 @@ namespace IIChatTools.Services.Implementation
             _tokenCounter = tokenCounter ?? throw new ArgumentNullException(nameof(tokenCounter));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _db = db ?? throw new ArgumentNullException(nameof(db));
+            _retrievalService = retrievalService ?? throw new ArgumentNullException(nameof(retrievalService));
         }
 
         /// <inheritdoc />
@@ -202,11 +224,13 @@ namespace IIChatTools.Services.Implementation
             yield return ChatStreamEvent.Start(startUserMessageId, request.ChatId, startUserTokens);
 
             // 5. Формируем историю для LM Studio
+            //    v1.5.0 (KI-083, Шаг 6C): передаём startUserMessageId —
+            //    для auto-inject top-K из my_rag_docs в system prompt.
             JArray messages = null;
             string historyError = null;
             try
             {
-                messages = await BuildMessagesAsync(chat, userId, cancellationToken);
+                messages = await BuildMessagesAsync(chat, userId, startUserMessageId, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -662,24 +686,54 @@ namespace IIChatTools.Services.Implementation
 
         /// <summary>
         /// Формирует JArray сообщений для LM Studio (OpenAI-формат).
+        ///
+        /// <para>
+        /// v1.5.0 (KI-083, Шаг 6C): если у чата есть attached-чанки в
+        /// <c>my_rag_docs</c> — извлекает top-K релевантных фрагментов
+        /// по тексту последнего user-сообщения и вставляет их в system prompt
+        /// (перед оригинальным <see cref="Chat.SystemPrompt"/>).
+        /// </para>
         /// </summary>
         /// <param name="chat">Чат (для SystemPrompt)</param>
         /// <param name="userId">Идентификатор пользователя</param>
+        /// <param name="startUserMessageId">ID последнего user-сообщения (для RAG-запроса)</param>
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>JArray сообщений</returns>
         private async Task<JArray> BuildMessagesAsync(
             Chat chat,
             int userId,
+            int startUserMessageId,
             CancellationToken cancellationToken)
         {
             var messages = new JArray();
 
-            if (!string.IsNullOrWhiteSpace(chat.SystemPrompt))
+            // Auto-inject RAG-контекста (KI-083, Шаг 6C).
+            var ragContext = await BuildRagContextAsync(
+                chat.Id, userId, startUserMessageId, cancellationToken);
+
+            // Склеиваем RAG-контекст с оригинальным system prompt.
+            // Приоритет: RAG-блок идёт первым (более релевантный контекст),
+            // оригинальный system prompt — вторым.
+            if (!string.IsNullOrWhiteSpace(chat.SystemPrompt) || !string.IsNullOrEmpty(ragContext))
             {
+                string systemContent;
+                if (string.IsNullOrWhiteSpace(chat.SystemPrompt))
+                {
+                    systemContent = ragContext;
+                }
+                else if (string.IsNullOrEmpty(ragContext))
+                {
+                    systemContent = chat.SystemPrompt;
+                }
+                else
+                {
+                    systemContent = ragContext + "\n\n" + chat.SystemPrompt;
+                }
+
                 messages.Add(new JObject
                 {
                     ["role"] = RoleSystem,
-                    ["content"] = chat.SystemPrompt
+                    ["content"] = systemContent
                 });
             }
 
@@ -720,6 +774,130 @@ namespace IIChatTools.Services.Implementation
             }
 
             return messages;
+        }
+
+        /// <summary>
+        /// Формирует RAG-блок для system prompt на основе top-K релевантных
+        /// чанков из <c>my_rag_docs</c> для указанного чата
+        /// (v1.5.0, KI-083, Шаг 6C).
+        ///
+        /// <para>
+        /// Возвращает <c>null</c>, если:
+        /// <list type="bullet">
+        ///   <item>у чата нет чанков в <c>my_rag_docs</c> (не приложены файлы);</item>
+        ///   <item>текст user-сообщения пустой;</item>
+        ///   <item>все чанки ниже <c>Rag:Attachments:AutoInjectMinScore</c>;</item>
+        ///   <item>при ошибке retrieval (логируем и продолжаем без RAG).</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        /// <param name="chatId">ID чата</param>
+        /// <param name="userId">ID пользователя-владельца</param>
+        /// <param name="startUserMessageId">ID user-сообщения (для поиска)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Текст RAG-блока или null</returns>
+        private async Task<string> BuildRagContextAsync(
+            int chatId,
+            int userId,
+            int startUserMessageId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                // 1. Быстрая проверка: есть ли чанки в my_rag_docs для этого чата?
+                //    Если нет — не тратим время на embedding query.
+                var hasChunks = await _db.DocumentChunks
+                    .AnyAsync(c => c.IndexName == MyRagDocsIndex && c.ChatId == chatId,
+                        cancellationToken);
+
+                if (!hasChunks)
+                {
+                    return null;
+                }
+
+                // 2. Текст последнего user-сообщения (из БД — для regenerate-совместимости).
+                var lastUserText = await _db.ChatMessages
+                    .Where(m => m.Id == startUserMessageId)
+                    .Select(m => m.Content)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (string.IsNullOrWhiteSpace(lastUserText))
+                {
+                    return null;
+                }
+
+                // 3. Retrieval.
+                var topK = GetIntConfig("Rag:Attachments:AutoInjectTopK", DefaultAutoInjectTopK);
+                var minScore = GetFloatConfig(
+                    "Rag:Attachments:AutoInjectMinScore", DefaultAutoInjectMinScore);
+
+                var chunks = await _retrievalService.SearchAsync(
+                    query: lastUserText,
+                    indexName: MyRagDocsIndex,
+                    topK: topK,
+                    chatId: chatId,
+                    userId: userId,
+                    cancellationToken: cancellationToken);
+
+                var filtered = chunks.Where(c => c.Score >= minScore).ToList();
+                if (filtered.Count == 0)
+                {
+                    return null;
+                }
+
+                // 4. Формируем блок (формат из DESIGN § 4.7.5).
+                var sb = new StringBuilder();
+                sb.AppendLine("Ниже — релевантные фрагменты из прикреплённых пользователем документов.");
+                sb.AppendLine("Используй их для ответа. Ссылайся на них как [1], [2] — в конце ответа");
+                sb.AppendLine("дай список источников.");
+                sb.AppendLine();
+
+                for (int i = 0; i < filtered.Count; i++)
+                {
+                    var chunk = filtered[i];
+                    var source = chunk.DocumentPath ?? "(unknown)";
+                    sb.AppendLine($"[{i + 1}] {source} (фрагмент {chunk.ChunkIndex}):");
+                    sb.AppendLine(chunk.Text ?? string.Empty);
+                    sb.AppendLine();
+                }
+
+                _logger.LogDebug(
+                    "Auto-inject RAG: chatId={ChatId}, вставлено чанков={Count}, " +
+                    "минимальный score={MinScore}",
+                    chatId, filtered.Count, minScore);
+
+                return sb.ToString().TrimEnd();
+            }
+            catch (Exception ex)
+            {
+                // Не падаем — продолжаем без RAG-контекста.
+                _logger.LogWarning(ex,
+                    "Auto-inject RAG-контекста упал для chatId={ChatId}. Продолжаем без RAG.",
+                    chatId);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Читает int из конфига с fallback.
+        /// </summary>
+        private int GetIntConfig(string key, int defaultValue)
+        {
+            var raw = _configuration[key];
+            return int.TryParse(raw, out var v) ? v : defaultValue;
+        }
+
+        /// <summary>
+        /// Читает float из конфига с fallback (InvariantCulture).
+        /// </summary>
+        private float GetFloatConfig(string key, float defaultValue)
+        {
+            var raw = _configuration[key];
+            return float.TryParse(raw,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var v)
+                ? v
+                : defaultValue;
         }
     }
 }
