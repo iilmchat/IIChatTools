@@ -73,5 +73,18 @@ namespace IIChatTools.Tests.Fakes
             ClearCalls.Add((indexName, chatId));
             return Task.FromResult(1);
         }
+
+        /// <summary>
+        /// Заглушка для <see cref="IDocumentIngestionService.ClearIndexForUserAsync"/>
+        /// (v1.5.0, KI-083, Шаг 7C.1). В тестах этот метод пока не вызывается
+        /// напрямую — тесты <c>WorkspaceIndexService</c> будут в Шаге 7D.
+        /// </summary>
+        public Task<int> ClearIndexForUserAsync(
+            string indexName,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(0);
+        }
     }
 }

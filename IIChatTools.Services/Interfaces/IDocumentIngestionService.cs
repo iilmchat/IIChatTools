@@ -76,5 +76,23 @@ namespace IIChatTools.Services.Interfaces
             string indexName,
             int? chatId = null,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Полностью очищает индекс для конкретного пользователя
+        /// (v1.5.0, KI-083, Шаг 7C.1).
+        ///
+        /// <para>
+        /// Используется для очистки per-user индексов (<c>workspace</c>,
+        /// <c>chat_history</c>) при отключении/переиндексации.
+        /// </para>
+        /// </summary>
+        /// <param name="indexName">Имя индекса</param>
+        /// <param name="userId">ID пользователя</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Количество удалённых чанков</returns>
+        Task<int> ClearIndexForUserAsync(
+            string indexName,
+            int userId,
+            CancellationToken cancellationToken = default);
     }
 }

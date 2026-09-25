@@ -318,6 +318,37 @@ namespace IIChatTools.Services.Implementation.Rag
             return entities.Count;
         }
 
+        /// <inheritdoc />
+        public async Task<int> ClearIndexForUserAsync(
+            string indexName,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(indexName))
+                throw new ArgumentException("indexName не может быть пустым", nameof(indexName));
+
+            // Селективная очистка: только чанки указанного индекса, принадлежащие
+            // указанному пользователю. Используется Workspace-индексом (Шаг 7C.1)
+            // при disable/reindex.
+            var entities = await _db.DocumentChunks
+                .Where(c => c.IndexName == indexName && c.UserId == userId)
+                .ToListAsync(cancellationToken);
+
+            foreach (var entity in entities)
+            {
+                _vectorStore.Remove(entity.IndexName, entity.Id);
+            }
+
+            _db.DocumentChunks.RemoveRange(entities);
+            await _db.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Индекс очищен для пользователя: index={Index}, userId={UserId}, chunks={Chunks}",
+                indexName, userId, entities.Count);
+
+            return entities.Count;
+        }
+
         // ============================================================
         // Внутренние методы
         // ============================================================

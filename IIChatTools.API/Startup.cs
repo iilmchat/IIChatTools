@@ -390,6 +390,12 @@ namespace IIChatTools.API
             // Scoped — работает с AppDbContext, IDocumentIngestionService, IAppSettingsService.
             services.AddScoped<IAdminKnowledgeService, AdminKnowledgeService>();
 
+            // v1.5.0 (KI-083, Шаг 7C.1): per-user Workspace Index.
+            // Singleton — запускает фоновую индексацию через Task.Run + IServiceScopeFactory.
+            // Scoped-зависимости (AppDbContext, IUserSettingsService, IDocumentIngestionService,
+            // IWorkspaceResolver) резолвятся внутри scope на каждый вызов / фоновый прогон.
+            services.AddSingleton<IWorkspaceIndexService, WorkspaceIndexService>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 

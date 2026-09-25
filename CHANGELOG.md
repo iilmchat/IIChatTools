@@ -22,6 +22,40 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 7C.1: Workspace Index backend (v1.5.0, KI-083)**:
+  - **DTO (`DTO/Rag/`):**
+    - `WorkspaceIndexStatusDto` — Enabled, FilesIndexed, ChunkCount, LastIndexedAt,
+      IsIndexing, TotalFiles, FilesProcessed, ChunksCreated, LastError.
+  - **`IWorkspaceIndexService` + `WorkspaceIndexService` (Singleton):**
+    - `GetStatusAsync` — флаг `Workspace.Index.Enabled` из `UserSettings` +
+      метрики из `DocumentChunks` (`COUNT`, `DISTINCT DocumentPath`, `MAX(CreatedAt)`)
+      + прогресс in-memory.
+    - `EnableAsync` — устанавливает флаг enabled=true, запускает фоновую индексацию.
+    - `DisableAsync` — сбрасывает флаг, очищает чанки (через новый
+      `ClearIndexForUserAsync`), сбрасывает прогресс.
+    - `ReindexAsync` — clear + restart (только если enabled; no-op, если
+      индексация уже идёт).
+    - Фоновая индексация — `Task.Run` + `IServiceScopeFactory.CreateScope()`
+      (Singleton не держит Scoped-зависимости).
+    - Обход workspace: фильтр по `IRagDocumentParserRegistry.GetAllSupportedExtensions()`,
+      пропуск служебных подпапок (`chat-attachments`, `logs`, `bin`, `obj`,
+      `.git`, `node_modules`, `.vs`, `.idea`).
+    - Прогресс — `ConcurrentDictionary<int, WorkspaceIndexProgress>` (per-user,
+      in-memory; не переживает рестарт).
+  - **`IDocumentIngestionService.ClearIndexForUserAsync(indexName, userId, ct)`** —
+    расширение контракта Шага 4C.1: селективная очистка per-user индекса
+    (только чанки указанного пользователя).
+  - **`ProfileWorkspaceController`** (5 endpoints, `[ApiController]`, `[Authorize]`):
+    - `GET  /api/profile/workspace-index` — статус (initial load);
+    - `GET  /api/profile/workspace-index/status` — статус (polling 2 с);
+    - `POST /api/profile/workspace-index/enable`;
+    - `POST /api/profile/workspace-index/disable`;
+    - `POST /api/profile/workspace-index/reindex`.
+  - **DI (`Startup.cs`):** `IWorkspaceIndexService` → `WorkspaceIndexService` (Singleton).
+  - **Тесты:** запланированы на Шаг 7D (интеграционные).
+  - **UI (`/profile`)** — Шаг 7C.2.
+
+### Added
 - **RAG / Knowledge Base — Шаг 7B: Admin Knowledge Base UI (v1.5.0, KI-083)**:
   - **`Admin.cshtml`:** 8-я вкладка «База знаний» (`#tab-knowledge` / `#pane-knowledge`) +
     модалка `#ragChunksModal` для просмотра чанков (pagination, delete).
