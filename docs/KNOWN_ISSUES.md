@@ -868,8 +868,13 @@
   - Admin `/admin → Knowledge Base` (4 индекса, reindex, настройки).
   - Profile: workspace index (opt-in).
 - **4 индекса:** `project_docs` (global), `my_rag_docs` (per-chat), `chat_history` (per-user), `workspace` (per-user).
-- **План:** 8 фаз, ~45 ч. Фаза 0 (DESIGN) — ✅ Done.
-- **Связанные:** KI-086 (sources / citations — v1.6.0), KI-049 (tiktoken), KI-067 (UserSettings).
+- **План:** 8 фаз, ~45 ч. Прогресс:
+  - Фаза 0 (DESIGN) — ✅ Done (2026-09-25).
+  - Фаза 1 (Embedding Service) — ✅ Done (2026-09-25, коммит `a500216`).
+  - Фаза 2 (Vector Store + DocumentChunk) — ✅ Done (2026-09-25, коммиты `655daee`, `eb903c9`, `c1aa5a5`).
+  - Фаза 3 (Chunking) — ✅ Done (2026-09-25, коммиты `c2fa869`, `f9d9664`, `f2881a1`).
+  - Фазы 4-8 (Parser+Ingestion, Retrieval+Tools, Attachments, Admin+Profile UI, Tests) — впереди.
+- **Связанные:** KI-086 (sources / citations — v1.6.0), KI-049 (tiktoken), KI-067 (UserSettings), KI-090/KI-091 (SqlServer migrations).
 
 ---
 

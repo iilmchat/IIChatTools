@@ -21,6 +21,38 @@
 _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 ### Added
+- **RAG / Knowledge Base — Шаг 3C: Sentence/Fixed стратегии + Resolver (v1.5.0, KI-083)**:
+  - `SentenceChunkingStrategy` (Name="sentence") — split по `. ! ? \n`, группировка предложений до `ChunkSize`.
+  - `FixedChunkingStrategy` (Name="fixed") — жёсткий разрез по токенам (`Encode` → срез → `Decode`).
+  - `IChunkingStrategyResolver` + `ChunkingStrategyResolver` — выбор по имени (case-insensitive, fallback на recursive).
+  - `Startup.cs`: 3 стратегии + resolver (Singleton).
+  - Тесты: `SentenceChunkingStrategyTests` (2) + `FixedChunkingStrategyTests` (2) + `ChunkingStrategyResolverTests` (2).
+- **RAG / Knowledge Base — Шаг 3B: RecursiveChunkingStrategy (v1.5.0, KI-083)**:
+  - `RecursiveChunkingStrategy` (Name="recursive", default) — рекурсивное разбиение: `\n\n` → `\n` → `. ` → … → ` ` → token-fallback.
+  - `ChunkOverlap` при склейке (`TakeLastTokens`), `MergeSmallChunks` (MinChunkSize), `SplitByTokens` (fallback).
+  - Тесты: `RecursiveChunkingStrategyTests` (6).
+- **RAG / Knowledge Base — Шаг 3A: IChunkingStrategy + ChunkingOptions (v1.5.0, KI-083)**:
+  - DTO `ChunkingOptions` (ChunkSize=500, ChunkOverlap=64, MinChunkSize=100, Separators, Strategy=recursive).
+  - `IChunkingStrategy` — контракт (`Name` + `Chunk`).
+  - `ITokenCounter.Encode(string) → IReadOnlyList<int>` + `Decode(IReadOnlyList<int>) → string`.
+  - `TokenCounter`: реализация через `TiktokenTokenizer.EncodeToIds/Decode`.
+  - Тесты: `TokenCounterTests` +2 (`EncodeDecode_RoundTrip`, `EncodeDecode_Empty`).
+- **RAG / Knowledge Base — Шаг 2C: InMemoryVectorStore + DI (v1.5.0, KI-083)**:
+  - `InMemoryVectorStore : IVectorStore, IDisposable` — Singleton.
+  - `ConcurrentDictionary<string, IndexData>` + `Dictionary<int, VectorEntry>` + `ReaderWriterLockSlim`.
+  - Add: write-lock, L2-нормализация, overwrite по chunkId. Search: read-lock, dot product.
+  - `Startup.cs`: `services.AddSingleton<IVectorStore, InMemoryVectorStore>()`.
+  - Тесты: `InMemoryVectorStoreTests` (11, включая `ConcurrentAdds_ThreadSafe` ×1000).
+- **RAG / Knowledge Base — Шаг 2B: IVectorStore + VectorMath + DTO (v1.5.0, KI-083)**:
+  - DTO `ChunkMetadata` (DocumentChunkId, IndexName, ChatId?, UserId, DocumentPath, ChunkIndex, Source).
+  - DTO `VectorSearchResult` (ChunkId, Score, Metadata).
+  - `IVectorStore` — интерфейс (Add, Search, Remove, Clear, Count, GetIndexNames).
+  - `VectorMath` — helper (L2Normalize, DotProduct, CosineSimilarity). double-аккумулятор в DotProduct, ZeroNormThreshold=1e-12.
+  - Тесты: `VectorMathTests` (6).
+- **RAG / Knowledge Base — fix: warning CS1574 + KI-091 (v1.5.0, KI-083)**:
+  - `DocumentChunk.cs`: `<see cref="IVectorStore"/>` → `<c>IVectorStore</c>` (тип в Services, у Data нет ссылки на Services).
+  - KI-091 (Deferred): SqlServer цепочка миграций повреждена (snapshot drift). План пересборки — v1.5.0-rc.
+  - DESIGN.md § 5.5 — примечание про SqlServer долг.
 - **RAG / Knowledge Base — Шаг 2A: DocumentChunk entity + миграция (v1.5.0, KI-083)**:
   - Entity `DocumentChunk` (`IIChatTools.Data/Entities/DocumentChunk.cs`).
   - Конфигурация в `AppDbContext.OnModelCreating`: 3 индекса + FK на `Chat` (Cascade, nullable).
@@ -81,7 +113,14 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 ### Planned
 - **v1.4.x**: KI-047 (PATCH/DELETE fallback), KI-053 (multi-user approvals — крупная), KI-077 (model:null при PUT), KI-082 (модалка-редактор).
-- **v1.5.0**: RAG / Knowledge Base (KI-083) — дизайн согласован, см. [`docs/development/v1.5/DESIGN.md`](docs/development/v1.5/DESIGN.md). План: 8 фаз, ~45 ч.
+- **v1.5.0**: RAG / Knowledge Base (KI-083) — **в работе**. Прогресс:
+  - Фаза 0 (DESIGN) — ✅
+  - Фаза 1 (Embedding Service) — ✅
+  - Фаза 2 (Vector Store + DocumentChunk) — ✅
+  - Фаза 3 (Chunking) — ✅
+  - Фазы 4-8 (Parser+Ingestion, Retrieval+Tools, Attachments, Admin UI, Tests) — впереди.
+  - См. [`docs/development/v1.5/DESIGN.md`](docs/development/v1.5/DESIGN.md).
+- **v1.5.0-rc**: KI-091 (SqlServer миграции), KI-088 (TESTING.md).
 - **v1.6.0**: KI-086 (вывод источников / citations из tool_result).
 
 ---
