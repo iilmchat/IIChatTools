@@ -601,17 +601,14 @@ namespace IIChatTools.API
         }
 
         /// <summary>
-        /// Регистрирует RAG-tools (v1.5.0, KI-083, Шаг 5B):
-        /// <c>search_knowledge_base</c>, <c>search_chat_history</c>.
+        /// Регистрирует RAG-tools (v1.5.0, KI-083, Шаги 5B + 5C):
+        /// <c>search_knowledge_base</c>, <c>search_chat_history</c>,
+        /// <c>search_workspace</c>.
         ///
         /// <para>
-        /// Оба инструмента — read-only (<c>RequiresApprovalByDefault = false</c>).
-        /// Зависимость <see cref="IRetrievalService"/> — Scoped, поэтому
-        /// регистрируются как <c>ITool</c> (Scoped).
-        /// </para>
-        ///
-        /// <para>
-        /// <c>search_workspace</c> добавляется в Шаге 5C.
+        /// Все три — read-only (<c>RequiresApprovalByDefault = false</c>).
+        /// Зависимости (<see cref="IRetrievalService"/>, <c>IUserSettingsService</c>)
+        /// — Scoped, инструменты тоже Scoped.
         /// </para>
         /// </summary>
         /// <param name="services">Коллекция сервисов</param>
@@ -619,6 +616,7 @@ namespace IIChatTools.API
         {
             services.AddScoped<ITool, SearchKnowledgeBaseTool>();
             services.AddScoped<ITool, SearchChatHistoryTool>();
+            services.AddScoped<ITool, SearchWorkspaceTool>();
         }
 
         /// <summary>

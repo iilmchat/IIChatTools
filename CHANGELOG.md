@@ -22,6 +22,21 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 5C: search_workspace (v1.5.0, KI-083)**:
+  - `SearchWorkspaceTool : ITool` (`search_workspace`) — read-only.
+    - Индекс `workspace` (per-user, **opt-in**).
+    - Параметры: `query` (required), `topK` (optional, 1–20), `filePattern` (optional, substring).
+    - **UserId обязателен из context**: `UserId ≤ 0` → Fail.
+    - **Opt-in check**: читает `Workspace.Index.Enabled` из `IUserSettingsService`
+      (per-user). Если `false` → Fail «Workspace index отключён» (без вызова Retrieval).
+    - `filePattern` — post-filter по `DocumentPath` (Contains, OrdinalIgnoreCase),
+      с over-fetch (`topK × 3`) для компенсации потерь.
+  - **DI (`Startup.cs`):** `RegisterRagTools` — 3 RAG-tool (было 2), все Scoped.
+  - Тесты: `SearchWorkspaceToolTests` (5) — Name/Params, Disabled_Fail,
+    Enabled_Searches, UsesUserIdFromContext, FilePatternFilters.
+  - **Фаза 5 (Retrieval + 3 Tools) закрыта. Chat видит 10 инструментов.**
+
+### Added
 - **RAG / Knowledge Base — Шаг 5B: search_knowledge_base + search_chat_history (v1.5.0, KI-083)**:
   - `SearchKnowledgeBaseTool : ITool` (`search_knowledge_base`) — read-only.
     - Индекс `project_docs` (глобальный).
