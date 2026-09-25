@@ -1753,6 +1753,8 @@ public class ChatAttachment : BaseEntity
 
 **Для Sqlite (dev):** удалить `.db` (RULES § 4.25 — `EnsureCreated` не мигрирует).
 
+> ⚠️ **Известный долг (KI-091):** SqlServer цепочка миграций содержит Sqlite-типы (`TEXT`/`INTEGER`) — следствие KI-090. `dotnet ef database update` на свежей SqlServer БД падает с `Operand type clash: datetime2 is incompatible with text`. План пересборки миграций — в KI-091, запланирован на **v1.5.0-rc** (перед релизом). Для dev-Sqlite всё работает через `EnsureCreated`.
+
 ---
 
 ## § 6. API endpoints

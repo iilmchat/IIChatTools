@@ -963,6 +963,38 @@
 
 ---
 
+### KI-091 — SqlServer цепочка миграций повреждена (snapshot drift)
+- **Приоритет:** 🟡 Medium | **Статус:** Deferred | **Запланировано:** v1.5.0-rc (перед релизом)
+- **Обнаружено:** 2026-09-25 (попытка `dotnet ef database update` на SqlServer)
+- **Файлы:** `IIChatTools.Data/Migrations/SqlServer/` (все миграции до `AddDocumentChunks`)
+- **Описание:** SqlServer цепочка миграций содержит Sqlite-типы (`TEXT`, `INTEGER`) — следствие KI-090. При попытке `database update` на **свежей** SqlServer БД:
+  - `InitialSqlServer` ✅
+  - `AddChatAndChatMessages` ✅
+  - `AddUserSettings` ❌ — падает с `Operand type clash: datetime2 is incompatible with text` (попытка `ALTER COLUMN UpdatedAt TEXT NULL` на колонке `datetime2`).
+  Транзакция откатывается. БД остаётся в состоянии после `AddChatAndChatMessages`.
+- **Влияние:**
+  - **dev-Sqlite** — работает (`EnsureCreated`, проверено 2026-09-25).
+  - **prod-SqlServer** — БД ещё не разворачивалась в проекте, блокер не критичен.
+  - **dev-SqlServer** — разработчики не могут применить миграции.
+- **⚠️ План починки (НЕ ВЫПОЛНЯТЬ до v1.5.0-rc):**
+
+  > **Важно:** шаги ниже — это **описание плана**, а не инструкция к исполнению. Выполнять только при старте задачи починки. Точные команды согласуются в отдельном чате.
+
+  **Шаг 1.** Сделать бэкап dev-SqlServer БД (если есть данные) или убедиться, что БД не нужна (dev — пересоздаётся).
+  **Шаг 2.** Дропнуть dev-SqlServer БД через SSMS или `sqlcmd`. Имя: `IIChatTools_Dev`. Данные теряются.
+  **Шаг 3.** Удалить из git сломанные SqlServer-миграции (`AddUserSettings`, `SRVFixPendingChanges`, `AddChatMessageStats`, `AddDocumentChunks`).
+  **Шаг 4.** Откатить `AppDbContextModelSnapshot.cs` к состоянию после `AddChatAndChatMessages` (хеш-коммита определяется на момент починки).
+  **Шаг 5.** Временно выставить `Database:Provider = "SqlServer"` в `appsettings.Development.json`.
+  **Шаг 6.** Сгенерировать одну сводную миграцию `AddUserSettings_AgentStats_Rag` (охватывает всё, что было в удалённых).
+  **Шаг 7.** Применить `dotnet ef database update` на свежей БД. Проверить, что все таблицы + индексы на месте.
+  **Шаг 8.** Вернуть `Provider = "Sqlite"`.
+
+- **Риск:** переписывание истории миграций. Другие машины с применёнными старыми миграциями сломаются. Для проекта — приемлемо: SqlServer нигде не разворачивался.
+- **Обоснование отсрочки:** RAG (v1.5.0) в активной разработке. Прерывание на инфраструктурный долг — потеря фокуса. Чинить перед релизом, когда будет полная картина.
+- **Связанные:** KI-090 (snapshot drift — источник), KI-083 (RAG).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия

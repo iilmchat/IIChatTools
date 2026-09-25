@@ -7,7 +7,7 @@ namespace IIChatTools.Data.Entities
     /// Хранит текст и метаданные одного фрагмента документа.
     /// Embedding (вектор) хранится отдельно в <c>IVectorStore</c>
     /// (InMemory MVP → Qdrant в v1.5.x) — не в этой таблице.
-    /// Связка: <see cref="IVectorStore"/> хранит пары (ChunkId → вектор),
+    /// Связка: <c>IVectorStore</c> хранит пары (ChunkId → вектор),
     /// а сама таблица <c>DocumentChunks</c> — текст + метаданные.
     /// </para>
     ///
