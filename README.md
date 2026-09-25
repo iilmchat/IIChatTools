@@ -32,7 +32,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **Аудит** всех действий: БД + опциональный JSONL-файл (`logs/audit/`).
 - **Безопасность**: `PathHelper`, `ArgumentList`, whitelist команд, лимиты размеров, TTL-сессии.
 - **Offline-развёртывание**: сборка без доступа к интернету через `LocalPackages/`.
-- **🚧 RAG / Knowledge Base (v1.5.0, in progress)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
+- **🚧 RAG / Knowledge Base (v1.5.0, in progress)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. Готовы фазы 1-5 (Embedding, Vector Store, Chunking, Parser+Ingestion, Retrieval+3 Tools) и 6A/6B (Attachments: entity, сервис, 4 API-endpoint, лимиты multipart). Впереди — 6C (auto-inject), 6D (UI), 7 (Admin/Profile UI), 8 (тесты+docs+релиз). Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
 - **Логотип (KI-081):** фирменный знак IIChatTools (шестиугольник с переплетением) — в navbar, на главной (hero), на страницах входа/регистрации и в empty state чата. Favicon — SVG + PNG (16/32) + apple-touch-icon. Файлы: `wwwroot/images/logo-icon.svg`, `logo-full.svg`, `site.webmanifest`.
 
 ---
@@ -334,9 +334,9 @@ dotnet run --project IIChatTools.API
 | **+ Агенты (v1.4.0)** | **+6** | **(по агенту)** |
 | **Итого (ToolRegistry)** | **46** | — |
 
-> **Примечание:** Chat теперь видит **7 инструментов** (6 агентов + `consult_secondary_agent`),
-> а не 12 из `SubAgent:DefaultAllowedTools`. Все 40 «сырых» инструментов доступны
-> **внутри** агентов.
+> **Примечание:** Chat видит **10 инструментов** (6 агентов + `consult_secondary_agent`
+> + 3 RAG-tool: `search_knowledge_base`, `search_chat_history`, `search_workspace` —
+> v1.5.0, KI-083). Все 40 «сырых» инструментов доступны **внутри** агентов.
 
 ---
 
@@ -572,7 +572,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 124/124 тестов проходят (unit + integration).
+**Статус**: 188/188 тестов проходят (unit + integration).
 
 ---
 

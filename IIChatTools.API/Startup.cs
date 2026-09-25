@@ -180,6 +180,21 @@ namespace IIChatTools.API
                 };
             });
             
+            // ============ 3.5. Multipart + Kestrel limits (v1.5.0, KI-083, Шаг 6B) ============
+            // Поднимаем лимиты для загрузки файлов (multipart) до 40 MB:
+            //   32 MB (Rag:Attachments:MaxFileSizeBytes) + запас на multipart-overhead.
+            // Kestrel по умолчанию 30 MB, FormOptions — 128 MB.
+            // 30 MB < 32 MB, поэтому 32 MB файл обрезался бы до нашей валидации.
+            const long MultipartLimitBytes = 41_943_040;   // 40 MB
+            services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+            {
+                options.MultipartBodyLengthLimit = MultipartLimitBytes;
+            });
+            services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
+            {
+                options.Limits.MaxRequestBodySize = MultipartLimitBytes;
+            });
+
             // ============ 4. MVC + локализация ============
             
             //services.AddLocalization(options => options.ResourcesPath = "Resources");

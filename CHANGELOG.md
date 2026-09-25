@@ -22,6 +22,28 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **Docs — синхронизация README/RULES с RAG-прогрессом (v1.5.0, KI-083)**:
+  - README: статус тестов 124/124 → **188/188**; Chat видит 10 инструментов (было 7).
+  - README: раздел RAG — прогресс фаз 1-5, 6A/6B.
+  - RULES 1.4.14 → 1.4.15: § 4.40 (GUID-имена файлов в тестах),
+    § 4.41 (`JToken.Value<T>()` без key → CS7036).
+
+### Added
+- **RAG / Knowledge Base — Шаг 6B: ChatAttachmentsController + лимиты multipart (v1.5.0, KI-083)**:
+  - `ChatAttachmentsController` (4 endpoints):
+    - `POST /api/chat/{chatId}/attachments` — загрузка (multipart, `[FromForm] IFormFile`), `[RequestSizeLimit(40 MB)]`.
+    - `GET /api/chat/{chatId}/attachments` — список вложений.
+    - `DELETE /api/chat/{chatId}/attachments/{attachmentId}` — удалить одно.
+    - `POST /api/chat/{chatId}/attachments/clear` — очистить все.
+  - Все endpoints: проверка владения чатом через `IChatService.GetChatAsync`.
+  - Формат ответов: `{ success, data }` / `{ success: false, message }` — единый с проектом (без ProblemDetails).
+  - `Startup.cs`: подняты лимиты multipart до 40 MB
+    (`FormOptions.MultipartBodyLengthLimit` + `KestrelServerOptions.Limits.MaxRequestBodySize`).
+    Причина: Kestrel по умолчанию 30 MB → 32 MB файл обрезался бы до нашей валидации.
+  - Тесты: `ChatAttachmentsControllerTests` (9, unit через fake `IChatAttachmentService`).
+  - HTTP-smoke через `WebApplicationFactory` — запланирован на Шаг 8 (полная integration-серия).
+
+### Added
 - **RAG / Knowledge Base — Шаг 6A-тесты: ChatAttachmentServiceTests (v1.5.0, KI-083)**:
   - 11 тестов `ChatAttachmentServiceTests`:
     - Upload: ValidFile + ChunksCount, TooLarge, UnsupportedFormat,
