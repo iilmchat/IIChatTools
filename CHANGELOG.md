@@ -22,6 +22,23 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 5A: IRetrievalService + RetrievalService (v1.5.0, KI-083)**:
+  - `RetrievedChunkDto` — ChunkId, Text, Score, DocumentPath, ChunkIndex, IndexName, Metadata.
+  - `IRetrievalService` — контракт `SearchAsync(query, indexName, topK?, chatId?, userId?, ct)`.
+  - `RetrievalService` (Scoped) — оркестрация:
+    - `IEmbeddingService.GetEmbeddingAsync(query)` — эмбеддинг запроса.
+    - `IVectorStore.Search` с over-fetch (`topK × OverFetchMultiplier`).
+    - Фильтрация по метаданным (chatId / userId).
+    - Фильтрация по `Rag:Retrieval:MinScore` (default 0.3).
+    - Enrichment из БД: `DocumentChunk.Text` + `MetadataJson` (парсится в `Dictionary<string,string>`).
+  - Конфиг: `Rag:Retrieval:{DefaultTopK, OverFetchMultiplier, MinScore}`.
+  - **DI (`Startup.cs`):** `IRetrievalService` → `RetrievalService` (Scoped).
+  - **Fake-helper:** `IIChatTools.Tests.Fakes.FakeEmbeddingService` (детерминированные векторы +
+    `SetVector` для точного контроля score) — переиспользуется в 5A/5B/5C.
+  - Тесты: `RetrievalServiceTests` (7) — EmptyQuery, NoVectors, TopK/Sorted,
+    MinScore, FiltersByChatId, FiltersByUserId, EnrichesMetadataFromDb.
+
+### Added
 - **RAG / Knowledge Base — Шаг 4C.3: DocumentIngestionServiceTests (v1.5.0, KI-083)**:
   - 11 тестов: IngestAsync Text/File/UnsupportedFormat/FileTooLarge,
     SameHash Skips/Reindexes, UpdatesVectorStore,

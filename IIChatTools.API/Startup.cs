@@ -362,6 +362,10 @@ namespace IIChatTools.API
             // Зависимости (парсеры/embedding/vector store) — Singleton, инжектятся.
             services.AddScoped<IDocumentIngestionService, DocumentIngestionService>();
 
+            // v1.5.0 (KI-083, Шаг 5A): сервис поиска по векторным индексам.
+            // Scoped — читает DocumentChunk из БД для enrichment.
+            services.AddScoped<IRetrievalService, RetrievalService>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 
