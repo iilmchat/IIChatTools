@@ -357,6 +357,11 @@ namespace IIChatTools.API
             services.AddSingleton<IRagDocumentParser, PlainTextParser>();
             services.AddSingleton<IRagDocumentParserRegistry, RagDocumentParserRegistry>();
 
+            // v1.5.0 (KI-083, Шаг 4C.2): сервис индексации документов.
+            // Scoped — работает с AppDbContext (DocumentChunks).
+            // Зависимости (парсеры/embedding/vector store) — Singleton, инжектятся.
+            services.AddScoped<IDocumentIngestionService, DocumentIngestionService>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 

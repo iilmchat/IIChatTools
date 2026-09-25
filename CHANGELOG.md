@@ -22,6 +22,20 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 4C.2: DocumentIngestionService (v1.5.0, KI-083)**:
+  - `DocumentIngestionService : IDocumentIngestionService` (Scoped).
+  - Оркестрация: `parse → chunk → embed → store`.
+    - parse: `IRagDocumentParserRegistry.Resolve(filePath)` → `ParseAsync`.
+    - chunk: `IChunkingStrategyResolver.Resolve(config)` + `ChunkingOptions` из `Rag:Chunking`.
+    - embed: `IEmbeddingService.GetEmbeddingsAsync(chunks)`.
+    - store: `INSERT DocumentChunks` (EF Core) + `IVectorStore.Add` по каждому чанку.
+  - Идемпотентность: SHA256 содержимого → skip при совпадении hash (без `ForceReindex`).
+  - Источники: File (парсинг), Text (inline, path = `text://{hash12}`), Url — NotSupportedException (v1.5.x).
+  - `DeleteDocumentAsync` / `ClearIndexAsync` — чистка БД + `IVectorStore`.
+  - **DI (`Startup.cs`):** `IDocumentIngestionService` → `DocumentIngestionService` (Scoped).
+  - Тесты — Шаг 4C.3.
+
+### Added
 - **RAG / Knowledge Base — Шаг 4C.1: IDocumentIngestionService контракты (v1.5.0, KI-083)**:
   - `IngestionSourceType` (enum) — File | Text | Url.
   - `IngestionRequest` DTO — IndexName, FilePath/Text/Url, ChatId?, UserId, SourceType, ForceReindex, Source.
