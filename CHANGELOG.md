@@ -22,6 +22,33 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 6D: UI вложений чата (v1.5.0, KI-083)**:
+  - **Chat UI (`Index.cshtml`):**
+    - 📎-кнопка в `.chat-input-box` слева от textarea (DeepSeek-style, SVG-icon).
+    - `<input type="file" id="chat-file-input" multiple hidden>` — accept: 26 расширений PlainTextParser.
+    - Панель `.chat-attachments-bar` над полем ввода: строка «RAG: N чанков [Очистить RAG]» + chips-контейнер.
+    - `data-*`-атрибуты для локализации (8 ключей на панели).
+  - **JS (`chat.js`):**
+    - State: `attachments` (ChatAttachmentDto[]), `ragChunkCount` (число чанков).
+    - `loadAttachments()` — GET вложений активного чата (вызывается в `selectChat`).
+    - `uploadFiles(files)` — параллельная загрузка (POST multipart, по одному запросу на файл); toast на каждый файл; ошибка одного не отменяет остальные.
+    - `deleteAttachment(id)` — DELETE.
+    - `clearAttachments()` — POST clear + `confirm()`.
+    - `renderAttachmentsBar()` — рендерит chips (📄 {name} ({size} · {N чанков}) [×]) и summary.
+    - `formatFileSize(bytes)` — «N KB» / «N.N MB».
+    - `formatChipChunks(count)` — «1 чанк» / «N чанков» через `data-label-*`.
+    - `enableInput` теперь управляет также 📎-кнопкой.
+    - `showEmptyState` сбрасывает `attachments`/`ragChunkCount`.
+  - **CSS (`chat.css`):** секция `.chat-attachments-bar` / `.chat-attachment-chip` / `.chat-attachment-chip-remove` / `.chat-input-action-attach` (+ mobile: meta-chip скрыт).
+  - **Локализация (12 ключей × 2 = 24 записи):**
+    `RagAttachButton`, `RagAttachButtonTooltip`, `RagClearButton`,
+    `RagChunksCountOne`, `RagChunksCountMany`,
+    `RagUploadSuccess`, `RagUploadTooLarge`, `RagUploadUnsupportedFormat`,
+    `RagUploadExceedsMaxFiles`, `RagUploadExceedsTotalSize`,
+    `RagClearConfirm`, `RagClearSuccess`.
+  - **Фаза 6 (Attached Files) закрыта.** UI: 6A + 6B + 6C + 6D — все Done.
+
+### Added
 - **RAG / Knowledge Base — Шаг 6C: auto-inject top-K в system prompt (v1.5.0, KI-083)**:
   - `ChatStreamService` инжектит `AppDbContext` + `IRetrievalService` (оба Scoped).
   - Новый приватный метод `BuildRagContextAsync(chatId, userId, startUserMessageId, ct)`:

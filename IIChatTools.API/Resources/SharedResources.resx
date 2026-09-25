@@ -329,6 +329,44 @@
       <value>Overrides retention days.</value>
   </data>
   <data name="ProfileSave" xml:space="preserve">
-      <value>Save</value>
+    <value>Save</value>
+  </data>
+
+  <!-- ===== RAG / Attachments (v1.5.0, KI-083, Шаг 6D) ===== -->
+  <data name="RagAttachButton" xml:space="preserve">
+      <value>Attach file</value>
+  </data>
+  <data name="RagAttachButtonTooltip" xml:space="preserve">
+      <value>Attach PDF / TXT / MD / CSV / code</value>
+  </data>
+  <data name="RagClearButton" xml:space="preserve">
+      <value>Clear RAG</value>
+  </data>
+  <data name="RagChunksCountOne" xml:space="preserve">
+      <value>1 chunk</value>
+  </data>
+  <data name="RagChunksCountMany" xml:space="preserve">
+      <value>{0} chunks</value>
+  </data>
+  <data name="RagUploadSuccess" xml:space="preserve">
+      <value>File "{0}" indexed ({1} chunks)</value>
+  </data>
+  <data name="RagUploadTooLarge" xml:space="preserve">
+      <value>File exceeds {0} MB</value>
+  </data>
+  <data name="RagUploadUnsupportedFormat" xml:space="preserve">
+      <value>Format "{0}" is not supported</value>
+  </data>
+  <data name="RagUploadExceedsMaxFiles" xml:space="preserve">
+      <value>Max {0} files per chat</value>
+  </data>
+  <data name="RagUploadExceedsTotalSize" xml:space="preserve">
+      <value>Total size exceeds {0} MB</value>
+  </data>
+  <data name="RagClearConfirm" xml:space="preserve">
+      <value>Remove all attachments and clear chat index?</value>
+  </data>
+  <data name="RagClearSuccess" xml:space="preserve">
+      <value>Chat RAG index cleared</value>
   </data>
 </root>

@@ -40,6 +40,10 @@ const state = {
     globalSearchIndex: 0,        // индекс активного результата
     globalSearchDebounce: null,  // таймер debounce ввода
     globalSearchRequestId: 0,    // защита от гонок fetch
+
+    // KI-083 (Шаг 6D): вложения чата (RAG)
+    attachments: [],             // ChatAttachmentDto[]
+    ragChunkCount: 0,            // суммарное количество чанков в my_rag_docs для активного чата
 };
 
 // ============ Инициализация ============
@@ -228,6 +232,39 @@ function bindEvents() {
                 onGlobalSearchInput('');
             });
     }
+
+    // KI-083 (Шаг 6D): вложения чата (RAG)
+    document.getElementById('btn-attach-file')
+        ?.addEventListener('click', () => {
+            document.getElementById('chat-file-input')?.click();
+        });
+
+    document.getElementById('chat-file-input')
+        ?.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files || []);
+            if (files.length > 0) uploadFiles(files);
+            // Сброс value — иначе повторный выбор того же файла не сработает.
+            e.target.value = '';
+        });
+
+    // Делегированный обработчик: удалить chip / очистить RAG.
+    document.getElementById('chat-attachments-bar')
+        ?.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('[data-attachment-remove]');
+            if (removeBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = parseInt(removeBtn.dataset.attachmentRemove, 10);
+                if (Number.isFinite(id)) deleteAttachment(id);
+                return;
+            }
+            const clearBtn = e.target.closest('[data-action="clear-rag"]');
+            if (clearBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                clearAttachments();
+            }
+        });
 
     // KI-068: поиск по чатам — server-side (title + content), debounce 300ms
     const searchInput = document.getElementById('chat-search');
@@ -956,6 +993,10 @@ async function selectChat(chatId) {
     renderChatList();
     renderChatHeader(res.data);
     renderMessages(res.data.messages || []);
+
+    // KI-083 (Шаг 6D): загрузить вложения активного чата.
+    await loadAttachments();
+
     enableInput(true);
 
     // KI-062: фокус на input (ChatGPT-style). setTimeout — чтобы фокус
@@ -2218,6 +2259,11 @@ function showEmptyState() {
         document.getElementById('chat-header-info')?.classList.add('d-none');
     }
 
+    // KI-083 (Шаг 6D): сбросить вложения при отсутствии чата.
+    state.attachments = [];
+    state.ragChunkCount = 0;
+    renderAttachmentsBar();
+
     // Фаза 2.2.4: очистить селект модели (нет активного чата)
     const selectEl = document.getElementById('chat-model-select');
     if (selectEl) selectEl.innerHTML = '';
@@ -2247,9 +2293,11 @@ function showEmptyState() {
 
 function enableInput(enabled) {
     const input = document.getElementById('chat-input');
-    const btn = document.getElementById('btn-send');
+    const btnSend = document.getElementById('btn-send');
+    const btnAttach = document.getElementById('btn-attach-file');
     if (input) input.disabled = !enabled;
-    if (btn) btn.disabled = !enabled;
+    if (btnSend) btnSend.disabled = !enabled;
+    if (btnAttach) btnAttach.disabled = !enabled;
 }
 
 function autoResizeTextarea(el) {
@@ -2896,4 +2944,228 @@ function updateSidebarTimeLocally() {
         chat.updatedAt = new Date().toISOString();
         renderChatList();
     }
+}
+
+// ============ KI-083 (Шаг 6D): вложения чата (RAG) ============
+
+/**
+ * Загружает список вложений активного чата с сервера.
+ * Вызывается при selectChat и после операций (upload / delete / clear).
+ */
+async function loadAttachments() {
+    if (!state.activeChatId) {
+        state.attachments = [];
+        state.ragChunkCount = 0;
+        renderAttachmentsBar();
+        return;
+    }
+
+    const res = await apiGet(`/api/chat/${state.activeChatId}/attachments`);
+    if (!res.success) {
+        // Не показываем toast — вложения не критичны для чата.
+        state.attachments = [];
+        state.ragChunkCount = 0;
+    } else {
+        state.attachments = res.data || [];
+        state.ragChunkCount = state.attachments
+            .reduce((sum, a) => sum + (a.chunksCount || 0), 0);
+    }
+    renderAttachmentsBar();
+}
+
+/**
+ * Загружает файлы в чат (POST multipart).
+ * Параллельные запросы — по одному на файл; ошибка одного не отменяет остальные.
+ * @param {File[]} files
+ */
+async function uploadFiles(files) {
+    if (!state.activeChatId) return;
+
+    const bar = document.getElementById('chat-attachments-bar');
+    const successTpl = bar?.dataset.labelUploadSuccess
+        || 'Файл «{0}» проиндексирован ({1} чанков)';
+
+    const tasks = files.map(async (file) => {
+        const fd = new FormData();
+        fd.append('file', file, file.name);
+
+        try {
+            const response = await fetch(
+                `/api/chat/${state.activeChatId}/attachments`,
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: fd,
+                });
+
+            const res = await response.json();
+            if (!res || !res.success) {
+                const msg = res?.message || `HTTP ${response.status}`;
+                toast(`«${file.name}»: ${msg}`, 'error');
+                return null;
+            }
+
+            const chunks = res.data?.chunksCount ?? 0;
+            const msg = successTpl
+                .replace('{0}', file.name)
+                .replace('{1}', String(chunks));
+            toast(msg, 'success');
+            return res.data;
+        } catch (ex) {
+            toast(`«${file.name}»: ${ex.message || 'Ошибка соединения'}`, 'error');
+            return null;
+        }
+    });
+
+    const results = await Promise.all(tasks);
+    const succeeded = results.filter(r => r !== null);
+
+    if (succeeded.length > 0) {
+        // Перезагружаем список вложений с сервера — единый источник истины.
+        await loadAttachments();
+    }
+}
+
+/**
+ * Удаляет вложение (файл + чанки + запись в БД) по id.
+ * @param {number} attachmentId
+ */
+async function deleteAttachment(attachmentId) {
+    if (!state.activeChatId) return;
+
+    try {
+        const response = await fetch(
+            `/api/chat/${state.activeChatId}/attachments/${attachmentId}`,
+            {
+                method: 'DELETE',
+                credentials: 'same-origin',
+            });
+
+        const res = await response.json();
+        if (!res || !res.success) {
+            toast(res?.message || 'Ошибка удаления вложения', 'error');
+            return;
+        }
+
+        await loadAttachments();
+    } catch (ex) {
+        toast(ex.message || 'Ошибка удаления вложения', 'error');
+    }
+}
+
+/**
+ * Очищает все вложения и RAG-индекс активного чата.
+ * Требует подтверждения (операция необратима).
+ */
+async function clearAttachments() {
+    if (!state.activeChatId) return;
+
+    const bar = document.getElementById('chat-attachments-bar');
+    const confirmMsg = bar?.dataset.labelClearConfirm
+        || 'Удалить все вложения и очистить индекс чата?';
+    const successMsg = bar?.dataset.labelClearSuccess
+        || 'RAG-индекс чата очищен';
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const response = await fetch(
+            `/api/chat/${state.activeChatId}/attachments/clear`,
+            {
+                method: 'POST',
+                credentials: 'same-origin',
+            });
+
+        const res = await response.json();
+        if (!res || !res.success) {
+            toast(res?.message || 'Ошибка очистки', 'error');
+            return;
+        }
+
+        toast(successMsg, 'success');
+        await loadAttachments();
+    } catch (ex) {
+        toast(ex.message || 'Ошибка очистки', 'error');
+    }
+}
+
+/**
+ * Перерисовывает панель вложений (chips + summary).
+ * Панель скрыта, если нет активного чата или нет вложений.
+ */
+function renderAttachmentsBar() {
+    const bar = document.getElementById('chat-attachments-bar');
+    const chipsEl = document.getElementById('chat-attachment-chips');
+    const summaryEl = document.getElementById('chat-attachment-summary');
+    if (!bar || !chipsEl || !summaryEl) return;
+
+    if (!state.activeChatId || state.attachments.length === 0) {
+        bar.hidden = true;
+        chipsEl.innerHTML = '';
+        summaryEl.innerHTML = '';
+        return;
+    }
+
+    bar.hidden = false;
+
+    // Chips: 📄 {name} ({size} · {N чанков}) [×]
+    chipsEl.innerHTML = state.attachments.map(a => {
+        const size = formatFileSize(a.sizeBytes || 0);
+        const chunks = formatChipChunks(a.chunksCount || 0);
+        return `
+            <div class="chat-attachment-chip" data-attachment-id="${a.id}">
+                <span class="chat-attachment-chip-icon" aria-hidden="true">📄</span>
+                <span class="chat-attachment-chip-name"
+                      title="${escapeHtml(a.fileName || '')}">${escapeHtml(a.fileName || '')}</span>
+                <span class="chat-attachment-chip-meta">${escapeHtml(size)} · ${escapeHtml(chunks)}</span>
+                <button type="button"
+                        class="chat-attachment-chip-remove"
+                        data-attachment-remove="${a.id}"
+                        title="${escapeHtml(bar.dataset.labelRemove || 'Удалить')}"
+                        aria-label="${escapeHtml(bar.dataset.labelRemove || 'Удалить')}">✕</button>
+            </div>`;
+    }).join('');
+
+    // Summary: RAG: {N чанков}  [Очистить RAG]
+    const totalChunks = state.ragChunkCount;
+    const chunksText = formatChipChunks(totalChunks);
+    const clearLabel = bar.dataset.labelClear || 'Очистить RAG';
+
+    summaryEl.innerHTML = `
+        <span class="chat-attachments-summary-text">RAG: ${escapeHtml(chunksText)}</span>
+        <button type="button"
+                class="chat-attachments-clear"
+                data-action="clear-rag"
+                title="${escapeHtml(clearLabel)}"
+                aria-label="${escapeHtml(clearLabel)}">${escapeHtml(clearLabel)}</button>`;
+}
+
+/**
+ * Форматирует размер файла (bytes → «N KB» / «N.N MB»).
+ * @param {number} bytes
+ * @returns {string}
+ */
+function formatFileSize(bytes) {
+    if (!bytes || bytes <= 0) return '0 KB';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(0)} KB`;
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
+}
+
+/**
+ * Форматирует количество чанков: «1 чанк» / «N чанков».
+ * Шаблоны берутся из data-атрибутов панели (локализация).
+ * @param {number} count
+ * @returns {string}
+ */
+function formatChipChunks(count) {
+    const bar = document.getElementById('chat-attachments-bar');
+    if (!bar) return String(count);
+
+    if (count === 1) {
+        return bar.dataset.labelChunksOne || '1 chunk';
+    }
+    const tpl = bar.dataset.labelChunksMany || '{0} chunks';
+    return tpl.replace('{0}', String(count));
 }

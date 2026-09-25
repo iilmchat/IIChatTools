@@ -1432,3 +1432,149 @@ body.chat-global-search-open {
     color: #6c757d;
     filter: grayscale(1);
 }
+
+/* ============ KI-083 (Шаг 6D): вложения чата (RAG) ============ */
+
+/* Панель вложений — над полем ввода */
+.chat-attachments-bar {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    margin-bottom: .5rem;
+    padding: .4rem .55rem;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: .5rem;
+}
+
+.chat-attachments-bar[hidden] {
+    display: none !important;
+}
+
+/* Строка «RAG: N чанков [Очистить]» */
+.chat-attachments-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    font-size: .8rem;
+    color: #57606a;
+}
+
+.chat-attachments-summary-text {
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+}
+
+.chat-attachments-clear {
+    padding: .1rem .45rem;
+    border: 0;
+    border-radius: .25rem;
+    background: transparent;
+    color: #cf222e;
+    font-size: .75rem;
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+}
+
+.chat-attachments-clear:hover {
+    background: #ffebe9;
+}
+
+.chat-attachments-clear:focus-visible {
+    outline: 2px solid #cf222e;
+    outline-offset: 1px;
+}
+
+/* Chips — вертикальный список */
+.chat-attachment-chips {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+
+.chat-attachment-chip {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .25rem .5rem;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: .35rem;
+    font-size: .8rem;
+    min-width: 0;
+}
+
+.chat-attachment-chip-icon {
+    flex-shrink: 0;
+    font-size: .9rem;
+    line-height: 1;
+}
+
+.chat-attachment-chip-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #24292f;
+    font-weight: 500;
+}
+
+.chat-attachment-chip-meta {
+    flex-shrink: 0;
+    color: #6c757d;
+    font-family: var(--bs-font-monospace);
+    font-size: .72rem;
+    white-space: nowrap;
+}
+
+.chat-attachment-chip-remove {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: .25rem;
+    background: transparent;
+    color: #6c757d;
+    font-size: .75rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color .15s, color .15s;
+}
+
+.chat-attachment-chip-remove:hover {
+    background: #ffebe9;
+    color: #cf222e;
+}
+
+.chat-attachment-chip-remove:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 1px;
+}
+
+/* 📎-кнопка в .chat-input-box (DeepSeek-style, слева) */
+.chat-input-action-attach {
+    background: transparent;
+    color: #6c757d;
+}
+
+.chat-input-action-attach:hover:not(:disabled) {
+    background: #e9ecef;
+    color: #0d6efd;
+}
+
+.chat-input-action-attach:active:not(:disabled) {
+    transform: scale(.94);
+}
+
+/* Mobile: чипы — компактнее */
+@media (max-width: 575.98px) {
+    .chat-attachment-chip-meta {
+        display: none;   /* оставляем только имя файла */
+    }
+}

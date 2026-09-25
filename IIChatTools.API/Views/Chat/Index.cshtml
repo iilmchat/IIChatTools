@@ -135,7 +135,41 @@
 
         <!-- Поле ввода (KI-080: DeepSeek-style, full-width rounded) -->
         <div class="chat-input">
+            <!-- KI-083 Шаг 6D: hidden input для выбора файлов (multiple) -->
+            <input type="file"
+                   id="chat-file-input"
+                   class="d-none"
+                   multiple
+                   accept=".txt,.md,.csv,.tsv,.log,.json,.xml,.yaml,.yml,.html,.htm,.cs,.py,.js,.ts,.java,.go,.rs,.sql,.sh,.ps1,.razor,.cshtml,.css,.scss" />
+
+            <!-- KI-083 Шаг 6D: панель вложений (chips над полем ввода) -->
+            <div id="chat-attachments-bar"
+                 class="chat-attachments-bar"
+                 hidden
+                 data-label-chunks-one="@Localizer["RagChunksCountOne"]"
+                 data-label-chunks-many="@Localizer["RagChunksCountMany"]"
+                 data-label-clear="@Localizer["RagClearButton"]"
+                 data-label-clear-confirm="@Localizer["RagClearConfirm"]"
+                 data-label-clear-success="@Localizer["RagClearSuccess"]"
+                 data-label-upload-success="@Localizer["RagUploadSuccess"]"
+                 data-label-remove="@Localizer["Удалить"]">
+                <div class="chat-attachments-summary" id="chat-attachment-summary"></div>
+                <div class="chat-attachment-chips" id="chat-attachment-chips"></div>
+            </div>
+
             <div class="chat-input-box">
+                <!-- KI-083 Шаг 6D: кнопка прикрепления файла (DeepSeek-style, слева) -->
+                <button id="btn-attach-file"
+                        type="button"
+                        class="chat-input-action chat-input-action-attach"
+                        title="@Localizer["RagAttachButtonTooltip"]"
+                        aria-label="@Localizer["RagAttachButton"]"
+                        disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                         viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/>
+                    </svg>
+                </button>
                 <textarea id="chat-input" class="chat-input-textarea" rows="1"
                           placeholder="@Localizer["Введите сообщение…"]"
                           aria-label="@Localizer["Введите сообщение…"]"

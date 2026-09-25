@@ -331,4 +331,42 @@
     <data name="ProfileSave" xml:space="preserve">
       <value>Сохранить</value>
     </data>
+
+    <!-- ===== RAG / Attachments (v1.5.0, KI-083, Шаг 6D) ===== -->
+    <data name="RagAttachButton" xml:space="preserve">
+      <value>Прикрепить файл</value>
+    </data>
+    <data name="RagAttachButtonTooltip" xml:space="preserve">
+      <value>Прикрепить PDF / TXT / MD / CSV / код</value>
+    </data>
+    <data name="RagClearButton" xml:space="preserve">
+      <value>Очистить RAG</value>
+    </data>
+    <data name="RagChunksCountOne" xml:space="preserve">
+      <value>1 чанк</value>
+    </data>
+    <data name="RagChunksCountMany" xml:space="preserve">
+      <value>{0} чанков</value>
+    </data>
+    <data name="RagUploadSuccess" xml:space="preserve">
+      <value>Файл «{0}» проиндексирован ({1} чанков)</value>
+    </data>
+    <data name="RagUploadTooLarge" xml:space="preserve">
+      <value>Файл больше {0} МБ</value>
+    </data>
+    <data name="RagUploadUnsupportedFormat" xml:space="preserve">
+      <value>Формат «{0}» не поддерживается</value>
+    </data>
+    <data name="RagUploadExceedsMaxFiles" xml:space="preserve">
+      <value>Максимум {0} файлов на чат</value>
+    </data>
+    <data name="RagUploadExceedsTotalSize" xml:space="preserve">
+      <value>Суммарный размер больше {0} МБ</value>
+    </data>
+    <data name="RagClearConfirm" xml:space="preserve">
+      <value>Удалить все вложения и очистить индекс чата?</value>
+    </data>
+    <data name="RagClearSuccess" xml:space="preserve">
+      <value>RAG-индекс чата очищен</value>
+    </data>
 </root>
