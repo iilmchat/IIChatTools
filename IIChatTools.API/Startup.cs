@@ -386,6 +386,10 @@ namespace IIChatTools.API
             // Scoped — читает DocumentChunk из БД для enrichment.
             services.AddScoped<IRetrievalService, RetrievalService>();
 
+            // v1.5.0 (KI-083, Шаг 7A): администрирование RAG Knowledge Base.
+            // Scoped — работает с AppDbContext, IDocumentIngestionService, IAppSettingsService.
+            services.AddScoped<IAdminKnowledgeService, AdminKnowledgeService>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 

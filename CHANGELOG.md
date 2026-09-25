@@ -22,6 +22,36 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 7A: Admin Knowledge Base backend (v1.5.0, KI-083)**:
+  - **DTO (`DTO/Rag/`):**
+    - `RagIndexDto` — Name, Description, ChunkCount, DocumentCount, LastIndexedAt.
+    - `RagSettingsDto` — ChunkingStrategy, ChunkSize, ChunkOverlap, MinChunkSize,
+      DefaultTopK, MinScore, EmbeddingModel, AutoIndexProjectDocs.
+    - `RagChunkDto` — Id, IndexName, DocumentPath, ChatId, UserId, ChunkIndex,
+      Tokens, TextPreview, CreatedAt.
+  - **`IAdminKnowledgeService` + `AdminKnowledgeService` (Scoped):**
+    - `GetIndexesAsync` — 4 индекса (`GROUP BY IndexName`, всегда все 4).
+    - `ReindexProjectDocsAsync` — чтение `Rag:Ingestion:ProjectDocsPaths`,
+      auto-detect project root (по `IIChatTools.sln`), `ForceReindex=true`, `UserId=0`.
+    - `GetChunksAsync` — пагинация (1-based, max pageSize=100).
+    - `DeleteChunkAsync` — БД + VectorStore (best-effort).
+    - `GetSettingsAsync` — override из AppSettings + fallback на appsettings.json.
+    - `UpdateSettingsAsync` — валидация + upsert override'ов в `AppSettings` (Category «RAG»).
+  - **`AdminKnowledgeController`** (6 endpoints, `[Authorize(Policy = "AdminOnly")]`):
+    - `GET /api/admin/knowledge/indexes`
+    - `POST /api/admin/knowledge/indexes/project-docs/reindex`
+    - `GET /api/admin/knowledge/chunks?index=&page=&pageSize=`
+    - `DELETE /api/admin/knowledge/chunks/{id}`
+    - `GET /api/admin/knowledge/settings`
+    - `PUT /api/admin/knowledge/settings`
+  - **DI (`Startup.cs`):** `IAdminKnowledgeService` → `AdminKnowledgeService` (Scoped).
+  - **Config (`appsettings.Development.json`):** полная секция `Rag` —
+    `Embedding`, `Chunking`, `Ingestion` (включая `ProjectDocsPaths`), `Retrieval`, `Attachments`.
+  - **Тесты:** запланированы на Шаг 7D (интеграционные — 3 шт).
+  - **Runtime-эффект override'ов** (применение настроек RAG без restart) — отложено
+    на отдельный шаг (аналогично `LoadSubAgentOverridesAsync` в Program.cs).
+
+### Added
 - **RAG / Knowledge Base — Шаг 6D: UI вложений чата (v1.5.0, KI-083)**:
   - **Chat UI (`Index.cshtml`):**
     - 📎-кнопка в `.chat-input-box` слева от textarea (DeepSeek-style, SVG-icon).
