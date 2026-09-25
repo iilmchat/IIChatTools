@@ -14,6 +14,7 @@ using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
 using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
+using IIChatTools.Services.Implementation.Tools.Rag;
 using IIChatTools.Services.Implementation.Tools.SubAgent;
 using IIChatTools.Services.Implementation.Tools.Utils;
 using IIChatTools.Services.Implementation.Tools.Web;
@@ -386,6 +387,9 @@ namespace IIChatTools.API
             // v1.4.0 Фаза 3 (KI-052): 6 специализированных агентов
             RegisterSpecializedAgentTools(services);
 
+            // v1.5.0 (KI-083, Шаг 5B): RAG-tools (search_knowledge_base, search_chat_history).
+            RegisterRagTools(services);
+
             // ============ 11. Политики авторизации ============
             services.AddAuthorization(options =>
             {
@@ -594,6 +598,27 @@ namespace IIChatTools.API
             services.AddScoped<ITool, GitAgentTool>();
             services.AddScoped<ITool, GitHubAgentTool>();
             services.AddScoped<ITool, PlannerAgentTool>();
+        }
+
+        /// <summary>
+        /// Регистрирует RAG-tools (v1.5.0, KI-083, Шаг 5B):
+        /// <c>search_knowledge_base</c>, <c>search_chat_history</c>.
+        ///
+        /// <para>
+        /// Оба инструмента — read-only (<c>RequiresApprovalByDefault = false</c>).
+        /// Зависимость <see cref="IRetrievalService"/> — Scoped, поэтому
+        /// регистрируются как <c>ITool</c> (Scoped).
+        /// </para>
+        ///
+        /// <para>
+        /// <c>search_workspace</c> добавляется в Шаге 5C.
+        /// </para>
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        private static void RegisterRagTools(IServiceCollection services)
+        {
+            services.AddScoped<ITool, SearchKnowledgeBaseTool>();
+            services.AddScoped<ITool, SearchChatHistoryTool>();
         }
 
         /// <summary>

@@ -22,6 +22,19 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 5B: search_knowledge_base + search_chat_history (v1.5.0, KI-083)**:
+  - `SearchKnowledgeBaseTool : ITool` (`search_knowledge_base`) — read-only.
+    - Индекс `project_docs` (глобальный).
+    - Параметры: `query` (required), `topK` (optional, 1–20, default 5, clamp).
+  - `SearchChatHistoryTool : ITool` (`search_chat_history`) — read-only.
+    - Индекс `chat_history` (per-user).
+    - Параметры: `query` (required), `topK` (optional), `chatId` (optional).
+    - **UserId обязателен из context**: `UserId ≤ 0` → Fail (защита от утечки).
+  - Формат ответа (для LLM): `{ query, count, results: [{rank, score, source, chunkIndex, text}] }`.
+  - **DI (`Startup.cs`):** новый метод `RegisterRagTools`; 2 инструмента зарегистрированы как Scoped `ITool`.
+  - Тесты: `SearchKnowledgeBaseToolTests` (5) + `SearchChatHistoryToolTests` (5) = 10.
+
+### Added
 - **RAG / Knowledge Base — Шаг 5A: IRetrievalService + RetrievalService (v1.5.0, KI-083)**:
   - `RetrievedChunkDto` — ChunkId, Text, Score, DocumentPath, ChunkIndex, IndexName, Metadata.
   - `IRetrievalService` — контракт `SearchAsync(query, indexName, topK?, chatId?, userId?, ct)`.
