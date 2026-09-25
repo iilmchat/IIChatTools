@@ -22,6 +22,13 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 4C.2a: MaxFileSizeBytes проверка (v1.5.0, KI-083)**:
+  - `DocumentIngestionService`: при `SourceType = File` — проверка размера файла.
+  - Лимит: `Rag:Ingestion:MaxFileSizeBytes` (default **32 MB** = `33_554_432` байт).
+  - Превышение → `ArgumentException` с указанием фактического размера и лимита.
+  - Проверка **до** `ParseAsync` — не тратим ресурсы на парсинг слишком больших файлов.
+
+### Added
 - **RAG / Knowledge Base — Шаг 4C.2: DocumentIngestionService (v1.5.0, KI-083)**:
   - `DocumentIngestionService : IDocumentIngestionService` (Scoped).
   - Оркестрация: `parse → chunk → embed → store`.

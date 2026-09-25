@@ -44,6 +44,12 @@ namespace IIChatTools.Services.Implementation.Rag
         /// <summary>Длина сокращённого hash для генерации DocumentPath из чистого текста.</summary>
         private const int ShortHashLength = 12;
 
+        /// <summary>
+        /// Лимит размера файла по умолчанию (32 MB). Используется, если
+        /// <c>Rag:Ingestion:MaxFileSizeBytes</c> не задан в конфиге.
+        /// </summary>
+        private const int DefaultMaxFileSizeBytes = 33_554_432;   // 32 MB
+
         private readonly IRagDocumentParserRegistry _parserRegistry;
         private readonly IChunkingStrategyResolver _chunkingResolver;
         private readonly IEmbeddingService _embeddingService;
@@ -362,6 +368,21 @@ namespace IIChatTools.Services.Implementation.Rag
                 {
                     if (!File.Exists(request.FilePath))
                         throw new FileNotFoundException("Файл не найден", request.FilePath);
+
+                    // Проверка размера: Rag:Ingestion:MaxFileSizeBytes (default 32 MB).
+                    // Делаем до ParseAsync — не тратим ресурсы на слишком большие файлы.
+                    var maxSizeBytes = GetIntConfig("Rag:Ingestion:MaxFileSizeBytes", DefaultMaxFileSizeBytes);
+                    var fileSize = new FileInfo(request.FilePath).Length;
+
+                    if (fileSize > maxSizeBytes)
+                    {
+                        throw new ArgumentException(
+                            $"Файл слишком большой: {fileSize} байт " +
+                            $"({fileSize / 1024.0 / 1024.0:F1} МБ). " +
+                            $"Лимит: {maxSizeBytes} байт ({maxSizeBytes / 1024.0 / 1024.0:F1} МБ). " +
+                            $"Изменить можно через Rag:Ingestion:MaxFileSizeBytes.",
+                            nameof(request));
+                    }
 
                     var parser = _parserRegistry.Resolve(request.FilePath)
                         ?? throw new ArgumentException(
