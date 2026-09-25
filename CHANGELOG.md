@@ -22,6 +22,15 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 4C.1: IDocumentIngestionService контракты (v1.5.0, KI-083)**:
+  - `IngestionSourceType` (enum) — File | Text | Url.
+  - `IngestionRequest` DTO — IndexName, FilePath/Text/Url, ChatId?, UserId, SourceType, ForceReindex, Source.
+  - `IngestionResultDto` — IndexName, DocumentChunksCreated, TokensTotal, DurationMs,
+    DocumentHash, DocumentPath, Skipped, SkipReason.
+  - `IDocumentIngestionService` — IngestAsync / DeleteDocumentAsync / ClearIndexAsync.
+  - Реализация — Шаг 4C.2, тесты — Шаг 4C.3.
+
+### Added
 - **RAG / Knowledge Base — Шаг 4B: IRagDocumentParserRegistry + DI (v1.5.0, KI-083)**:
   - `IRagDocumentParserRegistry` — контракт (Resolve, GetAllSupportedExtensions).
   - `RagDocumentParserRegistry` — Singleton, получает `IEnumerable<IRagDocumentParser>` через DI.
