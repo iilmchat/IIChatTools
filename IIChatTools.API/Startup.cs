@@ -8,6 +8,7 @@ using IIChatTools.Data.Entities;
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): EmbeddingService
+using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
@@ -348,6 +349,13 @@ namespace IIChatTools.API
             services.AddSingleton<IChunkingStrategy, SentenceChunkingStrategy>();
             services.AddSingleton<IChunkingStrategy, FixedChunkingStrategy>();
             services.AddSingleton<IChunkingStrategyResolver, ChunkingStrategyResolver>();
+
+            // v1.5.0 (KI-083, Шаг 4B): парсеры документов + реестр.
+            // Парсеры — Singleton, stateless. Порядок регистрации = порядок обхода
+            // в registry (первый матч по расширению побеждает).
+            // В v1.5.x сюда добавятся PdfParser, DocxParser.
+            services.AddSingleton<IRagDocumentParser, PlainTextParser>();
+            services.AddSingleton<IRagDocumentParserRegistry, RagDocumentParserRegistry>();
 
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());

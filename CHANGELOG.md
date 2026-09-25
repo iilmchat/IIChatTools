@@ -22,6 +22,16 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 4B: IRagDocumentParserRegistry + DI (v1.5.0, KI-083)**:
+  - `IRagDocumentParserRegistry` — контракт (Resolve, GetAllSupportedExtensions).
+  - `RagDocumentParserRegistry` — Singleton, получает `IEnumerable<IRagDocumentParser>` через DI.
+    - `Resolve` — линейный обход (первый матч по расширению побеждает).
+    - `GetAllSupportedExtensions` — union расширений всех парсеров (case-insensitive).
+  - **DI (`Startup.cs`):** `IRagDocumentParser` → `PlainTextParser` (Singleton);
+    `IRagDocumentParserRegistry` → `RagDocumentParserRegistry` (Singleton).
+  - Тесты: `RagDocumentParserRegistryTests` (3) — Resolve Txt, UnknownExt, Union.
+
+### Added
 - **RAG / Knowledge Base — Шаг 4A: IRagDocumentParser + PlainTextParser (v1.5.0, KI-083)**:
   - DTO `ParsedDocument` (Text, Metadata, OriginalSizeBytes, PageCount).
   - `IRagDocumentParser` — контракт (Name, SupportedExtensions, CanParse, ParseAsync).
