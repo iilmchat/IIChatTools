@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.API.Controllers
 {
@@ -148,8 +150,11 @@ namespace IIChatTools.API.Controllers
                         DurationMs = m.DurationMs,
                         FirstTokenMs = m.FirstTokenMs,
                         FinishReason = m.FinishReason,
-                        // v1.6.0 (KI-086): метаданные (источники) для UI.
-                        // Сырой JSON — парсинг на клиенте (chat.js), при F5-загрузке.
+                        // v1.6.0 (KI-086): источники — структурированный массив
+                        // (парсится из MetadataJson на бэкенде), канонический camelCase
+                        // от MVC. Не зависит от того, как записан JSON в БД.
+                        Sources = ParseSources(m.MetadataJson),
+                        // Сырой JSON — оставляем для отладки / API-совместимости.
                         MetadataJson = m.MetadataJson
                     }).ToList()
                 };
@@ -319,6 +324,44 @@ namespace IIChatTools.API.Controllers
             {
                 _logger.LogError(ex, "Ошибка генерации названия чата {ChatId}", id);
                 return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
+        /// v1.6.0 (KI-086): парсит <c>MetadataJson</c> сообщения и возвращает
+        /// массив источников (<see cref="ChatSourceDto"/>).
+        ///
+        /// <para>
+        /// Ожидаемый формат: <c>{ "sources": [ {...}, {...} ] }</c>.
+        /// Регистр полей внутри JSON не важен (Newtonsoft читает case-insensitive) —
+        /// это позволяет парсить как camelCase (новые записи), так и PascalCase
+        /// (записи, созданные до Шага 3.5d).
+        /// </para>
+        /// </summary>
+        /// <param name="metadataJson">Сырой JSON из <c>ChatMessage.MetadataJson</c> (может быть null)</param>
+        /// <returns>
+        /// Массив источников (camelCase-сериализация — от MVC) или <c>null</c>,
+        /// если метаданных нет / JSON битый / источники пустые.
+        /// </returns>
+        private static IReadOnlyList<ChatSourceDto> ParseSources(string metadataJson)
+        {
+            if (string.IsNullOrWhiteSpace(metadataJson))
+                return null;
+
+            try
+            {
+                var root = JObject.Parse(metadataJson);
+                var sourcesToken = root["sources"];
+                if (sourcesToken == null || sourcesToken.Type == JTokenType.Null)
+                    return null;
+
+                var list = sourcesToken.ToObject<List<ChatSourceDto>>();
+                return list?.Count > 0 ? list : null;
+            }
+            catch
+            {
+                // Битый JSON — не падаем, просто возвращаем null.
+                return null;
             }
         }
 

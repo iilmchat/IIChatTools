@@ -131,9 +131,16 @@ namespace IIChatTools.Services.DTO.Chat
         public string FinishReason { get; set; }
 
         /// <summary>
-        /// v1.6.0 (KI-086): метаданные сообщения (сырой JSON).
-        /// Пока — только источники: <c>{ "sources": [ {...} ] }</c>.
-        /// Разбор — на стороне клиента (chat.js).
+        /// v1.6.0 (KI-086): источники под ответом ассистента (структурированный
+        /// массив, а не сырой JSON). Парсится из <c>ChatMessage.MetadataJson</c>
+        /// на бэкенде (<see cref="IIChatTools.API.Controllers.ChatController.GetChatAsync"/>).
+        /// <c>null</c> — источников нет (user/tool/старые assistant-сообщения).
+        /// </summary>
+        public IReadOnlyList<ChatSourceDto> Sources { get; set; }
+
+        /// <summary>
+        /// v1.6.0 (KI-086): сырой JSON метаданных (<c>{ "sources": [...] }</c>).
+        /// Оставлено для отладки / API-совместимости. UI использует <see cref="Sources"/>.
         /// <c>null</c> — метаданных нет.
         /// </summary>
         public string MetadataJson { get; set; }

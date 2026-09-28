@@ -994,9 +994,27 @@ namespace IIChatTools.Services.Implementation
         }
 
         /// <summary>
+        /// v1.6.0 (KI-086): настройки сериализации <c>MetadataJson</c> —
+        /// camelCase (как в SSE), без null-полей (компактнее).
+        /// </summary>
+        private static readonly JsonSerializerSettings MetadataJsonSettings =
+            new JsonSerializerSettings
+            {
+                ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver(),
+                Formatting = Formatting.None,
+                NullValueHandling = NullValueHandling.Ignore
+            };
+
+        /// <summary>
         /// v1.6.0 (KI-086): сериализует список sources в JSON для
         /// <c>ChatMessage.MetadataJson</c>. Пустой список → <c>null</c>
         /// (поле не пишем, БД не растёт).
+        ///
+        /// <para>
+        /// Формат: <c>{ "sources": [ { "type": "rag", ... }, ... ] }</c> —
+        /// camelCase, как в SSE-событии <c>done</c>. Единый формат для
+        /// live-режима и F5-загрузки.
+        /// </para>
         /// </summary>
         /// <param name="sources">Источники (может быть null / пустой)</param>
         /// <returns>
@@ -1007,7 +1025,7 @@ namespace IIChatTools.Services.Implementation
             if (sources == null || sources.Count == 0)
                 return null;
 
-            return JsonConvert.SerializeObject(new { sources });
+            return JsonConvert.SerializeObject(new { sources }, MetadataJsonSettings);
         }
 
         /// <summary>

@@ -19,6 +19,21 @@
 ## [Unreleased]
 
 ### Fixed
+- **Sources / citations — Шаг 3.5d: camelCase + структурный Sources в ChatMessageDto (v1.6.0, KI-086)**:
+  - `ChatMessageDto.Sources` (`IReadOnlyList<ChatSourceDto>`) — структурированный
+    массив источников (вместо сырого `MetadataJson`). Парсится на бэкенде
+    в `ChatController.ParseSources` (Newtonsoft case-insensitive → работает
+    и с camelCase, и с PascalCase записями).
+  - `ChatStreamService.SerializeSources` — сериализация в **camelCase**
+    (единый формат с SSE). Новые записи в БД — camelCase, старые
+    (созданные до этого шага) остаются PascalCase, но парсятся без потерь.
+  - `ChatMessageDto.MetadataJson` — оставлено для отладки / API-совместимости.
+  - **Причина:** `JsonConvert.SerializeObject` по умолчанию писал PascalCase
+    (`{"sources":[{"Type":"rag",...}]}`), а фронт (chat.js) ожидает
+    `sources[0].type` (camelCase, как в SSE `done`). Без унификации блок
+    «Источники» работал бы в live-режиме, но не после F5.
+
+### Fixed
 - **Sources / citations — Шаг 3.5c: RAG-tools не попадали в tools[] Chat (v1.6.0, KI-086)**:
   - **Баг:** в `ChatStreamService.StreamAsync` список `allowedNames` строился
     только из `SubAgentRegistry.GetEnabled()` (6 агентов) + `consult_secondary_agent`.
