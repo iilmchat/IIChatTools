@@ -21,6 +21,14 @@
 _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
+### Changed
+- **Release — версия 1.4.1 → 1.5.0 (v1.5.0, KI-083, Шаг 8.3)**:
+  - `Directory.Build.props`: `<Version>1.5.0</Version>` + `<Copyright>` + шапка-комментарий.
+  - `README.md`: заголовок, Copyright, ghcr-теги (`v1.5.0` / `1.5.0` / `1.5` / `1`).
+  - **Версия в UI/логах подхватится автоматически** — `AppVersion.Current` читается
+    из `AssemblyInformationalVersionAttribute` (MSBuild формирует из `<Version>`).
+  - `CHANGELOG.md` — секция `[Unreleased]` пока **не закрыта** (это Шаг 8.4).
+
 ### Added
 - **Docs — RELEASES.md: § 1a «Известные ограничения v1.5.0» (v1.5.0, KI-083, Шаг 8.2)**:
   - **§ 1a** — отдельная секция про SqlServer-миграции (KI-091): **не применяются**
