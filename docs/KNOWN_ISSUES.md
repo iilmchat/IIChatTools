@@ -879,8 +879,16 @@
     - 6A (Entity + миграция + сервис + тесты) — ✅ Done (`efd442e`, `e13ae9e`).
     - 6B (Controller + лимиты multipart + тесты) — ✅ Done (`0176177`).
     - 6C (Auto-inject top-K в system prompt) — ✅ Done (`0e6e8f9`).
-    - 6D (UI: 📎 + chips + «Очистить RAG») — ✅ Done (этот коммит).
-  - Фазы 7-8 (Admin+Profile UI, Tests) — впереди.
+    - 6D (UI: 📎 + chips + «Очистить RAG») — ✅ Done (`137198c`).
+  - **Фаза 7 (Admin KB UI + Profile Workspace UI)** — ✅ **Done** (2026-09-28):
+    - 7A — Admin KB backend (6 endpoints) — `2a05ad2`.
+    - 7B — Admin KB UI (8-я вкладка) — `aba1c2e`.
+    - 7C.1 — Workspace Index backend (5 endpoints) — `1e2d0e1`.
+    - 7C.2 — Workspace Index UI (`/profile`) — `dd627a8`.
+    - 7D.1 — Unit-тесты `WorkspaceIndexService` — `c1134ed`.
+    - 7D.2 — Unit-тесты `AdminKnowledgeController` — `c0e14cc`.
+    - 7D.3 — RULES v1.4.16 (§ 4.42, § 4.43) — финальный коммит Шага 7.
+  - **Фаза 8 (Релиз v1.5.0)** — ⏸ впереди: README, KNOWN_ISSUES-выжимка, RELEASES, tag `v1.5.0`.
 - **Связанные:** KI-086 (sources / citations — v1.6.0), KI-049 (tiktoken), KI-067 (UserSettings), KI-090/KI-091 (SqlServer migrations).
 
 ---

@@ -22,6 +22,19 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Фаза 7 закрыта: Admin KB UI + Profile Workspace UI (v1.5.0, KI-083)**:
+  - **Сводка фазы** (7A → 7D.3, всё запушено 2026-09-25 → 2026-09-28):
+    - **7A** — backend: DTO + `IAdminKnowledgeService` + `AdminKnowledgeController` (6 endpoints).
+    - **7B** — UI админки: 8-я вкладка «База знаний» + `admin-knowledge.js` + модалка чанков.
+    - **7C.1** — backend Workspace Index: `IWorkspaceIndexService` + `ProfileWorkspaceController` (5 endpoints).
+    - **7C.2** — UI `/profile`: карточка Workspace index + `profile-workspace.js` (polling 2 с).
+    - **7D.1** — 5 unit-тестов `WorkspaceIndexServiceTests`.
+    - **7D.2** — 3 unit-теста `AdminKnowledgeControllerTests`.
+    - **7D.3** — RULES v1.4.16 (§ 4.42, § 4.43).
+  - **Тесты:** 191 → **199** (5 + 3 новых).
+  - **Осталось:** Фаза 8 — релиз v1.5.0 (README, KNOWN_ISSUES, RELEASES, tag).
+
+### Added
 - **Docs — RULES v1.4.16: +2 правила (v1.5.0, KI-083, Шаг 7D.3)**:
   - **§ 4.42** — `AddDbContext` + `UseInMemoryDatabase(name)` в тестах требует
     явного `InMemoryDatabaseRoot` + вычисления имени БД **до** лямбды (лямбда

@@ -2,8 +2,9 @@
 
 **Версия:** 1.5.0
 **Дата:** 2026-09-25
+**Обновлено:** 2026-09-28
 **Автор:** IIChatTools Team
-**Статус:** **Draft** (согласование § 1-3)
+**Статус:** **Implemented (Фазы 0-7)** — Фаза 8 (релиз v1.5.0) впереди
 **Связанные KI:** KI-083 (RAG / embeddings), KI-086 (sources / citations — v1.6.0)
 **Не входит:** KI-082 (модалка-редактор длинных сообщений), KI-084 (расширенная статистика — сделано)
 
@@ -2306,6 +2307,19 @@ dotnet user-secrets set "Rag:Embedding:Model" "my-embedding-model-v2"
 | 7.6 | `.resx` (12 ключей × 2) + CSS | `LocalizationSyncTests` |
 
 **DoD:** admin видит 4 индекса, может обновить project_docs; profile — включить workspace index.
+
+**Реализовано (2026-09-28).** Фаза 7 закрыта; фактическая разбивка на шаги
+отличается от первоначальной (7A → 7D.3, по RULES § 3.2 «1 шаг = 1 коммит»):
+
+| Шаг | Что | Коммит |
+|:---:|---|---|
+| **7A** | Admin KB backend (6 endpoints) | `2a05ad2` |
+| **7B** | Admin KB UI (8-я вкладка) | `aba1c2e` |
+| **7C.1** | Workspace Index backend (5 endpoints) | `1e2d0e1` |
+| **7C.2** | Workspace Index UI (`/profile`) | `dd627a8` |
+| **7D.1** | Unit-тесты `WorkspaceIndexService` (5) | `c1134ed` |
+| **7D.2** | Unit-тесты `AdminKnowledgeController` (3) | `c0e14cc` |
+| **7D.3** | RULES v1.4.16 (§ 4.42, § 4.43) | финальный коммит |
 
 #### **Фаза 8 — Тесты + документация** (6 ч)
 
