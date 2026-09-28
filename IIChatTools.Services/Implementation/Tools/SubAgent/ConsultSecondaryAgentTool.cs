@@ -113,16 +113,21 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
                 var subAgent = _subAgentFactory();
                 var result = await subAgent.ExecuteTaskAsync(context, request);
 
-                return ToolResult.Ok(new
-                {
-                    sessionId = result.SessionId,
-                    finalAnswer = result.FinalAnswer,
-                    completed = result.Completed,
-                    steps = result.Steps,
-                    durationMs = result.DurationMs,
-                    usedTools = result.UsedTools,
-                    debugReview = result.DebugReview
-                });
+                // v1.6.1 (KI-086-post): проброс sources от inner-инструментов
+                // (симметрично AgentToolBase).
+                return ToolResult.Ok(
+                    new
+                    {
+                        sessionId = result.SessionId,
+                        finalAnswer = result.FinalAnswer,
+                        completed = result.Completed,
+                        steps = result.Steps,
+                        durationMs = result.DurationMs,
+                        usedTools = result.UsedTools,
+                        debugReview = result.DebugReview
+                    },
+                    message: null,
+                    sources: result.Sources);
             }
             catch (OperationCanceledException)
             {

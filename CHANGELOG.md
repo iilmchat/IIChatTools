@@ -19,6 +19,24 @@
 ## [Unreleased]
 
 ### Added
+- **Sources — проброс citations через агентов (v1.6.1, KI-086-post, Шаг B)**:
+  - **Проблема:** LLM в Chat вызывает `web_agent` (не `wikipedia_search` напрямую).
+    Внутри `web_agent` — `wikipedia_search` возвращает `ToolResult.Sources`,
+    но `SubAgentService` их **отбрасывал**, отдавая наружу только `finalAnswer`
+    (текст). В UI-блоке «📚 Источники» citations от Web-инструментов не появлялись.
+  - `SubAgentTaskResult.Sources` (`IReadOnlyList<ChatSourceDto>`) — новое поле.
+    Собирается в `SubAgentService` из `ToolResult.Sources` всех inner-вызовов
+    с дедупликацией по ключу `(Type|DocumentPath|Url|ChunkIndex)`.
+  - `AgentToolBase.ExecuteAsync` — проброс `result.Sources` в `ToolResult.Ok(...)`.
+  - `ConsultSecondaryAgentTool.ExecuteAsync` — то же (для `consult_secondary_agent`,
+    который не наследуется от `AgentToolBase`).
+  - **Ожидаемый эффект:** citations от `wikipedia_search` (после A2) и
+    `web_search` / `fetch_web_content` (после A3/A4) появляются в UI-блоке
+    «📚 Источники» под ответом ассистента через `ChatStreamService` accumulator
+    (Шаг 3 v1.6.0).
+  - **Тесты:** +3 в `AgentToolBaseTests` (sources / null / empty). **216 → 219**.
+
+### Added
 - **Sources — `wikipedia_search` возвращает citations (v1.6.1, KI-086-post, Шаг A2)**:
   - `WikipediaSearchTool.ExecuteAsync` возвращает `ToolResult.Ok(data, message, sources)`.
   - `sources` — `WebSourceBuilder.Build(retrieved, "wiki", maxCount: limit)`:

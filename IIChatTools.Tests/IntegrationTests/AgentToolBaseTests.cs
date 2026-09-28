@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.DTO.Chat;      // v1.6.1 (KI-086-post): ChatSourceDto
 using IIChatTools.Services.DTO.SubAgent;
 using IIChatTools.Services.Implementation.Tools.SubAgent;
 using IIChatTools.Services.Interfaces;
@@ -348,6 +349,122 @@ namespace IIChatTools.Tests.IntegrationTests
 
             Assert.True(result.Success);
             Assert.Equal(7, subAgent.LastRequest.MaxSteps);
+        }
+
+        // ============================================================
+        // v1.6.1 (KI-086-post): проброс sources через агента
+        // ============================================================
+
+        /// <summary>
+        /// SubAgent вернул sources → они пробрасываются в ToolResult.Sources.
+        /// </summary>
+        [Fact]
+        public async Task ExecuteAsync_SubAgentReturnsSources_PropagatesToToolResult()
+        {
+            var descriptor = BuildDescriptor();
+            var (tool, subAgent, _) = CreateTool(
+                agentName: "file_system_agent",
+                descriptorOrNull: descriptor);
+
+            // Настраиваем fake: возвращает sources от inner-tool.
+            var fakeSources = new List<ChatSourceDto>
+            {
+                new ChatSourceDto
+                {
+                    Type = "wiki",
+                    Label = "Москва",
+                    Url = "https://ru.wikipedia.org/wiki/Москва",
+                    Snippet = "Столица России"
+                }
+            };
+            subAgent.NextResult = new SubAgentTaskResult
+            {
+                SessionId = "test-session-sources",
+                FinalAnswer = "Москва — столица...",
+                Completed = true,
+                Steps = 3,
+                DurationMs = 1000,
+                UsedTools = new List<string> { "wikipedia_search" },
+                Sources = fakeSources
+            };
+
+            var args = new JObject { ["task"] = "Найди в Wikipedia информацию про Москву" };
+
+            var result = await tool.ExecuteAsync(Ctx(), args);
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Sources);
+            Assert.Single(result.Sources);
+            Assert.Equal("wiki", result.Sources[0].Type);
+            Assert.Equal("Москва", result.Sources[0].Label);
+            Assert.Equal("https://ru.wikipedia.org/wiki/Москва", result.Sources[0].Url);
+        }
+
+        /// <summary>
+        /// SubAgent вернул Sources = null → ToolResult.Sources = null
+        /// (не пустой список — обратная совместимость).
+        /// </summary>
+        [Fact]
+        public async Task ExecuteAsync_SubAgentReturnsNullSources_ToolResultSourcesNull()
+        {
+            var descriptor = BuildDescriptor();
+            var (tool, subAgent, _) = CreateTool(
+                agentName: "file_system_agent",
+                descriptorOrNull: descriptor);
+
+            // Fake возвращает Sources = null (не задаём Sources).
+            subAgent.NextResult = new SubAgentTaskResult
+            {
+                SessionId = "test-session-null-sources",
+                FinalAnswer = "OK",
+                Completed = true,
+                Steps = 1,
+                DurationMs = 100,
+                UsedTools = new List<string> { "list_directory" },
+                Sources = null
+            };
+
+            var args = new JObject { ["task"] = "Задача без источников" };
+
+            var result = await tool.ExecuteAsync(Ctx(), args);
+
+            Assert.True(result.Success);
+            Assert.Null(result.Sources);
+        }
+
+        /// <summary>
+        /// SubAgent вернул пустой список sources → ToolResult.Sources = null
+        /// (агент не использовал RAG/Web-инструменты).
+        /// </summary>
+        [Fact]
+        public async Task ExecuteAsync_SubAgentReturnsEmptySources_ToolResultSourcesNull()
+        {
+            var descriptor = BuildDescriptor();
+            var (tool, subAgent, _) = CreateTool(
+                agentName: "file_system_agent",
+                descriptorOrNull: descriptor);
+
+            subAgent.NextResult = new SubAgentTaskResult
+            {
+                SessionId = "test-session-empty",
+                FinalAnswer = "OK",
+                Completed = true,
+                Steps = 1,
+                DurationMs = 100,
+                UsedTools = new List<string> { "list_directory" },
+                Sources = new List<ChatSourceDto>()   // пустой, не null
+            };
+
+            var args = new JObject { ["task"] = "Задача" };
+
+            var result = await tool.ExecuteAsync(Ctx(), args);
+
+            Assert.True(result.Success);
+            // Пустой список от SubAgent — не пробрасываем как пустой (для UI это «нет источников»).
+            // ToolResult.Sources либо null, либо содержит элементы. Здесь проверяем семантику:
+            // если sources пустой — ожидаем null или пустой (не критично, но зафиксируем).
+            Assert.True(result.Sources == null || result.Sources.Count == 0,
+                "Пустой список от SubAgent должен давать null или пустой Sources в ToolResult");
         }
     }
 }

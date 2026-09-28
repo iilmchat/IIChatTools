@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using IIChatTools.Data;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.DTO.Chat;      // v1.6.1 (KI-086-post): ChatSourceDto
 using IIChatTools.Services.DTO.SubAgent;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -81,6 +82,12 @@ namespace IIChatTools.Services.Implementation
             var sessionId = Guid.NewGuid().ToString("N");
             var usedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stepsLog = new List<SubAgentStep>();
+
+            // v1.6.1 (KI-086-post): accumulator sources из inner tool calls.
+            // Дедупликация — по ключу (Type|DocumentPath|Url|ChunkIndex) —
+            // симметрично ChatStreamService (Шаг 3 v1.6.0).
+            var accumulatedSources = new List<ChatSourceDto>();
+            var seenSourceKeys = new HashSet<string>(StringComparer.Ordinal);
 
             // 1. Создаём сессию в БД
             var state = new AgentState
@@ -227,6 +234,12 @@ namespace IIChatTools.Services.Implementation
                         toolResult = ToolResult.Fail($"Ошибка выполнения: {ex.Message}");
                     }
 
+                    // v1.6.1 (KI-086-post): собираем sources от inner-инструмента.
+                    // Для wikipedia_search / web_search — Citations (после A2/A3);
+                    // для search_knowledge_base / search_chat_history / search_workspace —
+                    // RAG-чанки (с v1.6.0).
+                    AddSourcesToAccumulator(accumulatedSources, seenSourceKeys, toolResult.Sources);
+
                     var toolResultJson = JsonConvert.SerializeObject(new
                     {
                         success = toolResult.Success,
@@ -311,8 +324,47 @@ namespace IIChatTools.Services.Implementation
                 Steps = state.CurrentStep,
                 DurationMs = sw.ElapsedMilliseconds,
                 UsedTools = usedTools.ToList(),
-                DebugReview = debugReview
+                DebugReview = debugReview,
+                // v1.6.1 (KI-086-post): sources из inner-инструментов (дедуплицированные).
+                // null, если ни один инструмент не вернул sources.
+                Sources = accumulatedSources.Count > 0 ? accumulatedSources : null
             };
+        }
+
+        /// <summary>
+        /// v1.6.1 (KI-086-post): добавляет sources в accumulator с дедупликацией.
+        ///
+        /// <para>
+        /// Ключ дедупликации — <c>(Type|DocumentPath|Url|ChunkIndex)</c>.
+        /// Учитывает оба сценария:
+        /// <list type="bullet">
+        ///   <item>RAG-чанки: <c>DocumentPath</c> + <c>ChunkIndex</c>;</item>
+        ///   <item>Web/wiki: <c>Url</c> (DocumentPath/ChunkIndex = null).</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        /// <param name="accumulator">Список-приёмник (мутируется)</param>
+        /// <param name="seenKeys">Множество ключей (мутируется)</param>
+        /// <param name="sources">Источники от одного инструмента (может быть null)</param>
+        private static void AddSourcesToAccumulator(
+            List<ChatSourceDto> accumulator,
+            HashSet<string> seenKeys,
+            IReadOnlyList<ChatSourceDto> sources)
+        {
+            if (sources == null || sources.Count == 0)
+                return;
+
+            foreach (var s in sources)
+            {
+                if (s == null)
+                    continue;
+
+                var key = $"{s.Type}|{s.DocumentPath}|{s.Url}|{s.ChunkIndex}";
+                if (seenKeys.Add(key))
+                {
+                    accumulator.Add(s);
+                }
+            }
         }
 
         // ----- Внутренние методы формирования сообщений -----

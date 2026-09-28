@@ -192,16 +192,23 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
                 // записи не должна ломать основной поток.
                 await LogAgentRunAsync(context, descriptor, result, sw.ElapsedMilliseconds, status: "Success");
 
-                return ToolResult.Ok(new
-                {
-                    agent = AgentName,
-                    sessionId = result.SessionId,
-                    finalAnswer = result.FinalAnswer,
-                    completed = result.Completed,
-                    steps = result.Steps,
-                    durationMs = result.DurationMs,
-                    usedTools = result.UsedTools
-                });
+                // v1.6.1 (KI-086-post): проброс sources от inner-инструментов
+                // агента (wikipedia_search, search_knowledge_base, ...) в Chat.
+                // Далее ChatStreamService accumulator (Шаг 3 v1.6.0) подхватит
+                // и отдаст в SSE done → UI-блок «📚 Источники».
+                return ToolResult.Ok(
+                    new
+                    {
+                        agent = AgentName,
+                        sessionId = result.SessionId,
+                        finalAnswer = result.FinalAnswer,
+                        completed = result.Completed,
+                        steps = result.Steps,
+                        durationMs = result.DurationMs,
+                        usedTools = result.UsedTools
+                    },
+                    message: null,
+                    sources: result.Sources);
             }
             catch (OperationCanceledException)
             {

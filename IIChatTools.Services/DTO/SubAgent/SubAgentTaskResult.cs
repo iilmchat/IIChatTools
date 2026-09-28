@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using IIChatTools.Services.DTO.Chat;   // v1.6.1 (KI-086-post): ChatSourceDto
 
 namespace IIChatTools.Services.DTO.SubAgent
 {
@@ -42,5 +43,24 @@ namespace IIChatTools.Services.DTO.SubAgent
         /// Результат авто-отладки (если была включена).
         /// </summary>
         public string DebugReview { get; set; }
+
+        /// <summary>
+        /// v1.6.1 (KI-086-post): источники, использованные inner-инструментами
+        /// агента (например, <c>wikipedia_search</c>, <c>search_knowledge_base</c>).
+        ///
+        /// <para>
+        /// Собираются в <see cref="Implementation.SubAgentService"/> из
+        /// <c>ToolResult.Sources</c> каждого вызова внутри цикла агента.
+        /// Дедуплицируются по ключу <c>(Type|DocumentPath|Url|ChunkIndex)</c>.
+        /// </para>
+        ///
+        /// <para>
+        /// Пробрасываются наружу через <c>AgentToolBase</c> → <c>ToolResult.Sources</c>
+        /// → <c>ChatStreamService</c> accumulator → UI-блок «📚 Источники».
+        /// </para>
+        ///
+        /// <para><c>null</c>, если inner-инструменты не вернули sources.</para>
+        /// </summary>
+        public IReadOnlyList<ChatSourceDto> Sources { get; set; }
     }
 }
