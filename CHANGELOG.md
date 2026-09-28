@@ -31,6 +31,17 @@ _(планируется — см. roadmap: KI-047, KI-053, KI-082, KI-086 (v1.6
 
 **Тесты:** 191 → **199** (8 новых).
 
+### Added
+- **Docs — `docs/TESTING.md` (KI-088, Шаг 8.6, v1.5.0)**:
+  - Чек-лист ручной приёмки: Smoke (10 сценариев, ~15 мин),
+    Full regression (35 сценариев по Chat / RAG / Multi-Agent / Система, ~40 мин),
+    UI/UX (9 проверок), «Что НЕ покрыто автотестами» (10 пунктов).
+  - Дефекты → `KNOWN_ISSUES.md` с `KI-XXX`.
+  - Раздел «Что НЕ покрыто» явно перечисляет SSE-стриминг, tool calling loop,
+    approvals end-to-end, индексацию workspace, RAG с реальным LM Studio,
+    rate limiting, retention, Docker-образ — то, что нельзя проверить
+    автотестами.
+
 ### Changed
 - **Release — финализация v1.5.0: KI / RULES / DESIGN / ARCHITECTURE (v1.5.0, KI-083, Шаг 8.5)**:
   - **`docs/KNOWN_ISSUES.md`:**

@@ -134,7 +134,6 @@
 
 **Команды для создания миграций (отдельные папки по провайдеру):**
 
-```powershell
 # SqlServer (используется по умолчанию)
 dotnet ef migrations add <Name> --project IIChatTools.Data --startup-project IIChatTools.API --output-dir Migrations/SqlServer
 
@@ -175,7 +174,7 @@ dotnet ef database update --project IIChatTools.Data --startup-project IIChatToo
 
 ### § 5.1. Отправка сообщения
 
-```
+
 1. User → POST /api/chat/stream  { chatId, message, useTools: true }
    ↓
 2. ChatStreamController.StreamAsync:
@@ -198,11 +197,11 @@ dotnet ef database update --project IIChatTools.Data --startup-project IIChatToo
 4. LM Studio → StreamAsync → HttpContext.Response (SSE)
    ↓
 5. Browser: chat.js readSseStream() → handleSseEvent() → DOM update
-```
+
 
 ### § 5.2. Approvals (v1.3 Фаза 1.7)
 
-```
+
 tool_call (RequiresApprovalByDefault = true)
    ↓
 yield ToolApprovalRequired({ callId, name, arguments, expiresAt })
@@ -214,7 +213,7 @@ User → POST /api/chat/approvals/{callId}/approve
 ChatApprovalCoordinator.ResolveAsync(callId, Approved)
    ↓
 WaitForDecisionAsync разбужен → ExecuteAsync инструмента → yield ToolResult
-```
+
 
 **Singleton `ChatApprovalCoordinator`** — `ConcurrentDictionary<string, TaskCompletionSource<ChatApprovalDecision>>`.
 - `RunContinuationsAsynchronously` — защита от deadlock.
@@ -325,7 +324,7 @@ Chat-модель остаётся `LmStudio:Model`.
 **Решение:** `SseJsonSettings.DateTimeZoneHandling = Utc` + camelCase.
 
 ### ADR-008. tiktoken через `Microsoft.ML.Tokenizers` (v1.4.1)
-**Проблема:** LM Studio не отдаёт `usage` в stream-режиме (KI-049).
+**Проблема:** LM Studio не отдаёт usage в stream-режиме (KI-049).
 **Решение:** `ITokenCounter` + `Cl100kBase` (2 пакета — API + Data).
 
 ### ADR-009. Rate Limiting — собственный middleware (KI-042)
