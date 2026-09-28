@@ -1,7 +1,7 @@
 PROMPT_V2.md — Стартовый промпт для нового чата
-Версия промпта: v2.4
+Версия промпта: v2.5
 Дата: 2026-09-28
-Актуальный релиз проекта: v1.6.0
+Актуальный релиз проекта: v1.6.1
 Статус: пауза (проект готов к возврату)
 
 Ты — ведущий архитектор и разработчик проекта IIChatTools.
@@ -30,8 +30,8 @@ dotnet build
 Ссылка на репозиторий
 https://github.com/iilmchat/IIChatTools
 Ветка по умолчанию: main
-Текущий релиз: v1.5.0 (2026-09-28)
-В работе: пауза (следующее — v1.5.x или v1.6.0)
+Текущий релиз: v1.6.1 (2026-09-28)
+В работе: пауза (следующее — v1.6.2 / v1.7.0)
 
 Правила оформления (ОБЯЗАТЕЛЬНО)
 docs/development/RULES.md — v1.4.18 (2026-09-28)
@@ -54,7 +54,7 @@ docs/development/RULES.md — v1.4.18 (2026-09-28)
 
 § 8 — история изменений правил
 
-Текущее состояние (v1.5.0)
+Текущее состояние (v1.6.1)
 Стек:
 
 .NET 10 LTS (SDK 10.0.401)
@@ -75,7 +75,7 @@ IIChatTools.Services — бизнес-логика (ToolRegistry, ChatService, C
 
 IIChatTools.Data — EF Entities + миграции (SqlServer).
 
-IIChatTools.Tests — xUnit (216/216).
+IIChatTools.Tests — xUnit (241/241).
 
 Метрики:
 
@@ -85,7 +85,7 @@ Chat видит 10 инструментов (7 агентов + 3 RAG-tool: sear
 
 KI: 62+ в реестре, 56+ Fixed/Resolved, ~5 Deferred, ~6 Documented.
 
-Что выпущено (v1.3.0 → v1.6.0):
+Что выпущено (v1.3.0 → v1.6.1):
 
 Chat UI — sidebar, SSE-стриминг, tool calling, approvals, AI-title, Markdown + code blocks + подсветка, Copy / Edit / Regenerate / Retry / Stop, ⌘K-поиск (Ctrl+K), inline-поиск (Ctrl+F), collapse sidebar (Ctrl+B), DeepSeek-style поле ввода.
 
@@ -103,6 +103,8 @@ RAG / Knowledge Base (v1.5.0) — 4 индекса, 3 tool для LLM, влож�
 
 Sources / citations (v1.6.0) — блок «📚 Источники» под ответом ассистента: live (SSE done) + F5 (ChatMessageDto.Sources). Собираются из auto-inject + tool_result, дедупликация по (type, documentPath, chunkIndex). camelCase в MetadataJson. Побочный корневой fix: RAG-tools не попадали в allowedNames Chat с v1.5.0 (Chat видел 7 инструментов вместо 10).
 
+Sources / citations для Web-tools (v1.6.1) — `wikipedia_search` / `web_search` / `fetch_web_content` возвращают citations. `WebSourceBuilder` — единый хелпер. Проброс через агентов (`SubAgentTaskResult.Sources`). Дедупликация в `ChatStreamService`: 4-полевой ключ `(Type|DocumentPath|Url|ChunkIndex)` — было багом в v1.6.0 (web/wiki схлопывались в один). Кросс-платформенный fix `DocumentPath` — относительные пути.
+
 Roadmap
 v1.5.0 — RAG / Knowledge Base ✅ Done (2026-09-28)
 Все 8 фаз (0–8) закрыты. DESIGN: docs/development/v1.5/DESIGN.md.
@@ -111,6 +113,13 @@ v1.6.0 — Sources / citations ✅ Done (2026-09-28)
 Блок «📚 Источники» под ответом ассистента. KI-086 → Fixed. Тесты: 199 → 216 (+17).
 Ключевой побочный fix: RAG-tools не попадали в tools[] Chat (RULES § 4.44).
 Кросс-платформенный BuildLabel: Path.GetFileName на Linux (RULES § 4.45).
+
+v1.6.1 — Web-tools sources ✅ Done (2026-09-28)
+`wikipedia_search` / `web_search` / `fetch_web_content` возвращают citations.
+Тесты: 216 → 241 (+25). Проброс через агентов (SubAgentTaskResult.Sources).
+4-полевой ключ дедупа `(Type|DocumentPath|Url|ChunkIndex)` — bug fix.
+Кросс-платформенный fix `DocumentPath` — относительные пути.
+Новые KI: KI-094 (Wikipedia timeout, Documented), KI-095 (snippet, Documented), KI-096 (GitHub Wiki, Deferred).
 
 Что выпущено:
 
@@ -124,10 +133,13 @@ v1.6.0 — Sources / citations ✅ Done (2026-09-28)
 
 /profile → Индексация workspace — opt-in, прогресс-бар, фоновый ingest.
 
-v1.6.x — инфраструктура + bug fixes (~10–15 ч)
-Web-tools sources — wikipedia_search / web_search / fetch_web_content: расширить ChatSourceDto, вернуть { url, title }. Раньше — план на v1.6.1.
+v1.6.2 — патч-релиз: web-tools fixes (~3-4 ч)
+KI-094 — `wikipedia_search` intermittent timeout (SSL через прокси). Fallback `web_search` работает. Уменьшить timeout до 10s / retry до 3 / circuit breaker.
 
-Absolute paths в sources[i].documentPath — нормализовать до относительных (косметика, label уже = имя файла).
+KI-095 — snippet `fetch_web_content` может дублировать label (h1 = title). Опционально: обрезать префикс, если snippet начинается с label.
+
+v1.7.0 — инфраструктура + GitHub Wiki (~10–15 ч)
+KI-096 — GitHub Wiki для проекта: публичная wiki / RAG-индексация / автосинхронизация. Scope уточняется.
 
 KI-091 — SqlServer цепочка миграций повреждена (snapshot drift от KI-090). Обязательно перед prod-SqlServer.
 
@@ -146,12 +158,14 @@ KI-086 — блок «Источники: [1] [2]» под ответом асс
 
 Единый UI для RAG, web, KB, history, workspace.
 
-Deferred (v1.6.0+)
+Deferred (v1.7.0+)
 KI-047 — Fallback PATCH/DELETE через POST.
 
 KI-053 — Multi-user approvals (роли approver, уведомления).
 
 KI-082 — Модалка-редактор длинных user-сообщений.
+
+KI-096 — GitHub Wiki для проекта.
 
 Уже сделано (v1.4.x)
 KI-087 — docs/development/ARCHITECTURE.md.
@@ -292,6 +306,12 @@ git push origin main
 - **Кэш браузера после правок chat.js / chat.css.** После изменений — `Ctrl+Shift+R` (жёсткая перезагрузка) + в DevTools Network поставить галку «Disable cache». Иначе работаешь со старым JS и думаешь, что фича сломана.
 
 - **RAG-tools в allowedNames Chat** (RULES § 4.44): при добавлении нового top-level `ITool` в DI — обязательно добавить его имя в `allowedNames` в `ChatStreamService.StreamAsync`. Иначе LLM физически не сможет его вызвать. Было багом в v1.5.0 (Chat видел 7 инструментов вместо 10).
+
+- **Sources: 4-полевой ключ дедупликации** (v1.6.1, KI-086-post): ключ `(Type|DocumentPath|Url|ChunkIndex)`. **Без `Url`** web/wiki-источники (у них `DocumentPath=null`, `ChunkIndex=null`) дают одинаковый ключ и схлопываются в один. Было багом в v1.6.0 (7 источников → 1 в UI).
+
+- **Sources через агентов** (v1.6.1, KI-086-post): `SubAgentTaskResult.Sources` (`IReadOnlyList<ChatSourceDto>`). `SubAgentService` аккумулирует `ToolResult.Sources` от inner-вызовов с дедупликацией. `AgentToolBase` / `ConsultSecondaryAgentTool` пробрасывают в `ToolResult.Ok`.
+
+- **`wikipedia_search` intermittent timeout** (KI-094): SSL через прокси. Fallback `web_search` работает. Не блокер, план v1.6.2.
 .resx-ключи case-insensitive — коллизия (MSB3568). Новые — camelCase: ChatModelLabel, WelcomeTitle (RULES § 4.16).
 
 git commit -m "..." в PowerShell — экранирование ломается на кавычках. Использовать here-string + -F .commit-msg.txt.
@@ -337,7 +357,7 @@ GET /v1/models возвращает embedding-модели (text-embedding-*) �
 
 SSE-режим не отдаёт usage — токены считаем через tiktoken (KI-049a).
 
-wikipedia_search — intermittent SSL-обрывы через корпоративный прокси (KI-064 — Fixed: timeout 15s + retry).
+wikipedia_search — intermittent SSL-обрывы через корпоративный прокси (KI-064 Fixed: timeout 15s + retry; KI-094 Documented: всё ещё intermittent, план v1.6.2).
 
 Embedding-модель: text-embedding-nomic-embed-text-v1.5, 768 dim, через POST /v1/embeddings.
 
