@@ -22,6 +22,19 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **Docs — RULES v1.4.16: +2 правила (v1.5.0, KI-083, Шаг 7D.3)**:
+  - **§ 4.42** — `AddDbContext` + `UseInMemoryDatabase(name)` в тестах требует
+    явного `InMemoryDatabaseRoot` + вычисления имени БД **до** лямбды (лямбда
+    выполняется на каждый scope; без этого данные между scope не шарятся).
+  - **§ 4.43** — у `JToken` нет `GetValue(string, StringComparison)`; для
+    case-insensitive чтения свойства `JObject` — перебирать `obj.Properties()`
+    вручную (реальный MVC сериализует в camelCase, `JsonConvert` в тесте — в
+    PascalCase).
+  - **Уроки** из Шагов 7D.1 (WorkspaceIndexServiceTests) и 7D.2
+    (AdminKnowledgeControllerTests).
+  - **§ 8 (История):** версия 1.4.16, дата 2026-09-28.
+
+### Added
 - **RAG / Knowledge Base — Шаг 7D.2: Unit-тесты AdminKnowledgeController (v1.5.0, KI-083)**:
   - **`AdminKnowledgeControllerTests`** (3 теста):
     - `GetIndexesAsync_ReturnsFourIndexes` — GET `/indexes` → 200 + 4 индекса

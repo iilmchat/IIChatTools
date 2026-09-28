@@ -1,7 +1,7 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.15
-**Обновлено:** 2026-09-25
+**Версия:** 1.4.16
+**Обновлено:** 2026-09-28
 **Назначение:** единый свод правил для команды и ассистента.
 
 При работе над проектом **все** изменения должны соответствовать этим правилам.
@@ -119,6 +119,8 @@
 | 4.39 | **Не использовать `Assert.True(false, msg)` для диагностики в тестах.** Принудительный фейл теста ради вывода значений — плохая практика: (а) xUnit-анализатор ругается (xUnit2020); (б) если забыть удалить, тест всегда падает; (в) MSBuild-инкрементальная сборка может не инвалидировать старую DLL — `dotnet test --no-build` будет использовать **старую** версию теста (stale DLL). Правильно — `Console.WriteLine` (виден в `--logger "console;verbosity=detailed"`) или `ITestOutputHelper`. Если после правки теста `dotnet build` завершается за < 1 с и `--no-build` даёт старый результат — **чистить `bin/obj`** и запускать `dotnet test` **без** `--no-build`. См. KI-083 Шаг 4A. |
 | 4.40 | **В тестах сервисов, сохраняющих файлы под GUID-именем, не проверяй исходное имя в `FilePath`.** Когда файл сохраняется как `{guid}.ext` (например, `chat-attachments/{chatId}/{guid}.ext`), исходное имя живёт только в БД-поле (`ChatAttachment.FileName`), а не в физическом пути. Проверяй расширение (сохраняется) + подпапку (`chat-attachments/{chatId}`) + сам факт существования файла. Симптом: тест `UploadAsync_..._SavesFileInUserWorkspace` падает с `Assert.Contains("hello", ...)` — путь содержит GUID, а не исходное имя. См. KI-083 Шаг 6A-тесты. |
 | 4.41 | **`JToken.Value<T>()` без аргумента — это extension для `IEnumerable<JToken>`, а не для `JToken`.** На одиночном `JToken` доступен только instance-метод `Value<T>(object key)`, отсюда ошибка **CS7036** при попытке `token["field"]?.Value<bool>()`. **Решение:** использовать приведение `(bool?)token["field"] ?? false` или `token.Value<bool>("field")` (instance, с key). См. KI-083 Шаг 6B (fix тестов). |
+| 4.42 | **`AddDbContext` + `UseInMemoryDatabase(name)` в тестах требует явного `InMemoryDatabaseRoot` + вычисления имени БД ДО лямбды.** (1) Без `InMemoryDatabaseRoot` EF Core создаёт свой root на каждый `IServiceScope` → `SetAsync` в одном scope не виден из другого (`GetBoolAsync` возвращает `defaultValue`). (2) Лямбда `opt => opt.UseInMemoryDatabase(...)` выполняется на **каждый** scope, поэтому если внутри лямбды есть `Guid.NewGuid()` (или любой не-идемпотентный вызов) — каждый scope получит своё имя БД, и данные снова не шарятся. **Правильно:** `var root = new InMemoryDatabaseRoot(); var dbName = "test_" + Guid.NewGuid().ToString("N"); services.AddSingleton(root); services.AddDbContext<T>(opt => opt.UseInMemoryDatabase(dbName, root));` — оба значения вычислить **до** лямбды, зарегистрировать как Singleton. **Симптом:** тест `EnableAsync_...` устанавливает флаг enabled=true в одном scope, а `GetStatusAsync` через 100 мс видит `enabled=false`. См. KI-083 Шаг 7D.1 (`WorkspaceIndexServiceTests`). |
+| 4.43 | **У `JToken` нет `GetValue(string, StringComparison)` — CS1061.** Для case-insensitive чтения свойства `JObject` (нужно при тестировании ответов ASP.NET Core MVC: реальный MVC сериализует DTO в **camelCase** — `chunkCount`, `durationMs`; а `JsonConvert.SerializeObject(x)` в тесте — в **PascalCase** — `ChunkCount`, `DurationMs`) перебирать `obj.Properties()` вручную. Встроенные `Value<T>()` / `SelectToken()` работают только с точным совпадением. **Правильно:** `foreach (var prop in obj.Properties()) { if (string.Equals(prop.Name, name, StringComparison.OrdinalIgnoreCase)) return prop.Value; }` — вернуть `null`, если не найдено. **Симптом:** `Assert.Equal("project_docs", data[0]["name"]?.ToString())` падает с `Expected: "project_docs", Actual: null`. См. KI-083 Шаг 7D.2 (`AdminKnowledgeControllerTests`). |
 
 ---
 
@@ -216,6 +218,7 @@
 | 2026-09-25 | 1.4.13 | Правила 4.36 (динамический `ChunkSize` в тестах стратегий), 4.37 (CHANGELOG в каждом коммите с кодом). **KI-083 Шаги 2B-3C** — Vector Store + Chunking. |
 | 2026-09-25 | 1.4.14 | Правила 4.38 (BOM-детект через байты, не StreamReader), 4.39 (не использовать `Assert.True(false)`, чистить `bin/obj` при stale DLL). **KI-083 Шаг 4A** — PlainTextParser. |
 | 2026-09-25 | 1.4.15 | Правила 4.40 (GUID-имена файлов в тестах), 4.41 (`JToken.Value<T>()` без key → CS7036). **KI-083 Шаги 6A-тесты / 6B** — Attachments. |
+| 2026-09-28 | 1.4.16 | Правила 4.42 (`InMemoryDatabaseRoot` + имя БД **до** лямбды `AddDbContext`; иначе разные scope = разные БД), 4.43 (`JToken.GetValue` не существует — `JObject.Properties` вручную). **KI-083 Шаги 7D.1 / 7D.2** — Unit-тесты WorkspaceIndexService / AdminKnowledgeController. |
 
 ---
 
