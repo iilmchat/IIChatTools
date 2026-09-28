@@ -21,6 +21,43 @@
 
 ---
 
+## § 1a. Известные ограничения релиза v1.5.0
+
+> **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
+> долги, которые переносятся в v1.5.x. Они **не блокируют** выпуск v1.5.0,
+> но должны быть учтены при развёртывании.
+
+### SqlServer-миграции НЕ применяются (KI-091)
+
+**Симптом:** `dotnet ef database update` на свежей SqlServer БД падает с
+`Operand type clash: datetime2 is incompatible with text` на миграции
+`AddUserSettings` (и всех последующих до `AddDocumentChunks`).
+
+**Причина:** snapshot drift от KI-090 — цепочка SqlServer-миграций содержит
+Sqlite-типы (`TEXT`/`INTEGER`) из-за `Database:Provider = "Sqlite"` в момент
+генерации. Подробности — `docs/KNOWN_ISSUES.md` → KI-091.
+
+**Правила для v1.5.0:**
+
+- **Dev (рекомендуется):** `Database:Provider = "Sqlite"` (по умолчанию).
+  Схема создаётся через `EnsureCreatedAsync` (не через миграции).
+- **Prod / SqlServer:** **БД не разворачивается** в v1.5.0. Первое развёртывание
+  SqlServer — в **v1.5.x** после пересборки цепочки миграций.
+- **НЕ запускать** `dotnet ef database update` на SqlServer-БД под v1.5.0.
+- **Fix-план:** KI-091 → v1.5.0-rc (пересборка — одна сводная миграция
+  `AddUserSettings_AgentStats_Rag`).
+
+### Прочие ограничения (не блокеры)
+
+- **Sources / citations** под ответом ассистента — перенесено в v1.6.0 (KI-086).
+- **PDF / DOCX / OCR** в RAG — v1.5.x (в v1.5.0 только `PlainTextParser`, 28 расширений).
+- **Re-ranking** (cross-encoder) — v1.5.x.
+- **Qdrant** — v1.5.x (в v1.5.0 только `InMemoryVectorStore` — embeddings теряются при рестарте).
+- **KI-088** (`docs/TESTING.md` — чек-лист ручной приёмки) — параллельно с релизом.
+- **KI-092** (Bootstrap 5.2 `aria-hidden` warning) — не баг, нулевое влияние на UX.
+
+---
+
 ## § 2. Обновление документации (в одном коммите)
 
 **Файлы — обязательны:**
@@ -65,6 +102,12 @@ dotnet run
 - Navbar: `IIChatTools vX.Y.Z`.
 - Footer: `© 2026 RuChating (iilmchat) · IIChatTools vX.Y.Z`.
 - Главная: `Добро пожаловать в IIChatTools vX.Y.Z`.
+
+**Проверка известных ограничений (§ 1a):**
+
+- [ ] Для v1.5.0: `Database:Provider = "Sqlite"` (dev). SqlServer-БД не разворачивается.
+- [ ] Проверка работоспособности RAG: `/admin → База знаний → Обновить индекс проекта` (не через миграции).
+- [ ] RAG-индексы в БД: `sqlite3 IIChatTools.API\Data\iichattools-dev.db "SELECT IndexName, COUNT(*) FROM DocumentChunks GROUP BY IndexName;"`
 
 ---
 
@@ -246,7 +289,8 @@ jobs:
 - `RULES.md § 2.7` — обновление `<Version>` и `AppVersion`.
 - `RULES.md § 2.10` — разметка Markdown-файлов (4 бэктика снаружи).
 - `RULES.md § 6.4` — формат commit message.
+- `RULES.md § 3.15` — проверка `Database:Provider` перед миграциями.
 - `CHANGELOG.md` — Keep a Changelog.
-- `docs/KNOWN_ISSUES.md` — реестр проблем.
+- `docs/KNOWN_ISSUES.md` — реестр проблем (**KI-091** — SqlServer-миграции — обязательный пункт перед деплоем).
 - [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/)
 - [Semantic Versioning](https://semver.org/lang/ru/)
