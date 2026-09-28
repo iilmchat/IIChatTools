@@ -1144,6 +1144,69 @@
 
 ---
 
+## v1.7.0 — Database Agent (roadmap)
+
+### KI-097 — Database Agent (read-only SQL)
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.7.0
+- **Обнаружено:** 2026-09-28
+- **DESIGN:** [`docs/development/v1.7/DESIGN_DB_AGENT.md`](development/v1.7/DESIGN_DB_AGENT.md)
+- **Описание:** LLM не имеет структурированного доступа к данным приложения
+  (`Chats`, `ChatMessages`, `AuditLogs`, ...). Прямой доступ через
+  `execute_command` → `sqlite3` — антипаттерн (SQL-инъекции, нет whitelist,
+  нет timeout, нет аудита).
+- **Что входит (Фаза 1, v1.7.0):**
+  - `DatabaseAgentTool` — топ-левел `ITool` (не `AgentToolBase`), 4 action:
+    `list_databases`, `list_tables`, `describe_table`, `execute_query`.
+  - `SqlQueryValidator` — валидация SQL (SELECT-only, whitelist таблиц,
+    запрет keywords/functions, auto-LIMIT).
+  - `SqlConnectionProvider` — фабрика `DbConnection` (в Фазе 1 — только
+    `internal`, Sqlite).
+  - **5 уровней безопасности:** read-only режим БД + валидатор + whitelist +
+    timeout + approval+audit.
+  - Admin UI `/admin → SQL Agent` — настройка whitelist в runtime.
+- **Что НЕ входит:** внешние БД (KI-099, Фаза 2), Domain-Oriented Tools
+  (по факту обкатки), write-операции (никогда), Semantic Layer (v2.0).
+- **План:** 8 фаз, ~40 ч. Фаза 0 (DESIGN) — ✅ Done (2026-09-28).
+- **Связанные:** KI-098 (admin UI), KI-099 (внешние подключения).
+
+---
+
+### KI-098 — Admin UI для SQL Agent whitelist
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.7.0 (Фаза 6 KI-097)
+- **Обнаружено:** 2026-09-28
+- **Файлы (план):** `AdminSqlAgentController`, `AdminSqlAgentService`, вкладка
+  в `Admin.cshtml`, `admin-sql-agent.js`, `.resx` (RU + EN).
+- **Описание:** Whitelist таблиц для DB Agent должен настраиваться **из админки**
+  (без правки `appsettings.json` + перезапуска). По образцу `SubAgents.*` (v1.4.0).
+- **Что входит:**
+  - Endpoints: `GET/PUT /api/admin/sql-agent/connections`,
+    `POST .../test`, `POST .../reset`.
+  - UI-вкладка «SQL Agent» (9-я в `/admin`) — таблица подключений + модалка.
+  - Сохранение override'ов в `AppSettings` (ключи `SqlAgent.*`).
+  - Загрузка при старте (`Program.LoadSqlAgentOverridesAsync`).
+  - Применение изменений в runtime (без перезапуска).
+- **Связанные:** KI-097.
+
+---
+
+### KI-099 — Внешние подключения БД (Postgres / MySQL / Oracle)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.8.0 (Фаза 2 KI-097)
+- **Обнаружено:** 2026-09-28
+- **DESIGN:** [`docs/development/v1.7/DESIGN_DB_AGENT.md`](development/v1.7/DESIGN_DB_AGENT.md)
+  § 9.5 (Приложение D).
+- **Описание:** В Фазе 1 (v1.7.0) DB Agent работает только с собственной БД
+  приложения (`internal`). Архитектура готова к внешним подключениям:
+  контракт `connection_name` в tool + `Connections[*]` в конфиге.
+- **Что нужно сделать (Фаза 2, v1.8.0):**
+  - Добавить провайдеры: `Npgsql` (Postgres), `MySqlConnector` (MySQL),
+    `Oracle.ManagedDataAccess`.
+  - Расширить `SqlConnectionProvider` (фабрика `DbConnection` по `Provider`).
+  - Настроить read-only роли в каждой внешней БД.
+  - Возможно: Domain-Oriented Tools по факту обкатки Фазы 1.
+- **Связанные:** KI-097.
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -1247,13 +1310,13 @@
 | Fixed (v1.4.x) | 1 |                <!-- KI-087 -->
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
-| Deferred | 3 |                      <!-- KI-047, KI-053, KI-082, KI-096 (GitHub Wiki) -->
+| Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096 (GitHub Wiki), KI-099 -->
 | Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
-| Planned | 1 |                     <!-- KI-088 (TESTING.md) -->
+| Planned | 3 |                     <!-- KI-088 (TESTING.md), KI-097, KI-098 (DB Agent) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **55** |
+| **Всего** | **58** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
