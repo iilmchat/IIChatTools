@@ -133,7 +133,7 @@ namespace IIChatTools.Services.DTO.Chat
         /// <summary>
         /// v1.6.0 (KI-086): источники под ответом ассистента (структурированный
         /// массив, а не сырой JSON). Парсится из <c>ChatMessage.MetadataJson</c>
-        /// на бэкенде (<see cref="IIChatTools.API.Controllers.ChatController.GetChatAsync"/>).
+        /// на бэкенде — в <c>ChatController.GetChatAsync</c> (API-слой).
         /// <c>null</c> — источников нет (user/tool/старые assistant-сообщения).
         /// </summary>
         public IReadOnlyList<ChatSourceDto> Sources { get; set; }

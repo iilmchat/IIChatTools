@@ -19,6 +19,14 @@
 ## [Unreleased]
 
 ### Fixed
+- **Sources / citations — Шаг 3.5e: warning CS1574 в ChatDtos.cs (v1.6.0, KI-086)**:
+  - `<see cref="IIChatTools.API.Controllers.ChatController.GetChatAsync"/>` →
+    `<c>ChatController.GetChatAsync</c>`. Services не ссылается на API
+    (ADR-001), cref не резолвится. Тот же паттерн, что уже применён для
+    `DocumentChunk` → `IVectorStore` (RULES § 4.30).
+  - Причина: шаг 3.5d нарушил RULES § 3.6 «0 warnings».
+
+### Fixed
 - **Sources / citations — Шаг 3.5d: camelCase + структурный Sources в ChatMessageDto (v1.6.0, KI-086)**:
   - `ChatMessageDto.Sources` (`IReadOnlyList<ChatSourceDto>`) — структурированный
     массив источников (вместо сырого `MetadataJson`). Парсится на бэкенде
