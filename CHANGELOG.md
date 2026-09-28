@@ -18,8 +18,22 @@
 
 ## [Unreleased]
 
-
-### Added
+### Fixed
+- **Sources / citations — Шаг 5.1.fix2: кросс-платформенный BuildLabel (v1.6.0, KI-086)**:
+  - **Симптом:** CI падал на `ubuntu-latest` (тест `BuildLabel_AbsoluteWindowsPath_ReturnsFileName`),
+    локально на Windows — 213/213.
+  - **Причина:** `Path.GetFileName` на Linux распознаёт только `/` как
+    разделитель пути. Абсолютный Windows-путь `C:\Projects\...\RULES.md`
+    на Linux возвращается целиком, а не `RULES.md`.
+  - **Fix:** нормализация разделителей (`\` → `/`) перед `Path.GetFileName`
+    в `RagSourceBuilder.BuildLabel`. Тот же паттерн, что в `PathHelper`
+    (KI-040 — Linux traversal через backslash).
+  - **Тесты:** +3 `[Theory]` `BuildLabel_MixedSeparators_ReturnsFileName`
+    (backslash / forward slash / смешанные). **213 → 216**.
+  - **Урок (RULES § 4.45, добавлено ниже):** при работе с путями
+    через `Path.*` — нормализовать разделители, если вход может прийти
+    из Windows-контекста в Linux-CI.
+    
 - **Sources / citations — Шаг 5.1: unit-тесты RagSourceBuilder (v1.6.0, KI-086)**:
   - **14** тестов в `IIChatTools.Tests/UnitTests/Rag/RagSourceBuilderTests.cs`
     (4 `[Fact]` + `3×[Theory]` + 2 `[Fact]` + 3 `[Fact]` + `2×[Theory]`):

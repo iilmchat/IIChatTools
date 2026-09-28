@@ -137,6 +137,22 @@ namespace IIChatTools.Tests.UnitTests.Rag
             Assert.Equal("RULES.md", label);
         }
 
+        /// <summary>
+        /// Смешанные разделители (<c>\</c> и <c>/</c>) → имя файла.
+        /// Кросс-платформенная проверка: до фикса на Linux этот тест падал
+        /// (Path.GetFileName не распознаёт <c>\</c> как разделитель).
+        /// </summary>
+        [Theory]
+        [InlineData(@"docs\development\RULES.md")]        // только backslash
+        [InlineData(@"C:/Projects/IIChatTools/docs/development/RULES.md")]  // только forward
+        [InlineData(@"C:\Projects/AI\IIChatTools\docs/development\RULES.md")]  // смешанные
+        public void BuildLabel_MixedSeparators_ReturnsFileName(string documentPath)
+        {
+            var label = RagSourceBuilder.BuildLabel(documentPath);
+
+            Assert.Equal("RULES.md", label);
+        }
+
         // ============================================================
         // TruncateSnippet
         // ============================================================

@@ -63,6 +63,20 @@ namespace IIChatTools.Services.Implementation.Rag
         /// <summary>
         /// Возвращает «человеческое» имя источника для UI:
         /// имя файла из пути (с fallback на полный путь).
+        ///
+        /// <para>
+        /// <b>Кросс-платформенность:</b> <see cref="Path.GetFileName(string)"/>
+        /// на Linux распознаёт только <c>/</c> как разделитель, а на Windows —
+        /// и <c>/</c>, и <c>\</c>. Поэтому абсолютный Windows-путь
+        /// (<c>C:\Projects\...\RULES.md</c>) на Linux вернёт всю строку целиком.
+        /// </para>
+        ///
+        /// <para>
+        /// Решение: нормализуем оба разделителя в <c>/</c> перед вызовом
+        /// <see cref="Path.GetFileName(string)"/>. На Windows это тоже
+        /// безопасно (Windows понимает оба разделителя). Тот же паттерн,
+        /// что в <c>PathHelper</c> (KI-040).
+        /// </para>
         /// </summary>
         /// <param name="documentPath">Относительный путь или URL</param>
         /// <returns>Label для UI</returns>
@@ -73,7 +87,10 @@ namespace IIChatTools.Services.Implementation.Rag
 
             try
             {
-                var name = Path.GetFileName(documentPath);
+                // Унификация разделителей: \ → /. Иначе на Linux
+                // Path.GetFileName не распознает Windows-путь.
+                var normalized = documentPath.Replace('\\', '/');
+                var name = Path.GetFileName(normalized);
                 return string.IsNullOrWhiteSpace(name) ? documentPath : name;
             }
             catch
