@@ -1,6 +1,6 @@
 # Архитектура IIChatTools
 
-**Версия:** 1.4.1 (обновлено 2026-09-25)
+**Версия:** 1.5.0 (обновлено 2026-09-28)
 **Статус:** Living document — обновляется при значимых архитектурных изменениях.
 **Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md).
 
@@ -101,7 +101,7 @@
 | `Chat` | `UserId`, `Title`, `Model`, `SystemPrompt`, `UpdatedAt` | `(UserId, UpdatedAt)` |
 | `ChatMessage` | `ChatId`, `Role`, `Content`, `ToolCallsJson`, `ToolCallId`, `ToolName`, `TokensIn/Out`, `DurationMs`, `FirstTokenMs`, `FinishReason` | `(ChatId, CreatedAt)` |
 
-### § 3.3. RAG (v1.5, в работе)
+### § 3.3. RAG (v1.5.0)
 
 | Entity | Ключевые поля | Индексы |
 |---|---|---|
@@ -127,8 +127,8 @@
 | `AddChatAndChatMessages` | v1.3.0 | Chat + ChatMessage |
 | `AddUserSettings` | v1.4.1 | UserSetting |
 | `AddChatMessageStats` | v1.4.1 | +3 поля в ChatMessage |
-| `AddDocumentChunks` | v1.5.0 (план) | DocumentChunk |
-| `AddChatAttachments` | v1.5.0 (план) | ChatAttachment |
+| `AddDocumentChunks` | v1.5.0 | DocumentChunk |
+| `AddChatAttachments` | v1.5.0 | ChatAttachment |
 
 **Sqlite (dev):** `EnsureCreatedAsync` — не мигрирует. При изменении модели — удалять `.db` (RULES § 4.25, KI-070).
 
@@ -266,9 +266,9 @@ Chat видит **7 инструментов** (6 агентов + `consult_seco
 **Зачем:** одна модель (особенно 4B) плохо выбирает из 40 инструментов.
 Внутри агента — узкий набор + свой system prompt → точнее выбор.
 
-### § 6.3. RAG-инструменты (v1.5.0, в работе)
+### § 6.3. RAG-инструменты (v1.5.0)
 
-+3 инструмента (после v1.5 Chat видит **10**):
+Chat видит **10** инструментов (7 агентов + 3 RAG-tool):
 - `search_knowledge_base` — глобальные docs проекта.
 - `search_chat_history` — история чатов пользователя.
 - `search_workspace` — семантический поиск по workspace (opt-in).
@@ -359,4 +359,4 @@ Chat-модель остаётся `LmStudio:Model`.
 
 ---
 
-**© 2026 RuChating (iilmchat) · IIChatTools v1.4.1**
+**© 2026 RuChating (iilmchat) · IIChatTools v1.5.0**

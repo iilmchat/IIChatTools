@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.16
+**Версия:** 1.4.17
 **Обновлено:** 2026-09-28
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -159,35 +159,26 @@
 
 См. [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — полный реестр.
 
-**Краткая выжимка Open/Deferred (после релиза v1.3.0):**
+**Краткая выжимка Open/Deferred (после релиза v1.5.0):**
 
 | KI | Приоритет | Статус | Суть | План |
 |----|-----------|--------|------|------|
-| KI-043 | 🟡 | Fixed (v1.3.x) | Утечка памяти в `RateLimitingMiddleware` | ✅ |
-| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.5.0 |
-| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.4.2 |
-| KI-049 | 🟢 | Fixed (v1.4.1) | `tokensIn`/`tokensOut` = null в SSE | ✅ (tiktoken) |
-| KI-052 | 🟡 | Fixed (v1.4.0) | Специализированные суб-агенты | ✅ |
-| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.4.2+ |
-| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.5.0 |
-| KI-064 | 🟢 | Fixed (v1.3.x) | SSL-обрыв к `ru.wikipedia.org` | ✅ |
-| KI-067 | 🟢 | Fixed (v1.4.1) | Per-user retention чатов | ✅ |
-| KI-068 | 🟢 | Fixed (v1.3.x) | Поиск по содержимому сообщений | ✅ |
-| KI-069 | 🟢 | Fixed (v1.3.x) | Inline-edit названия чата в sidebar | ✅ |
-| KI-076 | 🟢 | Fixed (v1.4.1) | Статистика по агентам в админке | ✅ |
+| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.5.x |
+| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.5.x+ |
+| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.5.x+ |
+| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.5.x |
 | KI-077 | 🟢 | Documented | `model: null` при PUT агента = «сброс» | — |
-| KI-078 | 🟢 | Fixed (v1.4.1) | Поиск (A: внутричатовый, B: ⌘K) | ✅ |
-| KI-079 | 🟢 | Fixed (v1.4.1) | Свернуть/развернуть sidebar | ✅ |
-| KI-080 | 🟢 | Fixed (v1.4.1) | Поле ввода на всю ширину | ✅ |
-| KI-081 | 🟢 | Fixed (v1.4.1) | Логотип IIChatTools | ✅ |
-| KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.5.0+ |
-| KI-083 | 🟡 | In Progress | RAG / Knowledge Base (DESIGN ✅, фазы 0-8) | v1.5.0 |
-| KI-084 | 🟢 | Fixed (v1.4.1) | Расширенная статистика (tok/s, duration) | ✅ |
+| KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.6.0+ |
+| KI-083 | 🟡 | **Fixed (v1.5.0)** | RAG / Knowledge Base (фазы 0-8 закрыты) | ✅ |
 | KI-085 | 🟢 | Documented | SQLite `database is locked` (внешний клиент) | — |
 | KI-086 | 🟢 | Deferred | Sources / citations под ответом | v1.6.0 |
-| KI-087 | 🟢 | Fixed (v1.4.x) | Актуальный ARCHITECTURE.md | ✅ |
+| KI-088 | 🟡 | Planned | `docs/TESTING.md` (чек-лист ручной приёмки) | v1.5.0 |
+| KI-090 | 🟢 | Documented | SqlServer-migrations snapshot drift | — |
+| KI-091 | 🟡 | Deferred | SqlServer цепочка миграций повреждена | v1.5.0-rc |
+| KI-092 | 🟢 | Documented | Bootstrap 5.2 `aria-hidden` warning | — |
+| KI-093 | 🟢 | Documented | SQLite locked (дубликат KI-085, оставлен для истории) | — |
 
-**Всего в реестре:** 60+ KI. **Fixed/Resolved:** 55+ (v1.0.x–v1.4.1). **Deferred:** 5. **Documented:** 5.
+**Всего в реестре:** 62+ KI. **Fixed/Resolved:** 56+ (v1.0.x–v1.5.0). **Deferred:** 5. **Documented:** 6.
 
 > KI-068 (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
 
@@ -219,6 +210,7 @@
 | 2026-09-25 | 1.4.14 | Правила 4.38 (BOM-детект через байты, не StreamReader), 4.39 (не использовать `Assert.True(false)`, чистить `bin/obj` при stale DLL). **KI-083 Шаг 4A** — PlainTextParser. |
 | 2026-09-25 | 1.4.15 | Правила 4.40 (GUID-имена файлов в тестах), 4.41 (`JToken.Value<T>()` без key → CS7036). **KI-083 Шаги 6A-тесты / 6B** — Attachments. |
 | 2026-09-28 | 1.4.16 | Правила 4.42 (`InMemoryDatabaseRoot` + имя БД **до** лямбды `AddDbContext`; иначе разные scope = разные БД), 4.43 (`JToken.GetValue` не существует — `JObject.Properties` вручную). **KI-083 Шаги 7D.1 / 7D.2** — Unit-тесты WorkspaceIndexService / AdminKnowledgeController. |
+| 2026-09-28 | 1.4.17 | § 7 — актуализация KI-выжимки после релиза v1.5.0 (KI-083 → Fixed, KI-091 → Deferred v1.5.0-rc, KI-092/093 Documented). **Релиз v1.5.0.** |
 
 ---
 

@@ -854,8 +854,8 @@
 ---
 
 ### KI-083 — RAG / Knowledge Base (Retrieval-Augmented Generation)
-- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.5.0
-- **Обнаружено:** 2026-09-25
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.5.0
+- **Обнаружено:** 2026-09-25 | **Устранено:** 2026-09-28
 - **DESIGN:** [`docs/development/v1.5/DESIGN.md`](development/v1.5/DESIGN.md) — согласован 2026-09-25.
 - **Что войдёт:**
   - `IEmbeddingService` (LM Studio `/v1/embeddings`, nomic-embed-text-v1.5, 768 dim).
@@ -888,14 +888,27 @@
     - 7D.1 — Unit-тесты `WorkspaceIndexService` — `c1134ed`.
     - 7D.2 — Unit-тесты `AdminKnowledgeController` — `c0e14cc`.
     - 7D.3 — RULES v1.4.16 (§ 4.42, § 4.43) — финальный коммит Шага 7.
-  - **Фаза 8 (Релиз v1.5.0)** — ⏸ впереди: README, KNOWN_ISSUES-выжимка, RELEASES, tag `v1.5.0`.
+  - **Фаза 8 (Релиз v1.5.0)** — ✅ **Done** (2026-09-28):
+    - **8.1** — README: раздел «RAG / Knowledge Base» — `f94a12b`.
+    - **8.2** — RELEASES § 1a «Известные ограничения v1.5.0» — `213bb72`.
+    - **8.3** — Bump version 1.4.1 → 1.5.0 — `12e3dd1`.
+    - **8.4** — CHANGELOG `[Unreleased]` → `[1.5.0] — 2026-09-28` — `340ad58`.
+    - **8.5** — KNOWN_ISSUES / RULES § 7 / DESIGN / ARCHITECTURE (этот коммит).
+    - **8.6** — `docs/TESTING.md` (KI-088) — параллельно.
+    - **8.7** — Tag `v1.5.0` + GitHub Release.
+  - **Все фазы (0-8) — Done.** Остался тег и Release.
 - **Связанные:** KI-086 (sources / citations — v1.6.0), KI-049 (tiktoken), KI-067 (UserSettings), KI-090/KI-091 (SqlServer migrations).
 
 ---
 
-### KI-086 — Вывод источников (sources / citations) под ответом ассистента
+### KI-093 — SQLite `database is locked` (дубликат KI-085, оставлен для истории)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-09-25
+- **Примечание (2026-09-28, Шаг 8.5):** изначально был заведён как `KI-086`
+  по ошибке — номер конфликтовал с уже существующим KI-086 (sources/citations).
+  Переименован в **KI-093**. По содержанию совпадает с **KI-085** — оставлен
+  для истории (не удаляем задним числом, по правилу «даже если это не баг —
+  запись нужна»).
 - **Файлы:** `appsettings.Development.json` (Sqlite-провайдер)
 - **Описание:** При открытом **DB Browser for SQLite** (или другом внешнем клиенте) на `iichattools-dev.db` создание чата через `/api/chats` падает с `SQLite Error 5: 'database is locked'`. Время ответа — **30 секунд** (CommandTimeout), потом ошибка.
 - **Причина:** SQLite — файловая БД. При наличии **writer** в другом процессе (DB Browser в read-write режиме) текущий writer (приложение) ждёт снятия блокировки и падает по таймауту.
@@ -1139,15 +1152,15 @@
 | Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
 | Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
 | Fixed (v1.4.1) | 9 |                <!-- KI-049, 067, 076, 078, 079, 080, 081, 084, 085 -->
-| Fixed (v1.4.x) | 1 |                <!-- KI-087-->
-| Deferred | 6 |                      <!-- KI-047, KI-053, KI-082, KI-086, KI-083 (planned), KI-087 -->
-| Documented | 5 |                    <!-- KI-007, KI-009, KI-032, KI-049, KI-064, KI-070, KI-073, KI-075, KI-085 -->
-| In Progress (v1.5.0) | 1 |           <!-- KI-083 -->
-| Implemented (v1.3.0) | 2 |        <!-- KI-054, KI-055 -->
-| Planned | 1 |                     <!-- KI-088 --> 
-| Documented | 7 |                    <!-- KI-007, KI-009, KI-032, KI-043, KI-049, KI-064, KI-070 -->
+| Fixed (v1.4.x) | 1 |                <!-- KI-087 -->
+| Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
+| Deferred | 3 |                      <!-- KI-047, KI-053, KI-082 -->
+| Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093 -->
+| In Progress | 0 |                   <!-- — -->
+| Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
+| Planned | 1 |                     <!-- KI-088 (TESTING.md) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **47** |
+| **Всего** | **52** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
