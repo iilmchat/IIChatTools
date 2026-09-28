@@ -22,6 +22,23 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 7D.2: Unit-тесты AdminKnowledgeController (v1.5.0, KI-083)**:
+  - **`AdminKnowledgeControllerTests`** (3 теста):
+    - `GetIndexesAsync_ReturnsFourIndexes` — GET `/indexes` → 200 + 4 индекса
+      (`project_docs`, `my_rag_docs`, `chat_history`, `workspace`).
+    - `ReindexProjectDocsAsync_ReturnsResult` — POST `/reindex` → 200 +
+      `data.documentChunksCreated`, `data.durationMs`.
+    - `UpdateSettingsAsync_InvalidStrategy_ReturnsFail` — PUT `/settings`
+      с невалидным `ChunkingStrategy` → сервис бросает `ArgumentException`
+      → контроллер возвращает `success=false` + сообщение.
+  - **Fake-зависимость:** `FakeAdminKnowledgeService` (запоминает вызовы,
+    настраиваемые результат / исключение для каждого метода).
+  - **Паттерн:** прямой вызов контроллера (без `WebApplicationFactory`),
+    консистентно с `ChatAttachmentsControllerTests`. Авторизация
+    (`[Authorize(Policy = "AdminOnly")]`) — не проверяется (middleware,
+    полная HTTP-интеграция — Шаг 8).
+
+### Added
 - **RAG / Knowledge Base — Шаг 7D.1: Unit-тесты WorkspaceIndexService (v1.5.0, KI-083)**:
   - **`WorkspaceIndexServiceTests`** (5 тестов):
     - `GetStatusAsync_Disabled_ReturnsEnabledFalse` — флаг не задан →
