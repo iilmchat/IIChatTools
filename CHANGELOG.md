@@ -18,6 +18,16 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Sources / citations — Шаг 2.fix: проброс Sources до HTTP/SSE (v1.6.0, KI-086)**:
+  - `ToolsController.ExecuteAsync`: проброс `result.Sources` в JSON-ответ
+    `/api/tools/execute` (поле `sources`). Без этого фикса RAG-tools возвращали
+    sources внутри `ToolResult`, но HTTP-ответ терял их.
+  - `ChatStreamService`: проброс `toolResult.Sources` в `ChatToolResultDto`
+    SSE-события `tool_result` — UI Шага 4 сможет рендерить «Источники» live.
+  - `ChatController.GetChatAsync`: проброс `ChatMessage.MetadataJson` в
+    `ChatMessageDto` — источники подтянутся при F5-загрузке истории чата.
+
 ### Added
 - **Sources / citations — Шаг 2: ToolResult.Sources + RAG-tools (v1.6.0, KI-086)**:
   - `ToolResult.Sources` (`IReadOnlyList<ChatSourceDto>?`) — новый опциональный

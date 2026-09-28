@@ -571,13 +571,16 @@ namespace IIChatTools.Services.Implementation
                     }
 
                     // SSE-событие: tool_result
+                    // v1.6.0 (KI-086): проброс sources — UI покажет «Источники»
+                    // под ответом ассистента (Шаг 4) без F5.
                     yield return ChatStreamEvent.ToolResult(new ChatToolResultDto
                     {
                         Id = callId,
                         Name = functionName,
                         Success = toolResult.Success,
                         Content = toolResult.Data,
-                        Message = toolResult.Message
+                        Message = toolResult.Message,
+                        Sources = toolResult.Sources
                     });
 
                     // Сохраняем tool message в БД

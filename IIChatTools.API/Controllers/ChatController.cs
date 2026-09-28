@@ -147,7 +147,10 @@ namespace IIChatTools.API.Controllers
                         // KI-084a: статистика генерации.
                         DurationMs = m.DurationMs,
                         FirstTokenMs = m.FirstTokenMs,
-                        FinishReason = m.FinishReason
+                        FinishReason = m.FinishReason,
+                        // v1.6.0 (KI-086): метаданные (источники) для UI.
+                        // Сырой JSON — парсинг на клиенте (chat.js), при F5-загрузке.
+                        MetadataJson = m.MetadataJson
                     }).ToList()
                 };
 

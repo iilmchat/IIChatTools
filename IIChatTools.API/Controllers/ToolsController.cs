@@ -211,7 +211,11 @@ namespace IIChatTools.API.Controllers
                 {
                     success = result.Success,
                     data = result.Data,
-                    message = result.Message
+                    message = result.Message,
+                    // v1.6.0 (KI-086): источники от RAG-инструментов.
+                    // null для всех остальных (46 из 46 пока возвращают null,
+                    // кроме 3 RAG-tool — search_knowledge_base / _chat_history / _workspace).
+                    sources = result.Sources
                 });
             }
             catch (Exception ex)
