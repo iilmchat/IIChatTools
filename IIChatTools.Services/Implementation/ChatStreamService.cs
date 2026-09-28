@@ -13,7 +13,8 @@ using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Rag;
 using IIChatTools.Services.Implementation.Agents; 
 using IIChatTools.Services.Implementation.ChatTools;
-using IIChatTools.Services.Implementation.Tools;      // ← ДОБАВИТЬ
+using IIChatTools.Services.Implementation.Rag;        // v1.6.0 (KI-086): RagSourceBuilder
+using IIChatTools.Services.Implementation.Tools;
 using IIChatTools.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -136,6 +137,12 @@ namespace IIChatTools.Services.Implementation
             //    - Обычный flow: сохраняем новое user-сообщение.
             int startUserMessageId;
 
+            // v1.6.0 (KI-086): аккумулятор источников за весь stream.
+            // Собираются из: (а) auto-inject RAG-чанков (Шаг 6C), (б) tool_result'ов.
+            // Ключ дедупликации — (Type|DocumentPath|ChunkIndex).
+            var accumulatedSources = new List<ChatSourceDto>();
+            var seenSourceKeys = new HashSet<string>(StringComparer.Ordinal);
+
             // KI-084b: токены user-сообщения — для SSE-события `start`.
             // В Regenerate-flow читаем из БД (могут быть null для старых сообщений).
             int? startUserTokens = null;
@@ -226,11 +233,15 @@ namespace IIChatTools.Services.Implementation
             // 5. Формируем историю для LM Studio
             //    v1.5.0 (KI-083, Шаг 6C): передаём startUserMessageId —
             //    для auto-inject top-K из my_rag_docs в system prompt.
+            //    v1.6.0 (KI-086): возвращает также sources auto-inject — их
+            //    кладём в accumulatedSources (не приходят через tool_result).
             JArray messages = null;
+            IReadOnlyList<ChatSourceDto> ragSources = null;
             string historyError = null;
             try
             {
-                messages = await BuildMessagesAsync(chat, userId, startUserMessageId, cancellationToken);
+                (messages, ragSources) = await BuildMessagesAsync(
+                    chat, userId, startUserMessageId, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -243,6 +254,10 @@ namespace IIChatTools.Services.Implementation
                 yield return ChatStreamEvent.Error(historyError);
                 yield break;
             }
+
+            // v1.6.0 (KI-086): sources от auto-inject идут в accumulator
+            // до первого tool-цикла, чтобы попасть в финальный assistant.
+            AddSourcesToAccumulator(accumulatedSources, seenSourceKeys, ragSources);
 
             // 6. Формируем tools (v1.4.0 Фаза 5, KI-052):
             //    Chat видит 6 специализированных агентов + consult_secondary_agent (fallback).
@@ -392,7 +407,10 @@ namespace IIChatTools.Services.Implementation
                                 // KI-084a: статистика генерации.
                                 DurationMs = totalDurationMs,
                                 FirstTokenMs = firstTokenMs,
-                                FinishReason = lastFinishReason
+                                FinishReason = lastFinishReason,
+                                // v1.6.0 (KI-086): источники для UI-блока
+                                // «Источники» под ответом ассистента.
+                                MetadataJson = SerializeSources(accumulatedSources)
                             },
                             cancellationToken);
                     }
@@ -410,13 +428,15 @@ namespace IIChatTools.Services.Implementation
 
                     // KI-084b + KI-084a: передаём статистику — UI покажет всё
                     // сразу, без F5 + GET /api/chats/{id}.
+                    // v1.6.0 (KI-086): sources — для UI-блока «Источники».
                     yield return ChatStreamEvent.Done(
                         finalMsg.Id,
                         tokensIn,
                         tokensOut,
                         totalDurationMs,
                         firstTokenMs,
-                        lastFinishReason);
+                        lastFinishReason,
+                        accumulatedSources.Count > 0 ? accumulatedSources : null);
                     yield break;
                 }
 
@@ -583,6 +603,10 @@ namespace IIChatTools.Services.Implementation
                         Sources = toolResult.Sources
                     });
 
+                    // v1.6.0 (KI-086): собрать sources от инструмента (RAG-tools).
+                    // Дедупликация — в AddSourcesToAccumulator.
+                    AddSourcesToAccumulator(accumulatedSources, seenSourceKeys, toolResult.Sources);
+
                     // Сохраняем tool message в БД
                     try
                     {
@@ -664,7 +688,9 @@ namespace IIChatTools.Services.Implementation
                         TokensOut = limitTokensOut,
                         DurationMs = limitDurationMs,
                         FirstTokenMs = firstTokenMs,
-                        FinishReason = lastFinishReason
+                        FinishReason = lastFinishReason,
+                        // v1.6.0 (KI-086): источники, собранные до лимита.
+                        MetadataJson = SerializeSources(accumulatedSources)
                     },
                     cancellationToken);
             }
@@ -683,7 +709,8 @@ namespace IIChatTools.Services.Implementation
                     limitTokensOut,
                     limitDurationMs,
                     firstTokenMs,
-                    lastFinishReason);
+                    lastFinishReason,
+                    accumulatedSources.Count > 0 ? accumulatedSources : null);
             }
         }
 
@@ -702,7 +729,7 @@ namespace IIChatTools.Services.Implementation
         /// <param name="startUserMessageId">ID последнего user-сообщения (для RAG-запроса)</param>
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>JArray сообщений</returns>
-        private async Task<JArray> BuildMessagesAsync(
+        private async Task<(JArray Messages, IReadOnlyList<ChatSourceDto> RagSources)> BuildMessagesAsync(
             Chat chat,
             int userId,
             int startUserMessageId,
@@ -711,7 +738,8 @@ namespace IIChatTools.Services.Implementation
             var messages = new JArray();
 
             // Auto-inject RAG-контекста (KI-083, Шаг 6C).
-            var ragContext = await BuildRagContextAsync(
+            // v1.6.0 (KI-086): метод также возвращает sources — для UI-блока.
+            var (ragContext, ragSources) = await BuildRagContextAsync(
                 chat.Id, userId, startUserMessageId, cancellationToken);
 
             // Склеиваем RAG-контекст с оригинальным system prompt.
@@ -776,7 +804,7 @@ namespace IIChatTools.Services.Implementation
                 messages.Add(obj);
             }
 
-            return messages;
+            return (messages, ragSources);
         }
 
         /// <summary>
@@ -785,7 +813,12 @@ namespace IIChatTools.Services.Implementation
         /// (v1.5.0, KI-083, Шаг 6C).
         ///
         /// <para>
-        /// Возвращает <c>null</c>, если:
+        /// v1.6.0 (KI-086): возвращает также список sources — для UI-блока
+        /// «Источники» под ответом ассистента. Формат — <see cref="ChatSourceDto"/>.
+        /// </para>
+        ///
+        /// <para>
+        /// Возвращает <c>(null, null)</c>, если:
         /// <list type="bullet">
         ///   <item>у чата нет чанков в <c>my_rag_docs</c> (не приложены файлы);</item>
         ///   <item>текст user-сообщения пустой;</item>
@@ -798,8 +831,11 @@ namespace IIChatTools.Services.Implementation
         /// <param name="userId">ID пользователя-владельца</param>
         /// <param name="startUserMessageId">ID user-сообщения (для поиска)</param>
         /// <param name="cancellationToken">Токен отмены</param>
-        /// <returns>Текст RAG-блока или null</returns>
-        private async Task<string> BuildRagContextAsync(
+        /// <returns>
+        /// Кортеж: (текст RAG-блока, список sources). Оба поля — <c>null</c>,
+        /// если RAG-контекст не сформирован.
+        /// </returns>
+        private async Task<(string RagContext, IReadOnlyList<ChatSourceDto> Sources)> BuildRagContextAsync(
             int chatId,
             int userId,
             int startUserMessageId,
@@ -815,7 +851,7 @@ namespace IIChatTools.Services.Implementation
 
                 if (!hasChunks)
                 {
-                    return null;
+                    return (null, null);
                 }
 
                 // 2. Текст последнего user-сообщения (из БД — для regenerate-совместимости).
@@ -826,7 +862,7 @@ namespace IIChatTools.Services.Implementation
 
                 if (string.IsNullOrWhiteSpace(lastUserText))
                 {
-                    return null;
+                    return (null, null);
                 }
 
                 // 3. Retrieval.
@@ -845,7 +881,7 @@ namespace IIChatTools.Services.Implementation
                 var filtered = chunks.Where(c => c.Score >= minScore).ToList();
                 if (filtered.Count == 0)
                 {
-                    return null;
+                    return (null, null);
                 }
 
                 // 4. Формируем блок (формат из DESIGN § 4.7.5).
@@ -869,7 +905,10 @@ namespace IIChatTools.Services.Implementation
                     "минимальный score={MinScore}",
                     chatId, filtered.Count, minScore);
 
-                return sb.ToString().TrimEnd();
+                // v1.6.0 (KI-086): sources для UI-блока «Источники».
+                var sources = RagSourceBuilder.Build(filtered);
+
+                return (sb.ToString().TrimEnd(), sources);
             }
             catch (Exception ex)
             {
@@ -877,8 +916,59 @@ namespace IIChatTools.Services.Implementation
                 _logger.LogWarning(ex,
                     "Auto-inject RAG-контекста упал для chatId={ChatId}. Продолжаем без RAG.",
                     chatId);
-                return null;
+                return (null, null);
             }
+        }
+
+        /// <summary>
+        /// v1.6.0 (KI-086): добавляет sources в аккумулятор с дедупликацией
+        /// по ключу <c>(Type|DocumentPath|ChunkIndex)</c>.
+        ///
+        /// <para>
+        /// Один и тот же чанк может прийти из двух источников: auto-inject
+        /// (в system prompt) и tool_result (если LLM вызвала RAG-tool).
+        /// Дедупликация гарантирует, что в финальном списке он появится один раз.
+        /// </para>
+        /// </summary>
+        /// <param name="accumulator">Список-приёмник (мутируется)</param>
+        /// <param name="seenKeys">Множество ключей (мутируется)</param>
+        /// <param name="sources">Источники для добавления (может быть null)</param>
+        private static void AddSourcesToAccumulator(
+            List<ChatSourceDto> accumulator,
+            HashSet<string> seenKeys,
+            IReadOnlyList<ChatSourceDto> sources)
+        {
+            if (sources == null || sources.Count == 0)
+                return;
+
+            foreach (var s in sources)
+            {
+                if (s == null)
+                    continue;
+
+                var key = $"{s.Type}|{s.DocumentPath}|{s.ChunkIndex}";
+                if (seenKeys.Add(key))
+                {
+                    accumulator.Add(s);
+                }
+            }
+        }
+
+        /// <summary>
+        /// v1.6.0 (KI-086): сериализует список sources в JSON для
+        /// <c>ChatMessage.MetadataJson</c>. Пустой список → <c>null</c>
+        /// (поле не пишем, БД не растёт).
+        /// </summary>
+        /// <param name="sources">Источники (может быть null / пустой)</param>
+        /// <returns>
+        /// JSON-строка <c>{ "sources": [...] }</c> или <c>null</c>.
+        /// </returns>
+        private static string SerializeSources(IReadOnlyList<ChatSourceDto> sources)
+        {
+            if (sources == null || sources.Count == 0)
+                return null;
+
+            return JsonConvert.SerializeObject(new { sources });
         }
 
         /// <summary>

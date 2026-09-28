@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace IIChatTools.Services.DTO.Chat
 {
@@ -92,6 +93,11 @@ namespace IIChatTools.Services.DTO.Chat
         /// <param name="finishReason">
         /// KI-084a: причина завершения (<c>stop</c>, <c>length</c>, <c>tool_calls</c>).
         /// </param>
+        /// <param name="sources">
+        /// v1.6.0 (KI-086): источники, использованные LLM при генерации
+        /// (RAG-чанки из auto-inject + tool_result'ов).
+        /// <c>null</c> или пустой — источников нет.
+        /// </param>
         /// <returns>Событие стрима</returns>
         public static ChatStreamEvent Done(
             int assistantMessageId,
@@ -99,11 +105,12 @@ namespace IIChatTools.Services.DTO.Chat
             int? tokensOut = null,
             long? durationMs = null,
             long? firstTokenMs = null,
-            string finishReason = null)
+            string finishReason = null,
+            IReadOnlyList<ChatSourceDto> sources = null)
             => new ChatStreamEvent
             {
                 Type = "done",
-                Data = new { assistantMessageId, tokensIn, tokensOut, durationMs, firstTokenMs, finishReason }
+                Data = new { assistantMessageId, tokensIn, tokensOut, durationMs, firstTokenMs, finishReason, sources }
             };
 
         /// <summary>

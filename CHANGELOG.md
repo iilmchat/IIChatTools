@@ -18,6 +18,23 @@
 
 ## [Unreleased]
 
+### Added
+- **Sources / citations — Шаг 3: агрегация и сохранение (v1.6.0, KI-086)**:
+  - `ChatStreamService` накапливает `sources` за весь stream из двух мест:
+    (а) auto-inject RAG-чанки (Шаг 6C — `BuildRagContextAsync` теперь
+    возвращает их вместе с текстом блока); (б) `tool_result` от RAG-tools.
+  - **Дедупликация** по ключу `(Type|DocumentPath|ChunkIndex)`:
+    один чанк из auto-inject и tool_result попадёт в список единожды.
+  - **Сохранение** в `ChatMessage.MetadataJson` финального assistant-сообщения
+    (и в limit-message при исчерпании 5 итераций tool calling'а) —
+    JSON-формат `{ "sources": [...] }`. Пустой список → `null` (поле не пишем).
+  - **SSE `done`** получил опциональный параметр `sources` — UI рендерит
+    «Источники» сразу без F5 (используется в Шаге 4).
+  - `ChatStreamEvent.Done` расширен параметром `IReadOnlyList<ChatSourceDto> sources`
+    (обратносовместимо: вызовы без sources работают как раньше).
+  - Вспомогательные приватные методы `AddSourcesToAccumulator` / `SerializeSources`
+    (в `ChatStreamService`).
+
 ### Fixed
 - **Sources / citations — Шаг 2.fix: проброс Sources до HTTP/SSE (v1.6.0, KI-086)**:
   - `ToolsController.ExecuteAsync`: проброс `result.Sources` в JSON-ответ
