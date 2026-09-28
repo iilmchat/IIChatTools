@@ -18,6 +18,17 @@
 
 ## [Unreleased]
 
+### Added
+- **Sources — `fetch_web_content` возвращает citation (v1.6.1, KI-086-post, Шаг A4)**:
+  - `FetchWebContentTool.ExecuteAsync` — `ToolResult.Ok(data, message, sources)`,
+    где `sources` = `[WebSourceBuilder.BuildSingle(title, url, text, "web")]`.
+  - `label = <title>` страницы (fallback → `url`), `url = запрошенный URL`,
+    `snippet` — первые 200 символов очищенного текста.
+  - **Ожидаемый эффект:** при вызове `fetch_web_content` в UI-блоке
+    «📚 Источники» появляется кликабельная ссылка на загруженную страницу.
+  - **Не покрыто (осознанно):** если `extractText = false` (HTML-режим) —
+    `sources` = `null` (для отладки, snippet не имеет смысла).
+
 ### Fixed
 - **Sources — дедупликация схлопывала web/wiki-источники в один (v1.6.1, KI-086-post, Шаг B.fix)**:
   - **Симптом:** `web_agent` возвращает 7 sources (в curl), но в UI-блоке

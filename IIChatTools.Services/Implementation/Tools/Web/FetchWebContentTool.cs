@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using HtmlAgilityPack;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.Extensions;
+using IIChatTools.Services.Implementation.Rag;            // v1.6.1 (KI-086-post): WebSourceBuilder
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -99,14 +100,31 @@ namespace IIChatTools.Services.Implementation.Tools.Web
 
                 var title = doc.DocumentNode.SelectSingleNode("//title")?.InnerText?.Trim();
 
-                return ToolResult.Ok(new
-                {
-                    url,
-                    title,
-                    textLength = text.Length,
-                    truncated,
-                    text
-                });
+                // v1.6.1 (KI-086-post): citation для UI-блока «📚 Источники».
+                // type = "web", label = title (fallback → url), snippet = первые
+                // 200 символов текста страницы. Если title пуст и url есть —
+                // BuildSingle всё равно создаст source (label = url).
+                var source = WebSourceBuilder.BuildSingle(
+                    title: title,
+                    url: url,
+                    snippet: text,
+                    type: "web");
+
+                var message = string.IsNullOrWhiteSpace(title)
+                    ? $"Загружено {text.Length} символов."
+                    : $"Загружено {text.Length} символов из «{title}».";
+
+                return ToolResult.Ok(
+                    new
+                    {
+                        url,
+                        title,
+                        textLength = text.Length,
+                        truncated,
+                        text
+                    },
+                    message,
+                    sources: source != null ? new[] { source } : null);
             }
             catch (Exception ex)
             {
