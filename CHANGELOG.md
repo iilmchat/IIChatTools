@@ -18,6 +18,21 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.6.0] — 2026-09-28
+
+**Sources / citations под ответом ассистента (KI-086).** Блок «📚 Источники»
+с RAG-чанками, реально использованными LLM: live через SSE `done` и при
+F5-загрузке из `ChatMessageDto.Sources`. 13 коммитов, 17 новых тестов
+(199 → 216).
+
+**Известные ограничения v1.6.0:** см. `docs/development/RELEASES.md` § 1a.
+Ключевое: Web-tools (Wikipedia, WebSearch, FetchWebContent) sources **не отдают**
+в v1.6.0 — план на v1.6.1.
+
 ### Changed
 - **Sources / citations — Шаг 5.3: KI-086 → Fixed, RULES v1.4.18 (v1.6.0, KI-086)**:
   - **`docs/KNOWN_ISSUES.md`:** KI-086 → **Fixed (v1.6.0)**. Дописано тело —
@@ -209,8 +224,6 @@
   - `ChatMessageDto.MetadataJson` — проброс в API (сырой JSON,
     разбор — на клиенте).
   - Миграция `AddChatMessageMetadata` (SqlServer).
-
-_(планируется — см. roadmap: KI-047, KI-053, KI-082, KI-088)._
 
 ---
 

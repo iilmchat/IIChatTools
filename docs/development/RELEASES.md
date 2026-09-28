@@ -21,11 +21,24 @@
 
 ---
 
-## § 1a. Известные ограничения релиза v1.5.0
+## § 1a. Известные ограничения релиза v1.6.0
 
 > **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
 > долги, которые переносятся в v1.5.x. Они **не блокируют** выпуск v1.5.0,
 > но должны быть учтены при развёртывании.
+
+### Sources / citations — Web-tools не отдают sources
+
+В v1.6.0 блок «📚 Источники» работает **только для RAG** (`search_knowledge_base`,
+`search_chat_history`, `search_workspace`, auto-inject из `my_rag_docs`).
+Web-инструменты (`WikipediaSearchTool`, `WebSearchTool`, `FetchWebContentTool`)
+**не возвращают** структурированные `{ url, title }` — план на v1.6.1.
+
+### Sources — абсолютные пути в `documentPath`
+
+`sources[i].documentPath` содержит абсолютный путь (`C:\Projects\...`).
+UI показывает `label` (имя файла), но API некрасив для мульти-юзера.
+Косметика — v1.6.1.
 
 ### SqlServer-миграции НЕ применяются (KI-091)
 
@@ -37,7 +50,7 @@
 Sqlite-типы (`TEXT`/`INTEGER`) из-за `Database:Provider = "Sqlite"` в момент
 генерации. Подробности — `docs/KNOWN_ISSUES.md` → KI-091.
 
-**Правила для v1.5.0:**
+**Правила для v1.6.0 (те же, что были для v1.5.0):**
 
 - **Dev (рекомендуется):** `Database:Provider = "Sqlite"` (по умолчанию).
   Схема создаётся через `EnsureCreatedAsync` (не через миграции).
