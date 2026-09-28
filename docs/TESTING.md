@@ -41,8 +41,9 @@
 | 8 | `/profile` → «Индексация workspace» → checkbox → дождаться | Прогресс-бар растёт, статус меняется на «Включён · N файлов · M чанков». | | |
 | 9 | Попросить LLM сохранить файл («сохрани test.txt») | SSE `tool_approval_required` → модалка с JSON-параметрами, countdown 5 мин. Approve/Reject работает. | | |
 | 10 | `Ctrl+K` | Модалка поиска чатов. Ввод → результат со snippet, подсветка `<mark>`. Enter — открыть. | | |
+| 11 | Задать «Что у нас в RULES про `yield return`?» (без вложений) | LLM вызывает `search_knowledge_base` (не `file_system_agent`). Под ответом — блок «📚 Источники» с 3-5 элементами вида `RULES.md (chunk 15, score 0.71)`. Tooltip при hover. `Ctrl+Shift+R` → блок остаётся (F5-режим из `ChatMessageDto.Sources`). | | |
 
-> **Если smoke (10/10 OK) — релиз можно публиковать.**
+> **Если smoke (11/11 OK) — релиз можно публиковать.**
 
 ---
 
@@ -78,6 +79,7 @@
 | 3.2.9 | Просмотр чанков `project_docs` | Пагинация 20/стр., «Всего: N». Кнопка ✕ удаляет чанк. | | |
 | 3.2.10 | Workspace Index → Reindex | Прогресс сбросился, растёт заново. | | |
 | 3.2.11 | Workspace Index → Disable → confirm | Статус «Отключён», ChunkCount = 0. | | |
+| 3.2.12 | Новый чат → «Что у нас в RULES про `yield return`?» | LLM вызывает `search_knowledge_base`. Под ответом — блок «📚 Источники» с 3-5 элементами. В DevTools → Network → `stream` → Response: `event: done` содержит `"sources":[...]`. | | |
 
 ### § 3.3. Multi-Agent / Admin
 

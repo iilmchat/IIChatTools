@@ -371,6 +371,7 @@ dotnet run --project IIChatTools.API
 - 💻 **Code blocks** — шапка с языком + кнопки Copy / Download.
 - 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций, SSE `tool_call` / `tool_result`).
 - 📎 **RAG-вложения** — прикрепить файлы к чату (📎): PlainText (28 расширений, ≤32 MB, ≤5 файлов). Чипы с метриками под полем ввода, кнопка «Очистить RAG». Auto-inject top-K из attached-чанков в system prompt (Шаг 6C).
+- 📚 **Источники (Sources)** — под ответом ассистента: список RAG-чанков, использованных LLM, с указанием имени файла, номера фрагмента и score (`RULES.md · chunk 15 · score 0.71`). Snippet — в tooltip при hover. **Live-режим** (через SSE `done`) и **F5-режим** (из `ChatMessageDto.Sources`).
 - ✅ **Approvals** — mutating-инструменты требуют подтверждения:
   - Модалка с именем инструмента, JSON-параметрами, countdown (5 минут).
   - Drag-and-drop за заголовок.
@@ -468,6 +469,11 @@ Embeddings — LM Studio (`text-embedding-nomic-embed-text-v1.5`, 768 dim), ве
 3. **Auto-inject (Шаг 6C):** при отправке сообщения, если у чата есть attached-чанки
    в `my_rag_docs`, top-K из них вставляется в system prompt (порог — `AutoInjectMinScore`).
 4. **3 tool для LLM:** `search_knowledge_base`, `search_chat_history`, `search_workspace`.
+5. **Sources / citations (v1.6.0):** под ответом ассистента — блок «📚 Источники»
+   со списком RAG-чанков, реально использованных LLM. Собираются из двух
+   источников: (а) auto-inject (system prompt); (б) `tool_result` от `search_*`.
+   Дедупликация по `(type, documentPath, chunkIndex)`. Сохраняются в
+   `ChatMessage.MetadataJson` (camelCase), отдаются в `ChatMessageDto.Sources`.
 
 Chat видит **10 инструментов** (6 агентов + `consult_secondary_agent` + 3 RAG-tool).
 
@@ -520,7 +526,7 @@ Chat видит **10 инструментов** (6 агентов + `consult_sec
   переиндексирован автоматически (`AutoIndexProjectDocs=true`) или вручную через админку.
 - **PDF / DOCX / OCR** — не в MVP (запланированы на v1.5.x).
 - **Re-ranking (cross-encoder)** — не в MVP.
-- **Sources / citations** под ответом — план на v1.6.0 (KI-086).
+_(Sources / citations реализованы в v1.6.0 — см. раздел «Chat UI» и «RAG / Knowledge Base».)_
 
 ### API
 

@@ -18,6 +18,19 @@
 
 ## [Unreleased]
 
+### Added
+- **Sources / citations — Шаг 5.2: README + TESTING (v1.6.0, KI-086)**:
+  - **README.md:**
+    - «Chat UI» — новый пункт «📚 Источники (Sources)» (live + F5-режим).
+    - «RAG / Knowledge Base → Как работает» — пункт 5 про citations.
+    - «Ограничения (осознанные, MVP)» — убран пункт про Sources
+      (реализовано в v1.6.0).
+  - **docs/TESTING.md:**
+    - Smoke § 2 — 11-й сценарий (блок «Источники» после ответа + F5).
+      Счётчик сценариев: 10 → 11.
+    - Full regression § 3.2 — 3.2.12 (search_knowledge_base + блок
+      «Источники» + проверка SSE `done` через DevTools).
+
 ### Fixed
 - **Sources / citations — Шаг 5.1.fix2: кросс-платформенный BuildLabel (v1.6.0, KI-086)**:
   - **Симптом:** CI падал на `ubuntu-latest` (тест `BuildLabel_AbsoluteWindowsPath_ReturnsFileName`),
