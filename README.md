@@ -1,10 +1,10 @@
-# IIChatTools v1.6.0
+# IIChatTools v1.6.1
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.6.0
+© 2026 RuChating (iilmchat) · IIChatTools v1.6.1
 
 ---
 
@@ -371,7 +371,7 @@ dotnet run --project IIChatTools.API
 - 💻 **Code blocks** — шапка с языком + кнопки Copy / Download.
 - 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций, SSE `tool_call` / `tool_result`).
 - 📎 **RAG-вложения** — прикрепить файлы к чату (📎): PlainText (28 расширений, ≤32 MB, ≤5 файлов). Чипы с метриками под полем ввода, кнопка «Очистить RAG». Auto-inject top-K из attached-чанков в system prompt (Шаг 6C).
-- 📚 **Источники (Sources)** — под ответом ассистента: список RAG-чанков, использованных LLM, с указанием имени файла, номера фрагмента и score (`RULES.md · chunk 15 · score 0.71`). Snippet — в tooltip при hover. **Live-режим** (через SSE `done`) и **F5-режим** (из `ChatMessageDto.Sources`).
+- 📚 **Источники (Sources)** — под ответом ассистента: список использованных LLM источников с указанием имени/URL. Для RAG — `RULES.md · chunk 15 · score 0.71`; для web/wiki — кликабельная ссылка (`Москва — Википедия`, `example.com`). Snippet — в tooltip при hover. **Live-режим** (через SSE `done`) и **F5-режим** (из `ChatMessageDto.Sources`). Покрыто: RAG-чанки, `wikipedia_search`, `web_search`, `fetch_web_content` (включая проброс через агентов).
 - ✅ **Approvals** — mutating-инструменты требуют подтверждения:
   - Модалка с именем инструмента, JSON-параметрами, countdown (5 минут).
   - Drag-and-drop за заголовок.
@@ -654,8 +654,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 docker pull ghcr.io/iilmchat/iichattools:latest
 
 # Конкретный релиз
-docker pull ghcr.io/iilmchat/iichattools:v1.6.0
-docker pull ghcr.io/iilmchat/iichattools:1.6.0
+docker pull ghcr.io/iilmchat/iichattools:v1.6.1
+docker pull ghcr.io/iilmchat/iichattools:1.6.1
 docker pull ghcr.io/iilmchat/iichattools:1.6
 docker pull ghcr.io/iilmchat/iichattools:1
 
@@ -678,7 +678,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 216/216 тестов проходят (unit + integration).
+**Статус**: 241/241 тестов проходят (unit + integration).
 
 ---
 

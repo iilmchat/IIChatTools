@@ -21,24 +21,26 @@
 
 ---
 
-## § 1a. Известные ограничения релиза v1.6.0
+## § 1a. Известные ограничения релиза v1.6.1
 
 > **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
 > долги, которые переносятся в v1.5.x. Они **не блокируют** выпуск v1.5.0,
 > но должны быть учтены при развёртывании.
 
-### Sources / citations — Web-tools не отдают sources
+### Wikipedia timeout через прокси (KI-094)
 
-В v1.6.0 блок «📚 Источники» работает **только для RAG** (`search_knowledge_base`,
-`search_chat_history`, `search_workspace`, auto-inject из `my_rag_docs`).
-Web-инструменты (`WikipediaSearchTool`, `WebSearchTool`, `FetchWebContentTool`)
-**не возвращают** структурированные `{ url, title }` — план на v1.6.1.
+`wikipedia_search` периодически падает с `Timeout 15s` при SSL-обрыве
+через корпоративный прокси (intermittent). **Не блокер v1.6.1** — `web_agent`
+автоматически делает fallback на `web_search` (DuckDuckGo), который работает
+стабильно. Citations приходят из `web_search` (v1.6.1). План на v1.6.2:
+уменьшить timeout / увеличить retry / circuit breaker. См. KI-094.
 
-### Sources — абсолютные пути в `documentPath`
+### Sources — `documentPath` теперь относительный (Fixed в v1.6.1)
 
-`sources[i].documentPath` содержит абсолютный путь (`C:\Projects\...`).
-UI показывает `label` (имя файла), но API некрасив для мульти-юзера.
-Косметика — v1.6.1.
+В v1.6.0 `sources[i].documentPath` содержал абсолютный путь (`C:\Projects\...`).
+**Исправлено в v1.6.1** (KI-086-post): `DocumentIngestionService` использует
+`request.Source` (относительный). Старые записи в БД требуют реиндексации
+(`/admin → База знаний → Обновить индекс проекта`).
 
 ### SqlServer-миграции НЕ применяются (KI-091)
 

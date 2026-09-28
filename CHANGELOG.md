@@ -18,6 +18,119 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.6.1] — 2026-09-28
+
+**Sources / citations для Web-tools (KI-086-post).** Продолжение v1.6.0:
+`wikipedia_search`, `web_search`, `fetch_web_content` теперь возвращают
+citations → блок «📚 Источники» в UI показывает **все** источники (RAG + web + wiki).
+Sources пробрасываются через агентов (`SubAgentTaskResult.Sources`).
+Кросс-платформенный fix `DocumentPath` (относительные пути вместо абсолютных).
+
+**Тесты:** 219 → **241** (+22).
+
+### Added
+- **Sources — `fetch_web_content` возвращает citation (v1.6.1, KI-086-post, Шаг A4)**:
+  - `FetchWebContentTool.ExecuteAsync` — `ToolResult.Ok(data, message, sources)`,
+    где `sources` = `[WebSourceBuilder.BuildSingle(title, url, text, "web")]`.
+  - `label = <title>` страницы (fallback → `url`), `url = запрошенный URL`,
+    `snippet` — первые 200 символов очищенного текста.
+  - **Не покрыто (осознанно):** если `extractText = false` (HTML-режим) —
+    `sources` = `null` (для отладки, snippet не имеет смысла).
+
+### Added
+- **Sources — тесты `WebSourceBuilder` (v1.6.1, KI-086-post, Шаг A5)**:
+  - **22** теста (`WebSourceBuilderTests.cs`, включая `[Theory]`-наборы):
+    - `Build`: null / empty / valid / limit / skip-empty / dedup-by-url /
+      normalize-type ×5 / truncate-snippet.
+    - `BuildSingle`: empty-url ×3 / valid-url.
+    - `BuildLabel`: fallback-chain ×6.
+  - **Тесты:** 219 → **241** (+22).
+
+### Added
+- **Sources / KI — записи в KNOWN_ISSUES (v1.6.1, KI-086-post, Шаг A5)**:
+  - **KI-094** — `wikipedia_search` intermittent timeout (SSL через прокси).
+    Documented, план v1.6.2. Fallback `web_search` закрывает UX.
+  - **KI-095** — snippet `fetch_web_content` может дублировать label
+    (h1 = title на некоторых страницах). Documented, не баг.
+  - **KI-096** — GitHub Wiki для проекта (roadmap v1.7+).
+    Scope: публичная wiki / RAG-индексация / автосинхронизация.
+
+### Added
+- **Sources — `web_search` возвращает citations (v1.6.1, KI-086-post, Шаг A3)**:
+  - `WebSearchTool.ExecuteAsync` — `ToolResult.Ok(data, message, sources)`.
+  - `sources` — `WebSourceBuilder.Build(retrieved, "web", maxCount: 5)`:
+    `type = "web"`, `label = title`, `url` — распакованный DuckDuckGo-редирект,
+    `snippet` — HTML-очищенный (≤ 200 символов).
+  - **Fallback-эффект:** даже если `wikipedia_search` упал по timeout (KI-064),
+    в `web_agent` отработает `web_search` → citations придут в UI.
+
+### Added
+- **Sources — проброс citations через агентов (v1.6.1, KI-086-post, Шаг B)**:
+  - **Проблема:** LLM в Chat вызывает `web_agent` (не `wikipedia_search` напрямую).
+    Внутри `web_agent` — `wikipedia_search` возвращает `ToolResult.Sources`,
+    но `SubAgentService` их **отбрасывал**, отдавая наружу только `finalAnswer`.
+  - `SubAgentTaskResult.Sources` (`IReadOnlyList<ChatSourceDto>`) — новое поле.
+    Собирается в `SubAgentService` из `ToolResult.Sources` всех inner-вызовов
+    с дедупликацией по ключу `(Type|DocumentPath|Url|ChunkIndex)`.
+  - `AgentToolBase.ExecuteAsync` — проброс `result.Sources` в `ToolResult.Ok(...)`.
+  - `ConsultSecondaryAgentTool.ExecuteAsync` — то же.
+  - **Тесты:** +3 в `AgentToolBaseTests` (sources / null / empty).
+
+### Added
+- **Sources — `wikipedia_search` возвращает citations (v1.6.1, KI-086-post, Шаг A2)**:
+  - `WikipediaSearchTool.ExecuteAsync` возвращает `ToolResult.Ok(data, message, sources)`.
+  - `sources` — `WebSourceBuilder.Build(retrieved, "wiki", maxCount: limit)`:
+    `type = "wiki"`, `label = title`, `url = https://{lang}.wikipedia.org/?curid={pageId}`,
+    `snippet` — HTML-очищенный extract из search API (≤ 200 символов).
+
+### Added
+- **Sources — Web-tools: `RetrievedWebResult` + `WebSourceBuilder` (v1.6.1, KI-086-post, Шаг A1)**:
+  - `RetrievedWebResult` (`DTO/Rag/`) — унифицированный результат веб-поиска
+    (`Title`, `Url`, `Snippet`).
+  - `WebSourceBuilder` (`Implementation/Rag/`) — статический хелпер:
+    `Build` / `BuildSingle` / `BuildLabel`; переиспользует
+    `RagSourceBuilder.TruncateSnippet` (≤ 200 символов с «…»).
+
+### Fixed
+- **Sources — snippet `fetch_web_content` дублировал `<title>` (v1.6.1, KI-086-post, Шаг A4.fix / A4.fix2)**:
+  - **Симптом:** `snippet` начинался с `Example DomainExample DomainThis domain is...`.
+  - **Причина:** `FetchWebContentTool` вырезал `<script>`, `<style>`, `<noscript>`,
+    но **не** `<head>` (где живёт `<title>`).
+  - **Fix:** добавил `//head` в список удаляемых узлов.
+  - **Регрессия A4.fix:** удаление `//head` ДО `SelectSingleNode("//title")` →
+    `title=null` → `label=url` вместо `Example Domain`.
+  - **Fix A4.fix2:** сначала читаем `//title`, потом удаляем узлы.
+  - **Остаток** («Example Domain» в snippet) — это `<h1>` в `<body>`, реальный
+    контент, не дубль. См. KI-095.
+
+### Fixed
+- **Sources — дедупликация схлопывала web/wiki-источники в один (v1.6.1, KI-086-post, Шаг B.fix)**:
+  - **Симптом:** `web_agent` возвращает 7 sources (в curl), но в UI-блоке
+    «📚 Источники» отображается только **1**.
+  - **Причина:** в `ChatStreamService.AddSourcesToAccumulator` (Шаг 3 v1.6.0)
+    ключ дедупликации был `(Type|DocumentPath|ChunkIndex)` — **без `Url`**.
+    Для RAG-чанков работало, для web/wiki — все источники схлопывались в один.
+  - **Fix:**
+    - `ChatStreamService.AddSourcesToAccumulator` — ключ `(Type|DocumentPath|Url|ChunkIndex)`
+      с `?? string.Empty` (симметрично `SubAgentService`).
+    - `WebSourceBuilder.Build` — внутренняя дедупликация по `Url`.
+
+### Fixed
+- **Sources — относительные пути в `DocumentChunk.DocumentPath` (v1.6.1, KI-086-post)**:
+  - **Симптом:** в `sources[i].documentPath` уходил абсолютный путь
+    `C:\Projects\AI\IIChatTools\docs\development\RULES.md`.
+  - **Причина:** `DocumentIngestionService.GetTextFromSourceAsync` для
+    `SourceType.File` возвращал `request.FilePath` (абсолютный), игнорируя
+    `request.Source` (относительный), который передают все три caller'а.
+  - **Fix:** `request.Source` (если задан) → `DocumentPath`; fallback на
+    `request.FilePath` для обратной совместимости.
+  - **Сопутствующий fix:** `ChatAttachmentService.DeleteAsync` — путь для
+    `DeleteDocumentAsync` берётся из `entity.StoragePath`.
+
 ### Added
 - **Sources — тесты `WebSourceBuilder` (v1.6.1, KI-086-post, Шаг A5)**:
   - 15 тестов (`WebSourceBuilderTests.cs`):
