@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using System.Web;
 using HtmlAgilityPack;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.DTO.Rag;                       // v1.6.1 (KI-086-post)
 using IIChatTools.Services.Extensions;
+using IIChatTools.Services.Implementation.Rag;            // v1.6.1: WebSourceBuilder
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
@@ -70,6 +72,9 @@ namespace IIChatTools.Services.Implementation.Tools.Web
                 doc.LoadHtml(html);
 
                 var results = new List<object>();
+                // v1.6.1 (KI-086-post): параллельный сбор для citations.
+                var retrieved = new List<RetrievedWebResult>();
+
                 var nodes = doc.DocumentNode.SelectNodes("//div[contains(@class,'result')]");
 
                 if (nodes != null)
@@ -88,19 +93,38 @@ namespace IIChatTools.Services.Implementation.Tools.Web
 
                         // DuckDuckGo редиректит через /l/?uddg=
                         var decoded = DecodeDuckLink(href);
+                        var snippet = snippetNode != null
+                            ? HtmlEntity.DeEntitize(snippetNode.InnerText)?.Trim()
+                            : null;
 
                         results.Add(new
                         {
                             title,
                             url = decoded,
-                            snippet = snippetNode != null
-                                ? HtmlEntity.DeEntitize(snippetNode.InnerText)?.Trim()
-                                : null
+                            snippet
+                        });
+
+                        retrieved.Add(new RetrievedWebResult
+                        {
+                            Title = title,
+                            Url = decoded,
+                            Snippet = snippet
                         });
                     }
                 }
 
-                return ToolResult.Ok(new { query, count = results.Count, results });
+                // v1.6.1 (KI-086-post): citations — top-5 (защита от слишком длинного списка).
+                // Согласовано в Q3 (WebSearch — top-5, остальные как есть).
+                var sources = WebSourceBuilder.Build(retrieved, "web", maxCount: 5);
+
+                var message = results.Count == 0
+                    ? "По запросу ничего не найдено."
+                    : $"Найдено {results.Count} результатов.";
+
+                return ToolResult.Ok(
+                    new { query, count = results.Count, results },
+                    message,
+                    sources.Count > 0 ? sources : null);
             }
             catch (Exception ex)
             {

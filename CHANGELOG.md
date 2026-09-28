@@ -19,6 +19,15 @@
 ## [Unreleased]
 
 ### Added
+- **Sources — `web_search` возвращает citations (v1.6.1, KI-086-post, Шаг A3)**:
+  - `WebSearchTool.ExecuteAsync` — `ToolResult.Ok(data, message, sources)`.
+  - `sources` — `WebSourceBuilder.Build(retrieved, "web", maxCount: 5)`:
+    `type = "web"`, `label = title`, `url` — распакованный DuckDuckGo-редирект,
+    `snippet` — HTML-очищенный (≤ 200 символов).
+  - **Fallback-эффект:** даже если `wikipedia_search` упал по timeout (KI-064),
+    в `web_agent` отработает `web_search` → citations придут в UI.
+
+### Added
 - **Sources — проброс citations через агентов (v1.6.1, KI-086-post, Шаг B)**:
   - **Проблема:** LLM в Chat вызывает `web_agent` (не `wikipedia_search` напрямую).
     Внутри `web_agent` — `wikipedia_search` возвращает `ToolResult.Sources`,
