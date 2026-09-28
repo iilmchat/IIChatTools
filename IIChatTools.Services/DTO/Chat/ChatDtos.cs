@@ -129,6 +129,14 @@ namespace IIChatTools.Services.DTO.Chat
         /// KI-084a: причина завершения (<c>stop</c>, <c>length</c>, <c>tool_calls</c>).
         /// </summary>
         public string FinishReason { get; set; }
+
+        /// <summary>
+        /// v1.6.0 (KI-086): метаданные сообщения (сырой JSON).
+        /// Пока — только источники: <c>{ "sources": [ {...} ] }</c>.
+        /// Разбор — на стороне клиента (chat.js).
+        /// <c>null</c> — метаданных нет.
+        /// </summary>
+        public string MetadataJson { get; set; }
     }
 
     /// <summary>

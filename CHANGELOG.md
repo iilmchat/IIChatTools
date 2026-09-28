@@ -18,7 +18,20 @@
 
 ## [Unreleased]
 
-_(планируется — см. roadmap: KI-047, KI-053, KI-082, KI-086 (v1.6.0), KI-088)._
+### Added
+- **Sources / citations — Шаг 1: DTO + ChatMessage.MetadataJson (v1.6.0, KI-086)**:
+  - `ChatSourceDto` (`IIChatTools.Services/DTO/Chat/ChatSourceDto.cs`):
+    единый DTO источника для блока «Источники» под ответом ассистента.
+    Поля: `Type` (`rag`/`web`/`wiki`), `Label`, `Url`, `DocumentPath`,
+    `ChunkIndex?`, `Score?`, `Snippet`.
+  - `ChatMessage.MetadataJson` (`string`, nvarchar(max)) — метаданные
+    сообщения. Пока хранит `{ "sources": [...] }`. Поле рассчитано
+    на будущие расширения (страница PDF, timestamp и т.п.).
+  - `ChatMessageDto.MetadataJson` — проброс в API (сырой JSON,
+    разбор — на клиенте).
+  - Миграция `AddChatMessageMetadata` (SqlServer).
+
+_(планируется — см. roadmap: KI-047, KI-053, KI-082, KI-088)._
 
 ---
 

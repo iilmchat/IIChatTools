@@ -79,5 +79,13 @@ namespace IIChatTools.Data.Entities
         /// (<c>stop</c>, <c>length</c>, <c>tool_calls</c>, <c>content_filter</c>).
         /// </summary>
         public string FinishReason { get; set; }
+
+        /// <summary>
+        /// v1.6.0 (KI-086): метаданные сообщения (JSON).
+        /// Пока используется только для источников: <c>{ "sources": [ {...} ] }</c>.
+        /// В будущем — другие метаданные (номер страницы PDF, timestamp в видео и т.п.).
+        /// <c>null</c> — метаданных нет (user/tool/старые assistant).
+        /// </summary>
+        public string MetadataJson { get; set; }
     }
 }
