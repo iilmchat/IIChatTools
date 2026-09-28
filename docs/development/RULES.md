@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.17
+**Версия:** 1.4.18
 **Обновлено:** 2026-09-28
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -173,6 +173,7 @@
 | KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.6.0+ |
 | KI-083 | 🟡 | **Fixed (v1.5.0)** | RAG / Knowledge Base (фазы 0-8 закрыты) | ✅ |
 | KI-085 | 🟢 | Documented | SQLite `database is locked` (внешний клиент) | — |
+| KI-086 | 🟢 | **Fixed (v1.6.0)** | Sources / citations под ответом ассистента | ✅ |
 | KI-086 | 🟢 | Deferred | Sources / citations под ответом | v1.6.0 |
 | KI-088 | 🟡 | Planned | `docs/TESTING.md` (чек-лист ручной приёмки) | v1.5.0 |
 | KI-090 | 🟢 | Documented | SqlServer-migrations snapshot drift | — |
@@ -213,6 +214,7 @@
 | 2026-09-25 | 1.4.15 | Правила 4.40 (GUID-имена файлов в тестах), 4.41 (`JToken.Value<T>()` без key → CS7036). **KI-083 Шаги 6A-тесты / 6B** — Attachments. |
 | 2026-09-28 | 1.4.16 | Правила 4.42 (`InMemoryDatabaseRoot` + имя БД **до** лямбды `AddDbContext`; иначе разные scope = разные БД), 4.43 (`JToken.GetValue` не существует — `JObject.Properties` вручную). **KI-083 Шаги 7D.1 / 7D.2** — Unit-тесты WorkspaceIndexService / AdminKnowledgeController. |
 | 2026-09-28 | 1.4.17 | § 7 — актуализация KI-выжимки после релиза v1.5.0 (KI-083 → Fixed, KI-091 → Deferred v1.5.0-rc, KI-092/093 Documented). **Релиз v1.5.0.** |
+| 2026-09-28 | 1.4.18 | Правила 4.44 (новый top-level `ITool` → `allowedNames` Chat), 4.45 (`Path.GetFileName` — кросс-платформенные грабли; Linux не распознаёт `\`). § 7 — KI-086 → Fixed (v1.6.0). **В работе v1.6.0 (Sources).** |
 
 ---
 

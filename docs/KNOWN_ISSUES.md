@@ -922,19 +922,42 @@
 ---
 
 ### KI-086 — Вывод источников (sources / citations) под ответом ассистента
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.6.0 (после RAG)
-- **Обнаружено:** 2026-09-25
-- **Файлы (план):**
-  - `ChatMessage.cs` — новое поле `MetadataJson` (или `SourcesJson`).
-  - `ChatToolResultDto` — расширить `sources: [{ url, title, snippet }]`.
-  - Web-инструменты (`WikipediaSearchTool`, `WebSearchTool`, `FetchWebContentTool`) — возвращать список источников.
-  - `chat.js` — блок «Источники: [1] [2] [3]» под assistant-сообщением.
-- **Описание:** Web-инструменты уже возвращают URL (например, `finalAnswer` от `web_agent` содержит `Источник: [https://ru.wikipedia.org/wiki/...]`). Но эти данные «закопаны» в JSON `tool_result` и не видны пользователю. Аналогично Perplexity/ChatGPT-with-browse — нужен аккуратный блок «Источники» с кликабельными ссылками под ответом.
-- **Решение (план):**
-  - Явное поле в `tool_result` от Web-инструментов: список `{ url, title }`.
-  - Сохранение в `ChatMessage.MetadataJson` (требует миграции — 1 поле).
-  - UI: `.chat-message-sources` под `.chat-message-content` — нумерованный список.
-- **Обоснование отсрочки:** RAG (v1.5.0) вводит концепцию «документов-источников» (chunks + их origin). Логичнее сначала сделать RAG, потом унифицировать sources для всех инструментов (Web, KnowledgeBase, Chats, Workspace).
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.6.0
+- **Обнаружено:** 2026-09-25 | **Устранено:** 2026-09-28
+- **Файлы (итог):**
+  - `IIChatTools.Services/DTO/Chat/ChatSourceDto.cs` — новый DTO (rag/web/wiki).
+  - `IIChatTools.Services/DTO/ToolResult.cs` — +`Sources` (`IReadOnlyList<ChatSourceDto>`).
+  - `IIChatTools.Services/DTO/Chat/ChatStreamDtos.cs` — `Done` +параметр `sources`.
+  - `IIChatTools.Services/DTO/Chat/ChatToolResultDto.cs` — +`Sources`.
+  - `IIChatTools.Services/DTO/Chat/ChatDtos.cs` — `ChatMessageDto` +`Sources` +`MetadataJson`.
+  - `IIChatTools.Services/Implementation/Rag/RagSourceBuilder.cs` — новый хелпер.
+  - `IIChatTools.Services/Implementation/Tools/Rag/*Tool.cs` — 3 RAG-tool возвращают sources.
+  - `IIChatTools.Services/Implementation/ChatStreamService.cs` — aggregation + camelCase-сериализация + `RagToolNames` fix.
+  - `IIChatTools.Data/Entities/ChatMessage.cs` — +`MetadataJson`.
+  - `IIChatTools.Data/Migrations/SqlServer/*_AddChatMessageMetadata.cs` — новая миграция.
+  - `IIChatTools.API/Controllers/{ToolsController,ChatController}.cs` — проброс Sources.
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` + `chat.css` — UI-блок «📚 Источники».
+  - `IIChatTools.API/Views/Chat/Index.cshtml` — 2 data-атрибута.
+  - `SharedResources*.resx` (RU + EN) — +2 ключа (`ChatSourcesHeader`, `ChatSourceChunkMeta`).
+  - `IIChatTools.Tests/UnitTests/Rag/RagSourceBuilderTests.cs` — 17 тестов (14 `[Fact]`/`[Theory]` + 3 mixed-separators `[Theory]`).
+- **Описание:** Web-инструменты возвращали URL в JSON `tool_result`, но данные не были видны пользователю. RAG (v1.5.0) ввёл концепцию «документов-источников»; в v1.6.0 добавлен UI-блок «📚 Источники» под ответом ассистента.
+- **Решение (итог):**
+  - **Шаг 1:** `ChatSourceDto`, `ChatMessage.MetadataJson`, миграция `AddChatMessageMetadata`.
+  - **Шаг 2:** `ToolResult.Sources` + `RagSourceBuilder` (label = имя файла из пути, snippet ≤ 200), 3 RAG-tool пробрасывают sources.
+  - **Шаг 2.fix:** проброс `Sources` до HTTP/SSE (`ToolsController`, `ChatStreamService`, `ChatController`).
+  - **Шаг 3:** aggregation sources в `ChatStreamService` (auto-inject + `tool_result`), дедупликация по `(type, documentPath, chunkIndex)`, сохранение в `MetadataJson` (camelCase), SSE `done`.
+  - **Шаг 3.5:** усилены `Description` для `search_knowledge_base` и `file_system_agent`.
+  - **Шаг 3.5c:** ⭐ **корневой fix** — RAG-tools не попадали в `tools[]` Chat с v1.5.0 (`allowedNames` содержал только 6 агентов + consult). RULES § 4.44.
+  - **Шаг 3.5d:** camelCase + структурный `ChatMessageDto.Sources` (парсится на бэкенде).
+  - **Шаг 4:** UI — блок «📚 Источники» (`RULES.md (chunk 15, score 0.71)`), live (SSE) + F5 (`msg.sources`).
+  - **Шаг 5.1–5.2:** тесты (`RagSourceBuilder`), README + TESTING.
+  - **Шаг 5.1.fix2:** кросс-платформенный `BuildLabel` (`Path.GetFileName` на Linux) — RULES § 4.45.
+- **Тесты:** 199 → **216** (+17).
+- **Коммиты:** 13 (Шаги 1, 2, 2.fix, 3, 3.5, 3.5c, 3.5d, 3.5e, 4, 5.1, 5.1.fix, 5.1.fix2, 5.2).
+- **Известные ограничения (не блокеры, v1.6.1+):**
+  - `sources[i].documentPath` — абсолютный (`C:\Projects\...`); UI показывает `label` (имя файла), но `path` в API некрасив. Косметика.
+  - LLM (qwen3-4b) галлюцинирует содержимое RULES.md (пишет про «правила выбора инструментов», которых там нет) — ограничение 4B-модели + недостаток re-ranking.
+  - **Web-tools** (Wikipedia, WebSearch, FetchWebContent) — sources для них **в v1.6.1**. В v1.6.0 — только RAG-источники.
 - **Связанные:** KI-083 (RAG / embeddings — v1.5.0).
 
 ---
@@ -1154,7 +1177,8 @@
 | Fixed (v1.4.1) | 9 |                <!-- KI-049, 067, 076, 078, 079, 080, 081, 084, 085 -->
 | Fixed (v1.4.x) | 1 |                <!-- KI-087 -->
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
-| Deferred | 3 |                      <!-- KI-047, KI-053, KI-082 -->
+| Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
+| Deferred | 2 |                      <!-- KI-047, KI-053, KI-082 (KI-086 ушёл в Fixed v1.6.0) -->
 | Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->

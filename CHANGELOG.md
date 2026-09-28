@@ -18,6 +18,17 @@
 
 ## [Unreleased]
 
+### Changed
+- **Sources / citations — Шаг 5.3: KI-086 → Fixed, RULES v1.4.18 (v1.6.0, KI-086)**:
+  - **`docs/KNOWN_ISSUES.md`:** KI-086 → **Fixed (v1.6.0)**. Дописано тело —
+    13 коммитов, 17 новых тестов, все ключевые файлы. Сводка: +`Fixed (v1.6.0) = 1`,
+    `Deferred = 3 → 2`.
+  - **`docs/development/RULES.md`:**
+    - § 7 (KI-выжимка) — добавлена строка KI-086 → Fixed (v1.6.0).
+    - § 8 (история) — новая строка **1.4.18**: правила 4.44 (top-level ITool →
+      `allowedNames`), 4.45 (`Path.GetFileName` — кросс-платформенные грабли).
+    - Шапка: версия 1.4.17 → **1.4.18**.
+
 ### Added
 - **Sources / citations — Шаг 5.2: README + TESTING (v1.6.0, KI-086)**:
   - **README.md:**
