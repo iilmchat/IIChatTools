@@ -16,15 +16,15 @@
 
 ---
 
-## [Unreleased]
-
 ### Fixed
-- **Sources — snippet `fetch_web_content` дублировал `<title>` (v1.6.1, KI-086-post, Шаг A4.fix)**:
-  - **Симптом:** `snippet` начинался с `Example DomainExample DomainThis domain is...` —
-    `<title>` попадал в `doc.DocumentNode.InnerText`.
-  - **Причина:** `FetchWebContentTool` вырезал `<script>`, `<style>`,
-    `<noscript>`, но **не** `<head>`, где живёт `<title>`.
-  - **Fix:** добавил `//head` в список удаляемых узлов.
+- **Sources — snippet `fetch_web_content` дублировал `<title>` + label стал URL (v1.6.1, KI-086-post, Шаг A4.fix)**:
+  - **Симптом:** `snippet` начинался с `<title>` (`Example Domain...`),
+    label = URL вместо «Example Domain».
+  - **Причина:** первая правка удаляла `<head>` (где живёт `<title>`)
+    **до** `SelectSingleNode("//title")` — title → null → fallback на url.
+  - **Fix:** сначала извлекаем `//title`, потом удаляем `<script>|<style>|<noscript>|<head>`,
+    потом `InnerText`. Остаток «Example Domain» в snippet — это `<h1>`
+    внутри `<body>` (реальный контент страницы, не дубль `<title>`).
 
 ### Added
 - **Sources — `fetch_web_content` возвращает citation (v1.6.1, KI-086-post, Шаг A4)**:

@@ -83,9 +83,15 @@ namespace IIChatTools.Services.Implementation.Tools.Web
                 var doc = new HtmlDocument();
                 doc.LoadHtml(html);
 
-                // v1.6.1 (KI-086-post): удаляем <head>, <script>, <style>, <noscript>.
-                // Без вырезания <head> в InnerText попадает <title> — snippet
-                // начинается с дублированного заголовка («Example DomainExample Domain...»).
+                // v1.6.1 (KI-086-post): извлекаем <title> ДО удаления <head>.
+                // Порядок критичен: после n.Remove() узла <head> (или его
+                // содержимого) XPath "//title" уже ничего не найдёт.
+                var title = doc.DocumentNode.SelectSingleNode("//title")?.InnerText?.Trim();
+
+                // Удаляем служебные узлы, которые не являются контентом:
+                //   - <script>, <style>, <noscript> — код/стили;
+                //   - <head> — <title>, <meta>, <link> — дублируют title
+                //     в InnerText и засоряют snippet.
                 var toRemove = doc.DocumentNode.SelectNodes("//script|//style|//noscript|//head");
                 if (toRemove != null)
                     foreach (var n in toRemove) n.Remove();
@@ -99,8 +105,6 @@ namespace IIChatTools.Services.Implementation.Tools.Web
                     text = text.Substring(0, MaxTextLength);
                     truncated = true;
                 }
-
-                var title = doc.DocumentNode.SelectSingleNode("//title")?.InnerText?.Trim();
 
                 // v1.6.1 (KI-086-post): citation для UI-блока «📚 Источники».
                 // type = "web", label = title (fallback → url), snippet = первые
