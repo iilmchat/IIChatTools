@@ -18,6 +18,24 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Sources — дедупликация схлопывала web/wiki-источники в один (v1.6.1, KI-086-post, Шаг B.fix)**:
+  - **Симптом:** `web_agent` возвращает 7 sources (в curl), но в UI-блоке
+    «📚 Источники» отображается только **1**.
+  - **Причина:** в `ChatStreamService.AddSourcesToAccumulator` (Шаг 3 v1.6.0)
+    ключ дедупликации был `(Type|DocumentPath|ChunkIndex)` — **без `Url`**.
+    Для RAG-чанков работало (у них есть DocumentPath/ChunkIndex), но для
+    web/wiki (оба поля `null`) ключ получался одинаковым — `"wiki||"` — и
+    все источники схлопывались в один (первый добавленный).
+  - **Fix:**
+    - `ChatStreamService.AddSourcesToAccumulator` — ключ `(Type|DocumentPath|Url|ChunkIndex)`
+      с `?? string.Empty` (симметрично `SubAgentService`, Шаг B).
+    - `WebSourceBuilder.Build` — внутренняя дедупликация по `Url`
+      (case-insensitive). DuckDuckGo HTML иногда отдаёт 4 `<div class="result">`
+      с одинаковой ссылкой → после фикса в списке 1 запись, а не 4.
+  - **Побочный эффект:** старые записи в `DocumentChunks` с `Url = null` —
+      ключ для RAG-чанков не изменился (`null` → `""`).
+
 ### Added
 - **Sources — `web_search` возвращает citations (v1.6.1, KI-086-post, Шаг A3)**:
   - `WebSearchTool.ExecuteAsync` — `ToolResult.Ok(data, message, sources)`.

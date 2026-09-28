@@ -960,13 +960,19 @@ namespace IIChatTools.Services.Implementation
         }
 
         /// <summary>
-        /// v1.6.0 (KI-086): добавляет sources в аккумулятор с дедупликацией
-        /// по ключу <c>(Type|DocumentPath|ChunkIndex)</c>.
+        /// v1.6.0 (KI-086): добавляет sources в аккумулятор с дедупликацией.
         ///
         /// <para>
-        /// Один и тот же чанк может прийти из двух источников: auto-inject
-        /// (в system prompt) и tool_result (если LLM вызвала RAG-tool).
-        /// Дедупликация гарантирует, что в финальном списке он появится один раз.
+        /// Ключ дедупликации — <c>(Type|DocumentPath|Url|ChunkIndex)</c>.
+        /// Включает <c>Url</c> — иначе web/wiki-источники (у которых
+        /// <c>DocumentPath = null</c> и <c>ChunkIndex = null</c>) дают
+        /// одинаковый ключ и схлопываются в один.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Bugfix v1.6.1:</b> до этого фикса ключ был без <c>Url</c> —
+        /// 7 web/wiki-источников от <c>web_agent</c> превращались в 1.
+        /// Симметрично <c>SubAgentService.AddSourcesToAccumulator</c> (Шаг B).
         /// </para>
         /// </summary>
         /// <param name="accumulator">Список-приёмник (мутируется)</param>
@@ -985,7 +991,12 @@ namespace IIChatTools.Services.Implementation
                 if (s == null)
                     continue;
 
-                var key = $"{s.Type}|{s.DocumentPath}|{s.ChunkIndex}";
+                // v1.6.1: 4-полевой ключ, включая Url. `?? ""` — защита
+                // от null-полей (RAG-чанки не имеют Url; web/wiki — не имеют
+                // DocumentPath/ChunkIndex).
+                var key = $"{s.Type}|{s.DocumentPath ?? string.Empty}|" +
+                          $"{s.Url ?? string.Empty}|{s.ChunkIndex?.ToString() ?? string.Empty}";
+
                 if (seenKeys.Add(key))
                 {
                     accumulator.Add(s);

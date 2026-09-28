@@ -74,6 +74,12 @@ namespace IIChatTools.Services.Implementation.Rag
             var effectiveType = NormalizeType(type);
             var list = new List<ChatSourceDto>(Math.Min(results.Count, maxCount));
 
+            // v1.6.1: дедупликация внутри самого билдера. DuckDuckGo HTML
+            // иногда отдаёт несколько `<div class="result">` с одинаковой
+            // ссылкой (например, разные сниппеты). Убираем повторы по
+            // (Type|Url), чтобы не раздувать список.
+            var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var result in results)
             {
                 if (list.Count >= maxCount)
@@ -85,6 +91,14 @@ namespace IIChatTools.Services.Implementation.Rag
                 // Пропускаем совсем пустые результаты (без title и url).
                 if (string.IsNullOrWhiteSpace(result.Title)
                     && string.IsNullOrWhiteSpace(result.Url))
+                {
+                    continue;
+                }
+
+                // Дедуп по URL (case-insensitive). Если URL пуст — пропускаем
+                // дедуп (нечего сравнивать), но всё равно добавляем.
+                if (!string.IsNullOrWhiteSpace(result.Url)
+                    && !seenUrls.Add(result.Url.Trim()))
                 {
                     continue;
                 }
