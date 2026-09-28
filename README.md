@@ -32,7 +32,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **Аудит** всех действий: БД + опциональный JSONL-файл (`logs/audit/`).
 - **Безопасность**: `PathHelper`, `ArgumentList`, whitelist команд, лимиты размеров, TTL-сессии.
 - **Offline-развёртывание**: сборка без доступа к интернету через `LocalPackages/`.
-- **🚧 RAG / Knowledge Base (v1.5.0, in progress)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. Готовы фазы 1-5 (Embedding, Vector Store, Chunking, Parser+Ingestion, Retrieval+3 Tools) и 6A/6B (Attachments: entity, сервис, 4 API-endpoint, лимиты multipart). Впереди — 6C (auto-inject), 6D (UI), 7 (Admin/Profile UI), 8 (тесты+docs+релиз). Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
+- **🚧 RAG / Knowledge Base (v1.5.0, in progress — Фаза 7 закрыта)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. 4 индекса (project_docs, my_rag_docs, chat_history, workspace), 3 tool для LLM (search_knowledge_base, search_chat_history, search_workspace), auto-inject top-K из attached-чанков в system prompt. UI: 📎-вложения в чате, админка /admin → База знаний, opt-in в /profile → Workspace index. Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
 - **Логотип (KI-081):** фирменный знак IIChatTools (шестиугольник с переплетением) — в navbar, на главной (hero), на страницах входа/регистрации и в empty state чата. Favicon — SVG + PNG (16/32) + apple-touch-icon. Файлы: `wwwroot/images/logo-icon.svg`, `logo-full.svg`, `site.webmanifest`.
 
 ---
@@ -315,7 +315,20 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/chat/regenerate` | Перегенерировать последний ответ ассистента |
 | `POST` | `/api/chat/messages/{id}/edit` | Редактировать user-сообщение (удаляет всё после) |
 | `POST` | `/api/chats/{id}/generate-title` | AI-генерация названия из первого сообщения |
-
+| `POST` | `/api/chat/{chatId}/attachments` | Загрузить файл к чату (multipart, RAG v1.5.0) |
+| `GET` | `/api/chat/{chatId}/attachments` | Список вложений чата |
+| `DELETE` | `/api/chat/{chatId}/attachments/{id}` | Удалить вложение |
+| `POST` | `/api/chat/{chatId}/attachments/clear` | Очистить все вложения чата |
+| `GET` | `/api/admin/knowledge/indexes` | Список 4 RAG-индексов (Admin) |
+| `POST` | `/api/admin/knowledge/indexes/project-docs/reindex` | Переиндексировать project_docs (Admin) |
+| `GET` | `/api/admin/knowledge/chunks?index=&page=&pageSize=` | Просмотр чанков (Admin) |
+| `DELETE` | `/api/admin/knowledge/chunks/{id}` | Удалить чанк (Admin) |
+| `GET` | `/api/admin/knowledge/settings` | Настройки RAG (Admin) |
+| `PUT` | `/api/admin/knowledge/settings` | Сохранить настройки RAG (Admin) |
+| `GET` | `/api/profile/workspace-index` | Статус Workspace-индекса (per-user) |
+| `POST` | `/api/profile/workspace-index/enable` | Включить Workspace-индекс (opt-in) |
+| `POST` | `/api/profile/workspace-index/disable` | Отключить + очистить |
+| `POST` | `/api/profile/workspace-index/reindex` | Переиндексировать Workspace |
 ---
 
 ## Инструменты (40)
@@ -357,6 +370,7 @@ dotnet run --project IIChatTools.API
 - 📝 **Markdown-рендеринг** ответов (`marked` + `DOMPurify`) + **подсветка синтаксиса** (`highlight.js`).
 - 💻 **Code blocks** — шапка с языком + кнопки Copy / Download.
 - 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций, SSE `tool_call` / `tool_result`).
+- 📎 **RAG-вложения** — прикрепить файлы к чату (📎): PlainText (28 расширений, ≤32 MB, ≤5 файлов). Чипы с метриками под полем ввода, кнопка «Очистить RAG». Auto-inject top-K из attached-чанков в system prompt (Шаг 6C).
 - ✅ **Approvals** — mutating-инструменты требуют подтверждения:
   - Модалка с именем инструмента, JSON-параметрами, countdown (5 минут).
   - Drag-and-drop за заголовок.
@@ -426,6 +440,92 @@ Model, MaxSteps, SystemPrompt, AllowedTools, RequiresApproval, Disabled), сбр
 
 **Конфигурация:** секция `SubAgents` в `appsettings.json` (6 агентов × настройки).
 Описания и промпты — в [docs/development/v1.4/DESIGN.md](docs/development/v1.4/DESIGN.md).
+
+---
+
+## RAG / Knowledge Base (v1.5.0)
+
+Семантический поиск по документам проекта, приложенным к чату файлам и истории чатов.
+Embeddings — LM Studio (`text-embedding-nomic-embed-text-v1.5`, 768 dim), векторное
+хранилище — `InMemoryVectorStore` (Singleton, теряет данные при рестарте; для
+`project_docs` возможна авто-переиндексация).
+
+### 4 индекса
+
+| Индекс | Область | Источник | Управление |
+|:---|:---|:---|:---|
+| `project_docs` | Global | README, RULES, KNOWN_ISSUES, CHANGELOG, RELEASES | `/admin → База знаний` |
+| `my_rag_docs` | Per-chat | Файлы, приложенные к чату (📎) | `/chat` — «Очистить RAG» |
+| `chat_history` | Per-user | История сообщений пользователя | (LLM — через `search_chat_history`) |
+| `workspace` | Per-user (opt-in) | Файлы workspace пользователя | `/profile → Индексация workspace` |
+
+### Как работает
+
+1. **Ingestion:** файл → парсинг → чанкинг (recursive, 500 токенов, overlap 64) →
+   embeddings (batch 64) → запись в `DocumentChunks` (БД) + `InMemoryVectorStore`.
+2. **Retrieval:** запрос → embedding → cosine top-K → фильтрация по метаданным
+   (chatId / userId) и по `MinScore` → enrichment из БД.
+3. **Auto-inject (Шаг 6C):** при отправке сообщения, если у чата есть attached-чанки
+   в `my_rag_docs`, top-K из них вставляется в system prompt (порог — `AutoInjectMinScore`).
+4. **3 tool для LLM:** `search_knowledge_base`, `search_chat_history`, `search_workspace`.
+
+Chat видит **10 инструментов** (6 агентов + `consult_secondary_agent` + 3 RAG-tool).
+
+### Форматы и лимиты
+
+- **Поддерживаемые форматы (PlainTextParser, 28 расширений):** `.txt`, `.md`, `.csv`,
+  `.tsv`, `.log`, `.json`, `.xml`, `.yaml`, `.yml`, `.html`, `.htm`, `.cs`, `.py`,
+  `.js`, `.ts`, `.java`, `.go`, `.rs`, `.sql`, `.sh`, `.ps1`, `.razor`, `.cshtml`,
+  `.css`, `.scss`, `.dockerfile`, `.gitignore`, `.editorconfig`.
+- **Лимиты (дефолт):** 32 MB на файл, 30 MB суммарно на чат, 5 файлов на чат.
+- **Кодировки:** BOM-детект (UTF-8 / UTF-16 LE/BE), fallback Windows-1251.
+- **PDF / DOCX:** не поддерживаются в MVP (план — v1.5.x).
+
+### UI
+
+- **`/chat`** — 📎-кнопка рядом с полем ввода; чипы с метриками (`📄 file.pdf · 3 чанка · [×]`),
+  строка `RAG: N чанков [Очистить RAG]`.
+- **`/admin → База знаний`** — таблица 4 индексов, переиндексация `project_docs`,
+  просмотр / удаление чанков (пагинация 20/стр.), модалка настроек RAG (8 полей).
+- **`/profile → Индексация workspace`** — opt-in checkbox, статус, progress-bar,
+  кнопка «Переиндексировать». Фоновая индексация через `Task.Run` + `IServiceScopeFactory`.
+
+### Конфигурация (секция `Rag` в `appsettings.json`)
+
+| Ключ | Дефолт | Описание |
+|:---|:---|:---|
+| `Rag:AutoIndexProjectDocs` | `false` | Индексировать `project_docs` при старте приложения |
+| `Rag:Embedding:Model` | `text-embedding-nomic-embed-text-v1.5` | Модель эмбеддингов LM Studio |
+| `Rag:Embedding:Dimensions` | `768` | Размерность вектора |
+| `Rag:Embedding:BatchSize` | `64` | Максимум текстов за один вызов `/v1/embeddings` |
+| `Rag:Embedding:TimeoutSeconds` | `30` | Таймаут эмбеддинг-запроса |
+| `Rag:Chunking:Strategy` | `recursive` | `recursive` / `sentence` / `fixed` |
+| `Rag:Chunking:ChunkSize` | `500` | Целевой размер чанка (токенов) |
+| `Rag:Chunking:ChunkOverlap` | `64` | Перекрытие между чанками |
+| `Rag:Chunking:MinChunkSize` | `100` | Минимальный размер чанка |
+| `Rag:Ingestion:MaxFileSizeBytes` | `33554432` (32 MB) | Лимит файла |
+| `Rag:Ingestion:MaxFilesPerChat` | `5` | Лимит файлов на чат |
+| `Rag:Ingestion:MaxTotalSizePerChat` | `31457280` (30 MB) | Суммарный лимит на чат |
+| `Rag:Ingestion:ProjectDocsPaths` | см. `appsettings.Development.json` | Пути для `project_docs` |
+| `Rag:Retrieval:DefaultTopK` | `5` | Top-K по умолчанию |
+| `Rag:Retrieval:OverFetchMultiplier` | `2` | Over-fetch для фильтрации |
+| `Rag:Retrieval:MinScore` | `0.25` (dev) / `0.3` (prod) | Минимальный cosine score |
+| `Rag:Attachments:AutoInjectTopK` | `5` | Сколько чанков из `my_rag_docs` вставлять в system prompt |
+| `Rag:Attachments:AutoInjectMinScore` | `0.35` | Порог для auto-inject |
+| `Rag:Attachments:StorageSubfolder` | `chat-attachments` | Подпапка в workspace для файлов |
+
+### Ограничения (осознанные, MVP)
+
+- **InMemoryVectorStore** теряет embeddings при рестарте → `project_docs` может быть
+  переиндексирован автоматически (`AutoIndexProjectDocs=true`) или вручную через админку.
+- **PDF / DOCX / OCR** — не в MVP (запланированы на v1.5.x).
+- **Re-ranking (cross-encoder)** — не в MVP.
+- **Sources / citations** под ответом — план на v1.6.0 (KI-086).
+
+### API
+
+См. «API (основные endpoints)» выше: 4 endpoint'а для вложений чата,
+6 для админки Knowledge Base, 5 для Workspace-индекса в профиле.
 
 ---
 
@@ -572,7 +672,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 188/188 тестов проходят (unit + integration).
+**Статус**: 199/199 тестов проходят (unit + integration).
 
 ---
 

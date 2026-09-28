@@ -22,6 +22,14 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **Docs — README: раздел «RAG / Knowledge Base» (v1.5.0, KI-083, Шаг 8.1)**:
+  - «Ключевые возможности»: RAG-пункт обновлён (Фаза 7 закрыта, ссылка на DESIGN).
+  - «API (основные endpoints)»: +14 endpoint'ов + убран дубликат `generate-title`.
+  - «Chat UI»: +1 пункт — RAG-вложения (📎 + чипы + auto-inject).
+  - **Новый раздел «RAG / Knowledge Base»**: 4 индекса, как работает, форматы
+    и лимиты, UI, конфигурация (таблица параметров), ограничения MVP.
+  - «Сборка и тесты»: счётчик 188/188 → 199/199.
+  
 - **RAG / Knowledge Base — Фаза 7 закрыта: Admin KB UI + Profile Workspace UI (v1.5.0, KI-083)**:
   - **Сводка фазы** (7A → 7D.3, всё запушено 2026-09-25 → 2026-09-28):
     - **7A** — backend: DTO + `IAdminKnowledgeService` + `AdminKnowledgeController` (6 endpoints).
