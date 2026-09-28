@@ -22,6 +22,26 @@ _(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
 
 
 ### Added
+- **RAG / Knowledge Base — Шаг 7D.1: Unit-тесты WorkspaceIndexService (v1.5.0, KI-083)**:
+  - **`WorkspaceIndexServiceTests`** (5 тестов):
+    - `GetStatusAsync_Disabled_ReturnsEnabledFalse` — флаг не задан →
+      `Enabled=false, ChunkCount=0, IsIndexing=false`.
+    - `EnableAsync_SetsFlagAndStartsIndexing` — флаг устанавливается, фоновая
+      задача обрабатывает 2 файла (.txt + .md); служебные подпапки
+      (`chat-attachments/`) и неподдерживаемые расширения (.png) игнорируются.
+    - `DisableAsync_ClearsChunksAndFlag` — флаг сброшен + вызов
+      `ClearIndexForUserAsync("workspace", 1)`.
+    - `ReindexAsync_WhenDisabled_Throws` — `InvalidOperationException`.
+    - `ReindexAsync_WhenEnabled_ClearsAndStarts` — очищает чанки + запускает
+      второй прогон, `IngestAsync` вызван повторно.
+  - **Инфраструктура тестов:** реальный `ServiceCollection` + InMemory-DB +
+    реальный `UserSettingsService`; fake — `FakeIngestionService` (расширен
+    `ClearForUserCalls` + `NextClearForUserRemoved`), `FakeWorkspaceResolver`.
+    Polling-loop до 5 с для ожидания завершения фоновой задачи.
+  - **`FakeIngestionService`:** реализация `ClearIndexForUserAsync` теперь
+    записывает вызовы в `ClearForUserCalls` (для ассертов).
+
+### Added
 - **RAG / Knowledge Base — Шаг 7C.2: Workspace Index UI (v1.5.0, KI-083)**:
   - **`Views/Profile/Index.cshtml`:** карточка `#profile-workspace-card` под
     карточкой «Хранение чатов»:

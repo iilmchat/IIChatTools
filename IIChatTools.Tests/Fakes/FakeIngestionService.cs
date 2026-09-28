@@ -29,6 +29,19 @@ namespace IIChatTools.Tests.Fakes
         public List<(string Index, int? ChatId)> ClearCalls { get; }
             = new List<(string, int?)>();
 
+        /// <summary>
+        /// Зафиксированные вызовы <see cref="ClearIndexForUserAsync"/>
+        /// (v1.5.0, KI-083, Шаг 7D.1).
+        /// </summary>
+        public List<(string Index, int UserId)> ClearForUserCalls { get; }
+            = new List<(string, int)>();
+
+        /// <summary>
+        /// Сколько чанков «удалить» в <see cref="ClearIndexForUserAsync"/>
+        /// (v1.5.0, KI-083, Шаг 7D.1). По умолчанию — 0.
+        /// </summary>
+        public int NextClearForUserRemoved { get; set; }
+
         /// <summary>Сколько чанков «создать» в <see cref="IngestAsync"/> (по умолчанию 3).</summary>
         public int NextChunksCreated { get; set; } = 3;
 
@@ -74,17 +87,14 @@ namespace IIChatTools.Tests.Fakes
             return Task.FromResult(1);
         }
 
-        /// <summary>
-        /// Заглушка для <see cref="IDocumentIngestionService.ClearIndexForUserAsync"/>
-        /// (v1.5.0, KI-083, Шаг 7C.1). В тестах этот метод пока не вызывается
-        /// напрямую — тесты <c>WorkspaceIndexService</c> будут в Шаге 7D.
-        /// </summary>
+        /// <inheritdoc />
         public Task<int> ClearIndexForUserAsync(
             string indexName,
             int userId,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(0);
+            ClearForUserCalls.Add((indexName, userId));
+            return Task.FromResult(NextClearForUserRemoved);
         }
     }
 }
