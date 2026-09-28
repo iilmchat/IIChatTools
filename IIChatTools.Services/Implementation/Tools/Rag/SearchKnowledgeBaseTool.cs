@@ -55,10 +55,14 @@ namespace IIChatTools.Services.Implementation.Tools.Rag
         /// <inheritdoc />
         public string Description =>
             "Ищет релевантные фрагменты в документации проекта IIChatTools " +
-            "(README, RULES, KNOWN_ISSUES, CHANGELOG, RELEASES). " +
-            "Используй для вопросов про правила разработки, известные проблемы, " +
-            "архитектуру, API, конфигурацию. НЕ используй для вопросов по внешним темам " +
-            "(для них — web_search).";
+            "(README.md, RULES.md, KNOWN_ISSUES.md, CHANGELOG.md, RELEASES.md, " +
+            "ARCHITECTURE.md, DESIGN.md и др.). " +
+            "ОБЯЗАТЕЛЬНО используй ЭТОТ инструмент для любых вопросов вида " +
+            "«что у нас в RULES про…», «правила разработки», «что в KNOWN_ISSUES», " +
+            "«архитектура проекта», «как настроить X в IIChatTools». " +
+            "Внутренние документы проекта УЖЕ проиндексированы в базе знаний — " +
+            "НЕ пытайся искать их через file_system_agent или читать через read_file. " +
+            "НЕ используй для вопросов по внешним темам (для них — web_search).";
 
         /// <inheritdoc />
         public bool RequiresApprovalByDefault => false;

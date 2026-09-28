@@ -18,6 +18,21 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Sources / citations — Шаг 3.5: LLM не выбирала search_knowledge_base (v1.6.0, KI-086)**:
+  - Усилен `Description` у `search_knowledge_base`: явно перечислены имена файлов
+    (`README.md`, `RULES.md`, `KNOWN_ISSUES.md`, `CHANGELOG.md`, `RELEASES.md`,
+    `ARCHITECTURE.md`, `DESIGN.md`) + явный запрет искать эти файлы через
+    `file_system_agent` / `read_file`.
+  - В `appsettings*.json` в `Description` агента `file_system_agent` добавлено
+    уточнение «В WORKSPACE ПОЛЬЗОВАТЕЛЯ» и предупреждение: для документации
+    проекта использовать `search_knowledge_base`.
+  - **Причина:** qwen3-4b при вопросе «Что у нас в RULES.MD про yield return?»
+    выбирала `file_system_agent` (воспринимала RULES.MD как файл в workspace),
+    а не RAG-tool. LLM внутри агента не находила файл → отвечала «не найдено».
+  - **Не блокер Шага 3** — Шаг 3 работает корректно; фикс улучшает выбор
+    инструмента моделью.
+
 ### Added
 - **Sources / citations — Шаг 3: агрегация и сохранение (v1.6.0, KI-086)**:
   - `ChatStreamService` накапливает `sources` за весь stream из двух мест:
