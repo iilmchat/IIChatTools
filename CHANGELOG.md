@@ -18,6 +18,14 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Sources — snippet `fetch_web_content` дублировал `<title>` (v1.6.1, KI-086-post, Шаг A4.fix)**:
+  - **Симптом:** `snippet` начинался с `Example DomainExample DomainThis domain is...` —
+    `<title>` попадал в `doc.DocumentNode.InnerText`.
+  - **Причина:** `FetchWebContentTool` вырезал `<script>`, `<style>`,
+    `<noscript>`, но **не** `<head>`, где живёт `<title>`.
+  - **Fix:** добавил `//head` в список удаляемых узлов.
+
 ### Added
 - **Sources — `fetch_web_content` возвращает citation (v1.6.1, KI-086-post, Шаг A4)**:
   - `FetchWebContentTool.ExecuteAsync` — `ToolResult.Ok(data, message, sources)`,

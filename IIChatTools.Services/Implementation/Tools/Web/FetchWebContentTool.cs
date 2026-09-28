@@ -83,8 +83,10 @@ namespace IIChatTools.Services.Implementation.Tools.Web
                 var doc = new HtmlDocument();
                 doc.LoadHtml(html);
 
-                // Удаляем скрипты и стили
-                var toRemove = doc.DocumentNode.SelectNodes("//script|//style|//noscript");
+                // v1.6.1 (KI-086-post): удаляем <head>, <script>, <style>, <noscript>.
+                // Без вырезания <head> в InnerText попадает <title> — snippet
+                // начинается с дублированного заголовка («Example DomainExample Domain...»).
+                var toRemove = doc.DocumentNode.SelectNodes("//script|//style|//noscript|//head");
                 if (toRemove != null)
                     foreach (var n in toRemove) n.Remove();
 
