@@ -18,7 +18,20 @@
 
 ## [Unreleased]
 
+
 ### Added
+- **Sources / citations — Шаг 5.1: unit-тесты RagSourceBuilder (v1.6.0, KI-086)**:
+  - **14** тестов в `IIChatTools.Tests/UnitTests/Rag/RagSourceBuilderTests.cs`
+    (4 `[Fact]` + `3×[Theory]` + 2 `[Fact]` + 3 `[Fact]` + `2×[Theory]`):
+    - `Build`: null / empty / valid / multiple (порядок сохранён).
+    - `BuildLabel`: null / empty / absolute Windows path / relative path.
+    - `TruncateSnippet`: short / exactly-max / long (с «…») / null.
+  - **Тесты:** 199 → **213** (+14). В тексте коммита `86ead5d` указано
+    «209» — поправка (я не учёл, что `[Theory]` + `[InlineData]`
+    разворачивается в N отдельных тестов).
+  - Fix CS1574: `<see cref="ChatSourceDto"/>` — добавлен `using IIChatTools.Services.DTO.Chat;`,
+    убран префикс `DTO.Chat.` в cref.
+
 - **Sources / citations — Шаг 4: UI-блок «Источники» (v1.6.0, KI-086)**:
   - **`chat.js`** — `renderSourcesBlock(sources)`:
     - рендерит `<ol>` под ответом ассистента с иконкой 📚;

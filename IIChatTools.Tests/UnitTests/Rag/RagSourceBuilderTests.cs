@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Rag;
 using IIChatTools.Services.Implementation.Rag;
 using Xunit;
@@ -11,7 +12,7 @@ namespace IIChatTools.Tests.UnitTests.Rag
     /// (v1.6.0, KI-086, Шаг 5.1).
     ///
     /// <para>
-    /// Покрывают: преобразование <see cref="RetrievedChunkDto"/> → <see cref="DTO.Chat.ChatSourceDto"/>,
+    /// Покрывают: преобразование <see cref="RetrievedChunkDto"/> → <see cref="ChatSourceDto"/>,
     /// формирование label из пути, обрезку snippet до 200 символов.
     /// </para>
     /// </summary>
