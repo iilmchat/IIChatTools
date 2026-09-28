@@ -246,7 +246,11 @@
   <data name="ChatSearchGlobalClose" xml:space="preserve"><value>Закрыть</value></data>
   <data name="ChatSearchGlobalClear" xml:space="preserve"><value>Очистить поле</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Свернуть боковую панель</value></data>
-  <data name="ChatSidebarExpand" xml:space="preserve"><value>Открыть боковую панель</value></data>  
+  <data name="ChatSidebarExpand" xml:space="preserve"><value>Открыть боковую панель</value></data>
+
+  <!-- ===== Chat: Sources / citations (v1.6.0, KI-086, Шаг 4) ===== -->
+  <data name="ChatSourcesHeader" xml:space="preserve"><value>Источники</value></data>
+  <data name="ChatSourceChunkMeta" xml:space="preserve"><value>фрагмент {0}</value></data>
   
     <data name="AdminTabAgents" xml:space="preserve">
       <value>Агенты</value>

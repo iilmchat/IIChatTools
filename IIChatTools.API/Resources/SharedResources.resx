@@ -246,7 +246,11 @@
   <data name="ChatSearchGlobalClose" xml:space="preserve"><value>Close</value></data>
   <data name="ChatSearchGlobalClear" xml:space="preserve"><value>Clear field</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Collapse sidebar</value></data>
-  <data name="ChatSidebarExpand" xml:space="preserve"><value>Open sidebar</value></data>        
+  <data name="ChatSidebarExpand" xml:space="preserve"><value>Open sidebar</value></data>
+
+  <!-- ===== Chat: Sources / citations (v1.6.0, KI-086, Шаг 4) ===== -->
+  <data name="ChatSourcesHeader" xml:space="preserve"><value>Sources</value></data>
+  <data name="ChatSourceChunkMeta" xml:space="preserve"><value>chunk {0}</value></data>
 
   <data name="AdminTabAgents" xml:space="preserve">
       <value>Agents</value>

@@ -18,6 +18,24 @@
 
 ## [Unreleased]
 
+### Added
+- **Sources / citations — Шаг 4: UI-блок «Источники» (v1.6.0, KI-086)**:
+  - **`chat.js`** — `renderSourcesBlock(sources)`:
+    - рендерит `<ol>` под ответом ассистента с иконкой 📚;
+    - формат элемента: `{label} (фрагмент {N}, score {S})`;
+    - `chunkIndex + 1` — 1-based (user-friendly);
+    - snippet — в `title` (tooltip при hover);
+    - `type: "rag"` — простой текст (файл в workspace/репо);
+    - `type: "web"` / `"wiki"` — `<a href>` (задел на v1.6.1).
+  - **Live-режим:** `finalizeAssistantBubble` вставляет блок из SSE `done` → `data.sources`.
+  - **F5-режим:** `renderMessage` рендерит блок из `msg.sources`
+    (структурный массив, `ChatMessageDto.Sources` — Шаг 3.5d).
+  - **`.resx` (RU + EN):** +2 ключа — `ChatSourcesHeader` («Источники» / «Sources»),
+    `ChatSourceChunkMeta` («фрагмент {0}» / «chunk {0}»).
+  - **`chat.css`:** `.chat-message-sources` (компактный список с левой полосой),
+    `.chat-message-sources-header`, `.chat-message-sources-item`,
+    `.chat-message-sources-meta`. На мобильных meta переносится на новую строку.
+
 ### Fixed
 - **Sources / citations — Шаг 3.5e: warning CS1574 в ChatDtos.cs (v1.6.0, KI-086)**:
   - `<see cref="IIChatTools.API.Controllers.ChatController.GetChatAsync"/>` →

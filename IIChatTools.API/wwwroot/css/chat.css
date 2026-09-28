@@ -1420,6 +1420,62 @@ body.chat-global-search-open {
     }
 }
 
+/* ============ v1.6.0 (KI-086): блок «Источники» под ответом ============ */
+
+.chat-message-sources {
+    margin-top: .5rem;
+    padding: .5rem .75rem;
+    background: #f6f8fa;
+    border-left: 3px solid #6c757d;
+    border-radius: .375rem;
+    font-size: .82rem;
+    color: #57606a;
+}
+
+.chat-message-sources-header {
+    font-weight: 600;
+    margin-bottom: .25rem;
+    color: #212529;
+    font-size: .85rem;
+}
+
+.chat-message-sources-list {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.chat-message-sources-item {
+    margin-bottom: .15rem;
+    word-wrap: break-word;
+}
+
+.chat-message-sources-item:last-child {
+    margin-bottom: 0;
+}
+
+.chat-message-sources-item a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.chat-message-sources-item a:hover {
+    text-decoration: underline;
+}
+
+.chat-message-sources-meta {
+    color: #6c757d;
+    font-family: var(--bs-font-monospace);
+    font-size: .72rem;
+    white-space: nowrap;
+}
+
+/* На мобильных meta переносится на новую строку — не жмём. */
+@media (max-width: 575.98px) {
+    .chat-message-sources-meta {
+        white-space: normal;
+    }
+}
+
 /* ============ KI-081: логотип в empty state чата ============ */
 
 .chat-empty-logo {

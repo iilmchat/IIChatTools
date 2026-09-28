@@ -1882,6 +1882,12 @@ function renderMessage(msg, opts = {}) {
             : `<div class="chat-message-content chat-markdown">${renderMarkdown(msg.content)}</div>`)
         : '';
 
+    // v1.6.0 (KI-086): блок «Источники» — только для assistant-сообщений.
+    // При F5 данные приходят из ChatMessageDto.Sources (структурный массив).
+    const sourcesHtml = (!isUser && Array.isArray(msg.sources) && msg.sources.length > 0)
+        ? renderSourcesBlock(msg.sources)
+        : '';
+
     // Actions:
     //  - Copy      — если есть текст
     //  - Edit ✏️    — на user-сообщениях (Фаза 2.2.6b)
@@ -1903,6 +1909,7 @@ function renderMessage(msg, opts = {}) {
                 <div class="chat-message-meta">${roleLabel} · ${escapeHtml(formatTime(msg.createdAt))}${tokenMetaHtml}</div>
                 ${toolCallsHtml}
                 ${contentHtml}
+                ${sourcesHtml}
                 ${actionsHtml}
             </div>
         </div>`;
@@ -2115,6 +2122,13 @@ function finalizeAssistantBubble(bubble, data) {
             if (bodyEl) {
                 const oldActions = bodyEl.querySelector('.chat-message-actions');
                 if (oldActions) oldActions.remove();
+
+                // v1.6.0 (KI-086): блок «Источники» — между ответом и actions.
+                // Источники приходят в SSE-событии `done` (параметр data.sources).
+                if (data?.sources && data.sources.length > 0) {
+                    bodyEl.insertAdjacentHTML('beforeend', renderSourcesBlock(data.sources));
+                }
+
                 bodyEl.insertAdjacentHTML('beforeend', renderMessageActions(raw));
             }
         }
@@ -2333,6 +2347,54 @@ function readUrlChatId() {
  */
 function renderUserContent(text) {
     return escapeHtml(text || '').replace(/\n/g, '<br>');
+}
+
+/**
+ * v1.6.0 (KI-086): рендерит блок «Источники» под ответом ассистента.
+ *
+ * @param {Array} sources — массив ChatSourceDto (camelCase от MVC):
+ *                          { type, label, url, documentPath, chunkIndex, score, snippet }
+ * @returns {string} HTML или '' (если источников нет)
+ */
+function renderSourcesBlock(sources) {
+    if (!Array.isArray(sources) || sources.length === 0) return '';
+
+    const container = document.getElementById('chat-messages');
+    const headerLabel = container?.dataset.labelSourcesHeader || 'Sources';
+    const chunkMetaTpl = container?.dataset.labelSourceChunkMeta || 'chunk {0}';
+
+    const itemsHtml = sources.map(s => {
+        const label = escapeHtml(s.label || s.documentPath || '(unknown)');
+
+        // Meta: (фрагмент N, score 0.87) — N показываем 1-based (user-friendly).
+        const metaParts = [];
+        if (s.chunkIndex != null) {
+            metaParts.push(chunkMetaTpl.replace('{0}', String(s.chunkIndex + 1)));
+        }
+        if (Number.isFinite(s.score)) {
+            metaParts.push(`score ${s.score.toFixed(2)}`);
+        }
+        const metaHtml = metaParts.length > 0
+            ? ` <span class="chat-message-sources-meta">(${escapeHtml(metaParts.join(', '))})</span>`
+            : '';
+
+        // Кликабельность: web/wiki — ссылка; rag — простой текст.
+        const isLink = s.url && (s.type === 'web' || s.type === 'wiki');
+        const labelHtml = isLink
+            ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+            : label;
+
+        // Tooltip — snippet (если есть).
+        const titleAttr = s.snippet ? ` title="${escapeAttr(s.snippet)}"` : '';
+
+        return `<li class="chat-message-sources-item"${titleAttr}>${labelHtml}${metaHtml}</li>`;
+    }).join('');
+
+    return `
+        <div class="chat-message-sources">
+            <div class="chat-message-sources-header">📚 ${escapeHtml(headerLabel)}</div>
+            <ol class="chat-message-sources-list">${itemsHtml}</ol>
+        </div>`;
 }
 
 /**
