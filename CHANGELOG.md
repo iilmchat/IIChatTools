@@ -16,8 +16,28 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Sources — тесты `WebSourceBuilder` (v1.6.1, KI-086-post, Шаг A5)**:
+  - 15 тестов (`WebSourceBuilderTests.cs`):
+    - `Build`: null / empty / valid / limit / skip-empty / dedup-by-url /
+      normalize-type ×5 / truncate-snippet.
+    - `BuildSingle`: empty-url ×3 / valid-url.
+    - `BuildLabel`: fallback-chain ×6.
+  - **Тесты:** 219 → **234** (+15).
+
+### Added
+- **Sources / KI — записи в KNOWN_ISSUES (v1.6.1, KI-086-post, Шаг A5)**:
+  - **KI-094** — `wikipedia_search` intermittent timeout (SSL через прокси).
+    Documented, план v1.6.2. Fallback `web_search` закрывает UX.
+  - **KI-095** — snippet `fetch_web_content` может дублировать label
+    (h1 = title на некоторых страницах). Documented, не баг.
+  - **KI-096** — GitHub Wiki для проекта (roadmap v1.7+).
+    Scope: публичная wiki / RAG-индексация / автосинхронизация.
+
 ### Fixed
-- **Sources — snippet `fetch_web_content` дублировал `<title>` + label стал URL (v1.6.1, KI-086-post, Шаг A4.fix)**:
+- **Sources — snippet `fetch_web_content` дублировал `<title>` (v1.6.1, KI-086-post, Шаг A4.fix)**:
   - **Симптом:** `snippet` начинался с `<title>` (`Example Domain...`),
     label = URL вместо «Example Domain».
   - **Причина:** первая правка удаляла `<head>` (где живёт `<title>`)

@@ -1075,6 +1075,75 @@
 
 ---
 
+## v1.6.1 — Sources / citations (Web-tools)
+
+### KI-094 — `wikipedia_search` intermittent timeout в агенте (SSL через прокси)
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.6.2
+- **Обнаружено:** 2026-09-28
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/Web/WikipediaSearchTool.cs`
+- **Описание:** Intermittent таймаут `wikipedia_search` (15s) при SSL-обрыве
+  через корпоративный прокси. Симптом: `web_agent` получает
+  `ToolResult.Fail("Wikipedia не ответила за 15 секунд...")` от
+  `wikipedia_search`, переключается на `web_search` (fallback).
+  Воспроизводится ~50/50 при повторных запросах подряд.
+- **Не блокер v1.6.1:**
+  - `web_search` (DuckDuckGo) работает стабильно и уже возвращает citations
+    (Шаг A3).
+  - `web_agent` автоматически делает fallback — пользователь получает ответ.
+- **Возможные решения (v1.6.2):**
+  - Уменьшить timeout до 10s (быстрее падаем → быстрее fallback).
+  - Увеличить retry до 3 (сейчас `MaxAttempts = 2`).
+  - Circuit breaker: skip wikipedia после 2 таймаутов подряд в рамках сессии.
+  - Проверить `HttpClientHandler.SslProtocols` (может, явно указать TLS 1.2).
+- **Связанные:** KI-064 (первый инцидент с wikipedia timeout, v1.3.x —
+  частично исправлено timeout + retry).
+
+---
+
+### KI-095 — `snippet` `fetch_web_content` может начинаться с текста, дублирующего `label`
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-28
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/Web/FetchWebContentTool.cs`
+- **Описание:** Snippet формируется из первых 200 символов `doc.DocumentNode.InnerText`.
+  На страницах, где `<h1>` в `<body>` совпадает с `<title>` (например,
+  `example.com` → title=`Example Domain`, h1=`Example Domain`), snippet
+  начинается с текста, дублирующего `label`. Визуально: `label: Example Domain`,
+  `snippet: Example DomainThis domain is for use...`.
+- **Не баг:** snippet = «первые 200 символов текста страницы», `<h1>` —
+  это реальный контент, пользователь видит его на странице.
+- **Возможные решения (если понадобится):**
+  - В `WebSourceBuilder.BuildSingle`: если snippet начинается с label
+    (case-insensitive) — отрезать префикс.
+  - Или: удалять первый `<h1>` из body перед чтением InnerText (но тогда
+    теряется часть контента).
+  - Или: оставить как есть — honest API.
+- **Решение:** оставлено как есть (не баг, не блокер).
+
+---
+
+### KI-096 — GitHub Wiki для проекта (roadmap)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.7+
+- **Обнаружено:** 2026-09-28
+- **Описание:** Идея создать **GitHub Wiki** для репозитория
+  `iilmchat/IIChatTools` — как отдельный канал документации, помимо
+  README / RULES / ARCHITECTURE / CHANGELOG.
+- **Возможные scope (уточнить на старте задачи):**
+  1. **Публичная Wiki** с документацией проекта: getting started, architecture,
+     tool reference, FAQ, troubleshooting.
+  2. **RAG по GitHub Wiki** — добавить возможность индексировать GitHub Wiki
+     как источник (в дополнение к `project_docs`). Может быть реализовано через
+     `search_knowledge_base` с новым индексом `github_wiki` или через
+     `fetch_web_content` + ручную индексацию.
+  3. **GitHub Actions workflow** для автосинхронизации Wiki с `docs/` (некоторые
+     страницы могут дублироваться).
+- **Что нужно решить до старта:**
+  - Какие разделы Wiki приоритетны?
+  - Автоматическая синхронизация с `docs/` или ручное ведение?
+  - Нужна ли интеграция с RAG?
+- **Связанные:** KI-083 (RAG / embeddings), KI-086 (Sources).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -1178,13 +1247,13 @@
 | Fixed (v1.4.x) | 1 |                <!-- KI-087 -->
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
-| Deferred | 2 |                      <!-- KI-047, KI-053, KI-082 (KI-086 ушёл в Fixed v1.6.0) -->
-| Documented | 6 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093 -->
+| Deferred | 3 |                      <!-- KI-047, KI-053, KI-082, KI-096 (GitHub Wiki) -->
+| Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Planned | 1 |                     <!-- KI-088 (TESTING.md) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **52** |
+| **Всего** | **55** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
