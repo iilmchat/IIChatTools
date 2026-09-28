@@ -18,6 +18,18 @@
 
 ## [Unreleased]
 
+### Changed
+- **Docs — PROMPT_V2.md v2.3 → v2.4 (post-release v1.6.0)**:
+  - Шапка: «Актуальный релиз проекта» v1.5.0 → **v1.6.0**.
+  - Метрики: 199 → **216** тестов.
+  - «Что выпущено» — расширено до v1.6.0, добавлен раздел Sources / citations.
+  - Roadmap: **v1.6.0 — Sources ✅ Done**, v1.5.x → **v1.6.x**
+    (Web-tools sources, absolute paths fix, KI-091, KI-070, PDF/DOCX, Qdrant).
+  - «Известные подводные камни» — добавлены 3 пункта:
+    Path.GetFileName (RULES § 4.45), кэш браузера JS/CSS, RAG-tools в `allowedNames`
+    (RULES § 4.44).
+  - Ссылка на RULES: v1.4.17 → **v1.4.18**.
+
 _(пусто — новые изменения вносятся сюда)._
 
 ---

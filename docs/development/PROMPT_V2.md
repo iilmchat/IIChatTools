@@ -1,7 +1,7 @@
 PROMPT_V2.md — Стартовый промпт для нового чата
-Версия промпта: v2.3
+Версия промпта: v2.4
 Дата: 2026-09-28
-Актуальный релиз проекта: v1.5.0
+Актуальный релиз проекта: v1.6.0
 Статус: пауза (проект готов к возврату)
 
 Ты — ведущий архитектор и разработчик проекта IIChatTools.
@@ -34,7 +34,7 @@ https://github.com/iilmchat/IIChatTools
 В работе: пауза (следующее — v1.5.x или v1.6.0)
 
 Правила оформления (ОБЯЗАТЕЛЬНО)
-docs/development/RULES.md — v1.4.17 (2026-09-28)
+docs/development/RULES.md — v1.4.18 (2026-09-28)
 
 Прочитай целиком перед началом работы. Ключевые разделы:
 
@@ -75,7 +75,7 @@ IIChatTools.Services — бизнес-логика (ToolRegistry, ChatService, C
 
 IIChatTools.Data — EF Entities + миграции (SqlServer).
 
-IIChatTools.Tests — xUnit (199/199).
+IIChatTools.Tests — xUnit (216/216).
 
 Метрики:
 
@@ -85,7 +85,7 @@ Chat видит 10 инструментов (7 агентов + 3 RAG-tool: sear
 
 KI: 62+ в реестре, 56+ Fixed/Resolved, ~5 Deferred, ~6 Documented.
 
-Что выпущено (v1.3.0 → v1.5.0):
+Что выпущено (v1.3.0 → v1.6.0):
 
 Chat UI — sidebar, SSE-стриминг, tool calling, approvals, AI-title, Markdown + code blocks + подсветка, Copy / Edit / Regenerate / Retry / Stop, ⌘K-поиск (Ctrl+K), inline-поиск (Ctrl+F), collapse sidebar (Ctrl+B), DeepSeek-style поле ввода.
 
@@ -101,9 +101,16 @@ tiktoken (KI-049) — токены + tok/s + duration в meta-сообщения
 
 RAG / Knowledge Base (v1.5.0) — 4 индекса, 3 tool для LLM, вложения в чат (📎), админка /admin → База знаний, opt-in Workspace-индекс в /profile.
 
+Sources / citations (v1.6.0) — блок «📚 Источники» под ответом ассистента: live (SSE done) + F5 (ChatMessageDto.Sources). Собираются из auto-inject + tool_result, дедупликация по (type, documentPath, chunkIndex). camelCase в MetadataJson. Побочный корневой fix: RAG-tools не попадали в allowedNames Chat с v1.5.0 (Chat видел 7 инструментов вместо 10).
+
 Roadmap
 v1.5.0 — RAG / Knowledge Base ✅ Done (2026-09-28)
 Все 8 фаз (0–8) закрыты. DESIGN: docs/development/v1.5/DESIGN.md.
+
+v1.6.0 — Sources / citations ✅ Done (2026-09-28)
+Блок «📚 Источники» под ответом ассистента. KI-086 → Fixed. Тесты: 199 → 216 (+17).
+Ключевой побочный fix: RAG-tools не попадали в tools[] Chat (RULES § 4.44).
+Кросс-платформенный BuildLabel: Path.GetFileName на Linux (RULES § 4.45).
 
 Что выпущено:
 
@@ -117,8 +124,12 @@ v1.5.0 — RAG / Knowledge Base ✅ Done (2026-09-28)
 
 /profile → Индексация workspace — opt-in, прогресс-бар, фоновый ingest.
 
-v1.5.x — инфраструктура + bug fixes (~10–15 ч)
-KI-091 — SqlServer цепочка миграций повреждена (snapshot drift от KI-090). План починки — в KNOWN_ISSUES.md. Обязательно перед prod-SqlServer.
+v1.6.x — инфраструктура + bug fixes (~10–15 ч)
+Web-tools sources — wikipedia_search / web_search / fetch_web_content: расширить ChatSourceDto, вернуть { url, title }. Раньше — план на v1.6.1.
+
+Absolute paths в sources[i].documentPath — нормализовать до относительных (косметика, label уже = имя файла).
+
+KI-091 — SqlServer цепочка миграций повреждена (snapshot drift от KI-090). Обязательно перед prod-SqlServer.
 
 KI-070 — миграции Sqlite.
 
@@ -264,7 +275,7 @@ Remove-Item .commit-msg.txt
 git push origin main
 
 Что сделать сейчас (твоё первое действие)
-Прочитай RULES.md целиком (v1.4.17) — 9 разделов.
+Прочитай RULES.md целиком (v1.4.18) — 9 разделов.
 
 Спроси у меня, что делаем: продолжаем v1.5.x (инфраструктура) / v1.6.0 (sources) / новая задача / фикс / KI.
 
@@ -275,6 +286,12 @@ git push origin main
 Большие MD — только diff (RULES § 2.11).
 
 Известные подводные камни (частые в нашем проекте)
+
+- **Path.GetFileName кросс-платформенный** (RULES § 4.45): на Linux распознаёт только `/`, а не `\`. Абсолютный Windows-путь `C:\...\RULES.md` на Linux-CI вернётся целиком. Перед `Path.GetFileName` нормализовать `\` → `/`. Симптом: красный CI на ubuntu при зелёном локальном `dotnet test`.
+
+- **Кэш браузера после правок chat.js / chat.css.** После изменений — `Ctrl+Shift+R` (жёсткая перезагрузка) + в DevTools Network поставить галку «Disable cache». Иначе работаешь со старым JS и думаешь, что фича сломана.
+
+- **RAG-tools в allowedNames Chat** (RULES § 4.44): при добавлении нового top-level `ITool` в DI — обязательно добавить его имя в `allowedNames` в `ChatStreamService.StreamAsync`. Иначе LLM физически не сможет его вызвать. Было багом в v1.5.0 (Chat видел 7 инструментов вместо 10).
 .resx-ключи case-insensitive — коллизия (MSB3568). Новые — camelCase: ChatModelLabel, WelcomeTitle (RULES § 4.16).
 
 git commit -m "..." в PowerShell — экранирование ломается на кавычках. Использовать here-string + -F .commit-msg.txt.
