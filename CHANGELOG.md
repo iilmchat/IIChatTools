@@ -19,6 +19,15 @@
 ## [Unreleased]
 
 ### Added
+- **Sources — `wikipedia_search` возвращает citations (v1.6.1, KI-086-post, Шаг A2)**:
+  - `WikipediaSearchTool.ExecuteAsync` возвращает `ToolResult.Ok(data, message, sources)`.
+  - `sources` — `WebSourceBuilder.Build(retrieved, "wiki", maxCount: limit)`:
+    `type = "wiki"`, `label = title`, `url = https://{lang}.wikipedia.org/?curid={pageId}`,
+    `snippet` — HTML-очищенный extract из search API (≤ 200 символов).
+  - **Ожидаемый эффект:** в UI-блоке «📚 Источники» под ответом ассистента
+    появляются кликабельные ссылки на статьи Wikipedia (после вызова `wikipedia_search`).
+
+### Added
 - **Sources — Web-tools: `RetrievedWebResult` + `WebSourceBuilder` (v1.6.1, KI-086-post, Шаг A1)**:
   - `RetrievedWebResult` (`DTO/Rag/`) — унифицированный результат веб-поиска
     (`Title`, `Url`, `Snippet`) для трёх Web-инструментов.

@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using System.Web;
 using Newtonsoft.Json.Linq;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.DTO.Rag;                       // v1.6.1 (KI-086-post)
 using IIChatTools.Services.Extensions;
+using IIChatTools.Services.Implementation.Rag;            // v1.6.1 (KI-086-post): WebSourceBuilder
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -100,6 +102,10 @@ namespace IIChatTools.Services.Implementation.Tools.Web
                 var root = JObject.Parse(json);
                 var results = new List<object>();
 
+                // v1.6.1 (KI-086-post): параллельно с Data собираем
+                // унифицированный список для WebSourceBuilder → citations.
+                var retrieved = new List<RetrievedWebResult>();
+
                 var hits = root["query"]?["search"] as JArray;
                 if (hits != null)
                 {
@@ -109,17 +115,42 @@ namespace IIChatTools.Services.Implementation.Tools.Web
                         var snippet = hit["snippet"]?.ToString();
                         var pageId = hit["pageid"]?.Value<long>() ?? 0;
 
+                        // Snippet: убираем HTML-теги (`<span class="searchmatch">`...).
+                        var cleanSnippet = System.Text.RegularExpressions.Regex.Replace(
+                            snippet ?? string.Empty, "<.*?>", string.Empty);
+
+                        var pageUrl = $"https://{lang}.wikipedia.org/?curid={pageId}";
+
                         results.Add(new
                         {
                             title,
                             pageId,
-                            url = $"https://{lang}.wikipedia.org/?curid={pageId}",
-                            snippet = System.Text.RegularExpressions.Regex.Replace(snippet ?? "", "<.*?>", "")
+                            url = pageUrl,
+                            snippet = cleanSnippet
+                        });
+
+                        retrieved.Add(new RetrievedWebResult
+                        {
+                            Title = title,
+                            Url = pageUrl,
+                            Snippet = cleanSnippet
                         });
                     }
                 }
 
-                return ToolResult.Ok(new { query, language = lang, count = results.Count, results });
+                // v1.6.1 (KI-086-post): sources для блока «Источники» в UI.
+                // type = "wiki", maxCount = limit (пользователь уже задал ограничение).
+                // Если retrieved пуст — Build вернёт пустой список, не null.
+                var sources = WebSourceBuilder.Build(retrieved, "wiki", maxCount: limit);
+
+                var message = results.Count == 0
+                    ? "По запросу ничего не найдено в Wikipedia."
+                    : $"Найдено {results.Count} результатов в Wikipedia.";
+
+                return ToolResult.Ok(
+                    new { query, language = lang, count = results.Count, results },
+                    message,
+                    sources.Count > 0 ? sources : null);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
