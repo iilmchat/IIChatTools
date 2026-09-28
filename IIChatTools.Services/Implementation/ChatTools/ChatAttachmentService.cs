@@ -283,8 +283,11 @@ namespace IIChatTools.Services.Implementation.ChatTools
 
             try
             {
+                // v1.6.1: используем entity.StoragePath (относительный) —
+                // он совпадает с DocumentChunk.DocumentPath после fix'а
+                // в DocumentIngestionService (Source → DocumentPath).
                 await _ingestionService.DeleteDocumentAsync(
-                    MyRagDocsIndex, fullPath, chatId: entity.ChatId,
+                    MyRagDocsIndex, entity.StoragePath, chatId: entity.ChatId,
                     cancellationToken: cancellationToken);
             }
             catch (Exception ex)

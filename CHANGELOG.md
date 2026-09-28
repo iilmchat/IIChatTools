@@ -18,6 +18,25 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Sources — относительные пути в `DocumentChunk.DocumentPath` (v1.6.1, KI-086-post)**:
+  - **Симптом:** в `sources[i].documentPath` (API `/api/tools/execute`, SSE `done`,
+    `ChatMessageDto.Sources`) уходил абсолютный путь `C:\Projects\AI\IIChatTools\docs\development\RULES.md`.
+    Некрасиво в API + утечка структуры ФС для мульти-юзера.
+  - **Причина:** `DocumentIngestionService.GetTextFromSourceAsync` для
+    `SourceType.File` возвращал `request.FilePath` (абсолютный) как `documentPath`,
+    **игнорируя** `request.Source` (относительный), который передают **все три**
+    caller'а (`AdminKnowledgeService`, `ChatAttachmentService`, `WorkspaceIndexService`).
+  - **Fix:** использовать `request.Source`, если задан. Fallback на `request.FilePath`
+    для обратной совместимости (прямые вызовы без Source).
+  - **Сопутствующий fix:** `ChatAttachmentService.DeleteAsync` — путь для
+    `DeleteDocumentAsync` теперь берётся из `entity.StoragePath` (относительный),
+    а не из абсолютного `fullPath`. Согласовано с новым форматом в БД.
+  - **Миграция данных:** старые записи в `DocumentChunks` остаются с абсолютными
+    путями. Для обновления — вручную `/admin → База знаний → Обновить индекс проекта`
+    (для `project_docs`). Новые записи (upload вложений, workspace-индексация)
+    сразу идут с относительными путями.
+
 ### Changed
 - **Docs — PROMPT_V2.md v2.3 → v2.4 (post-release v1.6.0)**:
   - Шапка: «Актуальный релиз проекта» v1.5.0 → **v1.6.0**.

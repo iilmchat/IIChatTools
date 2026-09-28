@@ -420,7 +420,21 @@ namespace IIChatTools.Services.Implementation.Rag
                             $"Формат файла не поддерживается: {Path.GetExtension(request.FilePath)}");
 
                     var parsed = await parser.ParseAsync(request.FilePath, cancellationToken);
-                    return (parsed.Text ?? string.Empty, request.FilePath, parsed.Metadata);
+
+                    // v1.6.1 (KI-086-post): если задан относительный Source
+                    // ("docs/development/RULES.md", "chat-attachments/5/uuid.pdf") —
+                    // используем его как DocumentPath. Иначе fallback на абсолютный
+                    // FilePath (для прямых вызовов без Source — обратная совместимость).
+                    //
+                    // Зачем: DocumentPath идёт в citations (ChatSourceDto.DocumentPath).
+                    // Абсолютный путь C:\Projects\... некрасив в API и небезопасен
+                    // для мульти-юзера (утечка структуры ФС). UI показывает label
+                    // (имя файла), но path тоже должен быть относительным.
+                    var documentPath = !string.IsNullOrWhiteSpace(request.Source)
+                        ? request.Source
+                        : request.FilePath;
+
+                    return (parsed.Text ?? string.Empty, documentPath, parsed.Metadata);
                 }
 
                 case IngestionSourceType.Text:
