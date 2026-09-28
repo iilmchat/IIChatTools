@@ -18,10 +18,22 @@
 
 ## [Unreleased]
 
-_(в работе — см. KI-083, RAG / Knowledge Base, v1.5.0)_
+_(планируется — см. roadmap: KI-047, KI-053, KI-082, KI-086 (v1.6.0), KI-088)._
 
+---
 
-### Changed
+## [1.5.0] — 2026-09-28
+
+**RAG / Knowledge Base — семантический поиск по документам проекта, приложенным
+файлам и истории чатов (KI-083).** 4 индекса (`project_docs`, `my_rag_docs`,
+`chat_history`, `workspace`), 3 tool для LLM, вложения в чате (📎),
+админка `/admin → База знаний`, opt-in Workspace-индекс в `/profile`.
+
+**Тесты:** 191 → **199** (8 новых).
+
+### Added
+- **Docs — README: раздел «RAG / Knowledge Base» (v1.5.0, KI-083, Шаг 8.1)**:
+  - «Ключевые возможности»: RAG-пункт обновлён (Фаза 7 закрыта, ссылка на DESIGN).
 - **Release — версия 1.4.1 → 1.5.0 (v1.5.0, KI-083, Шаг 8.3)**:
   - `Directory.Build.props`: `<Version>1.5.0</Version>` + `<Copyright>` + шапка-комментарий.
   - `README.md`: заголовок, Copyright, ghcr-теги (`v1.5.0` / `1.5.0` / `1.5` / `1`).
