@@ -18,6 +18,20 @@
 
 ## [Unreleased]
 
+### Added
+- **Sources — Web-tools: `RetrievedWebResult` + `WebSourceBuilder` (v1.6.1, KI-086-post, Шаг A1)**:
+  - `RetrievedWebResult` (`DTO/Rag/`) — унифицированный результат веб-поиска
+    (`Title`, `Url`, `Snippet`) для трёх Web-инструментов.
+  - `WebSourceBuilder` (`Implementation/Rag/`) — статический хелпер:
+    - `Build(results, type, maxCount = 5)` — список результатов → список citations
+      (`type` = `wiki` / `web` / ...); фильтрует пустые результаты; ограничивает top-N.
+    - `BuildSingle(title, url, snippet, type)` — один citation
+      (для `fetch_web_content` и одиночных Wikipedia); возвращает `null`,
+      если URL пуст.
+    - `BuildLabel(title, url)` — приоритет: `title` → `url` → `"(unknown)"`.
+    - Переиспользует `RagSourceBuilder.TruncateSnippet` (≤ 200 символов с «…»).
+  - Тесты и подключение в tools — следующие шаги (A2-A5).
+
 ### Fixed
 - **Sources — относительные пути в `DocumentChunk.DocumentPath` (v1.6.1, KI-086-post)**:
   - **Симптом:** в `sources[i].documentPath` (API `/api/tools/execute`, SSE `done`,
