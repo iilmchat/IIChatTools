@@ -19,6 +19,35 @@
 ## [Unreleased]
 
 ### Fixed
+- **Sources / citations — Шаг 3.5c: RAG-tools не попадали в tools[] Chat (v1.6.0, KI-086)**:
+  - **Баг:** в `ChatStreamService.StreamAsync` список `allowedNames` строился
+    только из `SubAgentRegistry.GetEnabled()` (6 агентов) + `consult_secondary_agent`.
+    RAG-инструменты (`search_knowledge_base`, `search_chat_history`,
+    `search_workspace`) были зарегистрированы в DI как `ITool`, но **отфильтровывались** —
+    Chat видел 7 инструментов вместо ожидаемых 10.
+  - **Симптом:** LLM в чате не могла вызвать `search_knowledge_base` (его не было
+    в `tools[]`) и выбирала `file_system_agent` как fallback — тот искал
+    `RULES.md` в workspace пользователя и не находил.
+  - **Fix:** явное добавление 3 RAG-tools в `allowedNames` через константу
+    `RagToolNames` (v1.6.0, KI-086, Шаг 3.5c).
+  - **Урок (RULES § 4.44, добавлено ниже):** при добавлении нового top-level
+    `ITool` в DI — проверить, что он попал в `allowedNames` для Chat.
+    `[ToolRegistry]` — это **все** инструменты, а Chat видит только
+    **подмножество** (6 агентов + consult + 3 RAG).
+
+### Added
+- **Sources / citations — Шаг 3.5b: DefaultSystemPrompt в чате (v1.6.0, KI-086)**:
+  - `ChatStreamService.DefaultSystemPrompt` — базовый system prompt проекта,
+    добавляется к **каждому** чату (перед RAG-контекстом и пользовательским
+    `Chat.SystemPrompt`). Явно указывает модели использовать
+    `search_knowledge_base` для вопросов о проекте и `file_system_agent` —
+    для файлов пользователя.
+  - Причина: усиления `Description` в Шаге 3.5 недостаточно — qwen3-4b
+    по-прежнему выбирала `file_system_agent` при вопросе «Что у нас в RULES.md…».
+  - Пользовательские `Chat.SystemPrompt` не перезаписываются — идут после
+    базового через пустую строку.
+
+### Fixed
 - **Sources / citations — Шаг 3.5: LLM не выбирала search_knowledge_base (v1.6.0, KI-086)**:
   - Усилен `Description` у `search_knowledge_base`: явно перечислены имена файлов
     (`README.md`, `RULES.md`, `KNOWN_ISSUES.md`, `CHANGELOG.md`, `RELEASES.md`,

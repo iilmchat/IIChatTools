@@ -42,6 +42,33 @@ namespace IIChatTools.Services.Implementation
         /// <summary>Индекс RAG-чанков, приложенных к чату (v1.5.0, KI-083, Шаг 6C).</summary>
         private const string MyRagDocsIndex = "my_rag_docs";
 
+        /// <summary>
+        /// v1.6.0 (KI-086, Шаг 3.5c): имена RAG-инструментов, явно добавляемых
+        /// в top-level список tools для Chat.
+        ///
+        /// <para>
+        /// В v1.5.0 (KI-083, Фаза 5) RAG-tools были зарегистрированы в DI как
+        /// <see cref="ITool"/>, но НЕ попали в <c>allowedNames</c> при формировании
+        /// <c>tools[]</c> для LLM в <c>ChatStreamService.StreamAsync</c>.
+        /// Список строился только из <c>SubAgentRegistry.GetEnabled()</c>
+        /// (6 агентов) + <c>consult_secondary_agent</c> — итого 7 инструментов
+        /// вместо ожидаемых 10.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Симптом:</b> LLM в чате не могла вызвать <c>search_knowledge_base</c>
+        /// (его не было в <c>tools[]</c>) и выбирала <c>file_system_agent</c>
+        /// как fallback — тот искал <c>RULES.md</c> в workspace пользователя
+        /// и, разумеется, не находил.
+        /// </para>
+        /// </summary>
+        private static readonly string[] RagToolNames =
+        {
+            "search_knowledge_base",
+            "search_chat_history",
+            "search_workspace"
+        };
+
         /// <summary>Сколько top-K чанков вставлять в system prompt (по умолчанию).</summary>
         private const int DefaultAutoInjectTopK = 5;
 
@@ -275,6 +302,18 @@ namespace IIChatTools.Services.Implementation
                 if (!allowedNames.Contains(ParentToolName, StringComparer.OrdinalIgnoreCase))
                 {
                     allowedNames.Add(ParentToolName);
+                }
+
+                // v1.6.0 (KI-086, Шаг 3.5c): явно добавляем RAG-tools.
+                // Без этого Chat видел только 7 инструментов (6 агентов + consult),
+                // и LLM физически не могла вызвать search_knowledge_base — его не было
+                // в tools[] (см. RagToolNames — подробное объяснение).
+                foreach (var ragName in RagToolNames)
+                {
+                    if (!allowedNames.Contains(ragName, StringComparer.OrdinalIgnoreCase))
+                    {
+                        allowedNames.Add(ragName);
+                    }
                 }
 
                 tools = ToolDefinitionsBuilder.Build(
