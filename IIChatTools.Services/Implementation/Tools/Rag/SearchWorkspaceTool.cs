@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.Implementation.Rag;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
@@ -165,7 +166,11 @@ namespace IIChatTools.Services.Implementation.Tools.Rag
                     ? "По запросу ничего не найдено в файлах workspace."
                     : $"Найдено {results.Count} релевантных фрагментов.";
 
-                return ToolResult.Ok(data, message);
+                // v1.6.0 (KI-086): проброс sources для блока «Источники» в UI.
+                // Передаём results после post-filter (filePattern уже применён).
+                var sources = RagSourceBuilder.Build(results);
+
+                return ToolResult.Ok(data, message, sources);
             }
             catch (Exception ex)
             {

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace IIChatTools.Services.DTO.Chat
 {
     /// <summary>
@@ -29,5 +31,13 @@ namespace IIChatTools.Services.DTO.Chat
         /// Сообщение (соответствует <c>ToolResult.Message</c>). Может быть null.
         /// </summary>
         public string Message { get; set; }
+
+        /// <summary>
+        /// v1.6.0 (KI-086): источники, использованные инструментом.
+        /// Для RAG-инструментов — top-K чанков как citations;
+        /// для остальных инструментов — <c>null</c>.
+        /// UI рендерит блок «Источники» под ответом ассистента.
+        /// </summary>
+        public IReadOnlyList<ChatSourceDto> Sources { get; set; }
     }
 }

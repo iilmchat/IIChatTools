@@ -19,6 +19,22 @@
 ## [Unreleased]
 
 ### Added
+- **Sources / citations — Шаг 2: ToolResult.Sources + RAG-tools (v1.6.0, KI-086)**:
+  - `ToolResult.Sources` (`IReadOnlyList<ChatSourceDto>?`) — новый опциональный
+    параметр в `Ok(data, message, sources)`. Обратносовместимо: 46 существующих
+    инструментов продолжают вызывать `Ok(data, message)` — `Sources` остаётся
+    `null`.
+  - `ChatToolResultDto.Sources` — проброс в SSE-событие `tool_result`.
+  - `RagSourceBuilder` (`IIChatTools.Services/Implementation/Rag/`) — хелпер
+    сборки `RetrievedChunkDto → ChatSourceDto`: тип `rag`, label = имя файла
+    из `DocumentPath`, snippet обрезается до 200 символов. Используется
+    всеми тремя RAG-tool (без дублирования логики).
+  - 3 RAG-tool (`search_knowledge_base`, `search_chat_history`,
+    `search_workspace`) возвращают `ToolResult.Ok(data, message, sources)`.
+  - **Ожидаемый эффект:** после выполнения RAG-tool SSE-событие `tool_result`
+    несёт `sources` — UI-блок «Источники» появится в Шаге 4.
+
+### Added
 - **Sources / citations — Шаг 1: DTO + ChatMessage.MetadataJson (v1.6.0, KI-086)**:
   - `ChatSourceDto` (`IIChatTools.Services/DTO/Chat/ChatSourceDto.cs`):
     единый DTO источника для блока «Источники» под ответом ассистента.
