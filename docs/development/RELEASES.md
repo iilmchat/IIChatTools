@@ -21,55 +21,60 @@
 
 ---
 
-## § 1a. Известные ограничения релиза v1.6.1
+## § 1a. Известные ограничения релиза v1.7.0
 
 > **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
 > долги, которые переносятся в v1.5.x. Они **не блокируют** выпуск v1.5.0,
 > но должны быть учтены при развёртывании.
 
-### Wikipedia timeout через прокси (KI-094)
+> **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
+> долги, которые переносятся в v1.7.x. Они **не блокируют** выпуск v1.7.0.
 
-`wikipedia_search` периодически падает с `Timeout 15s` при SSL-обрыве
-через корпоративный прокси (intermittent). **Не блокер v1.6.1** — `web_agent`
-автоматически делает fallback на `web_search` (DuckDuckGo), который работает
-стабильно. Citations приходят из `web_search` (v1.6.1). План на v1.6.2:
-уменьшить timeout / увеличить retry / circuit breaker. См. KI-094.
+### SqlServer-миграции НЕ применяются (KI-091 — Deferred)
 
-### Sources — `documentPath` теперь относительный (Fixed в v1.6.1)
+**Симптом:** `dotnet ef database update` на свежей SqlServer-БД падает
+с `Operand type clash`. План пересборки — в KI-091, перенесён на **v1.7.x**.
 
-В v1.6.0 `sources[i].documentPath` содержал абсолютный путь (`C:\Projects\...`).
-**Исправлено в v1.6.1** (KI-086-post): `DocumentIngestionService` использует
-`request.Source` (относительный). Старые записи в БД требуют реиндексации
-(`/admin → База знаний → Обновить индекс проекта`).
-
-### SqlServer-миграции НЕ применяются (KI-091)
-
-**Симптом:** `dotnet ef database update` на свежей SqlServer БД падает с
-`Operand type clash: datetime2 is incompatible with text` на миграции
-`AddUserSettings` (и всех последующих до `AddDocumentChunks`).
-
-**Причина:** snapshot drift от KI-090 — цепочка SqlServer-миграций содержит
-Sqlite-типы (`TEXT`/`INTEGER`) из-за `Database:Provider = "Sqlite"` в момент
-генерации. Подробности — `docs/KNOWN_ISSUES.md` → KI-091.
-
-**Правила для v1.6.0 (те же, что были для v1.5.0):**
+**Правила:**
 
 - **Dev (рекомендуется):** `Database:Provider = "Sqlite"` (по умолчанию).
-  Схема создаётся через `EnsureCreatedAsync` (не через миграции).
-- **Prod / SqlServer:** **БД не разворачивается** в v1.5.0. Первое развёртывание
-  SqlServer — в **v1.5.x** после пересборки цепочки миграций.
-- **НЕ запускать** `dotnet ef database update` на SqlServer-БД под v1.5.0.
-- **Fix-план:** KI-091 → v1.5.0-rc (пересборка — одна сводная миграция
-  `AddUserSettings_AgentStats_Rag`).
+  Схема создаётся через `EnsureCreatedAsync`.
+- **Prod / SqlServer:** не разворачивать в v1.7.0. Дождаться пересборки
+  миграций в v1.7.x.
+
+### Sqlite relative path — Fixed (KI-100)
+
+`SqlConnectionProvider` теперь резолвит **относительный** `Data Source`
+относительно `IWebHostEnvironment.ContentRootPath` (а не CWD). Работает
+при запуске из любой директории, как служба, в Docker.
+
+### Per-action approval через `ITool.RequiresApprovalForCall` (KI-101 — Fixed)
+
+Метаданные (`list_databases` / `list_tables` / `describe_table`) — **без**
+approval. `execute_query` — **с** approval. Реализовано через default interface
+method в `ITool`. Все 46 старых инструментов работают без изменений.
+
+### Admin UI локализация — Fixed (KI-102)
+
+Все строки `/admin` переведены через `data-*` (RULES § 4.17). RU/EN
+переключается корректно.
+
+### `/status` локализация — KI-103 (Documented, план v1.7.x)
+
+На странице `/status` часть UI остаётся на русском при переключении на EN
+(hardcoded RU в `status.js`). **Не блокер.** План — v1.7.x (~1 час).
+
+### Внешние БД (Postgres / MySQL / Oracle) — KI-099 (v1.8.0)
+
+Database Agent работает только с собственной БД (`internal`). Архитектура
+готова к внешним подключениям, но провайдеры добавятся в v1.8.0.
 
 ### Прочие ограничения (не блокеры)
 
-- **Sources / citations** под ответом ассистента — перенесено в v1.6.0 (KI-086).
-- **PDF / DOCX / OCR** в RAG — v1.5.x (в v1.5.0 только `PlainTextParser`, 28 расширений).
-- **Re-ranking** (cross-encoder) — v1.5.x.
-- **Qdrant** — v1.5.x (в v1.5.0 только `InMemoryVectorStore` — embeddings теряются при рестарте).
-- **KI-088** (`docs/TESTING.md` — чек-лист ручной приёмки) — параллельно с релизом.
-- **KI-092** (Bootstrap 5.2 `aria-hidden` warning) — не баг, нулевое влияние на UX.
+- **PDF / DOCX / OCR** в RAG — v1.7.x.
+- **Re-ranking (cross-encoder)** — v1.7.x.
+- **Qdrant** (замена InMemoryVectorStore) — v1.7.x.
+- **KI-092** (Bootstrap 5.2 `aria-hidden` warning) — не баг, нулевое влияние.
 
 ---
 

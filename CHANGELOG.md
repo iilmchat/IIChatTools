@@ -18,6 +18,19 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.7.0] — 2026-09-29
+
+**Database Agent — read-only SQL-доступ LLM к БД приложения (KI-097).**
+4 действия инструмента `database_agent` (`list_databases` / `list_tables` /
+`describe_table` / `execute_query`), 5 уровней безопасности (read-only роль,
+валидатор, whitelist, timeout+auto-LIMIT, approval+audit), admin UI
+`/admin → SQL Agent`, per-action approval (KI-101), fix локализации `/admin`
+(KI-102). Тесты: **312 → 341**.
+
 ### Added
 - **Database Agent — Фаза 1: контракты + DTO (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.1)**:
   - **DTO (`DTO/SqlAgent/`)** — 5 файлов: `DatabaseConnectionInfoDto`,

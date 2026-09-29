@@ -1527,7 +1527,7 @@
 | Documented | 9 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-103 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
-| Planned | 1 |                       <!-- KI-088 (TESTING.md) -->
+| Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **62** |
 
@@ -1536,6 +1536,7 @@
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia), KI-070 (Sqlite stale DB).
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content), KI-069 (inline-edit в sidebar).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
+**Implemented (v1.7.0):** KI-088 (`docs/TESTING.md` — чек-лист ручной приёмки).
 **Всего в реестре:** 48 KI.
 
 ---

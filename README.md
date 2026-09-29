@@ -1,10 +1,10 @@
-# IIChatTools v1.6.1
+# IIChatTools v1.7.0
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.6.1
+© 2026 RuChating (iilmchat) · IIChatTools v1.7.0
 
 ---
 
@@ -32,7 +32,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **Аудит** всех действий: БД + опциональный JSONL-файл (`logs/audit/`).
 - **Безопасность**: `PathHelper`, `ArgumentList`, whitelist команд, лимиты размеров, TTL-сессии.
 - **Offline-развёртывание**: сборка без доступа к интернету через `LocalPackages/`.
-- **🚧 RAG / Knowledge Base (v1.5.0, in progress — Фаза 7 закрыта)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. 4 индекса (project_docs, my_rag_docs, chat_history, workspace), 3 tool для LLM (search_knowledge_base, search_chat_history, search_workspace), auto-inject top-K из attached-чанков в system prompt. UI: 📎-вложения в чате, админка /admin → База знаний, opt-in в /profile → Workspace index. Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
+- **✅ RAG / Knowledge Base (v1.5.0)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. 4 индекса (project_docs, my_rag_docs, chat_history, workspace), 3 tool для LLM (search_knowledge_base, search_chat_history, search_workspace), auto-inject top-K из attached-чанков в system prompt. UI: 📎-вложения в чате, админка /admin → База знаний, opt-in в /profile → Workspace index. Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
 - **Логотип (KI-081):** фирменный знак IIChatTools (шестиугольник с переплетением) — в navbar, на главной (hero), на страницах входа/регистрации и в empty state чата. Favicon — SVG + PNG (16/32) + apple-touch-icon. Файлы: `wwwroot/images/logo-icon.svg`, `logo-full.svg`, `site.webmanifest`.
 
 ---
@@ -475,7 +475,8 @@ Model, MaxSteps, SystemPrompt, AllowedTools, RequiresApproval, Disabled), сбр
 
 ## RAG / Knowledge Base (v1.5.0)
 
-Семантический поиск по документам проекта, приложенным к чату файлам и истории чатов.
+**✅ Реализовано (все фазы 0-8 закрыты, релиз v1.5.0).** Семантический поиск
+по документам проекта, приложенным к чату файлам и истории чатов.
 Embeddings — LM Studio (`text-embedding-nomic-embed-text-v1.5`, 768 dim), векторное
 хранилище — `InMemoryVectorStore` (Singleton, теряет данные при рестарте; для
 `project_docs` возможна авто-переиндексация).
@@ -764,9 +765,9 @@ logs/audit/*.jsonl (JSONL, ротация)
 docker pull ghcr.io/iilmchat/iichattools:latest
 
 # Конкретный релиз
-docker pull ghcr.io/iilmchat/iichattools:v1.6.1
-docker pull ghcr.io/iilmchat/iichattools:1.6.1
-docker pull ghcr.io/iilmchat/iichattools:1.6
+docker pull ghcr.io/iilmchat/iichattools:v1.7.0
+docker pull ghcr.io/iilmchat/iichattools:1.7.0
+docker pull ghcr.io/iilmchat/iichattools:1.7
 docker pull ghcr.io/iilmchat/iichattools:1
 
 Развёртывание на любом Linux-сервере с Docker:
