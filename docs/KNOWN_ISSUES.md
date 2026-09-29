@@ -1675,8 +1675,104 @@
 
 ---
 
-## v1.0.2 и ранее
+### KI-111 — `mail_agent` не помнит контекст между вызовами
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.x
+- **Обнаружено:** 2026-09-29 (smoke Mail Agent)
+- **Файлы:** `IIChatTools.Services/Implementation/SubAgentService.cs`, `AgentToolBase.cs`,
+  `ChatStreamService.cs`.
+- **Описание:** `SubAgentService` — stateless. При каждом вызове `mail_agent`
+  передаётся только `task` (одна строка) + `context` (опционально). История чата
+  **не передаётся**. Из-за этого:
+  - При повторном запросе («прочитай письмо про Алису», когда UID уже был найден
+    в прошлом сообщении) агент **заново** делает `list_emails`, чтобы найти UID.
+  - Это **+1-2 лишних шага** (впустую потраченный бюджет `MaxSteps`).
+  - При частых повторных задачах — упирается в лимит шагов.
+- **Возможные решения:**
+  1. `AgentToolBase.ExecuteAsync` — передавать в `SubAgentTaskRequest.Context`
+     последние 3-5 сообщений чата (или их summary).
+  2. `ChatStreamService` — при вызове агента включать краткий «снимок контекста»
+     (последние темы, найденные UID и т.п.) в `task` или `context`.
+  3. Отдельный сервис `IExecutionContextSummarizer` — сжатие истории перед
+     передачей агенту.
+- **Связанные:** KI-113 (галлюцинация успеха), KI-052 (Multi-Agent — DESIGN v1.4).
 
+---
+
+### KI-112 — Docker-образ `iichattools` без `git`, `gh`, `python3`, `node`
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-29 (первый запуск Docker-образа v1.8.0)
+- **Файлы:** `Dockerfile` (multi-stage, `mcr.microsoft.com/dotnet/aspnet:10.0`).
+- **Описание:** В логах контейнера — при старте `DependencyChecker` пишет
+  WARNING'и для каждой внешней зависимости:
+  An error occurred trying to start process 'git' with working directory '/app'.
+  No such file or directory
+То же для `gh`, `python3`, `node`.
+- **Влияние:**
+- `git_agent` — ❌ не работает (нет `git`).
+- `github_agent` — ❌ не работает (нет `gh`).
+- `code_agent` — ❌ не работает (нет `python3`, `node`, `bash`-команд).
+- `file_system_agent`, `web_agent`, `mail_agent`, `database_agent`, RAG — ✅ работают.
+- **Это by design** (lightweight ASP.NET-образ ~600 MB, без dev-инструментов).
+Но нужно **явно задокументировать** в README-разделе «Docker».
+- **Возможные решения:**
+1. Отдельный Docker-образ `iichattools-full` с установкой `git`, `gh`,
+   `python3`, `node`, `chromium` (~1.5-2 GB).
+2. Build-arg `INSTALL_DEV_TOOLS=true` в `Dockerfile` (уже есть `INSTALL_BROWSER`
+   для Chromium — добавить по аналогии).
+3. Ничего не делать, только задокументировать.
+- **Связанные:** Docker Publish workflow.
+
+---
+
+### KI-113 — `mail_agent`: qwen3-4b галлюцинирует «успех» при неудаче
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.x
+- **Обнаружено:** 2026-09-29 (smoke Mail Agent, скриншот)
+- **Файлы:** `appsettings.json` (`SubAgents:mail_agent:SystemPrompt`),
+`appsettings.Development.json` (то же).
+- **Описание:** При запросе «прочитай письмо про Алису» — `mail_agent` **не
+прочитал** письмо (MaxSteps исчерпан), но вернул `finalAnswer`:
+> «К сожалению, я не могу предоставить содержимое письма, ... **Однако я
+> успешно идентифицировал** последнее письмо из INBOX ...»
+
+Формально — идентифицировал. Семантически — задачу **не выполнил**.
+qwen3-4b предпочитает «мягкий» ответ вместо честного «не смогла, нужны доп. шаги».
+- **Дополнительно** (см. KI-114): `AgentToolBase` возвращает `ToolResult.Ok`
+даже когда `Completed = false`, что усиливает эффект.
+- **Возможные решения:**
+1. SystemPrompt: добавить явный запрет «не ври об успехе» (см. фикс ниже).
+2. Few-shot примеры в промпте: показать «правильный» ответ при неудаче.
+3. Использовать модель побольше (например, `gemma-4-12b` вместо `qwen3-4b`).
+4. Изменить `AgentToolBase.ExecuteAsync`: если `Completed = false` — возвращать
+   `ToolResult.Fail` (см. KI-114).
+- **Связанные:** KI-111 (stateless agent), KI-114 (Ok при Completed=false).
+
+---
+
+### KI-114 — `AgentToolBase` возвращает `ToolResult.Ok` при `Completed=false`
+- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-29 (smoke Mail Agent)
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`
+(строка после `var result = await subAgent.ExecuteTaskAsync(context, request);`).
+- **Описание:** `AgentToolBase.ExecuteAsync` всегда возвращает `ToolResult.Ok(...)`
+независимо от значения `result.Completed`. Флаг `Completed` передаётся внутри
+`data`, но не влияет на `Success`.
+- **Влияние:** Внешняя LLM (в чате) получает `success: true` для
+`mail_agent` / `file_system_agent` / etc., даже когда **внутренний агент не
+справился**. Это усиливает «эффект галлюцинации успеха» (см. KI-113).
+- **Это by design** (DESIGN v1.4 § 3.3: результат агента — `Ok`, детали внутри
+`data`). Решение было принято, чтобы избежать «двойного» Fail из одного и того
+же агента. Пересматривать — только через DESIGN-обновление.
+- **Возможные решения (если понадобится):**
+1. Если `result.Completed == false` → возвращать `ToolResult.Fail` с
+   `message = "Агент не завершил задачу: " + result.FinalAnswer`.
+2. Оставить `Ok`, но с явным `message: "⚠️ Агент не завершил задачу"`.
+3. Добавить в `ToolResult` новое поле `PartialSuccess` (семантически точнее).
+- **Не блокер v1.8.0** — задокументировано. Пересмотр — отдельным DESIGN-update.
+- **Связанные:** KI-113 (галлюцинация успеха), DESIGN v1.4 § 3.3.
+
+---
+
+## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
 - **Обнаружено:** 2026-09-16 | **Устранено:** 2026-09-18
@@ -1782,13 +1878,13 @@
 | Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
 | Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
-| Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
+| Documented | 10 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 3 |                       <!-- KI-108, KI-109, KI-110 -->
+| Planned | 5 |                       <!-- KI-108, KI-109, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **69** |
+| **Всего** | **73** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

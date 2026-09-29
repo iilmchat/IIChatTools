@@ -18,7 +18,22 @@
 
 ## [Unreleased]
 
+### Changed
+- **Mail Agent — увеличены `MaxSteps` (10 → 15) + усилен SystemPrompt
+  (v1.8.x, KI-111 / KI-113)**:
+  - `MaxSteps: 10 → 15` в `SubAgents:mail_agent` (`appsettings.json` +
+    `appsettings.Development.json`). Причина: Chat LLM передаёт `maxSteps=5`
+    вместо дефолта, чего не хватает для list_emails + read_email.
+  - SystemPrompt: добавлены **ПРАВИЛА ЭФФЕКТИВНОСТИ** (без промежуточных
+    разведок, типовые задачи в 1-2 вызова) и **ПРАВИЛА ЧЕСТНОСТИ**
+    (не говорить «успешно», если не выполнено — см. KI-113).
+
 ### Added
+- **KI-111..114 — 4 новые записи в KNOWN_ISSUES**:
+  - **KI-111** (Planned) — `mail_agent` не помнит контекст между вызовами.
+  - **KI-112** (Documented) — Docker-образ без `git`/`gh`/`python3`/`node`.
+  - **KI-113** (Planned) — `mail_agent`: qwen3-4b галлюцинирует успех.
+  - **KI-114** (Documented) — `AgentToolBase` возвращает `Ok` при `Completed=false`.
 - **Mail Agent — Troubleshooting в README (v1.8.x, KI-107-follow)**:
   подраздел «Troubleshooting (Yandex и другие)» в `README.md`.
   Разбор типичных ошибок `MailKit.Security.AuthenticationException: LOGIN
