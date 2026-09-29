@@ -75,14 +75,43 @@ namespace IIChatTools.Services.Implementation.Tools.SqlAgent
         public string Description =>
             "Database Agent. Read-only доступ к БД приложения IIChatTools " +
             "(чаты, сообщения, аудит, чанки, вложения). 4 действия: " +
-            "list_databases (список подключений), list_tables (whitelist-таблицы), " +
-            "describe_table (колонки таблицы), execute_query (read-only SQL). " +
-            "Используй для вопросов вида «сколько чатов у меня в БД», «какие таблицы доступны», " +
-            "«покажи последние N сообщений». Запрещены INSERT/UPDATE/DELETE/DROP и " +
-            "таблицы с PII (AspNetUsers). Все действия требуют подтверждения пользователя.";
+            "list_databases (список подключений), " +
+            "list_tables (whitelist-таблицы), " +
+            "describe_table (колонки таблицы), " +
+            "execute_query (read-only SQL). " +
+            "Запрещены INSERT/UPDATE/DELETE/DROP и таблицы с PII (AspNetUsers). " +
+            "Метаданные (list_databases / list_tables / describe_table) не требуют подтверждения. " +
+            "execute_query требует подтверждения (пользователь видит SQL). " +
+            "ДЛЯ ВОПРОСОВ ПРО КОЛИЧЕСТВО / СПИСКИ ДАННЫХ — используй СРАЗУ execute_query " +
+            "с SELECT COUNT(*) / SELECT * (например, «сколько чатов у меня?» → " +
+            "execute_query(sql='SELECT COUNT(*) FROM Chats')). " +
+            "НЕ вызывай list_databases / list_tables как разведку перед execute_query — " +
+            "это лишние шаги. Все таблицы уже в whitelist.";
 
         /// <inheritdoc />
+        /// <remarks>
+        /// Возвращает <c>true</c> как консервативный default для вызовов
+        /// <c>/api/tools/execute</c> (вне Chat).
+        /// В Chat поведение уточняется через <see cref="RequiresApprovalForCall"/>
+        /// (per-action approval, v1.7.0, KI-101).
+        /// </remarks>
         public bool RequiresApprovalByDefault => true;
+
+        /// <summary>
+        /// Per-action approval (v1.7.0, KI-101): только <c>execute_query</c>
+        /// требует подтверждения. Метаданные (<c>list_databases</c>, <c>list_tables</c>,
+        /// <c>describe_table</c>) — read-only, approval не нужен.
+        /// </summary>
+        /// <param name="arguments">Аргументы вызова</param>
+        /// <returns>true — только для execute_query</returns>
+        public bool RequiresApprovalForCall(JObject arguments)
+        {
+            var action = (arguments?.GetString("action") ?? string.Empty)
+                .Trim()
+                .ToLowerInvariant();
+
+            return action == ActionExecuteQuery;
+        }
 
         /// <inheritdoc />
         public IReadOnlyList<ToolParameterDescriptor> Parameters => new[]

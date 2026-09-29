@@ -1260,7 +1260,7 @@
 ---
 
 ### KI-101 — Per-action approval для Database Agent (execute_query vs метаданные)
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.7.x
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.7.0 (Фаза 5.5 KI-097)
 - **Обнаружено:** 2026-09-29 (Фаза 5 KI-097)
 - **DESIGN:** [`docs/development/v1.7/DESIGN_DB_AGENT.md`](development/v1.7/DESIGN_DB_AGENT.md)
   § 3.3 и § 6.5.
@@ -1292,6 +1292,23 @@
      `database_agent_query` (с approval). Раздувает список, но не трогает ядро.
 - **Не блокер:** безопасность не страдает — approval **есть**, просто иногда
   лишний. UX-мелочь.
+- **Решение (2026-09-29, Фаза 5.5):**
+  - **Архитектурный паттерн:** в `ITool` добавлен **default-метод**
+    `RequiresApprovalForCall(JObject arguments)` с fallback на
+    `RequiresApprovalByDefault`. Все 46 существующих инструментов
+    работают без изменений — C# 8+ default interface method.
+  - **`IToolRegistry.GetTool(string name)`** — новый метод (возвращает `ITool`).
+    `ToolRegistry.GetTool` — реализация. Нужен, чтобы `ChatStreamService`
+    мог вызвать метод **до** выполнения инструмента.
+  - **`ChatStreamService`** — блок `requiresApproval` переписан:
+    `toolInstance?.RequiresApprovalForCall(args) ?? true` вместо
+    `descriptor?.RequiresApprovalByDefault ?? true`.
+  - **`DatabaseAgentTool.RequiresApprovalForCall`** — override:
+    `action == "execute_query"`.
+  - **Bonus:** усилен `Description` — прямо просит LLM для вопросов
+    про количество использовать сразу `execute_query` (не делать
+    list_databases / list_tables «разведку»).
+  - **Тесты:** +6 (3 `[Theory]` + 3 `[Fact]`).  
 - **Связанные:** KI-097.
 
 ---

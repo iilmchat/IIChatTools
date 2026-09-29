@@ -156,6 +156,37 @@
     флаг `RequiresApprovalByDefault` один на tool. Заведена **KI-101** (Deferred, v1.7.x).
   - **DoD Фазы 5:** Chat видит **11 инструментов** (было 10).
     LLM может вызвать `database_agent` и получить ответ на вопрос про БД.
+- **Database Agent — Фаза 5.5: per-action approval (v1.7.0, KI-101 — Fixed)**:
+  - **Архитектурный паттерн:** в `ITool` добавлен **default-метод**
+    `RequiresApprovalForCall(JObject arguments)` с fallback на
+    `RequiresApprovalByDefault`. Все 46 существующих инструментов работают
+    без изменений (C# 8+ default interface method).
+  - **`IToolRegistry.GetTool(string name)`** — новый метод + реализация
+    в `ToolRegistry`.
+  - **`ChatStreamService`** — блок `requiresApproval` переписан:
+    `toolInstance?.RequiresApprovalForCall(args) ?? true`.
+  - **`DatabaseAgentTool.RequiresApprovalForCall`** — override:
+    только `execute_query` требует approval. Метаданные
+    (`list_databases` / `list_tables` / `describe_table`) — без approval.
+  - **`Description` усилен:** явно просит LLM для вопросов про количество
+    использовать **сразу** `execute_query` (`SELECT COUNT(*)`), не делать
+    «разведку» через `list_databases` / `list_tables`.
+  - **Тесты:** +6 (в `DatabaseAgentToolTests`) + 4 (в `ToolRegistryTests`).
+    Всего: **300 → 310**.
+  - **Fix (в том же коммите, CS0535 ×2):** после расширения `IToolRegistry.GetTool`
+    два fake-класса в `ChatStreamServiceTests` (`FakeToolRegistry`, `EmptyToolRegistry`)
+    не реализовали новый член. RULES § 4.34 — расширение интерфейса требует
+    grep по **всем** fake-заглушкам. `FakeToolDef` расширен до `: ITool` (для
+    корректного `RequiresApprovalForCall`), добавлен `GetTool` в оба fake-класса.
+  - **Fix (в том же коммите, CS1061):** в `ToolRegistryTests` тест
+    `RequiresApprovalForCall_DefaultImplementation_ReturnsRequiresApprovalByDefault`
+    объявлял переменные типом конкретного класса (`FakeToolWithApproval`),
+    который не переопределяет метод. **Default interface method (C# 8+)**
+    доступен только через интерфейсную переменную — иначе CS1061.
+    Fix: `ITool toolFalse = new FakeToolWithApproval()`. Заведено
+    **RULES § 4.46** (default interface method не виден через конкретный тип).
+  - **DoD Фазы 5.5:** при вопросе «Сколько чатов?» — **1 модалка** approval
+    (на `execute_query`), а не 3 (как в smoke Фазы 5).
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,

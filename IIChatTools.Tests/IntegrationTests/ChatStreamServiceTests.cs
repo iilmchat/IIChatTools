@@ -186,7 +186,7 @@ namespace IIChatTools.Tests.IntegrationTests
                 {
                     Name = name,
                     Description = description ?? $"Fake tool: {name}",
-                    RequiresApproval = requiresApproval,
+                    RequiresApprovalByDefault = requiresApproval,
                     Result = result
                 };
             }
@@ -197,7 +197,7 @@ namespace IIChatTools.Tests.IntegrationTests
                     {
                         Name = t.Name,
                         Description = t.Description,
-                        RequiresApprovalByDefault = t.RequiresApproval,
+                        RequiresApprovalByDefault = t.RequiresApprovalByDefault,
                         Parameters = new List<ToolParameterDescriptor>()
                     })
                     .ToList();
@@ -209,9 +209,21 @@ namespace IIChatTools.Tests.IntegrationTests
                 {
                     Name = t.Name,
                     Description = t.Description,
-                    RequiresApprovalByDefault = t.RequiresApproval,
+                    RequiresApprovalByDefault = t.RequiresApprovalByDefault,
                     Parameters = new List<ToolParameterDescriptor>()
                 };
+            }
+
+            /// <summary>
+            /// v1.7.0 (KI-101): возвращает fake-инструмент как <see cref="ITool"/>,
+            /// чтобы ChatStreamService мог вызвать <c>RequiresApprovalForCall(args)</c>.
+            /// Default-реализация метода в <see cref="ITool"/> возвращает
+            /// <see cref="ITool.RequiresApprovalByDefault"/> — тесты работают без изменений.
+            /// </summary>
+            public ITool GetTool(string name)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return null;
+                return _tools.TryGetValue(name, out var t) ? t : null;
             }
 
             public Task<ToolResult> ExecuteAsync(string toolName, ToolExecutionContext context, JObject arguments)
@@ -223,12 +235,25 @@ namespace IIChatTools.Tests.IntegrationTests
                 return Task.FromResult(t.Result);
             }
 
-            private sealed class FakeToolDef
+            /// <summary>
+            /// Fake-инструмент (v1.7.0, KI-101): реализует <see cref="ITool"/>,
+            /// чтобы ChatStreamService мог вызвать <c>RequiresApprovalForCall</c>
+            /// через <c>IToolRegistry.GetTool</c>. Default-реализация
+            /// <c>RequiresApprovalForCall</c> возвращает <see cref="RequiresApprovalByDefault"/> —
+            /// тесты с per-approval-флагами работают как раньше.
+            /// </summary>
+            private sealed class FakeToolDef : ITool
             {
                 public string Name { get; set; }
                 public string Description { get; set; }
-                public bool RequiresApproval { get; set; }
+                public bool RequiresApprovalByDefault { get; set; }
                 public ToolResult Result { get; set; }
+
+                public IReadOnlyList<ToolParameterDescriptor> Parameters { get; set; }
+                    = new List<ToolParameterDescriptor>();
+
+                public Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
+                    => Task.FromResult(Result);
             }
         }
 
@@ -239,6 +264,10 @@ namespace IIChatTools.Tests.IntegrationTests
         {
             public IReadOnlyList<ToolDescriptor> GetAllDescriptors() => new List<ToolDescriptor>();
             public ToolDescriptor GetDescriptor(string name) => null;
+
+            /// <summary>v1.7.0 (KI-101): пустой реестр — инструмента нет.</summary>
+            public ITool GetTool(string name) => null;
+
             public Task<ToolResult> ExecuteAsync(string toolName, ToolExecutionContext context, JObject arguments)
                 => Task.FromResult(ToolResult.Fail("not implemented"));
         }

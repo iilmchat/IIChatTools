@@ -47,8 +47,66 @@ namespace IIChatTools.Tests.UnitTests.SqlAgent
         public void RequiresApprovalByDefault_IsTrue()
         {
             var tool = BuildTool(new FakeSqlAgentService());
-            // v1.7.0: все 4 действия требуют approval (per-action — KI-101).
+            // Консервативный default для /api/tools/execute (вне Chat).
+            // В Chat используется RequiresApprovalForCall (per-action, KI-101).
             Assert.True(tool.RequiresApprovalByDefault);
+        }
+
+        // ============ Per-action approval (v1.7.0, KI-101) ============
+
+        [Theory]
+        [InlineData("list_databases")]
+        [InlineData("list_tables")]
+        [InlineData("describe_table")]
+        public void RequiresApprovalForCall_Metadata_False(string action)
+        {
+            var tool = BuildTool(new FakeSqlAgentService());
+
+            var args = new JObject { ["action"] = action };
+            Assert.False(tool.RequiresApprovalForCall(args));
+        }
+
+        [Fact]
+        public void RequiresApprovalForCall_ExecuteQuery_True()
+        {
+            var tool = BuildTool(new FakeSqlAgentService());
+
+            var args = new JObject
+            {
+                ["action"] = "execute_query",
+                ["sql"] = "SELECT COUNT(*) FROM Chats"
+            };
+            Assert.True(tool.RequiresApprovalForCall(args));
+        }
+
+        [Fact]
+        public void RequiresApprovalForCall_MissingAction_False()
+        {
+            var tool = BuildTool(new FakeSqlAgentService());
+
+            // Пустые аргументы — action нет → не execute_query → без approval.
+            // Дальше ExecuteAsync вернёт Fail по валидации, но модалка не появится.
+            Assert.False(tool.RequiresApprovalForCall(new JObject()));
+        }
+
+        [Fact]
+        public void RequiresApprovalForCall_UnknownAction_False()
+        {
+            var tool = BuildTool(new FakeSqlAgentService());
+
+            var args = new JObject { ["action"] = "unknown-action" };
+            // Не execute_query → false. Дальше ExecuteAsync вернёт Fail.
+            Assert.False(tool.RequiresApprovalForCall(args));
+        }
+
+        [Fact]
+        public void RequiresApprovalForCall_CaseInsensitive_True()
+        {
+            var tool = BuildTool(new FakeSqlAgentService());
+
+            var args = new JObject { ["action"] = "EXECUTE_QUERY" };
+            // Action нормализуется через ToLowerInvariant.
+            Assert.True(tool.RequiresApprovalForCall(args));
         }
 
         [Fact]

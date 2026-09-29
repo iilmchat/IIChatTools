@@ -87,6 +87,15 @@ namespace IIChatTools.Services.Implementation
         }
 
         /// <inheritdoc />
+        public ITool GetTool(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+
+            return _tools.TryGetValue(name, out var tool) ? tool : null;
+        }
+
+        /// <inheritdoc />
         public async Task<ToolResult> ExecuteAsync(string toolName, ToolExecutionContext context, JObject arguments)
         {
             if (string.IsNullOrWhiteSpace(toolName))

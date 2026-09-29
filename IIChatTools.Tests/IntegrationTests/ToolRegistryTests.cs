@@ -90,5 +90,82 @@ namespace IIChatTools.Tests.IntegrationTests
             Assert.False(result.Success);
             Assert.Contains("не зарегистрирован", result.Message);
         }
+
+        // ============================================================
+        // v1.7.0 (KI-101): IToolRegistry.GetTool + ITool.RequiresApprovalForCall
+        // ============================================================
+
+        /// <summary>
+        /// <c>GetTool</c> возвращает тот же экземпляр <see cref="ITool"/>,
+        /// что был зарегистрирован (не копию).
+        /// </summary>
+        [Fact]
+        public void GetTool_Registered_ReturnsSameInstance()
+        {
+            var tool = new FakeTool { Name = "fake_tool" };
+            var registry = new ToolRegistry(new List<ITool> { tool },
+                NullLogger<ToolRegistry>.Instance);
+
+            var result = registry.GetTool("fake_tool");
+
+            Assert.NotNull(result);
+            Assert.Same(tool, result);
+        }
+
+        /// <summary>
+        /// <c>GetTool</c> возвращает <c>null</c> для неизвестного имени
+        /// (для пустой строки и для null).
+        /// </summary>
+        [Theory]
+        [InlineData("no_such_tool")]
+        [InlineData("")]
+        [InlineData(null)]
+        public void GetTool_Unknown_ReturnsNull(string name)
+        {
+            var registry = new ToolRegistry(
+                new List<ITool> { new FakeTool() },
+                NullLogger<ToolRegistry>.Instance);
+
+            Assert.Null(registry.GetTool(name));
+        }
+
+        /// <summary>
+        /// Default-реализация <see cref="ITool.RequiresApprovalForCall"/>
+        /// возвращает <see cref="ITool.RequiresApprovalByDefault"/> —
+        /// для инструментов без per-call логики поведение не меняется.
+        /// </summary>
+        [Fact]
+        public void RequiresApprovalForCall_DefaultImplementation_ReturnsRequiresApprovalByDefault()
+        {
+            // ВАЖНО (C# 8+ default interface methods): метод, объявленный
+            // в интерфейсе с default-реализацией, НЕ виден через конкретный тип
+            // класса, который его не переопределил. Доступен только через
+            // интерфейсную переменную. Объявляем как ITool — иначе CS1061.
+            // (DatabaseAgentTool override'ит метод, поэтому там вызов на конкретном
+            // типе работает — RULES § 4.46.)
+            ITool toolFalse = new FakeToolWithApproval { Name = "nope", Approval = false };
+            ITool toolTrue = new FakeToolWithApproval { Name = "yep", Approval = true };
+
+            // FakeToolWithApproval не переопределяет RequiresApprovalForCall —
+            // работает default interface method.
+            Assert.False(toolFalse.RequiresApprovalForCall(new JObject()));
+            Assert.True(toolTrue.RequiresApprovalForCall(new JObject()));
+        }
+
+        /// <summary>
+        /// Fake-инструмент с настраиваемым <see cref="RequiresApprovalByDefault"/>.
+        /// </summary>
+        private class FakeToolWithApproval : ITool
+        {
+            public string Name { get; set; } = "fake_with_approval";
+            public string Description => "Тестовый инструмент с настраиваемым approval";
+            public bool Approval { get; set; }
+            public bool RequiresApprovalByDefault => Approval;
+            public IReadOnlyList<ToolParameterDescriptor> Parameters
+                => new List<ToolParameterDescriptor>();
+
+            public Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
+                => Task.FromResult(ToolResult.Ok(new { ok = true }));
+        }
     }
 }

@@ -24,6 +24,17 @@ namespace IIChatTools.Services.Interfaces
         ToolDescriptor GetDescriptor(string name);
 
         /// <summary>
+        /// Возвращает сам экземпляр инструмента по имени (v1.7.0, KI-101).
+        /// <para>
+        /// Нужен, чтобы вызвать <see cref="ITool.RequiresApprovalForCall"/>
+        /// из <c>ChatStreamService</c> до выполнения.
+        /// </para>
+        /// </summary>
+        /// <param name="name">Имя инструмента</param>
+        /// <returns>Инструмент или <c>null</c>, если не найден</returns>
+        ITool GetTool(string name);
+
+        /// <summary>
         /// Выполняет инструмент по имени.
         /// </summary>
         /// <param name="toolName">Имя инструмента</param>

@@ -554,9 +554,13 @@ namespace IIChatTools.Services.Implementation
                         args = new JObject();
                     }
 
-                    // Определяем requiresApproval
-                    var descriptor = _toolRegistry.GetDescriptor(functionName);
-                    var requiresApproval = descriptor?.RequiresApprovalByDefault ?? true;
+                    // Определяем requiresApproval.
+                    // v1.7.0 (KI-101): per-call approval через ITool.RequiresApprovalForCall.
+                    // Default-реализация возвращает RequiresApprovalByDefault — для 46
+                    // существующих инструментов поведение не меняется. DatabaseAgentTool
+                    // переопределяет: execute_query → approval, метаданные → без approval.
+                    var toolInstance = _toolRegistry.GetTool(functionName);
+                    var requiresApproval = toolInstance?.RequiresApprovalForCall(args) ?? true;
 
                     // SSE-событие: tool_call (requiresApproval → UI покажет модалку)
                     yield return ChatStreamEvent.ToolCall(new ChatToolCallDto
