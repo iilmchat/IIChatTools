@@ -1,8 +1,8 @@
 PROMPT_V2.md — Стартовый промпт для нового чата
-Версия промпта: v2.5
-Дата: 2026-09-28
-Актуальный релиз проекта: v1.6.1
-Статус: пауза (проект готов к возврату)
+Версия промпта: v2.6
+Дата: 2026-09-29
+Актуальный релиз проекта: v1.7.1
+Статус: активная разработка (DESIGN v1.8.0 — Mail Agent + External-LLM Agent)
 
 Ты — ведущий архитектор и разработчик проекта IIChatTools.
 Мы продолжаем разработку. Ниже — контекст, правила и текущее состояние.
@@ -30,11 +30,11 @@ dotnet build
 Ссылка на репозиторий
 https://github.com/iilmchat/IIChatTools
 Ветка по умолчанию: main
-Текущий релиз: v1.6.1 (2026-09-28)
-В работе: пауза (следующее — v1.6.2 / v1.7.0)
+Текущий релиз: v1.7.1 (2026-09-29)
+В работе: DESIGN v1.8.0 — Mail Agent (IMAP/SMTP, MailKit) + External-LLM Agent (OpenAI-совместимые)
 
 Правила оформления (ОБЯЗАТЕЛЬНО)
-docs/development/RULES.md — v1.4.18 (2026-09-28)
+docs/development/RULES.md — v1.4.20 (2026-09-29)
 
 Прочитай целиком перед началом работы. Ключевые разделы:
 
@@ -65,27 +65,35 @@ EF Core 10 (SqlServer / Sqlite / InMemory)
 
 LM Studio (OpenAI-совместимый API + /v1/embeddings)
 
-PuppeteerSharp, Prometheus-net, Microsoft.ML.Tokenizers (tiktoken)
+PuppeteerSharp 7.1, Prometheus-net, Microsoft.ML.Tokenizers (tiktoken)
+
+PdfPig 0.1.9 + DocumentFormat.OpenXml 3.1.0 (KI-104, PDF/DOCX в RAG)
+
+Microsoft.Data.Sqlite 10.0.12 + Microsoft.Data.SqlClient 6.0.2 (SqlAgent)
 
 Архитектура — 4 слоя (API → Services → Data + Tests):
 
 IIChatTools.API — Controllers + Views + ES-модули + Startup.cs.
 
-IIChatTools.Services — бизнес-логика (ToolRegistry, ChatService, ChatStreamService, LmStudioClient, ChatApprovalCoordinator, ChatRetentionService, RAG-сервисы: EmbeddingService, InMemoryVectorStore, DocumentIngestionService, RetrievalService).
+IIChatTools.Services — бизнес-логика (ToolRegistry, ChatService, ChatStreamService, LmStudioClient, ChatApprovalCoordinator, ChatRetentionService, RAG-сервисы: EmbeddingService, InMemoryVectorStore, DocumentIngestionService, RetrievalService; SqlAgent: SqlAgentService, SqlQueryValidator, SqlConnectionProvider, AdminSqlAgentService).
 
 IIChatTools.Data — EF Entities + миграции (SqlServer).
 
-IIChatTools.Tests — xUnit (241/241).
+IIChatTools.Tests — xUnit (374/374).
 
 Метрики:
 
-46 инструментов (40 raw + 6 агентов).
+50 инструментов (40 raw + 6 агентов + 3 RAG + 1 SqlAgent).
 
-Chat видит 10 инструментов (7 агентов + 3 RAG-tool: search_knowledge_base, search_chat_history, search_workspace).
+Chat видит 11 инструментов (7 агентов + 3 RAG-tool + database_agent).
 
-KI: 62+ в реестре, 56+ Fixed/Resolved, ~5 Deferred, ~6 Documented.
+KI: 63+ в реестре, 60+ Fixed/Resolved, ~5 Deferred, ~8 Documented.
 
-Что выпущено (v1.3.0 → v1.6.1):
+Что выпущено (v1.3.0 → v1.7.1):
+
+Database Agent (v1.7.0) — read-only SQL-доступ LLM к БД приложения (KI-097). 4 действия database_agent (list_databases / list_tables / describe_table / execute_query). 5 уровней безопасности (read-only роль в БД + валидатор SQL + whitelist + timeout+auto-LIMIT + approval+audit). Admin UI /admin → SQL Agent. Per-action approval (KI-101) через ITool.RequiresApprovalForCall (default interface method).
+
+PDF / DOCX в RAG (v1.7.1) — PdfParser (PdfPig 0.1.9) + DocxParser (OpenXml 3.1.0) — RAG расширен с 28 → 30 форматов (KI-104). Fix accept для <input type="file"> (.pdf, .docx). KI-105 — System.IO.Packaging 8.0.0 → 10.0.0 (транзитивная уязвимость). KI-103 — локализация /status (4 hardcoded RU).
 
 Chat UI — sidebar, SSE-стриминг, tool calling, approvals, AI-title, Markdown + code blocks + подсветка, Copy / Edit / Regenerate / Retry / Stop, ⌘K-поиск (Ctrl+K), inline-поиск (Ctrl+F), collapse sidebar (Ctrl+B), DeepSeek-style поле ввода.
 
@@ -106,74 +114,45 @@ Sources / citations (v1.6.0) — блок «📚 Источники» под о�
 Sources / citations для Web-tools (v1.6.1) — `wikipedia_search` / `web_search` / `fetch_web_content` возвращают citations. `WebSourceBuilder` — единый хелпер. Проброс через агентов (`SubAgentTaskResult.Sources`). Дедупликация в `ChatStreamService`: 4-полевой ключ `(Type|DocumentPath|Url|ChunkIndex)` — было багом в v1.6.0 (web/wiki схлопывались в один). Кросс-платформенный fix `DocumentPath` — относительные пути.
 
 Roadmap
-v1.5.0 — RAG / Knowledge Base ✅ Done (2026-09-28)
-Все 8 фаз (0–8) закрыты. DESIGN: docs/development/v1.5/DESIGN.md.
 
-v1.6.0 — Sources / citations ✅ Done (2026-09-28)
-Блок «📚 Источники» под ответом ассистента. KI-086 → Fixed. Тесты: 199 → 216 (+17).
-Ключевой побочный fix: RAG-tools не попадали в tools[] Chat (RULES § 4.44).
-Кросс-платформенный BuildLabel: Path.GetFileName на Linux (RULES § 4.45).
+v1.7.0 — Database Agent ✅ Done (2026-09-29)
+Read-only SQL-доступ LLM к БД приложения (KI-097). 4 действия database_agent.
+5 уровней безопасности (read-only роль, валидатор, whitelist, timeout+auto-LIMIT, approval+audit).
+Admin UI /admin → SQL Agent (whitelist / MaxRows / Timeout / Enabled в runtime).
+Per-action approval (KI-101). Локализация /admin (KI-102). Тесты: 312 → 341.
 
-v1.6.1 — Web-tools sources ✅ Done (2026-09-28)
-`wikipedia_search` / `web_search` / `fetch_web_content` возвращают citations.
-Тесты: 216 → 241 (+25). Проброс через агентов (SubAgentTaskResult.Sources).
-4-полевой ключ дедупа `(Type|DocumentPath|Url|ChunkIndex)` — bug fix.
-Кросс-платформенный fix `DocumentPath` — относительные пути.
-Новые KI: KI-094 (Wikipedia timeout, Documented), KI-095 (snippet, Documented), KI-096 (GitHub Wiki, Deferred).
+v1.7.1 — патч-релиз: PDF/DOCX + локализация ✅ Done (2026-09-29)
+KI-104 — PdfParser (PdfPig 0.1.9) + DocxParser (OpenXml 3.1.0). RAG: 28 → 30 форматов.
+Fix accept для <input type="file"> в /chat (.pdf, .docx).
+KI-105 — System.IO.Packaging транзитивная уязвимость (override 8.0.0 → 10.0.0). Скрипт check-vulnerabilities.ps1 (прецедент KI-022).
+KI-103 — локализация /status (4 hardcoded RU-строки в status.js → data-*).
+Тесты: 341 → 374 (+33). Build 0/0. CI + Docker — зелёные.
 
-Что выпущено:
+v1.8.0 — Mail Agent + External-LLM Agent (DESIGN first, ~4-6 дней)
+DESIGN Mail Agent — IMAP/SMTP через MailKit (Apache 2.0). 6-7 инструментов: send_email (approval), list_emails / read_email / search_emails (read-only), delete_email / move_email / mark_as_read (approval). User Secrets (глобальные creds, App Password — v1.8.0; OAuth2 — позже). Вложения из Workspace/users/{id}/mail-attachments/, ≤ 10 MB. Промпт: «Никогда не отправляй без явной просьбы, всегда подтверждай адресата». Оценка: ~10-12 ч.
+DESIGN External-LLM Agent — external_llm_agent(provider, prompt, include_context?). OpenAI-совместимые (DeepSeek, OpenAI, Groq, Together AI, Ollama). 4 сценария-оркестратора: Fallback / Специализация / Разные знания / Сравнение. Circuit breaker по образцу KI-094. Дневной лимит запросов (защита от $1000 за ночь). Логирование без PII (только метаданные). Anthropic / Gemini — v1.9+. Оценка: ~6-8 ч для v1.
 
-4 индекса: project_docs, my_rag_docs, chat_history, workspace.
-
-3 RAG-tool + auto-inject top-K из attached-чанков в system prompt.
-
-Вложения в чат (📎, 28 расширений PlainText, ≤32 MB, 5 файлов).
-
-/admin → База знаний — таблица 4 индексов, reindex, просмотр/удаление чанков, настройки RAG.
-
-/profile → Индексация workspace — opt-in, прогресс-бар, фоновый ingest.
-
-v1.6.2 — патч-релиз: web-tools fixes (~3-4 ч)
-KI-094 — `wikipedia_search` intermittent timeout (SSL через прокси). Fallback `web_search` работает. Уменьшить timeout до 10s / retry до 3 / circuit breaker.
-
-KI-095 — snippet `fetch_web_content` может дублировать label (h1 = title). Опционально: обрезать префикс, если snippet начинается с label.
-
-v1.7.0 — инфраструктура + GitHub Wiki (~10–15 ч)
-KI-096 — GitHub Wiki для проекта: публичная wiki / RAG-индексация / автосинхронизация. Scope уточняется.
-
-KI-091 — SqlServer цепочка миграций повреждена (snapshot drift от KI-090). Обязательно перед prod-SqlServer.
-
+v1.8.x — инфраструктура
+KI-106 — оригинальное имя файла в источниках RAG (сейчас GUID от attachments). ~1 ч.
+KI-107 — динамический accept из IRagDocumentParserRegistry.GetAllSupportedExtensions(). ~2 ч.
+KI-096 — GitHub Wiki для проекта (scope уточняется).
+KI-091 — SqlServer цепочка миграций (обязательно перед prod-SqlServer).
 KI-070 — миграции Sqlite.
-
-KI-057 — config-driven exclusion patterns моделей.
-
-PDF / DOCX парсеры — PdfPig + DocumentFormat.OpenXml. Расширяют RAG с 28 → 30+ форматов.
-
+KI-057 — config-driven exclusion patterns моделей LM Studio.
 Qdrant — замена InMemoryVectorStore (если перерастём 10k чанков). Интерфейс IVectorStore уже готов.
 
-v1.6.0 — Sources / citations (~6–8 ч)
-KI-086 — блок «Источники: [1] [2]» под ответом ассистента.
-
-Сохранять sources из tool_result в ChatMessage.MetadataJson.
-
-Единый UI для RAG, web, KB, history, workspace.
-
-Deferred (v1.7.0+)
-KI-047 — Fallback PATCH/DELETE через POST.
-
+Deferred
+KI-047 — Fallback PATCH/DELETE через POST (для старых сетей).
 KI-053 — Multi-user approvals (роли approver, уведомления).
-
 KI-082 — Модалка-редактор длинных user-сообщений.
+KI-096 — GitHub Wiki (scope уточняется).
+KI-099 — внешние БД для Database Agent (Postgres / MySQL / Oracle). v1.8.0+.
 
-KI-096 — GitHub Wiki для проекта.
-
-Уже сделано (v1.4.x)
+Уже сделано (v1.4.x — v1.6.1)
 KI-087 — docs/development/ARCHITECTURE.md.
-
 KI-088 — docs/TESTING.md (чек-лист ручной приёмки).
-
-KI-092, KI-093 — задокументированы.
-
+KI-083 — RAG / Knowledge Base (v1.5.0).
+KI-086 — Sources / citations (v1.6.0 + v1.6.1).
 Формат работы
 Полные файлы с XML-документацией на русском.
 
@@ -323,6 +302,15 @@ CancellationToken требует using System.Threading; в контроллер
 [ApiController] не подходит для View-контроллеров (возвращает ProblemDetails 400 вместо формы).
 
 SqlServer vs Sqlite — миграции применяются только для SqlServer. Для Sqlite — EnsureCreatedAsync (RULES § 4.25: удалять .db при изменении модели).
+
+**PDF / DOCX (KI-104, v1.7.1):**
+- **`.doc` (старый формат Word) — не поддерживается.** OpenXml работает только с `.docx`. При попытке приложить `.doc` — `InvalidDataException` → красный toast.
+- **OCR сканов PDF — не поддерживается.** PdfPig читает только текстовый слой. PDF-картинка без текста → `page.Text` пустой → 0 чанков (вложение создаётся, но `ChunksCount = 0`). Решение: Tesseract — v1.9+.
+- **Шифрованные PDF** — `PdfDocument.Open` бросает исключение → `InvalidDataException` → вложение не создаётся.
+- **Сложная вёрстка** (таблицы, multi-column) — текст склеивается. Ограничение всех PDF-экстракторов.
+- **`accept` для `<input type="file">` — хардкод в `Views/Chat/Index.cshtml`.** При добавлении нового парсера (например, `.odt` в v1.8+) — **не забыть** добавить расширение в `accept` вручную. Долгосрочное решение — KI-107 (динамический accept из `IRagDocumentParserRegistry`).
+
+**Sources / citations — GUID-имя файла для attachments (KI-106, v1.8.x).** В блоке «📚 Источники» для приложенных к чату файлов показывается `{guid}.docx` вместо оригинального `Договор.docx`. Причина: `ChatAttachmentService.UploadAsync` сохраняет файл как `{guid}.ext` (by design, KI-083 Шаг 6A), а `RagSourceBuilder.BuildLabel` берёт имя из `DocumentPath` (= GUID). Оригинальное имя живёт в `ChatAttachment.FileName` (в БД), но в `DocumentChunk` его нет. План — KI-106 (~1 ч).
 
 yield return + scope переменных — объявлять до try-catch, иначе CS0103 (RULES § 4.33).
 
