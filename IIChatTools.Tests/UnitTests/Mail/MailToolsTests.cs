@@ -76,6 +76,26 @@ namespace IIChatTools.Tests.UnitTests.Mail
         private static ToolExecutionContext Ctx(int userId = 1)
             => new ToolExecutionContext { UserId = userId, CancellationToken = default };
 
+        // Fake rate limiter (Фаза 4) — пропускает все запросы, кроме настроенных.
+        private sealed class FakeMailRateLimiter : IMailRateLimiter
+        {
+            public bool Allow { get; set; } = true;
+            public RateLimitResult NextResult { get; set; }
+            public int CheckSendCalls { get; private set; }
+
+            public RateLimitResult CheckSend(int userId)
+            {
+                CheckSendCalls++;
+                if (NextResult != null) return NextResult;
+                return new RateLimitResult { Allowed = Allow };
+            }
+
+            public RateLimitResult CheckRead(int userId)
+                => new RateLimitResult { Allowed = true };
+
+            public void RecordBytesSent(int userId, long bytes) { }
+        }
+
         // ============================================================
         // ListEmailsTool
         // ============================================================
@@ -245,7 +265,7 @@ namespace IIChatTools.Tests.UnitTests.Mail
 
             // RULES § 4.46: default interface method (ITool.RequiresApprovalForCall)
             // не виден через конкретный тип — только через интерфейсную переменную.
-            ITool tool = new SendEmailTool(fake, NullLogger<SendEmailTool>.Instance);
+            ITool tool = new SendEmailTool(fake, new FakeMailRateLimiter(), NullLogger<SendEmailTool>.Instance);
 
             Assert.True(tool.RequiresApprovalByDefault);
             Assert.True(tool.RequiresApprovalForCall(new JObject()));
@@ -255,7 +275,7 @@ namespace IIChatTools.Tests.UnitTests.Mail
         public async Task SendEmailTool_NoTo_Fails()
         {
             var fake = new FakeMailClient();
-            var tool = new SendEmailTool(fake, NullLogger<SendEmailTool>.Instance);
+            var tool = new SendEmailTool(fake, new FakeMailRateLimiter(), NullLogger<SendEmailTool>.Instance);
 
             var args = new JObject
             {
@@ -272,7 +292,7 @@ namespace IIChatTools.Tests.UnitTests.Mail
         public async Task SendEmailTool_NoBody_Fails()
         {
             var fake = new FakeMailClient();
-            var tool = new SendEmailTool(fake, NullLogger<SendEmailTool>.Instance);
+            var tool = new SendEmailTool(fake, new FakeMailRateLimiter(), NullLogger<SendEmailTool>.Instance);
 
             var args = new JObject
             {
@@ -289,7 +309,7 @@ namespace IIChatTools.Tests.UnitTests.Mail
         public async Task SendEmailTool_InvalidEmail_Fails()
         {
             var fake = new FakeMailClient();
-            var tool = new SendEmailTool(fake, NullLogger<SendEmailTool>.Instance);
+            var tool = new SendEmailTool(fake, new FakeMailRateLimiter(), NullLogger<SendEmailTool>.Instance);
 
             var args = new JObject
             {
@@ -307,7 +327,7 @@ namespace IIChatTools.Tests.UnitTests.Mail
         public async Task SendEmailTool_TooManyRecipients_Fails()
         {
             var fake = new FakeMailClient();
-            var tool = new SendEmailTool(fake, NullLogger<SendEmailTool>.Instance);
+            var tool = new SendEmailTool(fake, new FakeMailRateLimiter(), NullLogger<SendEmailTool>.Instance);
 
             var to = new JArray();
             for (int i = 0; i < 11; i++) to.Add($"user{i}@example.com");
@@ -328,7 +348,7 @@ namespace IIChatTools.Tests.UnitTests.Mail
         public async Task SendEmailTool_ValidRequest_CallsClient()
         {
             var fake = new FakeMailClient();
-            var tool = new SendEmailTool(fake, NullLogger<SendEmailTool>.Instance);
+            var tool = new SendEmailTool(fake, new FakeMailRateLimiter(), NullLogger<SendEmailTool>.Instance);
 
             var args = new JObject
             {
@@ -351,7 +371,7 @@ namespace IIChatTools.Tests.UnitTests.Mail
         public async Task SendEmailTool_ExceptionFromClient_ReturnsFail()
         {
             var fake = new FakeMailClient { NextException = new InvalidOperationException("SMTP unreachable") };
-            var tool = new SendEmailTool(fake, NullLogger<SendEmailTool>.Instance);
+            var tool = new SendEmailTool(fake, new FakeMailRateLimiter(), NullLogger<SendEmailTool>.Instance);
 
             var args = new JObject
             {
@@ -363,6 +383,60 @@ namespace IIChatTools.Tests.UnitTests.Mail
 
             Assert.False(result.Success);
             Assert.Contains("SMTP unreachable", result.Message);
+        }
+
+        // ============================================================
+        // SendEmailTool + RateLimiter (Фаза 4)
+        // ============================================================
+
+        [Fact]
+        public async Task SendEmailTool_RateLimitExceeded_Fails()
+        {
+            var fake = new FakeMailClient();
+            var limiter = new FakeMailRateLimiter
+            {
+                NextResult = new RateLimitResult
+                {
+                    Allowed = false,
+                    RetryAfterSeconds = 120,
+                    Reason = "Превышен лимит: 20 писем/час"
+                }
+            };
+            var tool = new SendEmailTool(fake, limiter, NullLogger<SendEmailTool>.Instance);
+
+            var args = new JObject
+            {
+                ["to"] = new JArray("x@example.com"),
+                ["subject"] = "Test",
+                ["body"] = "Hello"
+            };
+            var result = await tool.ExecuteAsync(Ctx(1), args);
+
+            Assert.False(result.Success);
+            Assert.Contains("Превышен лимит отправки", result.Message);
+            Assert.Contains("20 писем/час", result.Message);
+            Assert.Contains("2 мин", result.Message);
+            Assert.Equal(1, limiter.CheckSendCalls);
+            Assert.Empty(fake.SendCalls);   // отправка НЕ состоялась
+        }
+
+        [Fact]
+        public async Task SendEmailTool_RateLimitOK_CallsCheckSend()
+        {
+            var fake = new FakeMailClient();
+            var limiter = new FakeMailRateLimiter { Allow = true };
+            var tool = new SendEmailTool(fake, limiter, NullLogger<SendEmailTool>.Instance);
+
+            var args = new JObject
+            {
+                ["to"] = new JArray("x@example.com"),
+                ["subject"] = "Test",
+                ["body"] = "Hello"
+            };
+            await tool.ExecuteAsync(Ctx(1), args);
+
+            Assert.Equal(1, limiter.CheckSendCalls);
+            Assert.Single(fake.SendCalls);
         }
     }
 }

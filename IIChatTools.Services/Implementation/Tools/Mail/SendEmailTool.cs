@@ -35,19 +35,23 @@ namespace IIChatTools.Services.Implementation.Tools.Mail
         private const int MaxRecipientsTotal = 10;
 
         private readonly IMailClient _mailClient;
+        private readonly IMailRateLimiter _rateLimiter;
         private readonly ILogger<SendEmailTool> _logger;
 
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
         /// <param name="mailClient">IMAP/SMTP-клиент</param>
+        /// <param name="rateLimiter">Rate limiter (v1.8.0, Фаза 4)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если параметр null</exception>
         public SendEmailTool(
             IMailClient mailClient,
+            IMailRateLimiter rateLimiter,
             ILogger<SendEmailTool> logger)
         {
             _mailClient = mailClient ?? throw new ArgumentNullException(nameof(mailClient));
+            _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -168,6 +172,17 @@ namespace IIChatTools.Services.Implementation.Tools.Mail
 
                 var isHtml = ParseBool(arguments, "isHtml", false);
 
+                // --- Rate limiting (v1.8.0, Фаза 4) ---
+                var rateCheck = _rateLimiter.CheckSend(context.UserId);
+                if (!rateCheck.Allowed)
+                {
+                    var retryHint = rateCheck.RetryAfterSeconds > 0
+                        ? $" Повторите через {FormatRetryAfter(rateCheck.RetryAfterSeconds)}."
+                        : string.Empty;
+                    return ToolResult.Fail(
+                        $"Превышен лимит отправки: {rateCheck.Reason}.{retryHint}");
+                }
+
                 // --- Сборка request ---
                 var request = new SendMailRequest
                 {
@@ -180,10 +195,13 @@ namespace IIChatTools.Services.Implementation.Tools.Mail
                     Attachments = attachments
                 };
 
-                // TODO (Фаза 4): rate limiter (20 писем/час) + attachment service.
+                // TODO (Фаза 5+): attachment service (ResolveForSendAsync + прикрепление).
 
                 // --- Отправка ---
                 await _mailClient.SendAsync(request, context.UserId, context.CancellationToken);
+
+                // Учёт отправленных байт (только body, вложения — в Фазе 5+).
+                _rateLimiter.RecordBytesSent(context.UserId, body.Length);
 
                 // Privacy: только количество получателей и вложений.
                 _logger.LogInformation(
@@ -279,6 +297,17 @@ namespace IIChatTools.Services.Implementation.Tools.Mail
         {
             if (string.IsNullOrEmpty(subject)) return "(без темы)";
             return subject.Length <= 80 ? subject : subject.Substring(0, 80) + "…";
+        }
+
+        /// <summary>
+        /// Форматирует RetryAfterSeconds в человекочитаемый вид.
+        /// </summary>
+        private static string FormatRetryAfter(int seconds)
+        {
+            if (seconds <= 0) return "несколько минут";
+            if (seconds < 60) return $"{seconds} сек";
+            var minutes = (seconds + 59) / 60;
+            return $"{minutes} мин";
         }
     }
 }

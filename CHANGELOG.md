@@ -91,6 +91,24 @@
   - `Startup.cs` — `RegisterMailTools` +4 регистрации.
   - **Тесты:** +15 (`MailTools3BTests`).
   - **DoD:** `dotnet test` — 394 → **409/409**.
+- **Mail Agent — Фаза 4 (v1.8.0, KI-107)**: MailAttachmentService + InMemoryMailRateLimiter.
+  - `Implementation/Mail/MailAttachmentService.cs` — `IMailAttachmentService`.
+    - `SaveIncomingAsync` — сохранение вложения в `{workspace}/mail-attachments/{uid}/{sha256}.ext`
+      (дедупликация по SHA256, защита от path-traversal через `PathHelper`).
+    - `ResolveForSendAsync` — валидация относительных путей + лимиты
+      (MaxFileSize / MaxTotalSize / MaxFilesPerMessage).
+  - `Implementation/Mail/InMemoryMailRateLimiter.cs` — `IMailRateLimiter`, Singleton, `IDisposable`.
+    Per-user лимиты: `SendsPerHour`, `SendsPerMinute`, `ReadsPerMinute`, `MaxHourlyBytesPerUser`.
+    Timer cleanup каждые 5 минут (по образцу KI-043).
+  - `SendEmailTool` — интеграция `IMailRateLimiter.CheckSend` перед отправкой
+    + `RecordBytesSent` после. При превышении — `ToolResult.Fail` с RetryAfter.
+  - `Startup.cs` — DI: `AddSingleton<IMailRateLimiter, InMemoryMailRateLimiter>` +
+    `AddScoped<IMailAttachmentService, MailAttachmentService>`.
+  - **Тесты:** +11 (`MailAttachmentServiceTests` 7 + `InMemoryMailRateLimiterTests` 6).
+    Плюс 7 тестов SendEmailTool обновлены (rate limiter в конструкторе) + 2 новых.
+  - **DoD:** `dotnet test` — 409 → **420/420**.
+  - **Отложено:** сохранение вложений при `read_email` (требует переделки `IMailClient` —
+    Фаза 5+).
 
 ---
 

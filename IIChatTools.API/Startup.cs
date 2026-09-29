@@ -443,6 +443,12 @@ namespace IIChatTools.API
             services.AddSingleton<IMailAccountProvider, GlobalMailAccountProvider>();
             services.AddSingleton<IMailClient, MailKitClient>();
 
+            // v1.8.0 (KI-107, Фаза 4): rate limiter + attachment service.
+            // RateLimiter — Singleton (in-memory state + Timer cleanup по KI-043).
+            // AttachmentService — Scoped (зависит от IWorkspaceResolver).
+            services.AddSingleton<IMailRateLimiter, InMemoryMailRateLimiter>();
+            services.AddScoped<IMailAttachmentService, MailAttachmentService>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 
