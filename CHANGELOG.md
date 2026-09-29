@@ -18,7 +18,14 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **Mail Agent — Troubleshooting в README (v1.8.x, KI-107-follow)**:
+  подраздел «Troubleshooting (Yandex и другие)» в `README.md`.
+  Разбор типичных ошибок `MailKit.Security.AuthenticationException: LOGIN
+  invalid credentials or IMAP is disabled` — 3 причины (IMAP не включён
+  в веб-интерфейсе, пароль не App Password, Username не полный email),
+  проверка через внешний IMAP-клиент, troubleshooting timeout,
+  `Workspace:RootPath`, rate limit.
 
 ---
 

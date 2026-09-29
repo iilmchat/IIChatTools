@@ -710,6 +710,75 @@ dotnet user-secrets set "SqlAgent:Internal:ConnectionString" \
 - **Gmail** (требует VPN в РФ): https://myaccount.google.com/security → 2FA → «Пароли приложений» → «Почта».
 - **OAuth2** (для Gmail / Outlook / Exchange) — запланировано на **v1.9+**.
 
+### Troubleshooting (Yandex и другие)
+
+**Симптом:** `MailKit.Security.AuthenticationException: LOGIN invalid credentials or IMAP is disabled`.
+
+Yandex отдаёт это **одно и то же** сообщение в **трёх** случаях:
+
+**Причина 1 — IMAP не включён в веб-интерфейсе** (самое частое).
+
+Fix:
+
+1. Открой https://mail.yandex.ru → Настройки (⚙) → «Почтовые программы».
+2. Поставь галку «С сервера imap.yandex.ru по протоколу IMAP».
+3. Внизу → «Сохранить изменения».
+
+**App Password ≠ IMAP.** Это две разные настройки. App Password без включённого IMAP не работает.
+
+**Причина 2 — пароль = обычный, а не App Password.**
+
+App Password — 16 символов только `a-z0-9`. Если сохранённый пароль длиннее, содержит заглавные или спецсимволы — это обычный пароль.
+
+Проверка:
+
+    cd <repo-root>/IIChatTools.API
+    dotnet user-secrets list | Select-String "Password"
+
+Ожидание: `Mail:Imap:Password = abcdefghijklmnop` (16 символов, без пробелов).
+
+Yandex показывает App Password группами (`abcd efgh ijkl mnop`) — **пробелы убрать**.
+
+**Причина 3 — Username не полный email.**
+
+Yandex требует `user@yandex.ru`, а не `user`.
+
+Проверка:
+
+    dotnet user-secrets list | Select-String "Username|FromAddress"
+
+Ожидание:
+
+    Mail:FromAddress   = user@yandex.ru
+    Mail:Imap:Username = user@yandex.ru
+    Mail:Smtp:Username = user@yandex.ru
+
+**Проверка через внешний IMAP-клиент** (Thunderbird / Outlook) — отсекает 90% проблем:
+
+    IMAP сервер: imap.yandex.ru
+    Порт:       993
+    Шифрование: SSL/TLS
+    Логин:      user@yandex.ru
+    Пароль:     App Password, 16 символов без пробелов
+
+Если внешний клиент **подключается**, а IIChatTools — **нет** → проблема в User Secrets (опечатка, лишние пробелы).
+
+Если внешний клиент **тоже падает** → проблема в Yandex (IMAP не включён / пароль не App Password).
+
+**Симптом:** `MailKit.Net.Imap.ImapProtocolException` / timeout.
+
+- Порт IMAP: **993** (SSL). Порт SMTP: **465** (SSL). Проверь, что фаервол / прокси не блокирует.
+- Хост: `imap.yandex.ru` / `smtp.yandex.ru` (не `mail.yandex.ru`).
+- Тест сети: `Test-NetConnection imap.yandex.ru -Port 993` → `TcpTestSucceeded: True`.
+
+**Симптом:** `Не задан Workspace:RootPath`.
+
+- `dotnet user-secrets set "Workspace:RootPath" "<путь>"` (см. раздел «Профиль разработки»).
+
+**Симптом:** `Превышен лимит: 20 писем/час`.
+
+- Rate limiter сработал. Подожди или перезапусти приложение (сброс in-memory счётчика).
+
 ### Ограничения v1.8.0
 
 - **Один глобальный ящик** для всех пользователей (per-user — v1.8.x, KI-108).
