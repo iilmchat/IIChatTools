@@ -78,6 +78,19 @@
   - **Privacy:** в логах — только количество (recipients, attachments, bodyLen).
   - **Тесты:** +16 (`MailToolsTests`).
   - **DoD:** `dotnet test` — 378 → **394/394**.
+- **Mail Agent — Фаза 3B (v1.8.0, KI-107)**: 4 tool'а (search / delete / move / mark_as_read).
+  - `Implementation/Tools/Mail/SearchEmailsTool.cs` — `search_emails` (read-only).
+    Параметры: `from?`, `subject?`, `since?` (YYYY-MM-DD), `before?`, `unseenOnly?`,
+    `mailbox?="INBOX"`, `limit=20` (clamp 1..100). Требуется хотя бы 1 фильтр.
+  - `Implementation/Tools/Mail/DeleteEmailTool.cs` — `delete_email` (**approval**).
+    Параметры: `uid` (required), `mailbox?="INBOX"`. Перемещает в Trash.
+  - `Implementation/Tools/Mail/MoveEmailTool.cs` — `move_email` (**approval**).
+    Параметры: `uid` (required), `from?="INBOX"`, `to` (required).
+  - `Implementation/Tools/Mail/MarkAsReadTool.cs` — `mark_as_read` (**без approval** —
+    мелкое действие, approval уже был на уровне агента).
+  - `Startup.cs` — `RegisterMailTools` +4 регистрации.
+  - **Тесты:** +15 (`MailTools3BTests`).
+  - **DoD:** `dotnet test` — 394 → **409/409**.
 
 ---
 

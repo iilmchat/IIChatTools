@@ -753,9 +753,16 @@ namespace IIChatTools.API
                 return;
             }
 
+            // Фаза 3A (read + mutating):
             services.AddScoped<ITool, ListEmailsTool>();
             services.AddScoped<ITool, ReadEmailTool>();
             services.AddScoped<ITool, SendEmailTool>();
+
+            // Фаза 3B (read + mutating):
+            services.AddScoped<ITool, SearchEmailsTool>();
+            services.AddScoped<ITool, DeleteEmailTool>();
+            services.AddScoped<ITool, MoveEmailTool>();
+            services.AddScoped<ITool, MarkAsReadTool>();
         }
 
         /// <summary>
