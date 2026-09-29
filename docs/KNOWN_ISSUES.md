@@ -1582,7 +1582,7 @@
 ---
 
 ### KI-107 — Mail Agent (IMAP/SMTP, MailKit)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.0
+- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.8.0
 - **Обнаружено:** 2026-09-29
 - **DESIGN:** [`docs/development/v1.8/DESIGN_MAIL_AGENT.md`](development/v1.8/DESIGN_MAIL_AGENT.md)
 - **Описание:** LLM не имеет доступа к почте. Нет инструментов для IMAP/SMTP.
@@ -1767,10 +1767,10 @@
 | Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
-| In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 4 |                       <!-- KI-107, KI-108, KI-109, KI-110 -->
+| In Progress | 1 |                   <!-- KI-107 (Фаза 1: DTO + интерфейсы) -->
+| Planned | 3 |                       <!-- KI-108, KI-109, KI-110 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **69** |
 

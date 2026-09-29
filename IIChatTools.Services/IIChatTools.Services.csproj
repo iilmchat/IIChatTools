@@ -59,6 +59,7 @@
          (тянется DocumentFormat.OpenXml 3.1.0) — две High-уязвимости.
          Явная версия 10.0.0 перебивает транзитивную (прецедент KI-022). -->
     <PackageReference Include="System.IO.Packaging" Version="$(SystemIOPackagingVersion)" />
+    <PackageReference Include="MailKit" Version="$(MailKitVersion)" />
   </ItemGroup>
 
 </Project>

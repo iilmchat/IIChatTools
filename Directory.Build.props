@@ -68,6 +68,7 @@
          Прецедент — KI-022 (SQLitePCLRaw 2.1.11 → 2.1.13).
          Версия 10.0.0 — соответствует .NET 10 SDK (10.0.401). -->
     <SystemIOPackagingVersion>10.0.0</SystemIOPackagingVersion>
+    <MailKitVersion>4.8.0</MailKitVersion>
   </PropertyGroup>
 
 </Project>

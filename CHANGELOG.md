@@ -40,6 +40,16 @@
   - **KI-108** — Per-user mail accounts (свой ящик у каждого пользователя). v1.8.x.
   - **KI-109** — External-LLM Agent (OpenAI-совместимые провайдеры). v1.8.0.
   - **KI-110** — Anthropic Claude + Google Gemini (свои форматы запросов). v1.9+.
+- **Mail Agent — Фаза 1 (v1.8.0, KI-107)**: NuGet (MailKit 4.8.0) + DTO + интерфейсы.
+  - `Directory.Build.props`: `<MailKitVersion>4.8.0</MailKitVersion>`.
+  - `IIChatTools.Services.csproj`: `<PackageReference Include="MailKit" ... />`.
+  - `DTO/Mail/` — 12 файлов: `MailOptions`, `MailEndpointOptions`, `MailAttachmentsOptions`,
+    `MailSearchOptions`, `MailRateLimitOptions`, `MailAccountCredentials`,
+    `MailMessageSummaryDto`, `MailMessageDto`, `MailAttachmentDto`, `SendMailRequest`,
+    `SearchMailRequest`, `RateLimitResult`.
+  - `Interfaces/` — 4 файла: `IMailClient`, `IMailAccountProvider`,
+    `IMailAttachmentService`, `IMailRateLimiter`.
+  - **DoD:** `dotnet build` 0/0. Все типы компилируются, но пока не используются.
 
 ---
 
