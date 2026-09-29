@@ -18,6 +18,20 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.8.0] — 2026-09-29
+
+**Mail Agent (IMAP/SMTP через MailKit 4.8.0, KI-107).**
+Почтовый агент `mail_agent` + 7 инструментов внутри: `send_email` (approval),
+`list_emails`, `read_email`, `search_emails`, `delete_email` (approval),
+`move_email` (approval), `mark_as_read`. Rate limiting 20 писем/час, 30 чтений/мин.
+Privacy-first (без PII в логах). Вложения в `mail-attachments/{uid}/`, ≤ 10 MB.
+Глобальные credentials (App Password в User Secrets). Chat видит **12 инструментов**
+(было 11). Реализовано в 5 фазах + релизная документация. Тесты: **409 → 424**.
+
 ### Added
 - **DESIGN v1.8 — Mail Agent (Draft)** (`docs/development/v1.8/DESIGN_MAIL_AGENT.md`):
   дизайн-документ для почтового агента (IMAP/SMTP через MailKit 4.8.0).

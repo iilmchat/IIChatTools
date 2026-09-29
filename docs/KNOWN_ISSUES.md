@@ -1582,18 +1582,23 @@
 ---
 
 ### KI-107 — Mail Agent (IMAP/SMTP, MailKit)
-- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.8.0
-- **Прогресс:** Фаза 1 ✅, Фаза 2 ✅, Фаза 3A ✅ (3 tools), Фаза 3B ✅ (4 tools),
-  Фаза 4 ✅ (MailAttachmentService + InMemoryMailRateLimiter + интеграция в SendEmailTool,
-  +11 тестов), **Фаза 5 ✅** (`mail_agent` в SubAgents — Chat видит **12 инструментов**).
-  Далее — **Фаза 6** (релиз v1.8.0: README, TESTING.md, bump version, tag, GitHub Release).
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.8.0
+- **Прогресс:** Реализовано в 5 фазах + релизная документация.
+  - Фаза 1 ✅ (DTO + интерфейсы, MailKit 4.8.0).
+  - Фаза 2 ✅ (MailKitClient + GlobalMailAccountProvider).
+  - Фаза 3A ✅ (3 tools: `list_emails`, `read_email`, `send_email` — 16 тестов).
+  - Фаза 3B ✅ (4 tools: `search_emails`, `delete_email`, `move_email`, `mark_as_read` — 15 тестов).
+  - Фаза 4 ✅ (MailAttachmentService + InMemoryMailRateLimiter + интеграция в SendEmailTool — 11 тестов).
+  - Фаза 5 ✅ (`mail_agent` в SubAgents — Chat видит **12 инструментов**).
+  - Фаза 6 ✅ (README + TESTING + PROMPT_V2 v2.7 + bump 1.8.0 + tag + GitHub Release).
+  - **Итого:** +11 новых файлов, ~42 теста (424/424).
 - **Отложено (не блокер v1.8.0):**
   - Сохранение вложений при `read_email` — требует переделки `IMailClient`
     (добавить `DownloadAttachmentAsync` или передать `IServiceScopeFactory`
     в `MailKitClient`). Зафиксировано в CHANGELOG.
   - Прикрепление вложений к `send_email` — `ResolveForSendAsync` готов,
     но интеграция в `SendEmailTool` (прикрепление к `MimeMessage`) — v1.8.x.
-- **Обнаружено:** 2026-09-29
+- **Обнаружено:** 2026-09-29 | **Устранено:** 2026-09-29
 - **DESIGN:** [`docs/development/v1.8/DESIGN_MAIL_AGENT.md`](development/v1.8/DESIGN_MAIL_AGENT.md)
 - **Описание:** LLM не имеет доступа к почте. Нет инструментов для IMAP/SMTP.
   `execute_command` + `python` — антипаттерн (нет валидации, нет approval, нет
@@ -1775,11 +1780,12 @@
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
 | Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
+| Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
+| In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| In Progress | 1 |                   <!-- KI-107 (Фаза 1: DTO + интерфейсы) -->
 | Planned | 3 |                       <!-- KI-108, KI-109, KI-110 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **69** |
