@@ -1255,7 +1255,44 @@
   - `SqliteConnectionStringBuilder` (из `Microsoft.Data.Sqlite`) корректно
     парсит и собирает connection string — не боимся `;Mode=ReadOnly` в хвосте.
   - Регистрация: `services.AddSingleton<IAppPathProvider>(...)` в `Startup.cs`.
-  - Тест `CreateConnectionAsync_RelativeSqlitePath_ResolvesFromContentRoot`.  
+  - Тест `CreateConnectionAsync_RelativeSqlitePath_ResolvesFromContentRoot`.
+
+---
+
+### KI-101 — Per-action approval для Database Agent (execute_query vs метаданные)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.7.x
+- **Обнаружено:** 2026-09-29 (Фаза 5 KI-097)
+- **DESIGN:** [`docs/development/v1.7/DESIGN_DB_AGENT.md`](development/v1.7/DESIGN_DB_AGENT.md)
+  § 3.3 и § 6.5.
+- **Файлы (план):** `IIChatTools.Services/Implementation/ChatStreamService.cs`
+  (метод `StreamAsync` — блок проверки `requiresApproval`),
+  `IIChatTools.Services/DTO/ToolResult.cs`, `ChatStreamService.ChatToolResultDto`.
+- **Описание:** DESIGN § 3.3 описывает **per-action approval** для `database_agent`:
+  - `execute_query` — требует approval (пользователь видит сам SQL);
+  - `list_databases` / `list_tables` / `describe_table` — **не** требуют
+    (read-only метаданные, approval = лишний клик).
+
+  **Проблема:** в текущей архитектуре `ChatStreamService` флаг approval —
+  **свойство всего tool** (`ToolDescriptor.RequiresApprovalByDefault`), а не
+  отдельного вызова. Chat не имеет механизма «решить по args, нужен ли approval».
+
+  **Текущее решение (Фаза 5):** `DatabaseAgentTool.RequiresApprovalByDefault = true` —
+  все 4 действия требуют approval. Безопасно, работает, но для `list_tables`
+  пользователь видит лишнюю модалку.
+- **Возможные решения (v1.7.x):**
+  1. Расширить `ToolResult` полем `RequiresApproval` — tool сам решает
+     в `ExecuteAsync` (после парсинга args). Требует доработки цикла в
+     `ChatStreamService`: сначала вызвать tool (без выполнения!), получить
+     флаг, затем — при `RequiresApproval=true` — запросить approval и
+     выполнить реально. Несовместимо с текущим «вызвать → вернуть результат».
+  2. Добавить в `ITool` метод `RequiresApprovalForCall(JObject args)`.
+     Разделяет «решение» и «выполнение». Чище, но меняет контракт 46 инструментов
+     (можно с default-реализацией).
+  3. Отдельные tool-обёртки: `database_agent_meta` (без approval) +
+     `database_agent_query` (с approval). Раздувает список, но не трогает ядро.
+- **Не блокер:** безопасность не страдает — approval **есть**, просто иногда
+  лишний. UX-мелочь.
+- **Связанные:** KI-097.
 
 ---
 

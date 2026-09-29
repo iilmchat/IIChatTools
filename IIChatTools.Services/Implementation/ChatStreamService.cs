@@ -69,6 +69,20 @@ namespace IIChatTools.Services.Implementation
             "search_workspace"
         };
 
+        /// <summary>
+        /// v1.7.0 (KI-097, Фаза 5): имя Database Agent tool.
+        /// Явно добавляется в <c>allowedNames</c> при построении <c>tools[]</c> для Chat.
+        /// Если <c>SqlAgent:Enabled = false</c>, tool не зарегистрирован в DI —
+        /// фильтр по имени в <see cref="ToolDefinitionsBuilder.Build"/> просто его
+        /// пропустит (не найдёт descriptor).
+        ///
+        /// <para>
+        /// RULES § 4.44: новый top-level <see cref="ITool"/> → обязательно добавить
+        /// в <c>allowedNames</c>, иначе LLM физически не сможет его вызвать.
+        /// </para>
+        /// </summary>
+        private const string DatabaseAgentToolName = "database_agent";
+
         /// <summary>Сколько top-K чанков вставлять в system prompt (по умолчанию).</summary>
         private const int DefaultAutoInjectTopK = 5;
 
@@ -314,6 +328,15 @@ namespace IIChatTools.Services.Implementation
                     {
                         allowedNames.Add(ragName);
                     }
+                }
+
+                // v1.7.0 (KI-097, Фаза 5): явно добавляем Database Agent tool.
+                // RULES § 4.44: новый top-level ITool → обязательно в allowedNames.
+                // Если SqlAgent:Enabled = false, tool не зарегистрирован в DI —
+                // фильтр по имени в ToolDefinitionsBuilder.Build его пропустит.
+                if (!allowedNames.Contains(DatabaseAgentToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(DatabaseAgentToolName);
                 }
 
                 tools = ToolDefinitionsBuilder.Build(

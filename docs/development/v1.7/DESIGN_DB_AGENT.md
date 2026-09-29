@@ -169,6 +169,19 @@ execute_query	Выполнить read-only запрос	✅ (всегда — д
 
 При этом сам агент database_agent (RequiresApprovalByDefault в ToolDescriptor) — false. Approval срабатывает внутри, на конкретном execute_query. Это даёт UX: пользователь кликает 1 раз, видит сам SQL, подтверждает.
 
+> ⚠️ **Обновление (2026-09-29, Фаза 5 реализована):** на момент реализации Фазы 5
+> архитектура `ChatStreamService` **не поддерживает per-action approval** —
+> флаг `RequiresApprovalByDefault` является свойством **всего tool**
+> (`ToolDescriptor`), а не отдельного вызова. Механизма «решить по args»
+> в `ChatStreamService` нет.
+>
+> **Практическое решение Фазы 5:** `DatabaseAgentTool.RequiresApprovalByDefault = true`
+> (все 4 действия требуют approval). Безопасно, работает без доработки
+> `ChatStreamService`. Для `list_tables` — лишний клик (UX-мелочь).
+>
+> **Per-action approval** (как описано выше) — задача **KI-101**, запланирована
+> на v1.7.x. Требует доработки `ChatStreamService` (варианты — в KI-101).
+
 § 5. Конфигурация
 § 5.1. appsettings.json — секция SqlAgent:*
 jsonc

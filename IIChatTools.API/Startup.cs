@@ -17,6 +17,7 @@ using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.Implementation.Tools.Rag;
+using IIChatTools.Services.Implementation.Tools.SqlAgent;   // v1.7.0 (KI-097): DatabaseAgentTool
 using IIChatTools.Services.Implementation.Tools.SubAgent;
 using IIChatTools.Services.Implementation.Tools.Utils;
 using IIChatTools.Services.Implementation.Tools.Web;
@@ -442,6 +443,10 @@ namespace IIChatTools.API
             // v1.5.0 (KI-083, Шаг 5B): RAG-tools (search_knowledge_base, search_chat_history).
             RegisterRagTools(services);
 
+            // v1.7.0 (KI-097, Фаза 5): Database Agent tool.
+            // Не регистрируется при SqlAgent:Enabled = false (DESIGN § 3.4).
+            RegisterSqlAgentTools(services, Configuration);
+
             // ============ 11. Политики авторизации ============
             services.AddAuthorization(options =>
             {
@@ -669,6 +674,30 @@ namespace IIChatTools.API
             services.AddScoped<ITool, SearchKnowledgeBaseTool>();
             services.AddScoped<ITool, SearchChatHistoryTool>();
             services.AddScoped<ITool, SearchWorkspaceTool>();
+        }
+
+        /// <summary>
+        /// Регистрирует Database Agent tool (v1.7.0, KI-097, Фаза 5).
+        ///
+        /// <para>
+        /// Если <c>SqlAgent:Enabled = false</c> — инструмент не регистрируется,
+        /// LLM физически его не видит (DESIGN § 3.4). Глобальный флаг
+        /// читается из конфигурации на этапе старта приложения.
+        /// </para>
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        /// <param name="configuration">Конфигурация (для чтения SqlAgent:Enabled)</param>
+        private static void RegisterSqlAgentTools(
+            IServiceCollection services,
+            IConfiguration configuration)
+        {
+            var enabled = configuration.GetValue<bool>("SqlAgent:Enabled", defaultValue: true);
+            if (!enabled)
+            {
+                return;
+            }
+
+            services.AddScoped<ITool, DatabaseAgentTool>();
         }
 
         /// <summary>

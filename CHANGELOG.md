@@ -136,6 +136,26 @@
   - **Fix (в том же коммите, №1):** `IReadOnlyList<T>` не имеет `.Find` (это instance-метод
     `List<T>`) — в `SqlAgentServiceTests` заменено на LINQ `FirstOrDefault` (×3, +`using System.Linq;`).
     Плюс `Assert.Equal(1, ...Count)` → `Assert.Single(...)` (xUnit2013).
+- **Database Agent — Фаза 5: DatabaseAgentTool + интеграция в Chat (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.5)**:
+  - **`DatabaseAgentTool : ITool`** (`Implementation/Tools/SqlAgent/`) —
+    top-level инструмент (**не** `AgentToolBase` — DESIGN § 4.1).
+    Диспетчеризует 4 действия через `ISqlAgentService`:
+    `list_databases` / `list_tables` / `describe_table` / `execute_query`.
+    Параметры: `action` (required), `connection` (optional),
+    `table` (optional), `sql` (optional), `maxRows` (optional).
+  - **`Startup.cs`** — новый метод `RegisterSqlAgentTools(services, configuration)`:
+    регистрирует `ITool → DatabaseAgentTool` (Scoped), но **только если
+    `SqlAgent:Enabled = true`** (DESIGN § 3.4).
+  - **`ChatStreamService`** — константа `DatabaseAgentToolName = "database_agent"`
+    + блок в `allowedNames` (RULES § 4.44). Без этого LLM не увидел бы tool в `tools[]`.
+  - **Тесты** — `DatabaseAgentToolTests` (**13**, включая `ThrowOnExecute`
+    для проверки обработки ошибок валидатора). Всего: **286 → 299**.
+  - **Approval:** `RequiresApprovalByDefault = true` (все 4 действия).
+    **Отклонение от DESIGN § 3.3** (там был per-action approval):
+    текущая архитектура `ChatStreamService` не поддерживает per-action —
+    флаг `RequiresApprovalByDefault` один на tool. Заведена **KI-101** (Deferred, v1.7.x).
+  - **DoD Фазы 5:** Chat видит **11 инструментов** (было 10).
+    LLM может вызвать `database_agent` и получить ответ на вопрос про БД.
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,
