@@ -1773,9 +1773,14 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-115 — `mail_agent`: непроактивен — «прочитай письмо» делает только `list_emails`
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.x
+- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.8.x
 - **Обнаружено:** 2026-09-29 (smoke, скриншоты)
-- **Файлы:** `appsettings.json` (`SubAgents:mail_agent:Model`, `SystemPrompt`).
+- **Файлы:** `appsettings.json` (`SubAgents:mail_agent:Model`, `SystemPrompt`),
+  `IIChatTools.Services/Implementation/Tools/Mail/ListEmailsTool.cs` (план).
+- **Попытка фикса (2026-09-29):** смена модели на `gemma-4-12b` + few-shot промпт.
+  **Не сработало** — gemma-4-12b-coder-fable5-composer2.5-v1 не поддерживает
+  OpenAI tool calling (см. KI-116). Откатили на qwen3-4b, few-shot промпт оставили.
+  Требуется другой подход — см. ниже.
 - **Описание:** При задаче «прочитай последнее письмо из INBOX» агент:
   1. Вызывает `list_emails(count=1)` — получает метаданные (uid, from, subject, date).
   2. Останавливается и спрашивает «Хотите, чтобы я прочитал содержимое?» —
@@ -1798,6 +1803,48 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Изменить `AgentToolBase`, чтобы если `Completed = false` → `ToolResult.Fail`.
   - **KI-111** (передача контекста) — не решит, но улучшит.
 - **Связанные:** KI-111, KI-113, KI-114.
+
+---
+
+### KI-116 — `gemma-4-12b-coder-fable5-composer2.5-v1` не поддерживает OpenAI tool calling
+- **Приоритет:** 🔴 High | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-29 (smoke Mail Agent, скриншот LM Studio logs)
+- **Файлы:** `appsettings.json`, `appsettings.Development.json`
+  (`SubAgents:*:Model` для `mail_agent`, `code_agent`, `planner_agent`).
+- **Описание:** `gemma-4-12b-coder-fable5-composer2.5-v1` в LM Studio
+  **не генерирует `tool_calls[]`** — она расписывает вызов функции
+  **как plain text** в поле `content`, оставляя `tool_calls: []`.
+
+  Доказательство (лог LM Studio от 2026-09-29 22:38:31):
+
+      "model": "gemma-4-12b-coder-fable5-composer2.5-v1",
+      "choices": [{
+        "message": {
+          "role": "assistant",
+          "content": "list_emails(count=1, mailbox=\"INBOX\")",
+          "reasoning_content": "Steps: 1. list_emails(...) 2. read_email(...)",
+          "tool_calls": []
+        }
+      }]
+
+  В `reasoning_content` модель **правильно планирует** цепочку tool-вызовов,
+  но **не вызывает их** через API.
+- **Влияние:**
+  - `mail_agent` (до отката) — не работает. Агент получает пустой `tool_calls`,
+    SubAgentService возвращает текст `"list_emails(...)"` как finalAnswer.
+  - `code_agent` (сейчас на gemma) — **вероятно, тоже не работает**
+    через tool calling. Требует проверки.
+  - `planner_agent` (сейчас на gemma) — то же, требует проверки.
+- **Решение (принято):** использовать **tool-calling-совместимые модели**:
+  - ✅ `qwen/qwen3-4b-2507` (текущий дефолт, умеет tool calling).
+  - ⚠️ Другие модели — **проверять через LM Studio Developer Logs**
+    (`"tool_calls"` должен быть заполнен).
+- **TODO:**
+  - Проверить `code_agent` и `planner_agent` — если gemma не работает,
+    заменить их модель на qwen3-4b (или другую tool-calling-совместимую).
+  - Обновить `appsettings.json` комментарием.
+- **Связанные:** KI-115 (непроактивность — на самом деле была ошибка выбора
+  модели), DESIGN v1.4 (Multi-Agent).
 
 ---
 
@@ -1907,13 +1954,13 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
 | Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
-| Documented | 10 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114 -->
-| In Progress | 0 |                   <!-- — -->
+| Documented | 11 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-116 -->
+| In Progress | 1 |                   <!-- KI-115 (непроактивность mail_agent) -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 6 |                       <!-- KI-108, KI-109, KI-110, KI-111, KI-113, KI-115 -->
+| Planned | 5 |                       <!-- KI-108, KI-109, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **74** |
+| **Всего** | **75** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

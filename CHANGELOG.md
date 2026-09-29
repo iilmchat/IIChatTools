@@ -18,6 +18,19 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Mail Agent — откат модели на qwen3-4b + KI-116 (v1.8.x)**:
+  - **Диагноз:** в KI-115 попытались заменить модель `mail_agent` на
+    `gemma-4-12b-coder-fable5-composer2.5-v1` (как у `code_agent`), но
+    **gemma не генерирует `tool_calls[]`** — она пишет вызов функции как
+    plain text в `content` (см. лог LM Studio, KI-116).
+  - **Fix:** откат `SubAgents:mail_agent:Model` обратно на
+    `qwen/qwen3-4b-2507` (умеет tool calling). Few-shot промпт оставлен.
+  - **KI-116** — новый документированный баг: gemma-4-12b не
+    tool-calling-совместима. Требует проверки `code_agent` / `planner_agent`.
+  - **KI-115** — статус `Planned` → `In Progress` (требуется архитектурный
+    фикс, см. план ниже).
+
 ### Changed
 - **Mail Agent — увеличены `MaxSteps` (10 → 15) + усилен SystemPrompt
   (v1.8.x, KI-111 / KI-113)**:
