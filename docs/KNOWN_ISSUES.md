@@ -1290,8 +1290,6 @@
      (можно с default-реализацией).
   3. Отдельные tool-обёртки: `database_agent_meta` (без approval) +
      `database_agent_query` (с approval). Раздувает список, но не трогает ядро.
-- **Не блокер:** безопасность не страдает — approval **есть**, просто иногда
-  лишний. UX-мелочь.
 - **Решение (2026-09-29, Фаза 5.5):**
   - **Архитектурный паттерн:** в `ITool` добавлен **default-метод**
     `RequiresApprovalForCall(JObject arguments)` с fallback на
@@ -1308,8 +1306,54 @@
   - **Bonus:** усилен `Description` — прямо просит LLM для вопросов
     про количество использовать сразу `execute_query` (не делать
     list_databases / list_tables «разведку»).
-  - **Тесты:** +6 (3 `[Theory]` + 3 `[Fact]`).  
+  - **Тесты:** +6 (3 `[Theory]` + 3 `[Fact]`). 
+- **Не блокер:** безопасность не страдает — approval **есть**, просто иногда
+  лишний. UX-мелочь.
 - **Связанные:** KI-097.
+
+---
+
+### KI-102 — Admin UI: hardcoded RU-строки в JS-модулях (нарушение RULES § 1.14 / § 4.17)
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.7.0 (Фаза 6E)
+- **Обнаружено:** 2026-09-29 (пользователь заметил при переключении на EN)
+- **Файлы:**
+  - `IIChatTools.API/wwwroot/js/modules/admin.js` — 12 hardcoded строк.
+  - `IIChatTools.API/wwwroot/js/modules/admin-agents.js` — 15 hardcoded строк.
+  - `IIChatTools.API/wwwroot/js/modules/admin-sql-agent.js` — 3 hardcoded строки.
+  - `IIChatTools.API/Views/Home/Admin.cshtml` — отсутствовали `data-*` на 4 панелях.
+  - `IIChatTools.API/Resources/SharedResources.resx` / `SharedResources.ru.resx`.
+- **Описание:** При переключении языка на EN в `/admin` часть UI остаётся на
+  русском: кнопки в таблицах пользователей/настроек/агентов («Изменить»,
+  «Удалить», «Сбросить»), badges («Активен», «Включён», «Да»/«Нет»), confirm-диалоги,
+  toasts, `formatLastRun` (агенты), валидации (SQL Agent). Причина — hardcoded
+  RU-строки в `.js`, **не проходящие через `IStringLocalizer`** (RULES § 1.14) и
+  **не использующие `data-*` для локализации JS** (RULES § 4.17).
+
+  **Дополнительный баг (критичный):** в `admin.js` (`loadWhitelist` — empty-state)
+  был literal `@Localizer["Убрать из белого списка"]` — синтаксис Razor,
+  **не обрабатываемый в .js-файлах**. Проявлялся как текст
+  `@Localizer["Убрать из белого списка"]` при добавлении любого инструмента
+  в whitelist.
+
+- **Решение (2026-09-29, Фаза 6E):**
+  - **`Admin.cshtml`** — добавлены `data-label-*` на 4 панели
+    (`pane-users`, `pane-settings`, `pane-whitelist`, `pane-agents`).
+    Значения — из существующих ключей `@Localizer[...]` (reuse), где применимо.
+  - **`.resx` (RU + EN)** — **+30 новых ключей** (`AdminUserRetentionTooltip`,
+    `AdminSettings*`, `AdminWhitelist*`, `AdminAgent*`, `AdminTime*`,
+    `SqlAgentMaxRowsValidation`, `SqlAgentTimeoutValidation`,
+    `SqlAgentConnectionNotFound`). Синхронизированы через `LocalizationSyncTests`.
+  - **`admin.js`** — добавлен helper `paneLabels(paneId)` (читает `data-*` →
+    camelCase). Все hardcoded RU-строки заменены на `labels.*`. **Баг #11**
+    (`@Localizer[...]` в JS) — **устранён**.
+  - **`admin-agents.js`** — свой `paneLabels()` (локальный) + `formatLastRun`
+    теперь использует `data-label-time-*`. Modal labels, validations, toasts
+    локализованы.
+  - **`admin-sql-agent.js`** — 3 validation-строки через `data-label-*`.
+  - **DoD Фазы 6E:** при переключении RU/EN весь UI `/admin`
+    (users / settings / whitelist / agents / SQL Agent) переводится.
+    RULES § 1.14 и § 4.17 соблюдены.
+- **Связанные:** KI-097 (DB Agent), KI-052 (Multi-Agent), KI-076 (agent stats).
 
 ---
 

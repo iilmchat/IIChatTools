@@ -45,6 +45,8 @@ async function loadUsers() {
         tbody.innerHTML = `<tr><td colspan="7" class="text-danger text-center">${escapeHtml(res.message)}</td></tr>`;
         return;
     }
+    const labels = paneLabels('pane-users');
+
     state.users = res.data || [];
     tbody.innerHTML = state.users.map(u => `
         <tr>
@@ -52,12 +54,12 @@ async function loadUsers() {
             <td>${escapeHtml(u.email)}</td>
             <td>${escapeHtml(u.fullName || '')}</td>
             <td>${(u.roles || []).map(r => `<span class="badge bg-secondary me-1">${escapeHtml(r)}</span>`).join('')}</td>
-            <td>${u.isActive ? '<span class="badge bg-success">Активен</span>' : '<span class="badge bg-secondary">Неактивен</span>'}</td>
+            <td>${u.isActive ? `<span class="badge bg-success">${escapeHtml(labels.active)}</span>` : `<span class="badge bg-secondary">${escapeHtml(labels.inactive)}</span>`}</td>
             <td>${new Date(u.registeredAt).toLocaleString()}</td>
             <td>
-                <button class="btn btn-sm btn-outline-primary" data-action="edit-user" data-id="${u.id}">Изменить</button>
-                <button class="btn btn-sm btn-outline-secondary" data-action="edit-user-settings" data-id="${u.id}" title="Настройки retention">⚙</button>
-                <button class="btn btn-sm btn-outline-danger" data-action="delete-user" data-id="${u.id}">Удалить</button>
+                <button class="btn btn-sm btn-outline-primary" data-action="edit-user" data-id="${u.id}">${escapeHtml(labels.edit)}</button>
+                <button class="btn btn-sm btn-outline-secondary" data-action="edit-user-settings" data-id="${u.id}" title="${escapeHtml(labels.retentionTooltip)}">⚙</button>
+                <button class="btn btn-sm btn-outline-danger" data-action="delete-user" data-id="${u.id}">${escapeHtml(labels.delete)}</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="7" class="text-muted text-center">—</td></tr>';
@@ -83,34 +85,36 @@ function openUserModal(userId) {
     const user = isNew ? { id: 0, email: '', fullName: '', isActive: true, role: 'User' } : state.users.find(u => u.id === userId);
     if (!user) return;
 
-    const title = isNew ? 'Добавить пользователя' : 'Изменить пользователя';
+    const labels = paneLabels('pane-users');
+
+    const title = isNew ? labels.addTitle : labels.editTitle;
     const roleOptions = state.roles.map(r => `<option value="${r}" ${r === (user.roles?.[0] || user.role) ? 'selected' : ''}>${escapeHtml(r)}</option>`).join('');
 
     showModal(title, `
         <div class="mb-3">
-            <label class="form-label">Электронная почта</label>
+            <label class="form-label">${escapeHtml(labels.email)}</label>
             <input type="email" class="form-control" id="m-user-email" value="${escapeHtml(user.email || '')}" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">Полное имя</label>
+            <label class="form-label">${escapeHtml(labels.fullName)}</label>
             <input type="text" class="form-control" id="m-user-fullname" value="${escapeHtml(user.fullName || '')}">
         </div>
         <div class="mb-3">
-            <label class="form-label">Роль</label>
+            <label class="form-label">${escapeHtml(labels.role)}</label>
             <select class="form-select" id="m-user-role">${roleOptions}</select>
         </div>
         <div class="form-check mb-3">
             <input type="checkbox" class="form-check-input" id="m-user-active" ${user.isActive ? 'checked' : ''}>
-            <label class="form-check-label" for="m-user-active">Активен</label>
+            <label class="form-check-label" for="m-user-active">${escapeHtml(labels.active)}</label>
         </div>
         ${isNew ? `
             <div class="mb-3">
-                <label class="form-label">Пароль</label>
+                <label class="form-label">${escapeHtml(labels.password)}</label>
                 <input type="password" class="form-control" id="m-user-password" autocomplete="new-password">
             </div>` : ''}
         ${!isNew ? `
             <div class="mb-3">
-                <label class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                <label class="form-label">${escapeHtml(labels.newPasswordHint)}</label>
                 <input type="password" class="form-control" id="m-user-newpassword" autocomplete="new-password">
             </div>` : ''}
     `, async () => {
@@ -125,7 +129,7 @@ function openUserModal(userId) {
             body.password = document.getElementById('m-user-password').value;
             const res = await apiPost('/api/admin/users', body);
             if (!res.success) return { ok: false, message: res.message };
-            toast('Пользователь создан', 'success');
+            toast(labels.savedOk || 'OK', 'success');
         } else {
             const res = await fetch(`/api/admin/users/${user.id}`, {
                 method: 'PUT',
@@ -148,7 +152,8 @@ function openUserModal(userId) {
 }
 
 async function deleteUser(id) {
-    if (!confirm('Вы действительно хотите удалить пользователя?')) return;
+    const labels = paneLabels('pane-users');
+    if (!confirm(labels.confirmDelete)) return;
     const res = await fetch(`/api/admin/users/${id}`, {
         method: 'DELETE',
         credentials: 'same-origin'
@@ -247,6 +252,8 @@ async function loadSettings() {
         tbody.innerHTML = `<tr><td colspan="6" class="text-danger text-center">${escapeHtml(res.message)}</td></tr>`;
         return;
     }
+    const labels = paneLabels('pane-settings');
+
     state.settings = res.data || [];
     tbody.innerHTML = state.settings.map(s => `
         <tr>
@@ -256,9 +263,9 @@ async function loadSettings() {
             <td>${escapeHtml(s.type)}</td>
             <td>${s.isDefault ? '<span class="badge bg-secondary">Да</span>' : ''}</td>
             <td>
-                <button class="btn btn-sm btn-outline-primary" data-action="edit-setting" data-id="${s.id}">Изменить</button>
-                ${!s.isDefault ? `<button class="btn btn-sm btn-outline-warning" data-action="reset-setting" data-id="${s.id}">Сбросить</button>` : ''}
-                <button class="btn btn-sm btn-outline-danger" data-action="delete-setting" data-id="${s.id}">Удалить</button>
+                <button class="btn btn-sm btn-outline-primary" data-action="edit-setting" data-id="${s.id}">${escapeHtml(labels.edit)}</button>
+                ${!s.isDefault ? `<button class="btn btn-sm btn-outline-warning" data-action="reset-setting" data-id="${s.id}">${escapeHtml(labels.reset)}</button>` : ''}
+                <button class="btn btn-sm btn-outline-danger" data-action="delete-setting" data-id="${s.id}">${escapeHtml(labels.delete)}</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="6" class="text-muted text-center">—</td></tr>';
@@ -281,17 +288,20 @@ function openSettingModal(id) {
         : state.settings.find(x => x.id === id);
     if (!s) return;
 
-    showModal(isNew ? 'Создать настройку' : 'Изменить настройку', `
+    const labels = paneLabels('pane-settings');
+    const title = isNew ? labels.createTitle : labels.editTitle;
+
+    showModal(title, `
         <div class="mb-3">
-            <label class="form-label">Ключ</label>
+            <label class="form-label">${escapeHtml(labels.key)}</label>
             <input type="text" class="form-control" id="m-set-key" value="${escapeHtml(s.key)}" ${!isNew ? 'readonly' : ''}>
         </div>
         <div class="mb-3">
-            <label class="form-label">Значение</label>
+            <label class="form-label">${escapeHtml(labels.value)}</label>
             <textarea class="form-control font-monospace" id="m-set-value" rows="3">${escapeHtml(s.value)}</textarea>
         </div>
         <div class="mb-3">
-            <label class="form-label">Тип</label>
+            <label class="form-label">${escapeHtml(labels.type)}</label>
             <select class="form-select" id="m-set-type">
                 <option value="string" ${s.type === 'string' ? 'selected' : ''}>string</option>
                 <option value="int" ${s.type === 'int' ? 'selected' : ''}>int</option>
@@ -300,7 +310,7 @@ function openSettingModal(id) {
             </select>
         </div>
         <div class="mb-3">
-            <label class="form-label">Категория</label>
+            <label class="form-label">${escapeHtml(labels.category)}</label>
             <input type="text" class="form-control" id="m-set-category" value="${escapeHtml(s.category)}">
         </div>
     `, async () => {
@@ -332,7 +342,8 @@ function openSettingModal(id) {
 }
 
 async function resetSetting(id) {
-    if (!confirm('Сбросить значение к значению по умолчанию?')) return;
+    const labels = paneLabels('pane-settings');
+    if (!confirm(labels.confirmReset)) return;
     const res = await apiPost(`/api/admin/settings/${id}/reset`);
     if (!res.success) { toast(res.message || 'Ошибка', 'error'); return; }
     toast('Значение сброшено', 'success');
@@ -340,7 +351,8 @@ async function resetSetting(id) {
 }
 
 async function deleteSetting(id) {
-    if (!confirm('Удалить настройку?')) return;
+    const labels = paneLabels('pane-settings');
+    if (!confirm(labels.confirmDelete)) return;
     const res = await fetch(`/api/admin/settings/${id}`, {
         method: 'DELETE',
         credentials: 'same-origin'
@@ -359,6 +371,8 @@ async function loadWhitelist() {
         ul.innerHTML = `<li class="list-group-item text-danger">${escapeHtml(res.message)}</li>`;
         return;
     }
+    const labels = paneLabels('pane-whitelist');
+
     state.whitelist = res.data || [];
     ul.innerHTML = state.whitelist.map(w => `
         <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -366,7 +380,7 @@ async function loadWhitelist() {
                 <code>${escapeHtml(w.toolName)}</code>
                 <div class="small text-muted">${escapeHtml(w.description || '')}</div>
             </div>
-            <button class="btn btn-sm btn-outline-danger" data-tool="${escapeHtml(w.toolName)}">@Localizer["Убрать из белого списка"]</button>
+            <button class="btn btn-sm btn-outline-danger" data-tool="${escapeHtml(w.toolName)}">${escapeHtml(labels.remove)}</button>
         </li>
     `).join('') || '<li class="list-group-item text-muted">—</li>';
 
@@ -379,6 +393,8 @@ async function loadAllTools() {
     const res = await apiGet('/api/tools');
     const select = document.getElementById('whitelist-tool-select');
     if (!res.success) return;
+
+    const labels = paneLabels('pane-whitelist');
     state.tools = res.data || [];
 
     const whitelisted = new Set(state.whitelist.map(w => w.toolName));
@@ -386,7 +402,7 @@ async function loadAllTools() {
         .filter(t => !whitelisted.has(t.name))
         .map(t => `<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`)
         .join('');
-    select.innerHTML = `<option value="">— Выбор инструмента —</option>${options}`;
+    select.innerHTML = `<option value="">${escapeHtml(labels.selectTool)}</option>${options}`;
 }
 
 async function addToWhitelist() {
@@ -402,7 +418,9 @@ async function addToWhitelist() {
 }
 
 async function removeFromWhitelist(toolName) {
-    if (!confirm(`Убрать "${toolName}" из белого списка?`)) return;
+    const labels = paneLabels('pane-whitelist');
+    const confirmMsg = (labels.confirmRemove || 'Remove "{0}" from whitelist?').replace('{0}', toolName);
+    if (!confirm(confirmMsg)) return;
     const res = await fetch(`/api/admin/whitelist/${encodeURIComponent(toolName)}`, {
         method: 'DELETE',
         credentials: 'same-origin'
@@ -500,6 +518,31 @@ export function showModal(title, bodyHtml, onSave) {
 }
 
 // ---------- Привязка кнопок ----------
+
+/**
+ * Возвращает локализованные ярлыки из data-* атрибутов указанной панели.
+ * (v1.7.0, KI-102, Фаза 6E — RULES § 4.17)
+ *
+ * Каждый `data-label-foo-bar` доступен как `labels.fooBar`.
+ * Если атрибута нет — возвращает пустую строку (не падает).
+ *
+ * @param {string} paneId — id панели (`pane-users`, `pane-settings`, ...)
+ * @returns {object} — с camelCase-ключами
+ */
+function paneLabels(paneId) {
+    const pane = document.getElementById(paneId);
+    if (!pane) return {};
+
+    const out = {};
+    for (const [key, value] of Object.entries(pane.dataset)) {
+        if (key.startsWith('label')) {
+            // labelActive → active; labelConfirmDeleteUser → confirmDeleteUser
+            const camel = key.charAt(5).toLowerCase() + key.slice(6);
+            out[camel] = value;
+        }
+    }
+    return out;
+}
 
 function bindToolbarButtons() {
     document.getElementById('btn-refresh-users').addEventListener('click', loadUsers);

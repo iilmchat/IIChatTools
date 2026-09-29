@@ -589,4 +589,102 @@
     <data name="SqlAgentOverriddenBadge" xml:space="preserve">
       <value>изменено</value>
     </data>
+
+    <!-- ===== Admin UI localization (v1.7.0, KI-102, Фаза 6E) ===== -->
+    <data name="AdminUserRetentionTooltip" xml:space="preserve">
+      <value>Настройки хранения чатов</value>
+    </data>
+    <data name="AdminUserNewPasswordHint" xml:space="preserve">
+      <value>Новый пароль (оставьте пустым, чтобы не менять)</value>
+    </data>
+    <data name="AdminSettingsCreateTitle" xml:space="preserve">
+      <value>Создать настройку</value>
+    </data>
+    <data name="AdminSettingsEditTitle" xml:space="preserve">
+      <value>Изменить настройку</value>
+    </data>
+    <data name="AdminSettingsReset" xml:space="preserve">
+      <value>Сбросить</value>
+    </data>
+    <data name="AdminSettingsConfirmReset" xml:space="preserve">
+      <value>Сбросить значение к значению по умолчанию?</value>
+    </data>
+    <data name="AdminSettingsConfirmDelete" xml:space="preserve">
+      <value>Удалить настройку?</value>
+    </data>
+    <data name="AdminWhitelistSelectTool" xml:space="preserve">
+      <value>— Выбор инструмента —</value>
+    </data>
+    <data name="AdminWhitelistConfirmRemove" xml:space="preserve">
+      <value>Убрать "{0}" из белого списка?</value>
+    </data>
+    <data name="AdminAgentDisabled" xml:space="preserve">
+      <value>Отключён</value>
+    </data>
+    <data name="AdminAgentConfirmReset" xml:space="preserve">
+      <value>Сбросить агента "{0}" к значениям по умолчанию?</value>
+    </data>
+    <data name="AdminAgentDisplayRequired" xml:space="preserve">
+      <value>Отображаемое имя обязательно</value>
+    </data>
+    <data name="AdminAgentMaxStepsRange" xml:space="preserve">
+      <value>MaxSteps должен быть в диапазоне 1–30</value>
+    </data>
+    <data name="AdminAgentSaved" xml:space="preserve">
+      <value>Агент сохранён</value>
+    </data>
+    <data name="AdminAgentResetDone" xml:space="preserve">
+      <value>Агент сброшен</value>
+    </data>
+    <data name="AdminAgentNotFound" xml:space="preserve">
+      <value>Агент не найден</value>
+    </data>
+    <data name="AdminAgentModalTechName" xml:space="preserve">
+      <value>Техническое имя (только чтение)</value>
+    </data>
+    <data name="AdminAgentModalDisplayName" xml:space="preserve">
+      <value>Отображаемое имя</value>
+    </data>
+    <data name="AdminAgentModalDescription" xml:space="preserve">
+      <value>Описание</value>
+    </data>
+    <data name="AdminAgentModalModel" xml:space="preserve">
+      <value>Модель (пусто — из appsettings)</value>
+    </data>
+    <data name="AdminAgentModalMaxSteps" xml:space="preserve">
+      <value>MaxSteps (1–30)</value>
+    </data>
+    <data name="AdminAgentModalSystemPrompt" xml:space="preserve">
+      <value>System prompt</value>
+    </data>
+    <data name="AdminAgentModalAllowedTools" xml:space="preserve">
+      <value>AllowedTools (по одному в строке)</value>
+    </data>
+    <data name="AdminAgentModalRequiresApproval" xml:space="preserve">
+      <value>Требует подтверждения (approval)</value>
+    </data>
+    <data name="AdminAgentModalDisabled" xml:space="preserve">
+      <value>Отключён (не виден в Chat)</value>
+    </data>
+    <data name="AdminTimeJustNow" xml:space="preserve">
+      <value>только что</value>
+    </data>
+    <data name="AdminTimeMinutesAgo" xml:space="preserve">
+      <value>{0} мин назад</value>
+    </data>
+    <data name="AdminTimeHoursAgo" xml:space="preserve">
+      <value>{0} ч назад</value>
+    </data>
+    <data name="AdminTimeDaysAgo" xml:space="preserve">
+      <value>{0} д назад</value>
+    </data>
+    <data name="SqlAgentMaxRowsValidation" xml:space="preserve">
+      <value>MaxRows должен быть 1–10000</value>
+    </data>
+    <data name="SqlAgentTimeoutValidation" xml:space="preserve">
+      <value>Таймаут должен быть 1–300</value>
+    </data>
+    <data name="SqlAgentConnectionNotFound" xml:space="preserve">
+      <value>Подключение не найдено</value>
+    </data>
 </root>

@@ -50,7 +50,22 @@
 
     <div class="tab-content border border-top-0 p-3 bg-white">
         <!-- Вкладка: Пользователи -->
-        <div class="tab-pane fade show active" id="pane-users" role="tabpanel">
+        <div class="tab-pane fade show active"
+             id="pane-users"
+             role="tabpanel"
+             data-label-active="@Localizer["Активен"]"
+             data-label-inactive="@Localizer["Неактивен"]"
+             data-label-edit="@Localizer["Редактировать"]"
+             data-label-delete="@Localizer["Удалить"]"
+             data-label-retention-tooltip="@Localizer["AdminUserRetentionTooltip"]"
+             data-label-add-title="@Localizer["Добавить пользователя"]"
+             data-label-edit-title="@Localizer["Изменить пользователя"]"
+             data-label-confirm-delete="@Localizer["Вы действительно хотите удалить пользователя?"]"
+             data-label-email="@Localizer["Электронная почта"]"
+             data-label-full-name="@Localizer["Полное имя"]"
+             data-label-role="@Localizer["Роль"]"
+             data-label-password="@Localizer["Пароль"]"
+             data-label-new-password-hint="@Localizer["AdminUserNewPasswordHint"]">
             <div class="d-flex justify-content-between mb-2">
                 <button id="btn-add-user" class="btn btn-primary btn-sm">@Localizer["Добавить пользователя"]</button>
                 <button id="btn-refresh-users" class="btn btn-outline-secondary btn-sm">@Localizer["Обновить"]</button>
@@ -76,7 +91,20 @@
         </div>
 
         <!-- Вкладка: Настройки -->
-        <div class="tab-pane fade" id="pane-settings" role="tabpanel">
+        <div class="tab-pane fade"
+             id="pane-settings"
+             role="tabpanel"
+             data-label-edit="@Localizer["Редактировать"]"
+             data-label-delete="@Localizer["Удалить"]"
+             data-label-reset="@Localizer["AdminSettingsReset"]"
+             data-label-create-title="@Localizer["AdminSettingsCreateTitle"]"
+             data-label-edit-title="@Localizer["AdminSettingsEditTitle"]"
+             data-label-confirm-reset="@Localizer["AdminSettingsConfirmReset"]"
+             data-label-confirm-delete="@Localizer["AdminSettingsConfirmDelete"]"
+             data-label-key="@Localizer["Ключ"]"
+             data-label-value="@Localizer["Значение"]"
+             data-label-type="@Localizer["Тип"]"
+             data-label-category="@Localizer["Категория"]">
             <div class="d-flex justify-content-between mb-2">
                 <button id="btn-add-setting" class="btn btn-primary btn-sm">@Localizer["Создать"]</button>
                 <button id="btn-refresh-settings" class="btn btn-outline-secondary btn-sm">@Localizer["Обновить"]</button>
@@ -101,7 +129,12 @@
         </div>
 
         <!-- Вкладка: Белый список -->
-        <div class="tab-pane fade" id="pane-whitelist" role="tabpanel">
+        <div class="tab-pane fade"
+             id="pane-whitelist"
+             role="tabpanel"
+             data-label-select-tool="@Localizer["AdminWhitelistSelectTool"]"
+             data-label-remove="@Localizer["Убрать из белого списка"]"
+             data-label-confirm-remove="@Localizer["AdminWhitelistConfirmRemove"]">
             <div class="row g-3">
                 <div class="col-md-7">
                     <h6>@Localizer["Инструменты, не требующие подтверждения"]</h6>
@@ -150,8 +183,36 @@
             </nav>
         </div>
 
-        <!-- Вкладка: Агенты (v1.4.0 Фаза 6.5-6.6, KI-052) -->
-        <div class="tab-pane fade" id="pane-agents" role="tabpanel">
+        <!-- Вкладка: Агенты (v1.4.0 Фаза 6.5-6.6, KI-052; v1.7.0 Фаза 6E, KI-102 — локализация) -->
+        <div class="tab-pane fade"
+             id="pane-agents"
+             role="tabpanel"
+             data-label-yes="@Localizer["Да"]"
+             data-label-no="@Localizer["Нет"]"
+             data-label-enabled="@Localizer["AgentColumnEnabled"]"
+             data-label-disabled="@Localizer["AdminAgentDisabled"]"
+             data-label-edit="@Localizer["Редактировать"]"
+             data-label-reset="@Localizer["AdminSettingsReset"]"
+             data-label-confirm-reset="@Localizer["AdminAgentConfirmReset"]"
+             data-label-display-required="@Localizer["AdminAgentDisplayRequired"]"
+             data-label-maxsteps-range="@Localizer["AdminAgentMaxStepsRange"]"
+             data-label-saved="@Localizer["AdminAgentSaved"]"
+             data-label-reset-done="@Localizer["AdminAgentResetDone"]"
+             data-label-not-found="@Localizer["AdminAgentNotFound"]"
+             data-label-loading="@Localizer["Загрузка"]"
+             data-label-time-just-now="@Localizer["AdminTimeJustNow"]"
+             data-label-time-minutes-ago="@Localizer["AdminTimeMinutesAgo"]"
+             data-label-time-hours-ago="@Localizer["AdminTimeHoursAgo"]"
+             data-label-time-days-ago="@Localizer["AdminTimeDaysAgo"]"
+             data-label-modal-tech-name="@Localizer["AdminAgentModalTechName"]"
+             data-label-modal-display-name="@Localizer["AdminAgentModalDisplayName"]"
+             data-label-modal-description="@Localizer["AdminAgentModalDescription"]"
+             data-label-modal-model="@Localizer["AdminAgentModalModel"]"
+             data-label-modal-maxsteps="@Localizer["AdminAgentModalMaxSteps"]"
+             data-label-modal-system-prompt="@Localizer["AdminAgentModalSystemPrompt"]"
+             data-label-modal-allowed-tools="@Localizer["AdminAgentModalAllowedTools"]"
+             data-label-modal-requires-approval="@Localizer["AdminAgentModalRequiresApproval"]"
+             data-label-modal-disabled="@Localizer["AdminAgentModalDisabled"]">
             <!-- KI-076: статистика запусков агентов -->
             <div id="agent-stats-grid"
                  class="agent-stats-grid mb-3"
@@ -265,7 +326,10 @@
              data-label-max-rows="@Localizer["SqlAgentMaxRowsLabel"]"
              data-label-timeout="@Localizer["SqlAgentTimeoutLabel"]"
              data-label-no-connections="@Localizer["SqlAgentNoConnections"]"
-             data-label-overridden-badge="@Localizer["SqlAgentOverriddenBadge"]">
+             data-label-overridden-badge="@Localizer["SqlAgentOverriddenBadge"]"
+             data-label-maxrows-validation="@Localizer["SqlAgentMaxRowsValidation"]"
+             data-label-timeout-validation="@Localizer["SqlAgentTimeoutValidation"]"
+             data-label-connection-not-found="@Localizer["SqlAgentConnectionNotFound"]">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="text-muted small">
                     @Localizer["AdminTabSqlAgent"] — read-only доступ LLM к БД приложения.

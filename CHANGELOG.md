@@ -251,6 +251,24 @@
     (б) редактировать whitelist/MaxRows/Timeout/Enabled в модалке,
     (в) проверить подключение (`SELECT 1`),
     (г) сбросить к значениям из appsettings.json. Все изменения — в runtime.
+- **Admin UI — Фаза 6E: Fix локализации (v1.7.0, KI-102)**:
+  - **Баг** в `admin.js` (`loadWhitelist`, empty-state): literal
+    `@Localizer["Убрать из белого списка"]` — синтаксис Razor **не работает**
+    в `.js`-файлах. Проявлялся как raw-текст при добавлении инструмента
+    в whitelist. Устранён.
+  - **Hardcoded RU-строки** в `admin.js` (12), `admin-agents.js` (15),
+    `admin-sql-agent.js` (3) — заменены на `data-label-*` (RULES § 4.17).
+  - **`Admin.cshtml`** — добавлены `data-label-*` на 4 панели
+    (`pane-users`, `pane-settings`, `pane-whitelist`, `pane-agents`).
+  - **`.resx` (RU + EN)** — **+30 ключей** (`AdminUser*`, `AdminSettings*`,
+    `AdminWhitelist*`, `AdminAgent*`, `AdminAgentModal*`, `AdminTime*`,
+    `SqlAgentMaxRowsValidation`, `SqlAgentTimeoutValidation`,
+    `SqlAgentConnectionNotFound`). Синхронизация проверяется
+    `LocalizationSyncTests`.
+  - **Helpers:** `paneLabels(paneId)` в `admin.js` (читает `data-*` →
+    camelCase) + локальный `paneLabels()` в `admin-agents.js`.
+  - **DoD Фазы 6E:** при переключении RU/EN весь UI `/admin` переводится
+    (users / settings / whitelist / agents / SQL Agent).
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,

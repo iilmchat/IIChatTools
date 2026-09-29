@@ -162,13 +162,13 @@ async function onTbodyClick(e) {
 // ---------- Модалка редактирования ----------
 
 function openEditModal(name) {
+    const labels = paneLabels();
     const conn = state.connections.find(c => c.name === name);
     if (!conn) {
-        toast('Подключение не найдено', 'error');
+        toast(labels.connectionNotFound || 'Connection not found', 'error');
         return;
     }
 
-    const labels = paneLabels();
     const allowedLines = (conn.allowedTables || []).join('\n');
     const deniedLines = (conn.deniedTables || []).join('\n');
 
@@ -204,11 +204,11 @@ function openEditModal(name) {
         // --- Валидация ---
         const maxRows = parseInt(document.getElementById('m-sql-maxrows').value, 10);
         if (!Number.isFinite(maxRows) || maxRows < 1 || maxRows > 10000)
-            return { ok: false, message: 'MaxRows должен быть 1–10000' };
+            return { ok: false, message: labels.maxrowsValidation || 'MaxRows must be 1–10000' };
 
         const timeout = parseInt(document.getElementById('m-sql-timeout').value, 10);
         if (!Number.isFinite(timeout) || timeout < 1 || timeout > 300)
-            return { ok: false, message: 'Timeout должен быть 1–300' };
+            return { ok: false, message: labels.timeoutValidation || 'Timeout must be 1–300' };
 
         // --- Сборка тела ---
         const allowed = document.getElementById('m-sql-allowed').value

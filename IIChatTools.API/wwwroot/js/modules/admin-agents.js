@@ -123,16 +123,36 @@ function formatPercent(pct) {
  */
 function formatLastRun(iso) {
     if (!iso) return '—';
+
+    const labels = paneLabels();
+
     const d = new Date(iso);
     const now = new Date();
     const diffMin = Math.floor((now - d) / 60000);
-    if (diffMin < 1) return 'только что';
-    if (diffMin < 60) return `${diffMin} мин назад`;
+    if (diffMin < 1) return labels.timeJustNow;
+    if (diffMin < 60) return (labels.timeMinutesAgo || '{0} min ago').replace('{0}', String(diffMin));
     const diffH = Math.floor(diffMin / 60);
-    if (diffH < 24) return `${diffH} ч назад`;
+    if (diffH < 24) return (labels.timeHoursAgo || '{0} h ago').replace('{0}', String(diffH));
     const diffD = Math.floor(diffH / 24);
-    if (diffD < 7) return `${diffD} д назад`;
+    if (diffD < 7) return (labels.timeDaysAgo || '{0} d ago').replace('{0}', String(diffD));
     return d.toLocaleDateString();
+}
+
+/**
+ * Возвращает локализованные ярлыки из data-* на #pane-agents.
+ * @returns {object}
+ */
+function paneLabels() {
+    const pane = document.getElementById('pane-agents');
+    if (!pane) return {};
+    const out = {};
+    for (const [key, value] of Object.entries(pane.dataset)) {
+        if (key.startsWith('label')) {
+            const camel = key.charAt(5).toLowerCase() + key.slice(6);
+            out[camel] = value;
+        }
+    }
+    return out;
 }
 
 // ---------- Загрузка списка ----------
@@ -141,7 +161,8 @@ async function loadAgents() {
     const tbody = document.getElementById('agents-tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Загрузка…</td></tr>';
+    const labels = paneLabels();
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">${escapeHtml(labels.loading)}</td></tr>`;
 
     const res = await apiGet('/api/admin/agents');
     if (!res.success) {
@@ -157,6 +178,8 @@ function renderAgentsTable() {
     const tbody = document.getElementById('agents-tbody');
     if (!tbody) return;
 
+    const labels = paneLabels();
+
     if (state.agents.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center">—</td></tr>';
         return;
@@ -168,12 +191,12 @@ function renderAgentsTable() {
             : '<span class="text-muted small">&lt;default&gt;</span>';
 
         const approval = a.requiresApprovalByDefault
-            ? '<span class="badge bg-warning text-dark">Да</span>'
-            : '<span class="badge bg-secondary">Нет</span>';
+            ? `<span class="badge bg-warning text-dark">${escapeHtml(labels.yes)}</span>`
+            : `<span class="badge bg-secondary">${escapeHtml(labels.no)}</span>`;
 
         const enabled = a.disabled
-            ? '<span class="badge bg-secondary">Отключён</span>'
-            : '<span class="badge bg-success">Включён</span>';
+            ? `<span class="badge bg-secondary">${escapeHtml(labels.disabled)}</span>`
+            : `<span class="badge bg-success">${escapeHtml(labels.enabled)}</span>`;
 
         return `
             <tr>
@@ -184,8 +207,8 @@ function renderAgentsTable() {
                 <td>${approval}</td>
                 <td>${enabled}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" data-action="edit-agent" data-name="${escapeHtml(a.name)}">Изменить</button>
-                    <button class="btn btn-sm btn-outline-warning" data-action="reset-agent" data-name="${escapeHtml(a.name)}">Сбросить</button>
+                    <button class="btn btn-sm btn-outline-primary" data-action="edit-agent" data-name="${escapeHtml(a.name)}">${escapeHtml(labels.edit)}</button>
+                    <button class="btn btn-sm btn-outline-warning" data-action="reset-agent" data-name="${escapeHtml(a.name)}">${escapeHtml(labels.reset)}</button>
                 </td>
             </tr>
         `;
@@ -206,9 +229,10 @@ function renderAgentsTable() {
  * @param {string} name Техническое имя агента (snake_case)
  */
 function openAgentModal(name) {
+    const labels = paneLabels();
     const agent = state.agents.find(a => a.name === name);
     if (!agent) {
-        toast('Агент не найден', 'error');
+        toast(labels.notFound || 'Agent not found', 'error');
         return;
     }
 
@@ -216,61 +240,61 @@ function openAgentModal(name) {
 
     showModal('Редактировать агента: ' + agent.name, `
         <div class="mb-2">
-            <label class="form-label small">Техническое имя (только чтение)</label>
+            <label class="form-label small">${escapeHtml(labels.modalTechName)}</label>
             <input type="text" class="form-control form-control-sm font-monospace"
                    value="${escapeHtml(agent.name)}" readonly>
         </div>
         <div class="mb-2">
-            <label class="form-label small">Отображаемое имя</label>
+            <label class="form-label small">${escapeHtml(labels.modalDisplayName)}</label>
             <input type="text" class="form-control form-control-sm" id="m-agent-display"
                    value="${escapeHtml(agent.displayName || '')}" maxlength="100">
         </div>
         <div class="mb-2">
-            <label class="form-label small">Описание</label>
+            <label class="form-label small">${escapeHtml(labels.modalDescription)}</label>
             <textarea class="form-control form-control-sm" id="m-agent-description"
                       rows="2" maxlength="500">${escapeHtml(agent.description || '')}</textarea>
         </div>
         <div class="row g-2 mb-2">
             <div class="col-8">
-                <label class="form-label small">Модель LM Studio (пусто — из appsettings)</label>
+                <label class="form-label small">${escapeHtml(labels.modalModel)}</label>
                 <input type="text" class="form-control form-control-sm font-monospace"
                        id="m-agent-model" value="${escapeHtml(agent.model || '')}">
             </div>
             <div class="col-4">
-                <label class="form-label small">MaxSteps (1–30)</label>
+                <label class="form-label small">${escapeHtml(labels.modalMaxsteps)}</label>
                 <input type="number" class="form-control form-control-sm" id="m-agent-maxsteps"
                        min="1" max="30" value="${agent.maxSteps}">
             </div>
         </div>
         <div class="mb-2">
-            <label class="form-label small">System prompt</label>
+            <label class="form-label small">${escapeHtml(labels.modalSystemPrompt)}</label>
             <textarea class="form-control form-control-sm font-monospace" id="m-agent-prompt"
                       rows="6">${escapeHtml(agent.systemPrompt || '')}</textarea>
         </div>
         <div class="mb-2">
-            <label class="form-label small">AllowedTools (по одному в строке)</label>
+            <label class="form-label small">${escapeHtml(labels.modalAllowedTools)}</label>
             <textarea class="form-control form-control-sm font-monospace" id="m-agent-tools"
                       rows="6">${escapeHtml(allowedToolsValue)}</textarea>
         </div>
         <div class="form-check mb-2">
             <input type="checkbox" class="form-check-input" id="m-agent-approval"
                    ${agent.requiresApprovalByDefault ? 'checked' : ''}>
-            <label class="form-check-label small" for="m-agent-approval">Требует подтверждения (approval)</label>
+            <label class="form-check-label small" for="m-agent-approval">${escapeHtml(labels.modalRequiresApproval)}</label>
         </div>
         <div class="form-check">
             <input type="checkbox" class="form-check-input" id="m-agent-disabled"
                    ${agent.disabled ? 'checked' : ''}>
-            <label class="form-check-label small" for="m-agent-disabled">Отключён (не виден в Chat)</label>
+            <label class="form-check-label small" for="m-agent-disabled">${escapeHtml(labels.modalDisabled)}</label>
         </div>
     `, async () => {
         // --- Валидация ---
         const displayName = document.getElementById('m-agent-display').value.trim();
         if (!displayName)
-            return { ok: false, message: 'Отображаемое имя обязательно' };
+            return { ok: false, message: labels.displayRequired };
 
         const maxSteps = parseInt(document.getElementById('m-agent-maxsteps').value, 10) || 10;
         if (maxSteps < 1 || maxSteps > 30)
-            return { ok: false, message: 'MaxSteps должен быть в диапазоне 1–30' };
+            return { ok: false, message: labels.maxstepsRange };
 
         // --- Сборка тела ---
         const modelRaw = document.getElementById('m-agent-model').value.trim();
@@ -300,9 +324,9 @@ function openAgentModal(name) {
         }).then(r => r.json());
 
         if (!res.success)
-            return { ok: false, message: res.message || 'Ошибка сохранения' };
+            return { ok: false, message: res.message || 'Error' };
 
-        toast('Агент сохранён', 'success');
+        toast(labels.saved || 'Saved', 'success');
         await loadAgents();
         return { ok: true };
     });
@@ -315,7 +339,9 @@ function openAgentModal(name) {
  * @param {string} name Техническое имя агента
  */
 async function resetAgent(name) {
-    if (!confirm(`Сбросить агента "${name}" к значениям по умолчанию?`)) return;
+    const labels = paneLabels();
+    const confirmMsg = (labels.confirmReset || 'Reset agent?').replace('{0}', name);
+    if (!confirm(confirmMsg)) return;
 
     const res = await fetch(`/api/admin/agents/${encodeURIComponent(name)}/reset`, {
         method: 'POST',
@@ -323,10 +349,10 @@ async function resetAgent(name) {
     }).then(r => r.json());
 
     if (!res.success) {
-        toast(res.message || 'Ошибка сброса', 'error');
+        toast(res.message || 'Error', 'error');
         return;
     }
 
-    toast('Агент сброшен', 'success');
+    toast(labels.resetDone || 'Reset', 'success');
     await loadAgents();
 }
