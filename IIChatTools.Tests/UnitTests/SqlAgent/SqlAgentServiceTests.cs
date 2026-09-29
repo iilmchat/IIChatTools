@@ -359,7 +359,9 @@ namespace IIChatTools.Tests.UnitTests.SqlAgent
             }
 
             public Task<DbConnection> CreateConnectionAsync(
-                string connectionName, CancellationToken ct = default)
+                string connectionName,
+                bool ignoreEnabled = false,
+                CancellationToken ct = default)
             {
                 if (!Exists(connectionName))
                     throw new ArgumentException($"Подключение '{connectionName}' не зарегистрировано.");

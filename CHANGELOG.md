@@ -187,6 +187,35 @@
     **RULES § 4.46** (default interface method не виден через конкретный тип).
   - **DoD Фазы 5.5:** при вопросе «Сколько чатов?» — **1 модалка** approval
     (на `execute_query`), а не 3 (как в smoke Фазы 5).
+- **Database Agent — Фаза 6A: Admin-сервис (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.6)**:
+  - **3 DTO** (`DTO/Admin/`): `SqlAgentConnectionItemDto` (состояние подключения
+    для UI, включая `IsOverridden`), `UpdateSqlAgentConnectionRequest` (все поля
+    опциональны — null = не менять), `SqlAgentTestResultDto` (Success/Message/DurationMs).
+  - **`IAdminSqlAgentService` + `AdminSqlAgentService`** (Scoped):
+    - `GetAllConnectionsAsync` — актуальные опции (override + baseline) + флаг `IsOverridden`.
+    - `UpdateConnectionAsync` — валидация (MaxRows 1–10000, Timeout 1–300),
+      upsert override в `AppSettings` (ключи `SqlAgent.{name}.{field}`),
+      применение к `SqlAgentOptionsProvider` в runtime, аудит.
+    - `TestConnectionAsync` — открывает соединение (даже для `Enabled=false`)
+      + `SELECT 1`; все ошибки возвращаются в DTO, не бросаются.
+    - `ResetConnectionAsync` — удаляет все ключи `SqlAgent.{name}.*` из AppSettings,
+      вызывает `SqlAgentOptionsProvider.Reset(name)`, аудит.
+  - **`ISqlConnectionProvider.CreateConnectionAsync`** — новый параметр
+    `bool ignoreEnabled = false` (default — прежнее поведение). Используется
+    только admin-сервисом для теста отключённых подключений.
+  - **`SqlConnectionProvider`** + fake в `SqlAgentServiceTests` — обновлены
+    под новую сигнатуру.
+  - **`Startup.cs`** — DI: `services.AddScoped<IAdminSqlAgentService, AdminSqlAgentService>()`.
+  - **DoD Фазы 6A:** сервис собирается, baseline + override работают,
+    `TestConnectionAsync` возвращает Success/Message/DurationMs.
+  - **Fix (в том же коммите, CS1503 ×3):** после добавления параметра
+    `bool ignoreEnabled = false` в середину `ISqlConnectionProvider.CreateConnectionAsync`
+    три **позиционных** вызова в `SqlAgentService` (`ListTablesAsync` /
+    `DescribeTableAsync` / `ExecuteQueryAsync`) стали передавать `cancellationToken`
+    в слот `ignoreEnabled`. Fix: именованные аргументы
+    `CreateConnectionAsync(connection, cancellationToken: cancellationToken)`.
+    RULES § 4.34 — уточнён: «изменение сигнатуры метода → grep по вызовам,
+    не только по реализациям» (случай б).
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,

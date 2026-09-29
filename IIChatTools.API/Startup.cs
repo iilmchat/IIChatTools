@@ -420,6 +420,10 @@ namespace IIChatTools.API
             // v1.7.0 (KI-097, Фаза 4): оркестратор Database Agent (4 операции).
             services.AddScoped<ISqlAgentService, SqlAgentService>();
 
+            // v1.7.0 (KI-097, Фаза 6A): admin-сервис для управления подключениями
+            // (persist override'ов в AppSettings + runtime-применение).
+            services.AddScoped<IAdminSqlAgentService, AdminSqlAgentService>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 

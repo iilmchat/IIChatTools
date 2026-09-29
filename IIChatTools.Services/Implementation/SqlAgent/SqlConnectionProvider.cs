@@ -82,6 +82,7 @@ namespace IIChatTools.Services.Implementation.SqlAgent
         /// <inheritdoc/>
         public async Task<DbConnection> CreateConnectionAsync(
             string connectionName,
+            bool ignoreEnabled = false,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(connectionName))
@@ -92,7 +93,9 @@ namespace IIChatTools.Services.Implementation.SqlAgent
                     $"Подключение '{connectionName}' не зарегистрировано.",
                     nameof(connectionName));
 
-            if (!opts.Enabled)
+            // v1.7.0 (KI-097, Фаза 6A): ignoreEnabled — для админского теста
+            // отключённых подключений (проверка «до включения»).
+            if (!ignoreEnabled && !opts.Enabled)
                 throw new ArgumentException(
                     $"Подключение '{connectionName}' отключено администратором.",
                     nameof(connectionName));

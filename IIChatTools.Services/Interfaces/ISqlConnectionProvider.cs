@@ -22,10 +22,18 @@ namespace IIChatTools.Services.Interfaces
         /// Вызывающий код отвечает за закрытие (через <c>using</c>).
         /// </summary>
         /// <param name="connectionName">Имя подключения (например, <c>internal</c>)</param>
+        /// <param name="ignoreEnabled">
+        /// Если <c>true</c> — игнорирует флаг <c>Enabled</c> подключения
+        /// (v1.7.0, KI-097, Фаза 6A). Используется административным сервисом
+        /// <c>AdminSqlAgentService.TestConnectionAsync</c> для проверки
+        /// отключённых подключений (тест «до включения»).
+        /// По умолчанию <c>false</c> — обычное поведение.
+        /// </param>
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Открытое <see cref="DbConnection"/></returns>
         /// <exception cref="System.ArgumentException">
-        /// Если подключение не зарегистрировано или отключено.
+        /// Если подключение не зарегистрировано или отключено
+        /// (когда <paramref name="ignoreEnabled"/> = <c>false</c>).
         /// </exception>
         /// <exception cref="System.InvalidOperationException">
         /// Если строка подключения не разрешается
@@ -33,6 +41,7 @@ namespace IIChatTools.Services.Interfaces
         /// </exception>
         Task<DbConnection> CreateConnectionAsync(
             string connectionName,
+            bool ignoreEnabled = false,
             CancellationToken cancellationToken = default);
 
         /// <summary>

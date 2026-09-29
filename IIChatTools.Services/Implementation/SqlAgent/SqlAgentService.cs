@@ -102,8 +102,10 @@ namespace IIChatTools.Services.Implementation.SqlAgent
 
             var result = new List<SqlTableInfoDto>();
 
+            // v1.7.0 (Фаза 6A): именованный cancellationToken — сигнатура
+            // CreateConnectionAsync расширена параметром ignoreEnabled (default false).
             await using var conn = await _connectionProvider
-                .CreateConnectionAsync(connection, cancellationToken);
+                .CreateConnectionAsync(connection, cancellationToken: cancellationToken);
 
             // Whitelist минус DeniedTables (Denied перебивает).
             var comparer = GetStringComparer(opts.Provider);
@@ -176,8 +178,9 @@ namespace IIChatTools.Services.Implementation.SqlAgent
                 throw new ArgumentException(
                     $"Таблица '{table}' не в whitelist (AllowedTables).", nameof(table));
 
+            // v1.7.0 (Фаза 6A): именованный cancellationToken (см. ListTablesAsync).
             await using var conn = await _connectionProvider
-                .CreateConnectionAsync(connection, cancellationToken);
+                .CreateConnectionAsync(connection, cancellationToken: cancellationToken);
 
             var columns = await ReadColumnsAsync(conn, opts, table, cancellationToken);
 
@@ -222,8 +225,9 @@ namespace IIChatTools.Services.Implementation.SqlAgent
 
             var sw = Stopwatch.StartNew();
 
+            // v1.7.0 (Фаза 6A): именованный cancellationToken (см. ListTablesAsync).
             await using var conn = await _connectionProvider
-                .CreateConnectionAsync(connectionName, cancellationToken);
+                .CreateConnectionAsync(connectionName, cancellationToken: cancellationToken);
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = validation.SanitizedSql;
