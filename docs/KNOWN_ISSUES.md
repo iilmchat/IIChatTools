@@ -1427,7 +1427,7 @@
 ---
 
 ### KI-104 — PDF / DOCX парсеры для RAG (`PdfParser` + `DocxParser`)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.7.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.7.1
 - **Обнаружено:** 2026-09-29 (при обсуждении v1.7.0)
 - **DESIGN:** [`docs/development/v1.5/DESIGN.md`](development/v1.5/DESIGN.md)
   § 4.5.5 и § 4.5.6 (отложено с v1.5.0 как «фаза 3.5»).
@@ -1459,7 +1459,32 @@
   - **Сложная вёрстка** (таблицы, multi-column) — текст склеивается. Ограничение
     всех PDF-экстракторов.
 - **Оценка:** ~3-4 ч.
-- **Связанные:** KI-083 (RAG / embeddings), KI-099 (внешние БД — приоритетнее).
+- **Решение (2026-09-29, v1.7.1):**
+  - **NuGet** (`Directory.Build.props` + `IIChatTools.Services.csproj`):
+    - `PdfPig 0.1.9` (Apache 2.0, ~500 KB).
+    - `DocumentFormat.OpenXml 3.1.0` (MIT, ~1.5 MB).
+    - Плюс override `System.IO.Packaging 10.0.0` — KI-105.
+  - **`PdfParser`** (`Implementation/Rag/Parsers/`) — Singleton, `Name = "PdfPig"`,
+    `SupportedExtensions = [".pdf"]`. `File.ReadAllBytesAsync` → `Task.Run` →
+    `PdfDocument.Open(bytes)` → `GetPages()` → `page.Text`. Метаданные:
+    `format=pdf`, `parser=PdfPig`, `pageCount`. `PageCount = doc.NumberOfPages`.
+    Corrupt/encrypted PDF → `InvalidDataException`.
+  - **`DocxParser`** (`Implementation/Rag/Parsers/`) — Singleton, `Name = "OpenXml"`,
+    `SupportedExtensions = [".docx"]`. `File.ReadAllBytesAsync` → `Task.Run` →
+    `WordprocessingDocument.Open(ms, isEditable: false)` →
+    `MainDocumentPart.Document.Body.Descendants<Paragraph>().InnerText`.
+    Метаданные: `format=docx`, `parser=OpenXml`, `paragraphCount`.
+    `PageCount = null` (в DOCX нет страниц). Corrupt / `.doc` → `InvalidDataException`.
+  - **`Startup.cs`** — 2 строки регистрации:
+    `services.AddSingleton<IRagDocumentParser, PdfParser>()` +
+    `services.AddSingleton<IRagDocumentParser, DocxParser>()` (после PlainText).
+  - **`appsettings.json`** / **`.Development.json`** — `Rag:Ingestion:AllowedExtensions`
+    + `.pdf`, `.docx`.
+  - **Тесты:** `PdfParserTests` (**16**) + `DocxParserTests` (**17**).
+    Реальный PDF-контент не проверяется (PdfPig read-only); DOCX
+    генерируется самим OpenXml SDK. **Всего: 341 → 374**.
+- **Связанные:** KI-083 (RAG / embeddings), KI-105 (System.IO.Packaging),
+  KI-099 (внешние БД — приоритетнее).
 
 ---
 
@@ -1598,13 +1623,12 @@
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
-| Fixed (v1.7.1) | 2 |                <!-- KI-103, KI-105 -->
+| Fixed (v1.7.1) | 3 |                <!-- KI-103, KI-104, KI-105 -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 1 |                       <!-- KI-104 (PDF/DOCX parsers) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **64** |
 

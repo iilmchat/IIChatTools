@@ -51,10 +51,31 @@
     dotnet list package --vulnerable --include-transitive с exit-кодом
     1 при обнаружении уязвимостей. README — раздел «Проверка уязвимостей».  
 
-### Planned
-- **KI-104** (Planned, v1.7.x): PDF / DOCX парсеры для RAG
-  (`PdfParser` через PdfPig + `DocxParser` через DocumentFormat.OpenXml).
-  Расширяет RAG с 28 → 30+ форматов. DESIGN v1.5 § 4.5.5-4.5.6.
+### Added
+- **RAG — PDF / DOCX парсеры (v1.7.1, KI-104)**:
+  - **`PdfParser`** (`Implementation/Rag/Parsers/`) — Singleton, `Name = "PdfPig"`,
+    расширение `.pdf`. PdfPig 0.1.9 (Apache 2.0). Извлекает текстовый слой
+    через `PdfDocument.Open(bytes)` → `GetPages()` → `page.Text`. Метаданные:
+    `format`, `parser`, `pageCount`. `ParsedDocument.PageCount = doc.NumberOfPages`.
+    Corrupt/encrypted PDF → `InvalidDataException`.
+  - **`DocxParser`** (`Implementation/Rag/Parsers/`) — Singleton, `Name = "OpenXml"`,
+    расширение `.docx`. DocumentFormat.OpenXml 3.1.0 (MIT). Извлекает текст
+    через `WordprocessingDocument.Open(ms, isEditable: false)` →
+    `MainDocumentPart.Document.Body.Descendants<Paragraph>().InnerText`.
+    Метаданные: `format`, `parser`, `paragraphCount`. `PageCount = null`.
+    Corrupt / `.doc` (старый формат) → `InvalidDataException`.
+  - **`Startup.cs`** — DI: `services.AddSingleton<IRagDocumentParser, PdfParser>()` +
+    `services.AddSingleton<IRagDocumentParser, DocxParser>()` (после PlainText).
+    Реестр (`RagDocumentParserRegistry`) подхватывает через `IEnumerable<T>`.
+  - **`appsettings.json`** — `Rag:Ingestion:AllowedExtensions` + `.pdf`, `.docx`.
+  - **NuGet:** `Directory.Build.props` — `<PdfPigVersion>0.1.9</PdfPigVersion>`,
+    `<OpenXmlVersion>3.1.0</OpenXmlVersion>`, `<SystemIOPackagingVersion>10.0.0</SystemIOPackagingVersion>`.
+  - **Тесты:** `PdfParserTests` (**16** — CanParse_T ×4, CanParse_F ×6,
+    Name, Extensions, 4 `ThrowsAsync`) + `DocxParserTests` (**17** —
+    CanParse_T ×4, CanParse_F ×6, Name, Extensions, 3 `ThrowsAsync`,
+    ValidDocx, EmptyDocx). Реальный PDF-контент не проверяется
+    (PdfPig read-only); DOCX генерируется самим OpenXml SDK.
+    **Всего: 341 → 374**.
 
 ---
 

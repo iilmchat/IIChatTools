@@ -376,8 +376,12 @@ namespace IIChatTools.API
             // v1.5.0 (KI-083, Шаг 4B): парсеры документов + реестр.
             // Парсеры — Singleton, stateless. Порядок регистрации = порядок обхода
             // в registry (первый матч по расширению побеждает).
-            // В v1.5.x сюда добавятся PdfParser, DocxParser.
+            // v1.7.1 (KI-104): + PdfParser (.pdf), + DocxParser (.docx).
+            // Расширения не пересекаются с PlainTextParser — порядок не важен,
+            // но для детерминизма: PlainText → Pdf → Docx.
             services.AddSingleton<IRagDocumentParser, PlainTextParser>();
+            services.AddSingleton<IRagDocumentParser, PdfParser>();
+            services.AddSingleton<IRagDocumentParser, DocxParser>();
             services.AddSingleton<IRagDocumentParserRegistry, RagDocumentParserRegistry>();
 
             // v1.5.0 (KI-083, Шаг 4C.2): сервис индексации документов.
