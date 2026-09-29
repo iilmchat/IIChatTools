@@ -46,6 +46,10 @@
     в `IIChatTools.Services.csproj` — перебивает транзитивную 8.0.0.
     Прецедент — KI-022 (SQLitePCLRaw).
   - Версия в `Directory.Build.props` (`$(SystemIOPackagingVersion)`).
+  - **Профилактика** (в том же коммите): скрипт
+    scripts/setup/check-vulnerabilities.ps1 — обёртка над
+    dotnet list package --vulnerable --include-transitive с exit-кодом
+    1 при обнаружении уязвимостей. README — раздел «Проверка уязвимостей».  
 
 ### Planned
 - **KI-104** (Planned, v1.7.x): PDF / DOCX парсеры для RAG

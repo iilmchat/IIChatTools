@@ -831,6 +831,13 @@ sqlite3 IIChatTools.API\Data\iichattools-dev.db "SELECT Id, Role, TokensIn, Toke
 4. В логах: `ChatRetentionService запущен: интервал=1ч, срок=Nд`.
 5. Проверить, что старые чаты удалены (в БД или через `/api/chats`).
 
+### Проверка уязвимостей (v1.7.1, KI-105)
+**Перед push — проверить транзитивные NuGet-зависимости на известные уязвимости:** 
+```powershell
+    pwsh -ExecutionPolicy Bypass -File scripts/setup/check-vulnerabilities.ps1
+```
+    Скрипт делает dotnet restore + dotnet list package --vulnerable --include-transitive и возвращает exit 1, если что-то найдено. Прецеденты: KI-022 (SQLitePCLRaw), KI-105 (System.IO.Packaging).
+
 ### CI/CD
 
 - **CI** — `dotnet build` + `dotnet test` на каждый push в `main`.

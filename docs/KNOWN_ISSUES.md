@@ -1483,10 +1483,14 @@
   - Версия вынесена в `Directory.Build.props` (`$(SystemIOPackagingVersion)`).
   - **Прецедент:** KI-022 (SQLitePCLRaw 2.1.11 → 2.1.13, GHSA-2m69-gcr7-jv3q).
   - После override — `dotnet restore` без NU1903.
-- **Профилактика:** перед добавлением любого NuGet-пакета — проверять
-  `dotnet list package --vulnerable --include-transitive` (RULES § 3.9 —
-  restore после смены версий пакетов).
-- **Связанные:** KI-104 (парсеры PDF/DOCX), KI-022 (SQLitePCLRaw override).
+  - **Профилактика:** :
+  - Добавлен скрипт scripts/setup/check-vulnerabilities.ps1 —
+    обёртка над dotnet list package --vulnerable --include-transitive
+    с exit 1 при обнаружении уязвимостей (для CI / pre-commit).
+  - В README.md — раздел «Проверка уязвимостей».
+  - **Регламент:** перед добавлением нового NuGet-пакета — прогнать скрипт;
+    при NU1903 в логе dotnet restore — завести KI + Fixed.
+  - **Связанные:** KI-104 (парсеры PDF/DOCX), KI-022 (SQLitePCLRaw override).
 
 ---
 
