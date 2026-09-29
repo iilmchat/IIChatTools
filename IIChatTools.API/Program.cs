@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;                // v1.4.0 Фаза 6 (KI-052)
 using System.Threading.Tasks;
 using IIChatTools.API.Extensions;
 using IIChatTools.Data;
+using IIChatTools.Services.DTO.SqlAgent;   // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 6 (KI-052)
+using IIChatTools.Services.Implementation.SqlAgent;  // v1.7.0 (KI-097): SqlAgentOptionsProvider
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Interfaces;
 using Microsoft.AspNetCore.Hosting;
@@ -265,6 +268,11 @@ namespace IIChatTools.API
                 // Читаем сохранённые в AppSettings override'ы агентов и применяем к реестру.
                 await LoadSubAgentOverridesAsync(services, logger);
 
+                // ---------- 6. SqlAgent overrides (v1.7.0 KI-097, Фаза 2) ----------
+                // Читаем сохранённые в AppSettings override'ы подключений SQL Agent
+                // (ключи с префиксом SqlAgent.) и применяем к SqlAgentOptionsProvider.
+                LoadSqlAgentOverrides(services, logger);
+
                 logger.LogInformation(
                     "=== IIChatTools v{Version} готов к работе ===",
                     AppVersion.Current);
@@ -330,6 +338,132 @@ namespace IIChatTools.API
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "SubAgent overrides: не удалось загрузить");
+            }
+        }
+
+        /// <summary>
+        /// Загружает override'ы подключений Database Agent из <c>AppSettings</c>
+        /// и применяет их к <see cref="SqlAgentOptionsProvider"/>
+        /// (v1.7.0, KI-097, DESIGN_DB_AGENT § 5.4).
+        /// <para>
+        /// Формат ключей в <c>AppSettings</c> (например, для подключения
+        /// <c>internal</c>):
+        /// <list type="bullet">
+        ///   <item><description><c>SqlAgent.internal.enabled</c> — bool;</description></item>
+        ///   <item><description><c>SqlAgent.internal.allowedTables</c> — JSON-массив строк;</description></item>
+        ///   <item><description><c>SqlAgent.internal.deniedTables</c> — JSON-массив строк;</description></item>
+        ///   <item><description><c>SqlAgent.internal.maxRows</c> — int;</description></item>
+        ///   <item><description><c>SqlAgent.internal.statementTimeoutSeconds</c> — int;</description></item>
+        ///   <item><description><c>SqlAgent.enabled</c> — bool (глобальный флаг).</description></item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        /// <param name="services">Провайдер сервисов (уже в scope)</param>
+        /// <param name="logger">Логгер</param>
+        private static void LoadSqlAgentOverrides(IServiceProvider services, ILogger logger)
+        {
+            try
+            {
+                var settingsService = services.GetRequiredService<IAppSettingsService>();
+                var provider = services.GetRequiredService<SqlAgentOptionsProvider>();
+
+                // Синхронное чтение (метод вызывается один раз при старте).
+                var settings = settingsService.GetAllAsync().GetAwaiter().GetResult();
+                var sqlAgentSettings = settings
+                    .Where(s => s.Key.StartsWith("SqlAgent.", StringComparison.OrdinalIgnoreCase)
+                                && !string.IsNullOrWhiteSpace(s.Value))
+                    .ToList();
+
+                if (sqlAgentSettings.Count == 0)
+                {
+                    logger.LogInformation("SqlAgent overrides: нет");
+                    return;
+                }
+
+                // Глобальный флаг: ключ "SqlAgent.enabled".
+                var globalEnabled = sqlAgentSettings
+                    .FirstOrDefault(s => s.Key.Equals("SqlAgent.enabled",
+                        StringComparison.OrdinalIgnoreCase));
+                if (globalEnabled != null && bool.TryParse(globalEnabled.Value, out var gEnabled))
+                {
+                    provider.UpdateEnabled(gEnabled);
+                }
+
+                // Per-connection override'ы: группируем по имени подключения.
+                // Ключ "SqlAgent.{name}.{field}".
+                var byConnection = sqlAgentSettings
+                    .Where(s => !s.Key.Equals("SqlAgent.enabled", StringComparison.OrdinalIgnoreCase))
+                    .Select(s => new { Parts = s.Key.Split('.'), Setting = s })
+                    .Where(x => x.Parts.Length >= 3)
+                    .GroupBy(x => x.Parts[1], StringComparer.OrdinalIgnoreCase);
+
+                var applied = 0;
+                foreach (var group in byConnection)
+                {
+                    var name = group.Key;
+                    var baseline = provider.Get(name);
+                    if (baseline == null)
+                    {
+                        logger.LogWarning(
+                            "SqlAgent override: подключение '{Name}' не найдено в baseline — пропущен.",
+                            name);
+                        continue;
+                    }
+
+                    foreach (var item in group)
+                    {
+                        var field = item.Parts.Length >= 3 ? item.Parts[2] : null;
+                        var value = item.Setting.Value;
+                        try
+                        {
+                            switch (field?.ToLowerInvariant())
+                            {
+                                case "enabled":
+                                    if (bool.TryParse(value, out var en)) baseline.Enabled = en;
+                                    break;
+                                case "allowedtables":
+                                    baseline.AllowedTables =
+                                        JsonConvert.DeserializeObject<List<string>>(value)
+                                        ?? new List<string>();
+                                    break;
+                                case "deniedtables":
+                                    baseline.DeniedTables =
+                                        JsonConvert.DeserializeObject<List<string>>(value)
+                                        ?? new List<string>();
+                                    break;
+                                case "maxrows":
+                                    if (int.TryParse(value, out var mr)) baseline.MaxRows = mr;
+                                    break;
+                                case "statementtimeoutseconds":
+                                    if (int.TryParse(value, out var st))
+                                        baseline.StatementTimeoutSeconds = st;
+                                    break;
+                                default:
+                                    logger.LogWarning(
+                                        "SqlAgent override {Key}: неизвестное поле '{Field}' — пропущено.",
+                                        item.Setting.Key, field);
+                                    break;
+                            }
+                        }
+                        catch (Exception parseEx)
+                        {
+                            logger.LogWarning(parseEx,
+                                "SqlAgent override {Key}: ошибка разбора значения '{Value}'.",
+                                item.Setting.Key, value);
+                        }
+                    }
+
+                    provider.UpdateConnection(name, baseline);
+                    applied++;
+                }
+
+                logger.LogInformation(
+                    "SqlAgent overrides: применено {Applied} подключений из {Total} настроек.",
+                    applied, sqlAgentSettings.Count);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "SqlAgent overrides: не удалось загрузить");
             }
         }
     }

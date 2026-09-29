@@ -36,6 +36,13 @@
     <NewtonsoftJsonVersion>13.0.3</NewtonsoftJsonVersion>
     <HtmlAgilityPackVersion>1.12.1</HtmlAgilityPackVersion>
     <PuppeteerSharpVersion>7.1.0</PuppeteerSharpVersion>
+    <!-- v1.7.0 (KI-097): ADO.NET-провайдеры для SqlAgent (Database Agent). -->
+    <!-- Microsoft.Data.Sqlite — низкоуровневый SqliteConnection (не EF-обёртка). -->
+    <!-- Microsoft.Data.SqlClient — ADO.NET SqlConnection для SqlServer. -->
+    <!-- ВАЖНО: версия SqlClient должна быть >= транзитивной версии EF Core SqlServer 10.0.12 (6.1.6). -->
+    <!-- Младшая версия = NU1605 (downgrade). Синхронизировать при апдейте EF Core. -->
+    <MicrosoftDataSqliteVersion>10.0.12</MicrosoftDataSqliteVersion>
+    <MicrosoftDataSqlClientVersion>6.1.6</MicrosoftDataSqlClientVersion>
     <!-- KI-049: токенизация для подсчёта tokensIn/Out (tiktoken-совместимый). -->
     <!-- ВАЖНО: два пакета — API + Data.Cl100kBase (словарь), одной версии. -->
     <MLTokenizersVersion>1.0.0</MLTokenizersVersion>

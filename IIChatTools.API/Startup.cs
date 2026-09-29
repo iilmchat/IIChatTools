@@ -8,12 +8,14 @@ using IIChatTools.Data.Entities;
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): EmbeddingService
+using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): SqlAgentOptions
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
 using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
+using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.Implementation.Tools.Rag;
 using IIChatTools.Services.Implementation.Tools.SubAgent;
 using IIChatTools.Services.Implementation.Tools.Utils;
@@ -395,6 +397,15 @@ namespace IIChatTools.API
             // Scoped-зависимости (AppDbContext, IUserSettingsService, IDocumentIngestionService,
             // IWorkspaceResolver) резолвятся внутри scope на каждый вызов / фоновый прогон.
             services.AddSingleton<IWorkspaceIndexService, WorkspaceIndexService>();
+
+            // ============ SqlAgent / Database Agent (v1.7.0, KI-097, Фаза 2) ============
+            // Baseline-конфиг из appsettings:SqlAgent. Runtime-overrides применяются
+            // в Program.LoadSqlAgentOverridesAsync (после старта хоста).
+            // SqlConnectionProvider — Singleton: читает актуальные значения
+            // из SqlAgentOptionsProvider при каждом вызове (не кэширует).
+            services.Configure<SqlAgentOptions>(Configuration.GetSection("SqlAgent"));
+            services.AddSingleton<SqlAgentOptionsProvider>();
+            services.AddSingleton<ISqlConnectionProvider, SqlConnectionProvider>();
 
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());

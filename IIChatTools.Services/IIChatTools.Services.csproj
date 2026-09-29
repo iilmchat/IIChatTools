@@ -37,7 +37,16 @@
 
     <!-- Prometheus метрики (exporter + HTTP-middleware).
          GA-версия 8.2.1 — совместима с .NET 10. -->
-    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />    
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+
+    <!-- v1.7.0 (KI-097): ADO.NET-провайдеры для SqlAgent (SqlConnectionProvider).
+         Microsoft.Data.Sqlite — нужен явно: EF Core Sqlite живёт в API, в Services
+         транзитивно не приходит. Microsoft.Data.SqlClient — приходит транзитивно
+         через Data → EF Core SqlServer, но регистрируем явно (compile-time safety).
+         Версия синхронизирована с транзитивной (EF Core SqlServer 10.0.12 → 6.1.6),
+         иначе NU1605 (downgrade). -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="$(MicrosoftDataSqliteVersion)" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="$(MicrosoftDataSqlClientVersion)" />
   </ItemGroup>
 
 </Project>

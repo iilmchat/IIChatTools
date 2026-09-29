@@ -40,6 +40,38 @@
   - **Правка DESIGN_DB_AGENT § 4.1 и § 7.1:** 3 типа перенесены
     из `Implementation/SqlAgent/` в `DTO/SqlAgent/` (фикс слоистости
     до первого использования).
+- **Database Agent — Фаза 2: SqlConnectionProvider + SqlAgentOptionsProvider (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.2)**:
+  - **`SqlConnectionProvider`** (`Implementation/SqlAgent/`) — Singleton,
+    реализация `ISqlConnectionProvider`. **Switch по `Provider`** вместо
+    рефлексии: compile-time проверка, скорость, AOT-совместимость.
+    Connection string резолвится из `IConfiguration` при каждом вызове
+    (User Secrets / env), без кэша.
+  - **`SqlAgentOptionsProvider`** (`Implementation/SqlAgent/`) — Singleton,
+    хранит baseline из `IOptions<SqlAgentOptions>` + runtime-overrides
+    (для будущей админки, Шаг 6). Потокобезопасен (`lock`). Валидация
+    при старте (DESIGN § 5.5): `DefaultConnection` обязателен, `MaxRows` /
+    `StatementTimeoutSeconds` — clamp + warning.
+  - **`Startup.cs`** — DI-регистрация: `services.Configure<SqlAgentOptions>(...)`
+    + `SqlAgentOptionsProvider` (Singleton) + `ISqlConnectionProvider`
+    (Singleton).
+  - **`Program.cs`** — новый метод `LoadSqlAgentOverrides` (без Async —
+    вызывается один раз при старте): читает `AppSettings` с ключами
+    `SqlAgent.{name}.{field}`, применяет к провайдеру.
+  - **`appsettings.json`** / **`appsettings.Development.json`** — секция
+    `SqlAgent` (Connection internal, AllowedTables / DeniedTables,
+    QueryValidation). Dev: `Provider=Sqlite`, `MaxRows=50`;
+    Prod: `Provider=SqlServer`, `MaxRows=100`.
+  - **NuGet** (`Directory.Build.props` + `IIChatTools.Services.csproj`):
+    `Microsoft.Data.Sqlite` 10.0.12 + `Microsoft.Data.SqlClient` 6.0.2 —
+    ADO.NET-провайдеры для `SqliteConnection` / `SqlConnection`.
+  - **`README.md`** — инструкция User Secrets для
+    `SqlAgent:Internal:ConnectionString` (dev — Sqlite `Mode=ReadOnly`,
+    prod — SqlServer `ApplicationIntent=ReadOnly`).
+  - **Тесты** — `SqlConnectionProviderSmokeTests` (4, включая
+    DoD-тест «connection string разрешается из config»). Полный набор —
+    Фаза 7 (`SqlConnectionProviderTests` + `SqlQueryValidatorTests`).
+  - **DoD Фазы 2:** `SqlConnectionProvider` открывает соединение `internal`
+    (Sqlite), резолвит connection string из `IConfiguration`.
 
 ### Changed
 - **Docs — PROMPT_V2.md v2.4 → v2.5 (post-release v1.6.1)**:

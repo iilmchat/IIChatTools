@@ -225,6 +225,25 @@ pwsh -ExecutionPolicy Bypass -File scripts/setup/fill-local-packages.ps1 -DryRun
 > dotnet user-secrets set "Browser:ProxyUsername" "<login>"
 > dotnet user-secrets set "Browser:ProxyPassword" "<password>"
 > ```
+>
+> **Строка подключения Database Agent (v1.7.0, KI-097).**
+> SQL-агент работает через **read-only** подключение к БД приложения
+> (в Фазе 1 — только `internal`). Строка подключения **не хранится
+> в `appsettings.json`** — только в User Secrets / env.
+>
+> Dev (Sqlite):
+> ```bash
+> dotnet user-secrets set "SqlAgent:Internal:ConnectionString" "Data Source=Data/iichattools-dev.db;Mode=ReadOnly"
+> ```
+> Важно: `Mode=ReadOnly` — встроенная защита Sqlite. Даже если валидатор
+> пропустит `DELETE`, БД вернёт ошибку.
+>
+> Prod (SqlServer, планируется v1.7.x):
+> ```bash
+> dotnet user-secrets set "SqlAgent:Internal:ConnectionString" "Server=localhost;Database=IIChatTools;User Id=iichattools_reader;Password=<...>;ApplicationIntent=ReadOnly;TrustServerCertificate=True"
+> ```
+> `ApplicationIntent=ReadOnly` + отдельная роль `db_datareader` — best practice.
+> Пока работает только Sqlite-путь (SqlServer-миграции — KI-091).
 
 ### Профиль разработки
 
