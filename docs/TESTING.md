@@ -1,15 +1,15 @@
 # TESTING.md — Чек-лист ручной приёмки IIChatTools
 
-**Версия:** 1.5.0
-**Обновлено:** 2026-09-28
-**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0).
-**Связанные DESIGN:** [v1.3](development/v1.3/DESIGN.md) (Chat UI), [v1.4](development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](development/v1.5/DESIGN.md) (RAG).
+**Версия:** 1.7.0
+**Обновлено:** 2026-09-29
+**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0).
+**Связанные DESIGN:** [v1.3](development/v1.3/DESIGN.md) (Chat UI), [v1.4](development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](development/v1.5/DESIGN.md) (RAG), [v1.7](development/v1.7/DESIGN_DB_AGENT.md) (Database Agent).
 
 ---
 
 ## § 1. Как пользоваться
 
-Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **199/199**) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end.
+Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **341/341**) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end, Database Agent с реальной БД.
 
 Каждый сценарий — таблица:
 
@@ -18,7 +18,7 @@
 
 **Статус:** `OK` / `FAIL` / `SKIP` / `N/A`.
 
-- **Smoke** (§ 2) — обязательный прогон перед публикацией релиза. ~15 минут.
+- **Smoke** (§ 2) — обязательный прогон перед публикацией релиза. ~20 минут.
 - **Full regression** (§ 3) — для patch-релизов, тестируем всё. ~40 минут.
 - **UI/UX** (§ 4) — локализация, вёрстка, hotkeys. ~15 минут.
 - **Что НЕ покрыто** (§ 5) — важно: явный список того, что проверять **вручную**.
@@ -27,7 +27,7 @@
 
 ---
 
-## § 2. Smoke-сценарии v1.5.0 (10 шт, ~15 мин)
+## § 2. Smoke-сценарии v1.7.0 (16 шт, ~20 мин)
 
 | # | Действие | Ожидание | Статус | Комментарий |
 |:---:|---|---|:---:|---|
@@ -42,8 +42,13 @@
 | 9 | Попросить LLM сохранить файл («сохрани test.txt») | SSE `tool_approval_required` → модалка с JSON-параметрами, countdown 5 мин. Approve/Reject работает. | | |
 | 10 | `Ctrl+K` | Модалка поиска чатов. Ввод → результат со snippet, подсветка `<mark>`. Enter — открыть. | | |
 | 11 | Задать «Что у нас в RULES про `yield return`?» (без вложений) | LLM вызывает `search_knowledge_base` (не `file_system_agent`). Под ответом — блок «📚 Источники» с 3-5 элементами вида `RULES.md (chunk 15, score 0.71)`. Tooltip при hover. `Ctrl+Shift+R` → блок остаётся (F5-режим из `ChatMessageDto.Sources`). | | |
+| 12 | `/admin` → вкладка «SQL Agent» | Таблица подключений: `internal` / `IIChatTools Dev DB` / `Sqlite` / ✓ / `6 (denied: 11)` / `50` / `30 с`. Кнопки Изменить/Проверить/Сбросить. | | |
+| 13 | `/admin → SQL Agent` → «Изменить» → maxRows=42 → Save | Toast «Настройки сохранены». В таблице бейдж «изменено». В БД ключ `SqlAgent.internal.maxRows = "42"`. | | |
+| 14 | `/admin → SQL Agent` → «Проверить» | Toast «Подключение OK (N мс)». | | |
+| 15 | В `/chat`: «Сколько чатов у меня в базе?» | **1 модалка approval** с параметрами `{"action": "execute_query", "sql": "SELECT COUNT(*) FROM Chats"}`. Approve → SSE `tool_result` → ответ с числом. | | |
+| 16 | В `/chat`: «Покажи все данные из таблицы AspNetUsers» | LLM вызывает `database_agent(action=execute_query)` → approval → отказ валидатора «Таблицы запрещены: AspNetUsers». | | |
 
-> **Если smoke (11/11 OK) — релиз можно публиковать.**
+> **Если smoke (16/16 OK) — релиз можно публиковать.**
 
 ---
 
@@ -103,6 +108,18 @@
 | 3.4.3 | `curl https://localhost:5001/health` | `Healthy` + детали (db, workspace, lmstudio). | | |
 | 3.4.4 | Удалить `.db` (Sqlite) → перезапуск | Схема пересоздана, роли Admin/User, регистрация работает. | | |
 
+### § 3.5. Database Agent (v1.7.0, KI-097)
+
+| # | Действие | Ожидание | Статус | Комментарий |
+|:---:|---|---|:---:|---|
+| 3.5.1 | `/admin → SQL Agent` → «Изменить»: убрать одну таблицу из `allowedTables` | Таблица обновилась. При вопросе к LLM про эту таблицу — валидатор отбивает. | | |
+| 3.5.2 | `/admin → SQL Agent` → «Сбросить» → confirm | Toast «Сброшено». В таблице **нет** бейджа «изменено». В БД ключи `SqlAgent.internal.*` удалены. | | |
+| 3.5.3 | `SqlAgent:Enabled = false` → перезапуск | В логе: «SqlAgent overrides: применено N». Tool `database_agent` не зарегистрирован в DI → Chat его не видит. `/api/tools` без него. | | |
+| 3.5.4 | В `/chat`: «SELECT * FROM AspNetUsers» | Валидатор отбивает в SSE `tool_result` (success=false). | | |
+| 3.5.5 | В `/chat`: «DELETE FROM Chats» | Валидатор отбивает («Запрещённое ключевое слово: DELETE»). | | |
+| 3.5.6 | В `/chat`: «SELECT COUNT(*) FROM Chats» (без LIMIT) | Успех, auto-LIMIT добавлен, ответ — число. | | |
+| 3.5.7 | `Ctrl+Shift+R` (перезапуск приложения) | SqlAgent overrides применены из AppSettings (в логе: `SqlAgent overrides: применено 1 подключений`). | | |
+
 ---
 
 ## § 4. UI/UX (~15 мин)
@@ -118,12 +135,14 @@
 | 4.7 | Тосты — красный / зелёный / синий / жёлтый | По контексту (ошибка / успех / инфо / предупреждение). | | |
 | 4.8 | Модалки — drag-and-drop за заголовок | Перетаскиваются. | | |
 | 4.9 | Браузерный zoom 150% | Вёрстка не ломается. | | |
+| 4.10 | Переключить RU/EN на `/admin → SQL Agent` | Все строки переводятся: title, кнопки, модалка, toast'ы. | | |
+| 4.11 | Переключить RU/EN на `/admin → Пользователи`, `/Настройки`, `/Белый список`, `/Агенты` | Все строки переводятся (KI-102). | | |
 
 ---
 
 ## § 5. Что НЕ покрыто автотестами (проверять **вручную**!)
 
-**Автотесты** (199/199) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов.
+**Автотесты** (341/341) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов, **SqlAgent** (валидатор, connection provider, admin service + controller, integration через real Sqlite).
 
 **НЕ покрыто** — критично для ручной приёмки:
 
@@ -138,7 +157,9 @@
 | 5.7 | PDF / DOCX (не в MVP) | Не реализовано | Не применимо |
 | 5.8 | Retention чатов (auto-cleanup) | `Chat:Retention:Enabled = false` в dev по умолчанию | Включить `true` + `CleanupIntervalHours = 1` + подождать 2 мин (см. README) |
 | 5.9 | Rate limiting (429 / 303 redirect) | Требует >100 запросов | Нагрузочный тест через `curl` loop |
-| 5.10 | Docker-образ `ghcr.io/iilmchat/iichattools:v1.5.0` | Требует сборки после тега | После push тега `v1.5.0` |
+| 5.10 | Docker-образ `ghcr.io/iilmchat/iichattools:v1.7.0` | Требует сборки после тега | После push тега `v1.7.0` |
+| 5.11 | Database Agent end-to-end (реальный LLM + реальная БД через Chat UI) | Требует LM Studio | Smoke 15, 16 |
+| 5.12 | Runtime-применение SqlAgent overrides без рестарта | Требует работающего приложения | 3.5.1, 3.5.2 |
 
 ---
 
@@ -149,6 +170,7 @@
 - **KNOWN_ISSUES.md** — реестр дефектов (актуальный).
 - **CHANGELOG.md** — история версий.
 - **DESIGN v1.5** — RAG / Knowledge Base (актуальная фича).
+- **DESIGN v1.7** — Database Agent (актуальная фича, KI-097).
 
 ---
 
@@ -157,3 +179,5 @@
 | Дата | Версия | Что |
 |:---:|---|---|
 | 2026-09-28 | 1.5.0 | Создан (KI-088, Шаг 8.6). Smoke (10), Full regression (35), UI/UX (9), «Не покрыто» (10). |
+| 2026-09-28 | 1.6.0 | Smoke +1 (Sources/citations, #11). |
+| 2026-09-29 | 1.7.0 | Фаза 7D: Smoke +5 (Database Agent, #12–16), § 3.5 (Database Agent, 7 сценариев), § 4 +2 (локализация admin, KI-102), § 5 +2 (5.11, 5.12). Автотесты 199 → 341. |
