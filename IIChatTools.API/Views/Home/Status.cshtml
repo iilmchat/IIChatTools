@@ -5,7 +5,12 @@
     ViewData["Title"] = Localizer["Статус"];
 }
 
-<div class="container mt-4" id="status-root">
+<div class="container mt-4"
+     id="status-root"
+     data-label-online="@Localizer["StatusOnline"]"
+     data-label-offline="@Localizer["StatusOffline"]"
+     data-label-installed="@Localizer["StatusInstalled"]"
+     data-label-not-installed="@Localizer["StatusNotInstalled"]">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1>@Localizer["Состояние сервера"]</h1>
         <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">@Localizer["Обновить"]</button>

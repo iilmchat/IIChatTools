@@ -687,4 +687,18 @@
     <data name="SqlAgentConnectionNotFound" xml:space="preserve">
       <value>Подключение не найдено</value>
     </data>
+
+    <!-- ===== Status page localization (v1.7.1, KI-103) ===== -->
+    <data name="StatusOnline" xml:space="preserve">
+      <value>Онлайн</value>
+    </data>
+    <data name="StatusOffline" xml:space="preserve">
+      <value>Оффлайн</value>
+    </data>
+    <data name="StatusInstalled" xml:space="preserve">
+      <value>Установлено</value>
+    </data>
+    <data name="StatusNotInstalled" xml:space="preserve">
+      <value>Не установлено</value>
+    </data>
 </root>

@@ -687,4 +687,18 @@
   <data name="SqlAgentConnectionNotFound" xml:space="preserve">
       <value>Connection not found</value>
   </data>
+
+  <!-- ===== Status page localization (v1.7.1, KI-103) ===== -->
+  <data name="StatusOnline" xml:space="preserve">
+      <value>Online</value>
+  </data>
+  <data name="StatusOffline" xml:space="preserve">
+      <value>Offline</value>
+  </data>
+  <data name="StatusInstalled" xml:space="preserve">
+      <value>Installed</value>
+  </data>
+  <data name="StatusNotInstalled" xml:space="preserve">
+      <value>Not installed</value>
+  </data>
 </root>

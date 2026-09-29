@@ -18,7 +18,28 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Fixed
+- **Admin UI — `/status` локализация badge'ей (v1.7.1, KI-103)**:
+  - **Симптом:** при переключении языка на EN badge'и БД и зависимостей
+    оставались на русском («Онлайн», «Установлено», «Не установлено»).
+  - **Причина:** hardcoded RU-строки в `status.js` (функция `render`).
+    Остальные строки `Status.cshtml` уже были через `@Localizer[...]`.
+  - **Fix:**
+    - `Status.cshtml` (`#status-root`) — `data-label-online`,
+      `data-label-offline`, `data-label-installed`, `data-label-not-installed`.
+    - `status.js` — helper `pageLabels()` (читает `data-*` → camelCase) +
+      замена 4 hardcoded RU-строк на `labels.*`.
+    - `.resx` (RU + EN) — **+4 ключа** (`StatusOnline`, `StatusOffline`,
+      `StatusInstalled`, `StatusNotInstalled`). Синхронизация через
+      `LocalizationSyncTests`.
+  - **Не трогал:** `statusBadge()` — возвращает `Success`/`Error`/`Pending`/
+    `Cancelled` — это **данные из API** (`AuditLog.LogStatus`), не UI.
+  - **DoD:** badge'и переводятся RU/EN.
+
+### Planned
+- **KI-104** (Planned, v1.7.x): PDF / DOCX парсеры для RAG
+  (`PdfParser` через PdfPig + `DocxParser` через DocumentFormat.OpenXml).
+  Расширяет RAG с 28 → 30+ форматов. DESIGN v1.5 § 4.5.5-4.5.6.
 
 ---
 

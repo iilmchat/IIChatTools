@@ -21,6 +21,25 @@ export function startStatusPolling(intervalMs = 5000) {
 }
 
 /**
+ * Возвращает объект с локализованными ярлыками из #status-root.
+ * (v1.7.1, KI-103 — RULES § 4.17)
+ *
+ * @returns {object} { online, offline, installed, notInstalled }
+ */
+function pageLabels() {
+    const root = document.getElementById('status-root');
+    if (!root) return {};
+    const out = {};
+    for (const [key, value] of Object.entries(root.dataset)) {
+        if (key.startsWith('label')) {
+            const camel = key.charAt(5).toLowerCase() + key.slice(6);
+            out[camel] = value;
+        }
+    }
+    return out;
+}
+
+/**
  * Однократное обновление данных статуса.
  */
 async function refreshOnce() {
@@ -37,6 +56,8 @@ async function refreshOnce() {
  * @param {object} s Снимок состояния
  */
 function render(s) {
+    const labels = pageLabels();
+
     setText('stat-version', s.appVersion);
     setText('stat-uptime', formatUptime(s.uptimeSeconds));
     setText('stat-users', `${s.activeUsers} / ${s.totalUsers}`);
@@ -45,7 +66,9 @@ function render(s) {
 
     const dbBadge = document.getElementById('db-status');
     if (dbBadge) {
-        dbBadge.textContent = s.databaseOnline ? 'Онлайн' : 'Оффлайн';
+        dbBadge.textContent = s.databaseOnline
+            ? (labels.online || 'Online')
+            : (labels.offline || 'Offline');
         dbBadge.className = s.databaseOnline
             ? 'badge bg-success'
             : 'badge bg-danger';
@@ -53,11 +76,14 @@ function render(s) {
 
     const depsList = document.getElementById('deps-list');
     if (depsList && s.dependencies) {
+        const installedLabel = labels.installed || 'Installed';
+        const notInstalledLabel = labels.notInstalled || 'Not installed';
+
         const items = Object.entries(s.dependencies).map(([name, version]) => {
             const ok = !!version;
             const badge = ok
-                ? `<span class="badge bg-success">Установлено</span>`
-                : `<span class="badge bg-secondary">Не установлено</span>`;
+                ? `<span class="badge bg-success">${escapeHtml(installedLabel)}</span>`
+                : `<span class="badge bg-secondary">${escapeHtml(notInstalledLabel)}</span>`;
             return `<li class="list-group-item d-flex justify-content-between align-items-center">
                         <span><strong>${escapeHtml(name)}</strong> ${version ? `<code>${escapeHtml(version)}</code>` : ''}</span>
                         ${badge}

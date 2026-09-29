@@ -1389,7 +1389,7 @@
 ---
 
 ### KI-103 — Страница `/status`: hardcoded RU-строки в `status.js`
-- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.7.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.7.1
 - **Обнаружено:** 2026-09-29 (при проверке локализации Фазы 6E)
 - **Файлы:** `IIChatTools.API/wwwroot/js/modules/status.js`,
   `IIChatTools.API/Views/Home/Status.cshtml` (если нужны `data-label-*`).
@@ -1406,16 +1406,60 @@
   (нарушение RULES § 1.14 / § 4.17). Не входит в Фазу 6E — она касалась
   только `/admin`.
 
-- **Решение (план, v1.7.x):**
-  - Добавить `data-label-*` на `Views/Home/Status.cshtml`:
-    `data-label-deps`, `data-label-db`, `data-label-installed`,
-    `data-label-not-installed`, `data-label-online`, `data-label-pending`,
-    `data-label-recent-actions`, `data-label-col-user`, `data-label-col-tool`,
-    `data-label-col-status`, `data-label-col-duration`, `data-label-col-date`.
-  - В `status.js` — читать эти атрибуты в `render(s)`.
-  - Добавить ~12 ключей в оба `.resx`.
-  - **Оценка:** ~1 час.
+- **Решение (2026-09-29, v1.7.1):**
+  - Анализ показал, что в `Status.cshtml` **почти всё** уже через
+    `@Localizer[...]` (карточки, заголовки таблицы, секции). Hardcoded
+    были только **4 строки** в `status.js`:
+    - badge БД (`'Онлайн'` / `'Оффлайн'`);
+    - badge зависимостей (`'Установлено'` / `'Не установлено'`).
+  - `Status.cshtml` (`#status-root`) — добавлены `data-label-online`,
+    `data-label-offline`, `data-label-installed`, `data-label-not-installed`.
+  - `status.js` — helper `pageLabels()` (читает `data-*` → camelCase)
+    + заменены hardcoded строки на `labels.*`.
+  - `.resx` (RU + EN) — **+4 ключа** (`StatusOnline`, `StatusOffline`,
+    `StatusInstalled`, `StatusNotInstalled`). Синхронизация через
+    `LocalizationSyncTests`.
+  - **Не трогал:** `statusBadge()` — возвращает `Success`/`Error`/`Pending`/
+    `Cancelled` — это **данные из API** (`AuditLog.LogStatus`), не UI-строки.
+  - **DoD:** RU/EN переключает badge БД и badge зависимостей.
 - **Связанные:** KI-102 (аналогичная проблема в `/admin` — Fixed).
+
+---
+
+### KI-104 — PDF / DOCX парсеры для RAG (`PdfParser` + `DocxParser`)
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.7.x
+- **Обнаружено:** 2026-09-29 (при обсуждении v1.7.0)
+- **DESIGN:** [`docs/development/v1.5/DESIGN.md`](development/v1.5/DESIGN.md)
+  § 4.5.5 и § 4.5.6 (отложено с v1.5.0 как «фаза 3.5»).
+- **Файлы (план):**
+  - `IIChatTools.Services/Implementation/Rag/Parsers/PdfParser.cs` (новый).
+  - `IIChatTools.Services/Implementation/Rag/Parsers/DocxParser.cs` (новый).
+  - `IIChatTools.API/Startup.cs` — +2 строки `services.AddSingleton<IRagDocumentParser, ...>`.
+  - `appsettings.json` / `.Development.json` — `Rag:Ingestion:AllowedExtensions` + `.pdf`, `.docx`.
+  - `IIChatTools.Tests/UnitTests/Rag/PdfParserTests.cs` + `DocxParserTests.cs`.
+- **Описание:** Сейчас `PlainTextParser` поддерживает 28 расширений (текст, код,
+  разметка). PDF и DOCX — **не поддерживаются**. Из-за этого пользователь не может
+  приложить PDF-контракт или DOCX-документ к чату и спросить по нему.
+- **Решение (план):**
+  - **NuGet:**
+    - `PdfPig` 0.1.x (ранее `UglyToad.PdfPig`) — Apache 2.0, ~500 KB.
+    - `DocumentFormat.OpenXml` 3.x — MIT, ~1.5 MB.
+  - **`PdfParser`** — `PdfDocument.Open` → перебор `GetPages()` → `page.Text` через
+    `StringBuilder`. Метаданные: `PageCount`.
+  - **`DocxParser`** — `WordprocessingDocument.Open` → `MainDocumentPart.Document.Body` →
+    `Descendants<Paragraph>()` → `InnerText`.
+  - **Регистрация:** реестр (`RagDocumentParserRegistry`) подхватит через `IEnumerable<IRagDocumentParser>` — порядок в DI определяет приоритет (первый match по расширению побеждает).
+  - **Тесты:** ~8 `[Fact]` на каждый парсер (CanParse T/F, extract text, пустой файл, битый файл, метаданные).
+- **Известные ограничения (задокументировать):**
+  - **OCR сканов PDF — не поддерживается.** Если PDF — картинка без текстового
+    слоя, `page.Text` пустой. Решение: Tesseract — v1.9+.
+  - **`.doc` (старый формат) — не поддерживается.** OpenXML работает только с
+    `.docx`.
+  - **Шифрованные PDF** — `PdfDocument.Open` бросает исключение → `ToolResult.Fail`.
+  - **Сложная вёрстка** (таблицы, multi-column) — текст склеивается. Ограничение
+    всех PDF-экстракторов.
+- **Оценка:** ~3-4 ч.
+- **Связанные:** KI-083 (RAG / embeddings), KI-099 (внешние БД — приоритетнее).
 
 ---
 
@@ -1523,13 +1567,15 @@
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
-| Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096 (GitHub Wiki), KI-099 -->
-| Documented | 9 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-103 -->
+| Fixed (v1.7.1) | 1 |                <!-- KI-103 -->
+| Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
+| Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
+| Planned | 1 |                       <!-- KI-104 (PDF/DOCX parsers) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **62** |
+| **Всего** | **63** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
