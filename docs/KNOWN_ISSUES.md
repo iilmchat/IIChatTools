@@ -1581,6 +1581,85 @@
 
 ---
 
+### KI-107 — Mail Agent (IMAP/SMTP, MailKit)
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.0
+- **Обнаружено:** 2026-09-29
+- **DESIGN:** [`docs/development/v1.8/DESIGN_MAIL_AGENT.md`](development/v1.8/DESIGN_MAIL_AGENT.md)
+- **Описание:** LLM не имеет доступа к почте. Нет инструментов для IMAP/SMTP.
+  `execute_command` + `python` — антипаттерн (нет валидации, нет approval, нет
+  rate limiting, credentials в command line).
+- **Что входит (v1.8.0):**
+  - Один агент `mail_agent` (наследник `AgentToolBase`) + 7 инструментов:
+    `send_email` (approval), `list_emails`, `read_email`, `search_emails`,
+    `delete_email` (approval), `move_email` (approval), `mark_as_read`.
+  - `IMailClient` + `MailKitClient` (MailKit 4.8.0, Apache 2.0) — IMAP-пул + SMTP.
+  - Глобальные credentials (User Secrets) → App Password.
+  - Rate limiting: 20 писем/час, 30 reads/мин (по образцу KI-043).
+  - Privacy-first: без PII в логах / audit / ChatMessage.MetadataJson.
+  - Вложения — в `Workspace/users/{id}/mail-attachments/{uid}/`, ≤ 10 MB.
+- **Что НЕ входит:** Per-user credentials (KI-108, v1.8.x), OAuth2 (v1.9+),
+  POP3, HTML-редактор, календарь / контакты.
+- **Оценка:** ~10–12 ч.
+- **Связанные:** KI-052 (Multi-Agent — эталон), KI-097 (Database Agent — эталон), KI-108 (per-user).
+
+---
+
+### KI-108 — Per-user mail accounts (свой ящик у каждого пользователя)
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.8.x
+- **Обнаружено:** 2026-09-29
+- **DESIGN:** [`docs/development/v1.8/DESIGN_MAIL_AGENT.md`](development/v1.8/DESIGN_MAIL_AGENT.md) § 3.2.
+- **Описание:** В v1.8.0 (KI-107) все пользователи работают с **одним ящиком**
+  (глобальные creds). Нужно — свой ящик у каждого.
+- **Что входит:**
+  - Таблица `UserMailAccount` (UserId, ImapHost, SmtpHost, Username, **EncryptedPassword**).
+  - Шифрование пароля через `IDataProtector` (ASP.NET Core DataProtection).
+  - `PerUserMailAccountProvider : IMailAccountProvider` (замена 1 строки в DI).
+  - UI в `/profile → Почта` (выбор провайдера, ввод creds, тест подключения).
+  - Опционально: несколько ящиков на пользователя (ключ `IsDefault`).
+- **Связанные:** KI-107 (Mail Agent — база).
+
+---
+
+### KI-109 — External-LLM Agent (DeepSeek / OpenAI / Groq / Together / Ollama)
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.0
+- **Обнаружено:** 2026-09-29
+- **DESIGN:** [`docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`](development/v1.8/DESIGN_EXTERNAL_LLM.md)
+- **Описание:** LLM работает только локально (LM Studio + qwen3-4b). Нет механизма
+  для обращения к внешним моделям (DeepSeek, OpenAI, Claude, Gemini).
+- **Что входит (v1.8.0):**
+  - Один агент `external_llm_agent` (наследник `AgentToolBase`) + 3 инструмента:
+    `ask_external_llm` (с опциональным `compare_with`), `list_external_providers`,
+    `check_internet_connection`.
+  - 5 провайдеров: DeepSeek, OpenAI, Groq, Together AI, Ollama (все OpenAI-совместимые).
+  - Оркестратор: 4 сценария (Fallback / Специализация / Разные знания / Сравнение).
+  - `include_context: false` по умолчанию (только prompt — без истории чата, без PII).
+  - **Budget guardrails:** `DailyBudgetUsd = $5` + `DailyTokensLimit = 500k` + `MaxTokens` per request.
+  - **Circuit breaker:** 3 fail подряд → skip на 5 мин (по образцу KI-094).
+  - **Privacy-first:** без PII в логах / audit / ChatMessage.MetadataJson.
+- **Что НЕ входит:** Anthropic / Gemini (KI-110, v1.9+), streaming с внешних API,
+  function calling на внешних API, OAuth2.
+- **Оценка:** ~12–15 ч.
+- **Связанные:** KI-052 (Multi-Agent — эталон), KI-094 (circuit breaker — эталон), KI-110.
+
+---
+
+### KI-110 — Anthropic Claude + Google Gemini провайдеры
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.9+
+- **Обнаружено:** 2026-09-29
+- **DESIGN:** [`docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`](development/v1.8/DESIGN_EXTERNAL_LLM.md) § 1.4.
+- **Описание:** В v1.8.0 (KI-109) только OpenAI-совместимые провайдеры
+  (DeepSeek, OpenAI, Groq, Together, Ollama). Anthropic (`/v1/messages`)
+  и Google Gemini (`/v1beta/models`) используют **свои форматы** запросов.
+- **Что входит:**
+  - `IExternalLlmClient` — ветвление по `Format` (`openai` | `anthropic` | `gemini`).
+  - Anthropic: `POST /v1/messages` + `anthropic-version` header.
+  - Gemini: `POST /v1beta/models/{model}:generateContent` + API key в query.
+  - DTO-мапперы: `AnthropicRequestBuilder`, `GeminiRequestBuilder`.
+  - Расширение cost-calculator (per-provider тарифы).
+- **Связанные:** KI-109 (External-LLM Agent — база).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -1691,8 +1770,9 @@
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
+| Planned | 4 |                       <!-- KI-107, KI-108, KI-109, KI-110 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **65** |
+| **Всего** | **69** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

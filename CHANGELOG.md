@@ -18,7 +18,28 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **DESIGN v1.8 — Mail Agent (Draft)** (`docs/development/v1.8/DESIGN_MAIL_AGENT.md`):
+  дизайн-документ для почтового агента (IMAP/SMTP через MailKit 4.8.0).
+  7 инструментов внутри агента `mail_agent`: `send_email` (approval),
+  `list_emails`, `read_email`, `search_emails`, `delete_email` (approval),
+  `move_email` (approval), `mark_as_read`. Глобальные credentials (App Password
+  в User Secrets). Rate limiting 20 писем/час. Privacy-first (без PII в логах).
+  Вложения в `Workspace/users/{id}/mail-attachments/{uid}/`, ≤ 10 MB.
+  Целевой релиз — v1.8.0.
+- **DESIGN v1.8 — External-LLM Agent (Draft)** (`docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`):
+  дизайн-документ для агента внешних LLM (DeepSeek / OpenAI / Groq / Together AI / Ollama).
+  3 инструмента внутри агента `external_llm_agent`: `ask_external_llm` (с опциональным
+  `compare_with` для сценария «сравнение»), `list_external_providers`,
+  `check_internet_connection`. Оркестратор с 4 сценариями (Fallback / Специализация /
+  Разные знания / Сравнение). `include_context: false` по умолчанию.
+  Budget guardrails: `DailyBudgetUsd = $5`, `DailyTokensLimit = 500k`, `MaxTokens` per request.
+  Circuit breaker (3 fail → skip 5 мин). Целевой релиз — v1.8.0.
+- **KI — заведены 4 записи (Planned, v1.8.0/v1.8.x/v1.9+)**:
+  - **KI-107** — Mail Agent (IMAP/SMTP через MailKit). v1.8.0.
+  - **KI-108** — Per-user mail accounts (свой ящик у каждого пользователя). v1.8.x.
+  - **KI-109** — External-LLM Agent (OpenAI-совместимые провайдеры). v1.8.0.
+  - **KI-110** — Anthropic Claude + Google Gemini (свои форматы запросов). v1.9+.
 
 ---
 
