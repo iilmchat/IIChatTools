@@ -56,6 +56,29 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 > приложение без установки SQL Server. Провайдер выбирается в `appsettings.json`
 > через `Database:Provider` (`SqlServer` / `Sqlite` / `InMemory`).
 
+### Требования к LM Studio
+
+**Context Length ≥ 16384** для моделей, используемых агентами (`qwen3-4b`,
+`gemma-4-12b`, ...).
+
+**Почему:** агенты (`mail_agent`, `code_agent`, `file_system_agent`, ...)
+получают большой prompt: `SystemPrompt` + few-shot + tool schemas (7+) +
+история чата. При дефолтном `Context Length = 8192` LM Studio обрезает ответ
+(`finish_reason: "length"`), и агент возвращает частичный ответ.
+
+**Как установить:**
+
+1. В LM Studio открой загруженную модель.
+2. Справа — раздел **Context and Offload**.
+3. **Context Length:** `8192` → **`16384`** (или больше).
+4. Reload модели (`Eject` + `Load Model`).
+
+**Рекомендуется также:**
+
+- **GPU Offload:** выкрутить в максимум (все слои на GPU). Даст 5-10× ускорение
+  обработки prompt.
+- **Evaluation Batch Size:** `2048` → `4096` (если хватает VRAM).
+
 ---
 
 ## Установка

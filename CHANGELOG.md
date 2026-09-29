@@ -19,6 +19,18 @@
 ## [Unreleased]
 
 ### Fixed
+- **Mail Agent — успех: qwen3-4b + Context Length 16384 (v1.8.x, KI-115 → Fixed)**:
+  - **Диагноз (лог LM Studio):** `prompt_tokens: 8145, completion_tokens: 47,
+    finish_reason: "length"` — упор в дефолтный Context Length 8192. Агент
+    физически не мог дописать ответ.
+  - **Fix:**
+    - `SubAgents:mail_agent:Model` → `qwen/qwen3-4b-2507` (после отката gemma).
+    - **LM Studio: Context Length 8192 → 16384** для qwen3-4b.
+  - **Результат:** `prompt_tokens: 10194, completion_tokens: 295, finish_reason: "stop"` —
+    письмо прочитано **полностью** (тело, ключевые моменты, детали).
+  - **KI-115** → **Fixed** (v1.8.x).
+  - **KI-117** (new, Documented): требование к LM Studio — `Context Length ≥ 16384`
+    для агентов. README обновлён (новый раздел «Требования к LM Studio»).
 - **Mail Agent — откат модели на qwen3-4b + KI-116 (v1.8.x)**:
   - **Диагноз:** в KI-115 попытались заменить модель `mail_agent` на
     `gemma-4-12b-coder-fable5-composer2.5-v1` (как у `code_agent`), но

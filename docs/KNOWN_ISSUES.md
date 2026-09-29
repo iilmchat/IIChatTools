@@ -1773,14 +1773,22 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-115 — `mail_agent`: непроактивен — «прочитай письмо» делает только `list_emails`
-- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.8.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.8.x
 - **Обнаружено:** 2026-09-29 (smoke, скриншоты)
 - **Файлы:** `appsettings.json` (`SubAgents:mail_agent:Model`, `SystemPrompt`),
   `IIChatTools.Services/Implementation/Tools/Mail/ListEmailsTool.cs` (план).
-- **Попытка фикса (2026-09-29):** смена модели на `gemma-4-12b` + few-shot промпт.
+- **Попытка фикса 1 (2026-09-29):** смена модели на `gemma-4-12b` + few-shot промпт.
   **Не сработало** — gemma-4-12b-coder-fable5-composer2.5-v1 не поддерживает
-  OpenAI tool calling (см. KI-116). Откатили на qwen3-4b, few-shot промпт оставили.
-  Требуется другой подход — см. ниже.
+  OpenAI tool calling (см. KI-116).
+- **Попытка фикса 2 (2026-09-29, SUCCESS):**
+  - Откат `SubAgents:mail_agent:Model` → `qwen/qwen3-4b-2507`.
+  - **LM Studio: Context Length 8192 → 16384** для qwen3-4b.
+  - **Причина:** лог LM Studio показал `prompt_tokens: 8145`, `completion_tokens: 47`,
+    `finish_reason: "length"` — упор в лимит 8192. Полный prompt агента
+    (SystemPrompt + few-shot + 7 tool schemas + история) = ~10 200 токенов.
+  - **Результат:** `prompt_tokens: 10194, completion_tokens: 295, finish_reason: "stop"` —
+    письмо прочитано полностью.
+- **Требование:** для агентов LM Studio — `Context Length ≥ 16384` (см. KI-117).
 - **Описание:** При задаче «прочитай последнее письмо из INBOX» агент:
   1. Вызывает `list_emails(count=1)` — получает метаданные (uid, from, subject, date).
   2. Останавливается и спрашивает «Хотите, чтобы я прочитал содержимое?» —
@@ -1845,6 +1853,27 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Обновить `appsettings.json` комментарием.
 - **Связанные:** KI-115 (непроактивность — на самом деле была ошибка выбора
   модели), DESIGN v1.4 (Multi-Agent).
+
+---
+
+### KI-117 — LM Studio: Context Length 8192 недостаточно для агентов
+- **Приоритет:** 🟠 High | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-29 (smoke Mail Agent, логи LM Studio)
+- **Файлы:** `README.md` (требования к LM Studio).
+- **Описание:** При дефолтном `Context Length = 8192` в LM Studio агенты
+  (`mail_agent`, `code_agent`, `file_system_agent`, ...) **не работают корректно**:
+  - Полный prompt = SystemPrompt + few-shot + tool schemas (7+) + история + task.
+  - Для `mail_agent` это ~**10 200 токенов**.
+  - LM Studio обрезает ответ (`finish_reason: "length"`, `tool_calls: []`),
+    и SubAgentService возвращает partial text как finalAnswer.
+- **Решение:** **в LM Studio установить Context Length ≥ 16384** для моделей,
+  используемых агентами (`qwen3-4b`, `gemma-4-12b`, ...).
+- **Опционально (для уменьшения промпта):**
+  - Сократить `SystemPrompt` (убрать few-shot примеры).
+  - Сократить `Description` у tool'ов.
+  - Уменьшить `AllowedTools` у агентов (7 → 5).
+  Это вернёт работоспособность на 8192, но потребует доработки.
+- **Связанные:** KI-115 (fixed после 16k), KI-116 (gemma не tool-calling).
 
 ---
 
@@ -1953,14 +1982,15 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
 | Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
 | Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
+| Fixed (v1.8.x) | 1 |                <!-- KI-115 (mail_agent — Context Length 16384) -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
-| Documented | 11 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-116 -->
-| In Progress | 1 |                   <!-- KI-115 (непроактивность mail_agent) -->
+| Documented | 12 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-116, KI-117 -->
+| In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 5 |                       <!-- KI-108, KI-109, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **75** |
+| **Всего** | **76** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
