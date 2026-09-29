@@ -484,5 +484,53 @@ namespace IIChatTools.Tests.IntegrationTests
                 Directory.Delete(tempRoot, recursive: true);
             }
         }
+
+        /// <summary>
+        /// KI-106 (v1.7.1): для citations в <see cref="IngestionRequest.Source"/>
+        /// передаётся путь с ОРИГИНАЛЬНЫМ именем файла
+        /// (<c>chat-attachments/{chatId}/{fileName}</c>), а не GUID-версия
+        /// StoragePath. Проверяем через <c>FakeIngestionService.IngestCalls</c>.
+        /// </summary>
+        [Fact]
+        public async Task UploadAsync_StoresOriginalFileName_InRagDocumentPath()
+        {
+            var (service, db, _, ingestion, tempRoot) = CreateService();
+            try
+            {
+                var chatId = await CreateChatAsync(db, userId: 1);
+
+                var dto = await service.UploadAsync(
+                    chatId, userId: 1,
+                    content: MakeStream("test content"),
+                    fileName: "Договор.txt",
+                    contentType: "text/plain");
+
+                Assert.NotNull(dto);
+                Assert.True(dto.Id > 0);
+
+                // Ingestion вызван ровно один раз.
+                Assert.Single(ingestion.IngestCalls);
+                var call = ingestion.IngestCalls[0];
+
+                // Source = RAG-путь с оригинальным именем (не GUID).
+                Assert.NotNull(call.Source);
+                Assert.Equal($"chat-attachments/{chatId}/Договор.txt", call.Source);
+
+                // Sanity: расширение не удвоилось.
+                Assert.DoesNotContain(".txt.txt", call.Source);
+
+                // FilePath — физический путь с GUID (не меняется, by design).
+                Assert.EndsWith(".txt", call.FilePath ?? string.Empty,
+                    StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("chat-attachments", call.FilePath ?? string.Empty);
+
+                // Source и FilePath — РАЗНЫЕ (Source = читаемое имя, FilePath = GUID).
+                Assert.NotEqual(call.Source, call.FilePath);
+            }
+            finally
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
     }
 }

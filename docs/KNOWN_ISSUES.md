@@ -1519,6 +1519,68 @@
 
 ---
 
+### KI-106 — Оригинальное имя файла в источниках RAG для attachments
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.7.1
+- **Обнаружено:** 2026-09-29 | **Устранено:** 2026-09-29
+- **Файлы:**
+  - `IIChatTools.Services/Implementation/ChatTools/ChatAttachmentService.cs` —
+    helper `BuildRagDocumentPath` + правки в `UploadAsync` / `DeleteAsync`.
+- **Описание:** В UI-блоке «📚 Источники» для приложенных к чату файлов
+  показывалось имя вида `a2a41a0134154822996c08fe750692cf.docx` (GUID)
+  вместо оригинального `Договор.docx`.
+- **Причина:** `ChatAttachmentService.UploadAsync` сохраняет файл на диск
+  как `{guid}.ext` (by design, KI-083 Шаг 6A — защита от коллизий и
+  path-traversal в имени). В `DocumentIngestionService` в `DocumentPath`
+  попадал `Source = "chat-attachments/{chatId}/{guid}.ext"`, а
+  `RagSourceBuilder.BuildLabel` берёт имя файла из `DocumentPath`.
+- **Решение (2026-09-29, v1.7.1):**
+  - Новый helper `ChatAttachmentService.BuildRagDocumentPath(chatId, fileName, subfolder)`
+    → `"chat-attachments/{chatId}/{fileName}"` (с оригинальным именем).
+  - `UploadAsync`: в `IngestionRequest.Source` передаётся **RAG-путь**
+    (оригинальное имя), не `StoragePath` (GUID).
+  - `DeleteAsync`: сначала удаляет по новому пути; если 0 чанков —
+    fallback на `entity.StoragePath` (legacy-записи до v1.7.1).
+  - **Физический файл** на диске — по-прежнему `{guid}.ext` (`StoragePath`
+    не меняется — защита от коллизий сохраняется).
+  - **Старые записи** (до v1.7.1): остаются с GUID в `DocumentPath`.
+    Одноразовая миграция не делается (косметика, оригинал всё равно виден
+    в `ChatAttachment.FileName`). При удалении — сработает fallback.
+- **Связанные:** KI-083 (RAG / attachments), KI-086 (sources / citations).
+
+---
+
+### KI-106 — Оригинальное имя файла в источниках RAG для attachments
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.7.1
+- **Обнаружено:** 2026-09-29 | **Устранено:** 2026-09-29
+- **Файлы:**
+  - `IIChatTools.Services/Implementation/ChatTools/ChatAttachmentService.cs` —
+    helper `BuildRagDocumentPath` + правки `UploadAsync` / `DeleteAsync`.
+  - `IIChatTools.Tests/IntegrationTests/ChatAttachmentServiceTests.cs` — +1 тест.
+- **Описание:** В UI-блоке «📚 Источники» под ответом ассистента для
+  приложенных к чату файлов показывалось `a2a41a01…docx` (GUID) вместо
+  оригинального `Договор.docx`.
+- **Причина:** `ChatAttachmentService.UploadAsync` сохраняет файл на диск
+  как `{guid}.ext` (by design, KI-083 Шаг 6A — защита от коллизий и
+  path-traversal в имени). В `IngestionRequest.Source` передавался
+  `StoragePath` (`chat-attachments/{chatId}/{guid}.ext`), а
+  `RagSourceBuilder.BuildLabel` берёт имя файла из `DocumentPath`.
+- **Решение (2026-09-29, v1.7.1):**
+  - Helper `ChatAttachmentService.BuildRagDocumentPath(chatId, fileName, subfolder)`
+    → `"chat-attachments/{chatId}/{fileName}"` (оригинальное имя).
+  - `UploadAsync`: в `IngestionRequest.Source` — RAG-путь (оригинальное имя),
+    не `StoragePath`.
+  - `DeleteAsync`: сначала удаляет по новому пути; при 0 — fallback на
+    `entity.StoragePath` (legacy-записи до v1.7.1).
+  - **Физический файл** на диске — по-прежнему `{guid}.ext` (без изменений).
+  - **Старые записи** остаются с GUID в `DocumentPath` (миграция — не делаем,
+    косметика).
+- **Известный долг (не блокер):** тест `DeleteAsync_LegacyAttachment_FallsBackToStoragePath`
+  **не добавлен** — нужен `FakeIngestionService.DeleteReturnValues` (per-path).
+  Планируется вместе с следующим KI (минорный).
+- **Связанные:** KI-083 (RAG / attachments), KI-086 (sources / citations).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -1623,14 +1685,14 @@
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
-| Fixed (v1.7.1) | 3 |                <!-- KI-103, KI-104, KI-105 -->
+| Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **64** |
+| **Всего** | **65** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

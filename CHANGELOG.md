@@ -18,7 +18,41 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.7.1] — 2026-09-29
+
+**PDF / DOCX в RAG + локализация `/status` + оригинальное имя в источниках (KI-103, KI-104, KI-105, KI-106).**
+PdfParser (PdfPig 0.1.9) + DocxParser (OpenXml 3.1.0) — RAG расширен с 28 → 30 форматов.
+Fix accept для `<input type="file">` в `/chat` (.pdf, .docx). Fix локализации `/status`
+(4 hardcoded RU). Замена `System.IO.Packaging` 8.0.0 → 10.0.0 (транзитивная уязвимость,
+KI-105). Оригинальное имя в источниках RAG для attachments (KI-106). Тесты: **341 → 375** (+34).
+
 ### Fixed
+- **RAG — оригинальное имя файла в источниках для attachments (v1.7.1, KI-106)**:
+  - **Симптом:** в UI-блоке «📚 Источники» под ответом ассистента для
+    приложенных к чату файлов показывалось `a2a41a01…docx` (GUID) вместо
+    оригинального `Договор.docx`.
+  - **Причина:** `ChatAttachmentService.UploadAsync` сохраняет файл на диск
+    как `{guid}.ext` (by design, KI-083 Шаг 6A), а в `IngestionRequest.Source`
+    передавался `StoragePath` (= `chat-attachments/{chatId}/{guid}.ext`).
+    `RagSourceBuilder.BuildLabel` берёт имя из `DocumentPath` → GUID.
+  - **Fix:**
+    - `ChatAttachmentService` — helper `BuildRagDocumentPath(chatId, fileName, subfolder)`
+      → `"chat-attachments/{chatId}/{fileName}"`.
+    - `UploadAsync`: в `IngestionRequest.Source` передаётся RAG-путь
+      (оригинальное имя), не `StoragePath`.
+    - `DeleteAsync`: сначала удаляет по новому пути; при 0 — fallback на
+      `entity.StoragePath` (для записей до v1.7.1).
+    - **Физический файл** на диске — по-прежнему `{guid}.ext` (без изменений).
+  - **Старые записи** (до v1.7.1) остаются с GUID в `DocumentPath` —
+    одноразовая миграция не делается (косметика).
+  - **Тесты:** +1 (`UploadAsync_StoresOriginalFileName_InRagDocumentPath`).
+    Тест `DeleteAsync_LegacyAttachment_FallsBackToStoragePath` — не добавлен
+    (нужен `FakeIngestionService.DeleteReturnValues`; в следующий KI).
+  - **Связанные:** KI-083, KI-086.
 - **Admin UI — `/status` локализация badge'ей (v1.7.1, KI-103)**:
   - **Симптом:** при переключении языка на EN badge'и БД и зависимостей
     оставались на русском («Онлайн», «Установлено», «Не установлено»).

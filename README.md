@@ -1,10 +1,10 @@
-# IIChatTools v1.7.0
+# IIChatTools v1.7.1
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.7.0
+© 2026 RuChating (iilmchat) · IIChatTools v1.7.1
 
 ---
 
@@ -510,7 +510,7 @@ Chat видит **11 инструментов** (6 агентов + `consult_sec
 
 ### Форматы и лимиты
 
-- **Поддерживаемые форматы (PlainTextParser, 28 расширений):** `.txt`, `.md`, `.csv`,
+- **Поддерживаемые форматы (PlainTextParser 28 + PdfParser + DocxParser = 30 расширений):** `.txt`, `.md`, `.csv`,
   `.tsv`, `.log`, `.json`, `.xml`, `.yaml`, `.yml`, `.html`, `.htm`, `.cs`, `.py`,
   `.js`, `.ts`, `.java`, `.go`, `.rs`, `.sql`, `.sh`, `.ps1`, `.razor`, `.cshtml`,
   `.css`, `.scss`, `.dockerfile`, `.gitignore`, `.editorconfig`.
@@ -765,8 +765,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 docker pull ghcr.io/iilmchat/iichattools:latest
 
 # Конкретный релиз
-docker pull ghcr.io/iilmchat/iichattools:v1.7.0
-docker pull ghcr.io/iilmchat/iichattools:1.7.0
+docker pull ghcr.io/iilmchat/iichattools:v1.7.1
+docker pull ghcr.io/iilmchat/iichattools:1.7.1
 docker pull ghcr.io/iilmchat/iichattools:1.7
 docker pull ghcr.io/iilmchat/iichattools:1
 
@@ -789,7 +789,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 341/341 тестов проходят (unit + integration).
+**Статус**: 375/375 тестов проходят (unit + integration).
 
 ---
 

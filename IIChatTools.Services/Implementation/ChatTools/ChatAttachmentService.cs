@@ -217,6 +217,13 @@ namespace IIChatTools.Services.Implementation.ChatTools
             //     (ChunksCount = 0), файл сохранён, пользователь может повторить.
             try
             {
+                // KI-106 (v1.7.1): для citations используем ОРИГИНАЛЬНОЕ имя
+                // файла, а не GUID. RagSourceBuilder.BuildLabel берёт имя из
+                // DocumentPath, поэтому Source = "chat-attachments/{chatId}/Договор.docx"
+                // даёт правильный label в блоке «Источники».
+                // Физический файл на диске — по-прежнему {guid}.ext (StoragePath).
+                var ragDocumentPath = BuildRagDocumentPath(chatId, fileName, subfolder);
+
                 var ingestResult = await _ingestionService.IngestAsync(new IngestionRequest
                 {
                     IndexName = MyRagDocsIndex,
@@ -224,7 +231,7 @@ namespace IIChatTools.Services.Implementation.ChatTools
                     FilePath = fullPath,
                     ChatId = chatId,
                     UserId = userId,
-                    Source = storagePath   // для citations (KI-086, v1.6.0)
+                    Source = ragDocumentPath   // citations (KI-086 v1.6.0; KI-106 v1.7.1)
                 }, cancellationToken);
 
                 entity.ChunksCount = ingestResult.DocumentChunksCreated;
@@ -283,18 +290,41 @@ namespace IIChatTools.Services.Implementation.ChatTools
 
             try
             {
-                // v1.6.1: используем entity.StoragePath (относительный) —
-                // он совпадает с DocumentChunk.DocumentPath после fix'а
-                // в DocumentIngestionService (Source → DocumentPath).
-                await _ingestionService.DeleteDocumentAsync(
-                    MyRagDocsIndex, entity.StoragePath, chatId: entity.ChatId,
+                // KI-106 (v1.7.1): новые attachments имеют
+                // DocumentPath = "chat-attachments/{chatId}/{fileName}".
+                // Удаляем сначала по нему. Если чанков по нему нет (attachment
+                // создан до KI-106) — fallback на entity.StoragePath (GUID-версия).
+                var subfolder = GetStringConfig(
+                    "Rag:Attachments:StorageSubfolder", DefaultStorageSubfolder);
+                var ragDocumentPath = BuildRagDocumentPath(entity.ChatId, entity.FileName, subfolder);
+
+                var deletedCount = await _ingestionService.DeleteDocumentAsync(
+                    MyRagDocsIndex, ragDocumentPath, chatId: entity.ChatId,
                     cancellationToken: cancellationToken);
+
+                if (deletedCount == 0
+                    && !string.Equals(ragDocumentPath, entity.StoragePath, StringComparison.Ordinal))
+                {
+                    // Fallback для записей, созданных до v1.7.1 (KI-106): тогда
+                    // DocumentPath = StoragePath (GUID-версия).
+                    var fallbackCount = await _ingestionService.DeleteDocumentAsync(
+                        MyRagDocsIndex, entity.StoragePath, chatId: entity.ChatId,
+                        cancellationToken: cancellationToken);
+
+                    if (fallbackCount > 0)
+                    {
+                        _logger.LogInformation(
+                            "Attachment id={Id}: удалены чанки через legacy DocumentPath " +
+                            "(StoragePath={Path}), count={Count}",
+                            entity.Id, entity.StoragePath, fallbackCount);
+                    }
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
-                    "Не удалось удалить чанки для attachment id={Id} (path={Path}). Продолжаем.",
-                    entity.Id, entity.StoragePath);
+                    "Не удалось удалить чанки для attachment id={Id}. Продолжаем.",
+                    entity.Id);
             }
 
             // 2. Удаляем физический файл (best-effort, не падаем).
@@ -407,6 +437,39 @@ namespace IIChatTools.Services.Implementation.ChatTools
         {
             var hashBytes = SHA256.HashData(bytes);
             return Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Строит относительный путь документа для RAG-индекса
+        /// (<c>DocumentChunk.DocumentPath</c>) — с ОРИГИНАЛЬНЫМ именем файла,
+        /// а не GUID.
+        ///
+        /// <para>
+        /// KI-106 (v1.7.1): <c>RagSourceBuilder.BuildLabel</c> извлекает
+        /// имя файла из <c>DocumentPath</c>. Если положить туда
+        /// <c>chat-attachments/{chatId}/{guid}.ext</c> (текущий <c>StoragePath</c>),
+        /// в UI-блоке «Источники» покажется GUID. Поэтому для citations
+        /// используется отдельный путь — <c>chat-attachments/{chatId}/{fileName}</c>.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>StoragePath физического файла не меняется</b> — файл по-прежнему
+        /// хранится как <c>{guid}.ext</c> (by design, KI-083 Шаг 6A — защита
+        /// от коллизий и path-traversal в оригинальном имени).
+        /// </para>
+        /// </summary>
+        /// <param name="chatId">ID чата</param>
+        /// <param name="fileName">Оригинальное имя файла (может содержать путь — отсекается)</param>
+        /// <param name="subfolder">Подпапка в workspace (обычно <c>chat-attachments</c>)</param>
+        /// <returns>Путь вида <c>chat-attachments/{chatId}/{fileName}</c> (с прямыми слэшами)</returns>
+        private static string BuildRagDocumentPath(int chatId, string fileName, string subfolder)
+        {
+            // Path.GetFileName — защита от IE-подобных браузеров, которые
+            // могли передавать C:\path\file.ext в IFormFile.FileName.
+            var safeName = Path.GetFileName(fileName);
+
+            return Path.Combine(subfolder, chatId.ToString(), safeName)
+                .Replace('\\', '/');
         }
 
         /// <summary>Проекция в DTO.</summary>

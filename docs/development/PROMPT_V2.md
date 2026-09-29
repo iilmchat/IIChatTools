@@ -113,6 +113,8 @@ Sources / citations (v1.6.0) — блок «📚 Источники» под о�
 
 Sources / citations для Web-tools (v1.6.1) — `wikipedia_search` / `web_search` / `fetch_web_content` возвращают citations. `WebSourceBuilder` — единый хелпер. Проброс через агентов (`SubAgentTaskResult.Sources`). Дедупликация в `ChatStreamService`: 4-полевой ключ `(Type|DocumentPath|Url|ChunkIndex)` — было багом в v1.6.0 (web/wiki схлопывались в один). Кросс-платформенный fix `DocumentPath` — относительные пути.
 
+**Sources / citations — оригинальное имя для attachments (KI-106, v1.7.1 — Fixed).** `ChatAttachmentService.UploadAsync` для citations передаёт `BuildRagDocumentPath(chatId, fileName, subfolder)` = `"chat-attachments/{chatId}/{fileName}"` (оригинальное имя). Физический файл — по-прежнему `{guid}.ext` (StoragePath). При удалении — fallback на StoragePath для записей до v1.7.1. Старые записи не мигрируются (косметика).
+
 Roadmap
 
 v1.7.0 — Database Agent ✅ Done (2026-09-29)
@@ -310,7 +312,7 @@ SqlServer vs Sqlite — миграции применяются только д�
 - **Сложная вёрстка** (таблицы, multi-column) — текст склеивается. Ограничение всех PDF-экстракторов.
 - **`accept` для `<input type="file">` — хардкод в `Views/Chat/Index.cshtml`.** При добавлении нового парсера (например, `.odt` в v1.8+) — **не забыть** добавить расширение в `accept` вручную. Долгосрочное решение — KI-107 (динамический accept из `IRagDocumentParserRegistry`).
 
-**Sources / citations — GUID-имя файла для attachments (KI-106, v1.8.x).** В блоке «📚 Источники» для приложенных к чату файлов показывается `{guid}.docx` вместо оригинального `Договор.docx`. Причина: `ChatAttachmentService.UploadAsync` сохраняет файл как `{guid}.ext` (by design, KI-083 Шаг 6A), а `RagSourceBuilder.BuildLabel` берёт имя из `DocumentPath` (= GUID). Оригинальное имя живёт в `ChatAttachment.FileName` (в БД), но в `DocumentChunk` его нет. План — KI-106 (~1 ч).
+**Sources / citations — оригинальное имя для attachments (KI-106, v1.7.1 — Fixed).** В `ChatAttachmentService.UploadAsync` для citations используется `BuildRagDocumentPath(chatId, fileName, subfolder)` = `"chat-attachments/{chatId}/{fileName}"` (оригинальное имя). Физический файл — по-прежнему `{guid}.ext` (StoragePath). При удалении — fallback на StoragePath для записей до v1.7.1. Старые записи не мигрируются (косметика).
 
 yield return + scope переменных — объявлять до try-catch, иначе CS0103 (RULES § 4.33).
 
