@@ -1,8 +1,8 @@
 # Архитектура IIChatTools
 
-**Версия:** 1.5.0 (обновлено 2026-09-28)
+**Версия:** 1.7.0 (обновлено 2026-09-29)
 **Статус:** Living document — обновляется при значимых архитектурных изменениях.
-**Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md).
+**Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md), [DESIGN v1.7 (Database Agent)](v1.7/DESIGN_DB_AGENT.md).
 
 ---
 
@@ -10,7 +10,8 @@
 
 **IIChatTools** — серверное приложение на .NET 10 LTS, предоставляющее LLM (через LM Studio)
 широкий набор безопасных инструментов: файловая система, выполнение кода, веб, Git/GitHub,
-браузерная автоматизация, делегирование суб-агентам, **RAG (v1.5)**.
+браузерная автоматизация, делегирование суб-агентам, **RAG (v1.5)**,
+**Database Agent — read-only SQL (v1.7)**.
 
 **Ключевая идея:** LLM работает в **изолированной песочнице** (`Workspace`) и не имеет
 прямого доступа к системе. Все действия — через инструменты с подтверждениями (`Approvals`).
@@ -21,6 +22,8 @@
 - EF Core 10 (SqlServer / Sqlite / InMemory)
 - LM Studio (OpenAI-совместимый API + `/v1/embeddings` в v1.5)
 - PuppeteerSharp 7.1, Prometheus-net, `Microsoft.ML.Tokenizers` (tiktoken)
+- **ADO.NET-провайдеры (v1.7)**: `Microsoft.Data.Sqlite` 10.0.12 +
+  `Microsoft.Data.SqlClient` 6.1.6 — для `SqlConnectionProvider`
 
 ---
 
@@ -37,28 +40,36 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │  IIChatTools.API  (net10.0)                                         │
 │  ├── Controllers: Home, Auth, Tools, Approvals, Admin, AdminAgents, │
-│  │                Status, Chat, ChatStream, ChatView, Models        │
+│  │                AdminKnowledge, AdminSqlAgent (v1.7),             │
+│  │                Status, Chat, ChatStream, ChatView, ChatAttach,   │
+│  │                Profile, ProfileWorkspace, Models                 │
 │  ├── Views (Razor + RU/EN через IStringLocalizer<SharedResources>)  │
 │  ├── ES-модули: api, ui, status, approvals, admin, admin-agents,    │
-│  │              test, chat, profile                                 │
+│  │              admin-knowledge, admin-sql-agent (v1.7),            │
+│  │              test, chat, profile, profile-workspace              │
 │  ├── Program.cs: ConfigureDefaultProxy + миграции + LoadSubAgent    │
-│  └── Startup.cs: DI + 46 инструментов + Chat services               │
+│  │              + LoadSqlAgentOverrides (v1.7)                      │
+│  └── Startup.cs: DI + 50 инструментов + Chat services               │
 └──────────────────────────▲──────────────────────────────────────────┘
                            │ DI
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  IIChatTools.Services  (net10.0)                                    │
-│  ├── ToolRegistry (46 инструментов = 40 raw + 6 агентов)            │
+│  ├── ToolRegistry (50 = 40 raw + 6 агентов + 3 RAG + 1 SqlAgent)    │
 │  ├── SubAgentRegistry (Singleton, v1.4.0)                           │
 │  ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator, │
 │  │         ChatTitleService, ChatRetentionService                   │
 │  ├── RAG (v1.5): EmbeddingService, InMemoryVectorStore,             │
 │  │              DocumentIngestionService, RetrievalService          │
-│  ├── LmStudioClient (SSE + tool calling + ModelOverride + Embed)    │
+│  ├── SqlAgent (v1.7): SqlAgentService, SqlQueryValidator,           │
+│  │              SqlConnectionProvider, SqlAgentOptionsProvider,     │
+│  │              AdminSqlAgentService, AppPathProvider               │
+│  ├── LmStudioClient (Singleton — SSE + tools + ModelOverride)       │
 │  ├── Cross-cutting: Audit, Approval, Workspace, Browser, Token      │
-│  ├── Tools/ (8 групп: FileSystem, CodeExecution, Web, Git, GitHub,  │
-│  │           Browser, SubAgent, Utils)                              │
-│  └── Tools/SubAgent/ (AgentToolBase + 6 наследников)                │
+│  ├── Tools/ (9 групп: FileSystem, CodeExecution, Web, Git, GitHub,  │
+│  │           Browser, SubAgent, SqlAgent, Utils)                    │
+│  ├── Tools/SubAgent/ (AgentToolBase + 6 наследников)                │
+│  └── Tools/SqlAgent/ (DatabaseAgentTool — top-level ITool)          │
 └──────────────────────────▲──────────────────────────────────────────┘
                            │ EF Core 10
                            ▼
@@ -154,12 +165,18 @@ dotnet ef database update --project IIChatTools.Data --startup-project IIChatToo
 | `IChatApprovalCoordinator` | **Singleton** | Связывает SSE-стрим и REST-endpoint в разных HTTP-scope |
 | `IChatStreamService` | **Scoped** | Один запрос — один стрим |
 | `IChatService` | **Scoped** | Через `AppDbContext` |
-| `ILmStudioClient` | **Scoped** | Через `HttpClientFactory` |
+| `ILmStudioClient` | **Singleton** | Stateless + `HttpClientFactory` (с v1.5 — из-за совместимости с `EmbeddingService`) |
 | `IAuditService` | **Scoped** | Через `AppDbContext` |
 | `ITokenCounter` (v1.4.1) | **Singleton** | Тяжёлая инициализация токенизатора |
 | `IEmbeddingService` (v1.5) | **Singleton** | Stateless + кэш |
 | `IVectorStore` (v1.5) | **Singleton** | In-memory индекс (MVP) |
 | `IRetrievalService` (v1.5) | **Scoped** | Тонкая обёртка |
+| `SqlAgentOptionsProvider` (v1.7) | **Singleton** | Baseline + runtime overrides подключений |
+| `ISqlConnectionProvider` (v1.7) | **Singleton** | Stateless фабрика `DbConnection` (кэш connection strings) |
+| `ISqlQueryValidator` (v1.7) | **Singleton** | Stateless валидатор SQL |
+| `ISqlAgentService` (v1.7) | **Scoped** | Оркестратор 4 операций Database Agent |
+| `IAdminSqlAgentService` (v1.7) | **Scoped** | Persist override в `AppSettings` + runtime |
+| `IAppPathProvider` (v1.7) | **Singleton** | `ContentRootPath` (KI-100 — относительный Sqlite-путь) |
 | `IBrowserSessionManager` | **Singleton** | Кэш Puppeteer-сессий per-user |
 | `BackgroundService`s | **Singleton** (HostedService) | AuditRetention, ChatRetention, MetricsRefresh |
 
@@ -187,7 +204,7 @@ dotnet ef database update --project IIChatTools.Data --startup-project IIChatToo
    b. Сохранение user-сообщения (TokensIn = tiktoken, v1.4.1)
    c. yield ChatStreamEvent.Start(userMsgId, chatId, userTokens)
    d. BuildMessagesAsync (history + system prompt + RAG-inject v1.5)
-   e. Формирование tools (10 в v1.5: 6 агентов + consult + 3 RAG)
+   e. Формирование tools (11 в v1.7: 6 агентов + consult + 3 RAG + database_agent)
    f. Multi-turn loop (до 5 итераций):
       - LM Studio ChatStreamAsync (SSE)
       - delta → yield Delta
@@ -232,7 +249,7 @@ WaitForDecisionAsync разбужен → ExecuteAsync инструмента �
 
 ## § 6. Инструменты
 
-### § 6.1. Группы (46 = 40 raw + 6 агентов)
+### § 6.1. Группы (50 = 40 raw + 6 агентов + 3 RAG + 1 SqlAgent)
 
 | Группа | Кол-во | Требуют approval |
 |---|:---:|:---:|
@@ -246,11 +263,14 @@ WaitForDecisionAsync разбужен → ExecuteAsync инструмента �
 | Утилиты | 2 | 0 |
 | **Raw-инструменты** | **40** | **18** |
 | + Агенты (v1.4.0) | +6 | (по агенту) |
-| **Итого (ToolRegistry)** | **46** | — |
+| + RAG (v1.5.0) | +3 | — |
+| + SqlAgent (v1.7.0) | +1 | ✅ |
+| **Итого (ToolRegistry)** | **50** | — |
 
 ### § 6.2. Multi-Agent (v1.4.0)
 
-Chat видит **7 инструментов** (6 агентов + `consult_secondary_agent`):
+Chat видит **11 инструментов** в v1.7.0: 6 агентов + `consult_secondary_agent`
++ 3 RAG-tool + `database_agent` (см. § 6.3 и § 6.4).
 
 | Агент | Инструментов | Модель | Approval |
 |:---|:---:|:---:|:---:|
@@ -267,10 +287,43 @@ Chat видит **7 инструментов** (6 агентов + `consult_seco
 
 ### § 6.3. RAG-инструменты (v1.5.0)
 
-Chat видит **10** инструментов (7 агентов + 3 RAG-tool):
+Chat видит **3 RAG-tool** (в дополнение к агентам и `database_agent`):
 - `search_knowledge_base` — глобальные docs проекта.
 - `search_chat_history` — история чатов пользователя.
 - `search_workspace` — семантический поиск по workspace (opt-in).
+
+Все три — read-only (`RequiresApprovalByDefault = false`).
+
+### § 6.4. SqlAgent (v1.7.0)
+
+Chat видит **1 top-level инструмент** `database_agent` (не наследник
+`AgentToolBase` — DESIGN_DB_AGENT § 4.1):
+
+| Action | Назначение | Approval |
+|:---|:---|:---:|
+| `list_databases` | Список подключений (метаданные) | — |
+| `list_tables` | Whitelist-таблицы + row count | — |
+| `describe_table` | Колонки + типы + пример значения | — |
+| `execute_query` | Read-only SQL (`SELECT`/`WITH`), auto-LIMIT | ✅ |
+
+**5 уровней безопасности** (DESIGN_DB_AGENT § 3.3 и § 6):
+
+1. **Read-only роль в БД** (`Mode=ReadOnly` для Sqlite; `db_datareader` +
+   `DENY INSERT/UPDATE/DELETE` для SqlServer) — самый надёжный барьер.
+2. **`ISqlQueryValidator`** — `SELECT`/`WITH` only, запрет keywords
+   (`INSERT`, `DELETE`, `DROP`, ...), запрет функций (`load_extension`,
+   `readfile`), single-statement.
+3. **Whitelist / blacklist таблиц** — `AllowedTables` / `DeniedTables`
+   в конфиге (Denied перебивает).
+4. **Timeout + Auto-LIMIT** — 15 сек на запрос, ≤ 100 строк по умолчанию.
+5. **Approval + Audit** — per-action approval (KI-101) для `execute_query`;
+   все вызовы — в `AuditLogs` (`admin.sqlagent.connection.*`).
+
+**Управление runtime:** `AdminSqlAgentService` + `/admin → SQL Agent`
+(9-я вкладка). Изменения whitelist / MaxRows / Timeout / Enabled
+сохраняются в `AppSettings` (`SqlAgent.{name}.{field}`) и сразу применяются
+к `SqlAgentOptionsProvider` — без перезапуска. При старте — восстанавливаются
+через `Program.LoadSqlAgentOverrides`.
 
 ---
 
@@ -336,6 +389,30 @@ Chat-модель остаётся `LmStudio:Model`.
 **Решение:** таблица `UserSetting` (ключи `Chat.RetentionDays`, `Chat.DoNotDelete`).
 `ChatRetentionService` читает overrides + исключает `DoNotDelete`.
 
+### ADR-011. `SqlAgentOptionsProvider` — baseline + runtime overrides (v1.7.0)
+**Проблема:** админ должен менять whitelist таблиц для Database Agent
+**без перезапуска** приложения. Также нужно при старте восстанавливать
+сохранённые ранее override'ы.
+**Решение:** Singleton `SqlAgentOptionsProvider`:
+- **baseline** — из `IOptions<SqlAgentOptions>` (appsettings.json);
+- **runtime overrides** — `Dictionary<string, SqlAgentConnectionOptions>`,
+  заполняется через `UpdateConnection` / `UpdateEnabled` / `Reset`;
+- все читатели (`ISqlConnectionProvider`, `ISqlQueryValidator`,
+  `SqlAgentService`) вызывают `Get(name)` **при каждом запросе** (без кэша).
+- Потокобезопасность — `lock` (методы редкие, contention низкий).
+- Persist — в `AppSettings` (`SqlAgent.{name}.{field}` — **отдельными
+  ключами**, не одним JSON'ом, как `SubAgents.*`). Аналогично — `Program.LoadSqlAgentOverrides`.
+
+### ADR-012. Default interface method для per-action approval (v1.7.0)
+**Проблема:** `DatabaseAgentTool` требует approval **только** для `execute_query`
+(метаданные — read-only, approval = лишний клик). Но `RequiresApprovalByDefault`
+в `ChatStreamService` — **свойство всего tool**, не per-call.
+**Решение:** в `ITool` добавлен default-метод
+`RequiresApprovalForCall(JObject args)` с fallback на `RequiresApprovalByDefault`.
+Все 46 существующих инструментов работают без изменений (C# 8+
+default interface method). `DatabaseAgentTool` переопределяет:
+`action == "execute_query"`. См. KI-101, RULES § 4.46.
+
 ---
 
 ## § 9. Ссылки
@@ -344,10 +421,11 @@ Chat-модель остаётся `LmStudio:Model`.
 - [DESIGN v1.3](v1.3/DESIGN.md) — Chat UI
 - [DESIGN v1.4](v1.4/DESIGN.md) — Multi-Agent
 - [DESIGN v1.4 Sidebar/Search](v1.4/DESIGN_SIDEBAR_SEARCH.md) — UX polish
-- [DESIGN v1.5](v1.5/DESIGN.md) — RAG / Knowledge Base (в работе)
+- [DESIGN v1.5](v1.5/DESIGN.md) — RAG / Knowledge Base (✅ Done)
+- [DESIGN v1.7](v1.7/DESIGN_DB_AGENT.md) — Database Agent (✅ Done)
 
 ### Правила и процессы
-- [RULES.md](RULES.md) — правила разработки (v1.4.9)
+- [RULES.md](RULES.md) — правила разработки (v1.4.20)
 - [RELEASES.md](RELEASES.md) — чек-лист релиза
 - [PROMPT_V2.md](PROMPT_V2.md) — стартовый промпт для новых чатов
 
@@ -358,4 +436,4 @@ Chat-модель остаётся `LmStudio:Model`.
 
 ---
 
-**© 2026 RuChating (iilmchat) · IIChatTools v1.5.0**
+**© 2026 RuChating (iilmchat) · IIChatTools v1.7.0**
