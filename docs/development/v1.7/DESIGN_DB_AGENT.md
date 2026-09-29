@@ -129,7 +129,10 @@ IIChatTools.Services/
   │   ├── SqlTableInfoDto.cs                  — { name, rowCount, description? }
   │   ├── SqlColumnInfoDto.cs                 — { name, type, nullable, sampleValue }
   │   ├── SqlQueryRequest.cs                  — { connection, sql, maxRows? }
-  │   └── SqlQueryResultDto.cs                — { columns[], rows[], rowCount, truncated, durationMs }
+  │   ├── SqlQueryResultDto.cs                — { columns[], rows[], rowCount, truncated, durationMs }
+  │   ├── ValidationResult.cs                 — { isValid, error, sanitizedSql, referencedTables, limitAdded }
+  │   ├── SqlAgentOptions.cs                  — bind из appsettings:SqlAgent
+  │   └── SqlAgentConnectionOptions.cs        — подсекция Conn[*]
   │
   ├── Interfaces/
   │   ├── ISqlAgentService.cs                 — оркестратор (list / describe / execute)
@@ -139,9 +142,7 @@ IIChatTools.Services/
   ├── Implementation/SqlAgent/
   │   ├── SqlAgentService.cs                  — Scoped
   │   ├── SqlQueryValidator.cs                — Singleton (stateless)
-  │   ├── SqlConnectionProvider.cs            — Singleton (кэш connection strings)
-  │   ├── SqlAgentOptions.cs                  — bind из appsettings:SqlAgent
-  │   └── SqlAgentConnectionOptions.cs        — подсекция Conn[*]
+  │   └── SqlConnectionProvider.cs            — Singleton (кэш connection strings)
   │
   └── Implementation/Tools/SqlAgent/
     └── DatabaseAgentTool.cs                — прямая реализация ITool
@@ -564,9 +565,9 @@ RCE через load_extension()	DeniedFunctions + readonly mode Sqlite	❌
 1.6	Interfaces/ISqlAgentService.cs (новый)	—
 1.7	Interfaces/ISqlQueryValidator.cs (новый)	—
 1.8	Interfaces/ISqlConnectionProvider.cs (новый)	—
-1.9	Implementation/SqlAgent/ValidationResult.cs (новый)	—
-1.10	Implementation/SqlAgent/SqlAgentOptions.cs (новый)	—
-1.11	Implementation/SqlAgent/SqlAgentConnectionOptions.cs (новый)	—
+| 1.9 | `DTO/SqlAgent/ValidationResult.cs` (новый) | — |
+| 1.10 | `DTO/SqlAgent/SqlAgentOptions.cs` (новый) | — |
+| 1.11 | `DTO/SqlAgent/SqlAgentConnectionOptions.cs` (новый) | — |
 DoD фазы: dotnet build — 0/0. Все DTO/интерфейсы компилируются, но нигде не используются.
 
 § 7.2. Фаза 2 — SqlConnectionProvider + SqlAgentOptions (4 ч)

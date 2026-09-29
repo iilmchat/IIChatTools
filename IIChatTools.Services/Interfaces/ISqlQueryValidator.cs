@@ -1,4 +1,4 @@
-using IIChatTools.Services.Implementation.SqlAgent;
+using IIChatTools.Services.DTO.SqlAgent;
 
 namespace IIChatTools.Services.Interfaces
 {

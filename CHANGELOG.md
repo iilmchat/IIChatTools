@@ -25,12 +25,21 @@
   - **Interfaces (`Interfaces/`)** — 3 файла: `ISqlAgentService` (оркестратор
     list / describe / execute), `ISqlQueryValidator` (валидация SQL),
     `ISqlConnectionProvider` (фабрика `DbConnection`).
-  - **Implementation (`Implementation/SqlAgent/`)** — 3 файла:
-    `ValidationResult` (результат валидации), `SqlAgentOptions`
-    (bind из `appsettings:SqlAgent`), `SqlAgentConnectionOptions`
-    (подсекция `Connections[*]`).
-  - **DoD Фазы 1:** `dotnet build` 0/0. Все типы компилируются, но
-    пока нигде не используются. Реализация — Фазы 2-6.
+  - **DTO (`DTO/SqlAgent/`)** — расширено: +3 файла `ValidationResult`
+    (результат валидации), `SqlAgentOptions` (bind из `appsettings:SqlAgent`),
+    `SqlAgentConnectionOptions` (подсекция `Connections[*]`).
+    <br/>**Почему DTO, а не Implementation:** `SqlAgentConnectionOptions`
+    используется в сигнатуре `ISqlQueryValidator.Validate(...)`, значит
+    является частью **контракта**. `Implementation → Interfaces` — да,
+    `Interfaces → Implementation` — **нет** (нарушение слоистости).
+    Аналогично `ISubAgentRegistry` → `DTO/SubAgent/SubAgentDescriptor`
+    и `IChunkingStrategy` → `ChunkingOptions`.
+  - **DoD Фазы 1:** `dotnet build` 0/0, `dotnet test` 241/241.
+    Все типы компилируются, но пока нигде не используются.
+    Реализация — Фазы 2-6.
+  - **Правка DESIGN_DB_AGENT § 4.1 и § 7.1:** 3 типа перенесены
+    из `Implementation/SqlAgent/` в `DTO/SqlAgent/` (фикс слоистости
+    до первого использования).
 
 ### Changed
 - **Docs — PROMPT_V2.md v2.4 → v2.5 (post-release v1.6.1)**:

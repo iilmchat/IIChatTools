@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace IIChatTools.Services.Implementation.SqlAgent
+namespace IIChatTools.Services.DTO.SqlAgent
 {
     /// <summary>
     /// Опции одного подключения БД
