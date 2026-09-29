@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.19
+**Версия:** 1.4.20
 **Обновлено:** 2026-09-29
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -162,29 +162,37 @@
 
 См. [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — полный реестр.
 
-**Краткая выжимка Open/Deferred (после релиза v1.5.0):**
+**Краткая выжимка Open/Deferred/Documented (после релиза v1.7.0):**
 
 | KI | Приоритет | Статус | Суть | План |
 |----|-----------|--------|------|------|
-| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.5.x |
-| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.5.x+ |
-| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.5.x+ |
-| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.5.x |
+| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.7.x |
+| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.7.x+ |
+| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.7.x+ |
+| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.7.x |
+| KI-070 | 🟢 | Documented | Sqlite stale DB / `EnsureCreated` не мигрирует | v1.7.x |
 | KI-077 | 🟢 | Documented | `model: null` при PUT агента = «сброс» | — |
-| KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.6.0+ |
-| KI-083 | 🟡 | **Fixed (v1.5.0)** | RAG / Knowledge Base (фазы 0-8 закрыты) | ✅ |
+| KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.8.0+ |
 | KI-085 | 🟢 | Documented | SQLite `database is locked` (внешний клиент) | — |
-| KI-086 | 🟢 | **Fixed (v1.6.0)** | Sources / citations под ответом ассистента | ✅ |
-| KI-086 | 🟢 | Deferred | Sources / citations под ответом | v1.6.0 |
-| KI-088 | 🟡 | Planned | `docs/TESTING.md` (чек-лист ручной приёмки) | v1.5.0 |
 | KI-090 | 🟢 | Documented | SqlServer-migrations snapshot drift | — |
-| KI-091 | 🟡 | Deferred | SqlServer цепочка миграций повреждена | v1.5.0-rc |
+| KI-091 | 🟡 | Deferred | SqlServer цепочка миграций повреждена | **v1.7.x (обязательно перед prod-SqlServer)** |
 | KI-092 | 🟢 | Documented | Bootstrap 5.2 `aria-hidden` warning | — |
 | KI-093 | 🟢 | Documented | SQLite locked (дубликат KI-085, оставлен для истории) | — |
+| KI-094 | 🟢 | Documented | `wikipedia_search` intermittent timeout (SSL через прокси) | v1.7.x |
+| KI-095 | 🟢 | Documented | snippet `fetch_web_content` дублирует label | — |
+| KI-096 | 🟢 | Deferred | GitHub Wiki для проекта | v1.8.0+ |
+| KI-099 | 🟢 | Deferred | Внешние БД (Postgres / MySQL) для Database Agent | v1.8.0 |
+| KI-103 | 🟡 | Documented | `/status` — hardcoded RU в `status.js` | v1.7.x |
 
-**Всего в реестре:** 62+ KI. **Fixed/Resolved:** 56+ (v1.0.x–v1.5.0). **Deferred:** 5. **Documented:** 6.
+**Fixed в v1.7.0:** KI-097 (Database Agent), KI-098 (Admin UI whitelist), KI-101 (per-action approval), KI-102 (Admin UI локализация).
 
-> KI-068 (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
+**Implemented в v1.7.0:** KI-088 (`docs/TESTING.md`).
+
+**Всего в реестре:** 62+ KI. **Fixed/Resolved:** 60+ (v1.0.x–v1.7.0). **Deferred:** 5. **Documented:** 9.
+
+> **KI-068** (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
+>
+> **KI-097** (Database Agent) прошёл 8 фаз (0-7) + 3 fix-фазы (5.5, 6E, 7C). См. [`docs/development/v1.7/DESIGN_DB_AGENT.md`](v1.7/DESIGN_DB_AGENT.md).
 
 ---
 
@@ -217,6 +225,7 @@
 | 2026-09-28 | 1.4.17 | § 7 — актуализация KI-выжимки после релиза v1.5.0 (KI-083 → Fixed, KI-091 → Deferred v1.5.0-rc, KI-092/093 Documented). **Релиз v1.5.0.** |
 | 2026-09-28 | 1.4.18 | Правила 4.44 (новый top-level `ITool` → `allowedNames` Chat), 4.45 (`Path.GetFileName` — кросс-платформенные грабли; Linux не распознаёт `\`). § 7 — KI-086 → Fixed (v1.6.0). **В работе v1.6.0 (Sources).** |
 | 2026-09-29 | 1.4.19 | Правило 4.46 (default interface method не виден через конкретный тип — CS1061). **KI-101 Фаза 5.5** — per-action approval (`ITool.RequiresApprovalForCall`). |
+| 2026-09-29 | 1.4.20 | § 7 — актуализация KI-выжимки после релиза **v1.7.0** (Database Agent). **Fixed в v1.7.0:** KI-097, KI-098, KI-101, KI-102. **Implemented:** KI-088 (TESTING.md). **Documented:** +KI-094, KI-095, KI-103. |
 
 ---
 
