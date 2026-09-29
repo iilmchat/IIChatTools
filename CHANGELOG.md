@@ -109,6 +109,25 @@
   - **DoD:** `dotnet test` — 409 → **420/420**.
   - **Отложено:** сохранение вложений при `read_email` (требует переделки `IMailClient` —
     Фаза 5+).
+- **Mail Agent — Фаза 5 (v1.8.0, KI-107)**: агент `mail_agent` в Chat.
+  - `Implementation/Tools/SubAgent/MailAgentTool.cs` — наследник `AgentToolBase`
+    (по образцу 6 других агентов). `Name = AgentName = "mail_agent"`.
+    `RequiresApprovalByDefault` резолвится из дескриптора
+    (`SubAgents:mail_agent:RequiresApproval = true`).
+  - `Startup.cs` — 1 строка в `RegisterSpecializedAgentTools`:
+    `services.AddScoped<ITool, MailAgentTool>()`.
+  - `appsettings.json` + `.Development.json` — секция `SubAgents:mail_agent`
+    (`Enabled: true`, `Model: qwen3-4b`, `MaxSteps: 10`, `RequiresApproval: true`,
+    `AllowedTools: [7 mail-tools]`, system prompt про «никогда не отправляй без просьбы»).
+  - **ChatStreamService — НЕ требует правок:** `mail_agent` — наследник
+    `AgentToolBase`, попадает в `allowedNames` через
+    `SubAgentRegistry.GetEnabled()` (как 6 других агентов). RULES § 4.44
+    здесь не применим (в отличие от `database_agent` — он не наследник).
+  - **Chat видит 12 инструментов** (было 11): 6 агентов + consult + 3 RAG +
+    `database_agent` + `mail_agent`.
+  - **Тесты:** без unit (3 override'а — нечего тестировать). Smoke —
+    через `/api/tools` + Chat UI.
+  - **DoD:** `dotnet build` 0/0. `dotnet test` — 424/424 (без изменений).
 
 ---
 

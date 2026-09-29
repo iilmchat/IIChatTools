@@ -688,6 +688,13 @@ namespace IIChatTools.API
             services.AddScoped<ITool, GitAgentTool>();
             services.AddScoped<ITool, GitHubAgentTool>();
             services.AddScoped<ITool, PlannerAgentTool>();
+
+            // v1.8.0 (KI-107, Фаза 5): почтовый агент (mail_agent).
+            // Регистрируется безусловно (как 6 других агентов); видимость в Chat
+            // управляется через SubAgents:mail_agent:Enabled.
+            // Внутренние mail-tools регистрируются отдельно (RegisterMailTools)
+            // только при Mail:Enabled = true.
+            services.AddScoped<ITool, MailAgentTool>();
         }
 
         /// <summary>

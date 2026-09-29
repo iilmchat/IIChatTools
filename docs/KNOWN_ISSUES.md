@@ -1584,9 +1584,15 @@
 ### KI-107 — Mail Agent (IMAP/SMTP, MailKit)
 - **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.8.0
 - **Прогресс:** Фаза 1 ✅, Фаза 2 ✅, Фаза 3A ✅ (3 tools), Фаза 3B ✅ (4 tools),
-  **Фаза 4 ✅** (MailAttachmentService + InMemoryMailRateLimiter + интеграция в SendEmailTool,
-  +11 тестов; сохранение вложений при `read_email` отложено — требует переделки `IMailClient`).
-  Далее — **Фаза 5** (`mail_agent` в SubAgents + `allowedNames` Chat), **Фаза 6** (релиз v1.8.0).
+  Фаза 4 ✅ (MailAttachmentService + InMemoryMailRateLimiter + интеграция в SendEmailTool,
+  +11 тестов), **Фаза 5 ✅** (`mail_agent` в SubAgents — Chat видит **12 инструментов**).
+  Далее — **Фаза 6** (релиз v1.8.0: README, TESTING.md, bump version, tag, GitHub Release).
+- **Отложено (не блокер v1.8.0):**
+  - Сохранение вложений при `read_email` — требует переделки `IMailClient`
+    (добавить `DownloadAttachmentAsync` или передать `IServiceScopeFactory`
+    в `MailKitClient`). Зафиксировано в CHANGELOG.
+  - Прикрепление вложений к `send_email` — `ResolveForSendAsync` готов,
+    но интеграция в `SendEmailTool` (прикрепление к `MimeMessage`) — v1.8.x.
 - **Обнаружено:** 2026-09-29
 - **DESIGN:** [`docs/development/v1.8/DESIGN_MAIL_AGENT.md`](development/v1.8/DESIGN_MAIL_AGENT.md)
 - **Описание:** LLM не имеет доступа к почте. Нет инструментов для IMAP/SMTP.
