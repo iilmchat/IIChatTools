@@ -216,6 +216,20 @@
     `CreateConnectionAsync(connection, cancellationToken: cancellationToken)`.
     RULES § 4.34 — уточнён: «изменение сигнатуры метода → grep по вызовам,
     не только по реализациям» (случай б).
+- **Database Agent — Фаза 6B: AdminSqlAgentController (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.6)**:
+  - **`AdminSqlAgentController`** (`IIChatTools.API/Controllers/`) — 4 endpoint'а:
+    <list type="bullet">
+      <item><description><c>GET /api/admin/sql-agent/connections</c> — список подключений;</description></item>
+      <item><description><c>PUT /api/admin/sql-agent/connections/{name}</c> — обновить override-настройки;</description></item>
+      <item><description><c>POST /api/admin/sql-agent/connections/{name}/test</c> — SELECT 1 (работает и для Enabled=false);</description></item>
+      <item><description><c>POST /api/admin/sql-agent/connections/{name}/reset</c> — сбросить к baseline.</description></item>
+    </list>
+  - Формат ответа `{ success, data }` / `{ success: false, message }` (RULES § 1.6).
+  - `[Authorize(Policy = "AdminOnly")]` — только администраторы.
+  - `IStringLocalizer<SharedResources>` — общие сообщения (ошибки сервера).
+  - Аудит действий — внутри `AdminSqlAgentService` (не дублируется).
+  - **DoD Фазы 6B:** все 4 endpoint'а доступны администратору,
+    изменения whitelist применяются в runtime без рестарта.
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,
