@@ -9,6 +9,7 @@ using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): EmbeddingService
 using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): SqlAgentOptions
+using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
@@ -16,6 +17,7 @@ using IIChatTools.Services.Implementation.Tools.FileSystem;
 using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
+using IIChatTools.Services.Implementation.Mail;           // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.Implementation.Tools.Rag;
 using IIChatTools.Services.Implementation.Tools.SqlAgent;   // v1.7.0 (KI-097): DatabaseAgentTool
 using IIChatTools.Services.Implementation.Tools.SubAgent;
@@ -427,6 +429,18 @@ namespace IIChatTools.API
             // v1.7.0 (KI-097, Фаза 6A): admin-сервис для управления подключениями
             // (persist override'ов в AppSettings + runtime-применение).
             services.AddScoped<IAdminSqlAgentService, AdminSqlAgentService>();
+
+            // ============ Mail Agent (v1.8.0, KI-107, Фаза 2) ============
+            // Baseline-конфиг из appsettings:Mail. Credentials (Username / Password) —
+            // только через User Secrets / env (не в appsettings.json).
+            // IMailAccountProvider — Singleton (v1.8.0 — Global; v1.8.x — PerUser, KI-108).
+            // IMailClient — Singleton (per-call connect → operation → disconnect;
+            //   IMAP-пул с TTL отложен — KI-107-more).
+            // Tools (send_email и др.) регистрируются в Фазе 3 при Mail:Enabled = true.
+            services.Configure<MailOptions>(Configuration.GetSection("Mail"));
+            services.Configure<MailRateLimitOptions>(Configuration.GetSection("Mail:RateLimit"));
+            services.AddSingleton<IMailAccountProvider, GlobalMailAccountProvider>();
+            services.AddSingleton<IMailClient, MailKitClient>();
 
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());

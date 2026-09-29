@@ -1583,6 +1583,8 @@
 
 ### KI-107 — Mail Agent (IMAP/SMTP, MailKit)
 - **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.8.0
+- **Прогресс:** Фаза 1 ✅ (DTO + интерфейсы), **Фаза 2 ✅** (MailKitClient + GlobalMailAccountProvider).
+  Далее — Фаза 3 (7 tools), Фаза 4 (attachments + rate limiter), Фаза 5 (`mail_agent`), Фаза 6 (релиз).
 - **Обнаружено:** 2026-09-29
 - **DESIGN:** [`docs/development/v1.8/DESIGN_MAIL_AGENT.md`](development/v1.8/DESIGN_MAIL_AGENT.md)
 - **Описание:** LLM не имеет доступа к почте. Нет инструментов для IMAP/SMTP.

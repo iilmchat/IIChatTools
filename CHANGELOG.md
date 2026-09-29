@@ -50,6 +50,20 @@
   - `Interfaces/` — 4 файла: `IMailClient`, `IMailAccountProvider`,
     `IMailAttachmentService`, `IMailRateLimiter`.
   - **DoD:** `dotnet build` 0/0. Все типы компилируются, но пока не используются.
+- **Mail Agent — Фаза 2 (v1.8.0, KI-107)**: MailKitClient + GlobalMailAccountProvider.
+  - `Implementation/Mail/GlobalMailAccountProvider.cs` — Singleton, читает `IOptions<MailOptions>`,
+    возвращает `MailAccountCredentials`. Fail-fast при `Enabled=false` / пустых Host / отсутствии creds.
+  - `Implementation/Mail/MailKitClient.cs` — Singleton, `IDisposable`. Реализация
+    `IMailClient`: 8 методов (list/read/search/send/delete/move/mark/test).
+    Per-call connect → operation → disconnect. IMAP-пул с TTL — отложен (KI-107-more).
+    Privacy: в логах — только метаданные (uid, count, bytes). Вложения — Фаза 4.
+  - `Startup.cs` — DI: `Configure<MailOptions>` + `Configure<MailRateLimitOptions>` +
+    `AddSingleton<IMailAccountProvider, GlobalMailAccountProvider>` +
+    `AddSingleton<IMailClient, MailKitClient>`.
+  - `appsettings.json` / `.Development.json` — секция `Mail` (`Enabled=false` по умолчанию,
+    dev — placeholder `CHANGE_ME_VIA_USER_SECRETS` для creds).
+  - **Тесты:** +3 smoke (`MailKitClientSmokeTests`).
+  - **DoD:** `dotnet build` 0/0. `dotnet test` — 375 → **378/378**.
 
 ---
 
