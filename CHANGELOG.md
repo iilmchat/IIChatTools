@@ -269,6 +269,23 @@
     camelCase) + локальный `paneLabels()` в `admin-agents.js`.
   - **DoD Фазы 6E:** при переключении RU/EN весь UI `/admin` переводится
     (users / settings / whitelist / agents / SQL Agent).
+- **Database Agent — Фаза 7A+7B: тесты admin-слоя (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.7)**:
+  - **`AdminSqlAgentServiceTests`** (**13 тестов**):
+    `GetAllConnectionsAsync` (2), `UpdateConnectionAsync` — валидация (4),
+    persist в AppSettings (2), runtime-применение (1), аудит (1),
+    `TestConnectionAsync` (3), `ResetConnectionAsync` (3).
+    Fake `IAppSettingsService` (in-memory CRUD) + `Mock<IAuditService>` +
+    реальный `SqlAgentOptionsProvider` + `SqliteConnection(":memory:")`.
+  - **`AdminSqlAgentControllerTests`** (**7 тестов**):
+    `GetConnectionsAsync` (1), `UpdateConnectionAsync` (3 — valid / null / ArgumentException),
+    `TestConnectionAsync` (1), `ResetConnectionAsync` (2 — valid / throw).
+    Fake `IAdminSqlAgentService` + `FakeStringLocalizer` (IStringLocalizer<T>).
+    Прямой вызов контроллера (без `WebApplicationFactory`) — консистентно
+    с `AdminKnowledgeControllerTests`.
+  - **DoD Фазы 7A+7B:** все admin-endpoints Database Agent покрыты unit-тестами.
+    Всего: **312 → 332**.
+  - **KI-103** (Documented, план — v1.7.x): на `/status` часть UI — hardcoded RU
+    в `status.js` (не входит в 6E — там только `/admin`).
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,

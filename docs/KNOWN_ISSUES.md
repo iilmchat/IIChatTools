@@ -1357,6 +1357,37 @@
 
 ---
 
+### KI-103 — Страница `/status`: hardcoded RU-строки в `status.js`
+- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.7.x
+- **Обнаружено:** 2026-09-29 (при проверке локализации Фазы 6E)
+- **Файлы:** `IIChatTools.API/wwwroot/js/modules/status.js`,
+  `IIChatTools.API/Views/Home/Status.cshtml` (если нужны `data-label-*`).
+- **Описание:** На странице `/status` (Server Health) при переключении
+  языка на EN часть UI остаётся на русском:
+  - Заголовки карточек «Внешние зависимости», «Подключение к БД»;
+  - Badge «Установлено» / «Не установлено» в списке зависимостей;
+  - «Онлайн» в блоке БД;
+  - «Ожидают подтверждения: N»;
+  - Заголовки колонок таблицы «Последние действия»: «Пользователь»,
+    «Инструмент», «Статус», «Длительность», «Дата».
+
+  Причина — hardcoded RU-строки в `status.js`
+  (нарушение RULES § 1.14 / § 4.17). Не входит в Фазу 6E — она касалась
+  только `/admin`.
+
+- **Решение (план, v1.7.x):**
+  - Добавить `data-label-*` на `Views/Home/Status.cshtml`:
+    `data-label-deps`, `data-label-db`, `data-label-installed`,
+    `data-label-not-installed`, `data-label-online`, `data-label-pending`,
+    `data-label-recent-actions`, `data-label-col-user`, `data-label-col-tool`,
+    `data-label-col-status`, `data-label-col-duration`, `data-label-col-date`.
+  - В `status.js` — читать эти атрибуты в `render(s)`.
+  - Добавить ~12 ключей в оба `.resx`.
+  - **Оценка:** ~1 час.
+- **Связанные:** KI-102 (аналогичная проблема в `/admin` — Fixed).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
