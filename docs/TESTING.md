@@ -1,15 +1,15 @@
 # TESTING.md — Чек-лист ручной приёмки IIChatTools
 
-**Версия:** 1.7.0
+**Версия:** 1.7.1
 **Обновлено:** 2026-09-29
-**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0).
+**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0), KI-103 (локализация `/status` — v1.7.1), KI-104 (PDF/DOCX парсеры — v1.7.1).
 **Связанные DESIGN:** [v1.3](development/v1.3/DESIGN.md) (Chat UI), [v1.4](development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](development/v1.5/DESIGN.md) (RAG), [v1.7](development/v1.7/DESIGN_DB_AGENT.md) (Database Agent).
 
 ---
 
 ## § 1. Как пользоваться
 
-Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **341/341**) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end, Database Agent с реальной БД.
+Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **374/374**) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end, Database Agent с реальной БД.
 
 Каждый сценарий — таблица:
 
@@ -27,7 +27,7 @@
 
 ---
 
-## § 2. Smoke-сценарии v1.7.0 (16 шт, ~20 мин)
+## § 2. Smoke-сценарии v1.7.1 (18 шт, ~22 мин)
 
 | # | Действие | Ожидание | Статус | Комментарий |
 |:---:|---|---|:---:|---|
@@ -47,8 +47,10 @@
 | 14 | `/admin → SQL Agent` → «Проверить» | Toast «Подключение OK (N мс)». | | |
 | 15 | В `/chat`: «Сколько чатов у меня в базе?» | **1 модалка approval** с параметрами `{"action": "execute_query", "sql": "SELECT COUNT(*) FROM Chats"}`. Approve → SSE `tool_result` → ответ с числом. | | |
 | 16 | В `/chat`: «Покажи все данные из таблицы AspNetUsers» | LLM вызывает `database_agent(action=execute_query)` → approval → отказ валидатора «Таблицы запрещены: AspNetUsers». | | |
+| 17 | Новый чат → 📎 → приложить `.pdf` с текстовым слоем (договор/счёт) → задать вопрос по содержимому | В диалоге выбора файлов PDF **виден** (фильтр `accept`). Чип `📄 <имя>.pdf · N чанков`, `RAG: N чанков` (N > 0). Ответ — с опорой на текст PDF. | | |
+| 18 | Новый чат → 📎 → приложить `.docx` → задать вопрос по содержимому | В диалоге выбора файлов DOCX **виден**. Чип `📄 <имя>.docx · N чанков`. Ответ — с опорой на текст DOCX. | | |
 
-> **Если smoke (16/16 OK) — релиз можно публиковать.**
+> **Если smoke (18/18 OK) — релиз можно публиковать.**
 
 ---
 
@@ -85,6 +87,10 @@
 | 3.2.10 | Workspace Index → Reindex | Прогресс сбросился, растёт заново. | | |
 | 3.2.11 | Workspace Index → Disable → confirm | Статус «Отключён», ChunkCount = 0. | | |
 | 3.2.12 | Новый чат → «Что у нас в RULES про `yield return`?» | LLM вызывает `search_knowledge_base`. Под ответом — блок «📚 Источники» с 3-5 элементами. В DevTools → Network → `stream` → Response: `event: done` содержит `"sources":[...]`. | | |
+| 3.2.13 | Приложить `.pdf` с текстовым слоем (договор/счёт) → задать вопрос по содержимому | Чанки из PDF созданы (N > 0). Ответ — с опорой на текст. В DevTools → `/admin → База знаний → my_rag_docs` видны чанки с `DocumentPath` вида `chat-attachments/{chatId}/{guid}.pdf`. | | |
+| 3.2.14 | Приложить `.docx` (сгенерированный в Word) → задать вопрос | Чанки из DOCX созданы. Ответ — с опорой на текст. | | |
+| 3.2.15 | Приложить `.doc` (старый формат Word) | Красный toast «Формат ".doc" не поддерживается» (OpenXml работает только с `.docx`). Вложение **не** создано. | | |
+| 3.2.16 | Приложить битый/шифрованный `.pdf` | Красный toast с сообщением об ошибке парсинга. Вложение **не** создано (нет чипа). В БД `DocumentChunks` — 0 записей. | | |
 
 ### § 3.3. Multi-Agent / Admin
 
@@ -142,7 +148,7 @@
 
 ## § 5. Что НЕ покрыто автотестами (проверять **вручную**!)
 
-**Автотесты** (341/341) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов, **SqlAgent** (валидатор, connection provider, admin service + controller, integration через real Sqlite).
+**Автотесты** (374/374) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов, **SqlAgent** (валидатор, connection provider, admin service + controller, integration через real Sqlite), **PDF/DOCX-парсеры** (`PdfParser`, `DocxParser`).
 
 **НЕ покрыто** — критично для ручной приёмки:
 
@@ -154,7 +160,7 @@
 | 5.4 | Индексация workspace пользователя (файловая система) | Требует реальных файлов | Smoke 8 |
 | 5.5 | RAG с реальными embeddings (LM Studio `/v1/embeddings`) | HTTP-моки в тестах | Smoke 4, 5 |
 | 5.6 | Работа с SqlServer (prod) | Не разворачивается в v1.5.0 — KI-091 | Не применимо |
-| 5.7 | PDF / DOCX (не в MVP) | Не реализовано | Не применимо |
+| 5.7 | PDF / DOCX — реальное извлечение текста (PdfPig / OpenXml) | В тестах DOCX генерируется самим OpenXml SDK; реальный PDF-контент не проверяется (PdfPig read-only) | Smoke 17, 18; 3.2.13–3.2.14 |
 | 5.8 | Retention чатов (auto-cleanup) | `Chat:Retention:Enabled = false` в dev по умолчанию | Включить `true` + `CleanupIntervalHours = 1` + подождать 2 мин (см. README) |
 | 5.9 | Rate limiting (429 / 303 redirect) | Требует >100 запросов | Нагрузочный тест через `curl` loop |
 | 5.10 | Docker-образ `ghcr.io/iilmchat/iichattools:v1.7.0` | Требует сборки после тега | После push тега `v1.7.0` |
@@ -181,3 +187,4 @@
 | 2026-09-28 | 1.5.0 | Создан (KI-088, Шаг 8.6). Smoke (10), Full regression (35), UI/UX (9), «Не покрыто» (10). |
 | 2026-09-28 | 1.6.0 | Smoke +1 (Sources/citations, #11). |
 | 2026-09-29 | 1.7.0 | Фаза 7D: Smoke +5 (Database Agent, #12–16), § 3.5 (Database Agent, 7 сценариев), § 4 +2 (локализация admin, KI-102), § 5 +2 (5.11, 5.12). Автотесты 199 → 341. |
+| 2026-09-29 | 1.7.1 | KI-103 (локализация `/status`) + KI-104 (PDF/DOCX-парсеры). Smoke +2 (#17, #18), § 3.2 +4 (3.2.13–3.2.16). § 5.7 переведён из «не в MVP» в «требует реального файла». Автотесты 341 → 374. |
