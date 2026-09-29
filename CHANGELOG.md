@@ -19,6 +19,16 @@
 ## [Unreleased]
 
 ### Fixed
+- **KI-116 — `code_agent` и `planner_agent` тоже откачены на qwen3-4b (v1.8.x)**:
+  - **Подтверждение gemma не tool-calling:** логи LM Studio для `planner_agent`
+    показали `"tool_calls": []` при правильном `reasoning_content` с
+    запланированными `save_memory(...)`. `save_memory` **не вызывался**.
+  - **Fix:** `SubAgents:code_agent:Model` и `SubAgents:planner_agent:Model`
+    → `qwen/qwen3-4b-2507`.
+  - **KI-116** → **Fixed** (v1.8.x).
+- **KI-118 — Chat LLM не вызывает `code_agent` для простых задач (new, Documented)**:
+  - Запрос «Через Python посчитай 2+2» → Chat LLM вывела код, но **не
+    вызвала `code_agent`**. Требует усиления Description.
 - **Mail Agent — успех: qwen3-4b + Context Length 16384 (v1.8.x, KI-115 → Fixed)**:
   - **Диагноз (лог LM Studio):** `prompt_tokens: 8145, completion_tokens: 47,
     finish_reason: "length"` — упор в дефолтный Context Length 8192. Агент

@@ -1837,12 +1837,14 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
   В `reasoning_content` модель **правильно планирует** цепочку tool-вызовов,
   но **не вызывает их** через API.
-- **Влияние:**
-  - `mail_agent` (до отката) — не работает. Агент получает пустой `tool_calls`,
-    SubAgentService возвращает текст `"list_emails(...)"` как finalAnswer.
-  - `code_agent` (сейчас на gemma) — **вероятно, тоже не работает**
-    через tool calling. Требует проверки.
-  - `planner_agent` (сейчас на gemma) — то же, требует проверки.
+- **Подтверждено (2026-09-29, smoke):**
+  - ✅ **`mail_agent`** — не работает (проверено ранее, откачен на qwen3-4b).
+  - ✅ **`planner_agent`** — не работает (лог LM Studio: `reasoning_content`
+    правильно планирует `save_memory(...)`, но `tool_calls: []`,
+    `save_memory` НЕ вызывается).
+  - ⚠️ **`code_agent`** — не запускался Chat LLM (см. KI-118), статус не проверен.
+- **Fix (2026-09-29):**
+  - `mail_agent`, `code_agent`, `planner_agent` → `qwen/qwen3-4b-2507`.
 - **Решение (принято):** использовать **tool-calling-совместимые модели**:
   - ✅ `qwen/qwen3-4b-2507` (текущий дефолт, умеет tool calling).
   - ⚠️ Другие модели — **проверять через LM Studio Developer Logs**
@@ -1874,6 +1876,31 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Уменьшить `AllowedTools` у агентов (7 → 5).
   Это вернёт работоспособность на 8192, но потребует доработки.
 - **Связанные:** KI-115 (fixed после 16k), KI-116 (gemma не tool-calling).
+
+---
+
+### KI-118 — Chat LLM не вызывает `code_agent` для простых задач
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-09-29 (smoke)
+- **Файлы:** `appsettings.json` (`SubAgents:code_agent:Description`).
+- **Описание:** Запрос «Через Python посчитай 2+2 и покажи результат» —
+  Chat LLM (qwen3-4b) **не вызвала** `code_agent`, а просто вывела код в
+  markdown-блоке:
+  ```python
+  result = 2 + 2
+  result
+  ```
+  Это не выполнение — просто текст. Пользователь получил бы «2+2»,
+  но не результат 4.
+- **Причина:**  Chat LLM решает, что простая математика не требует
+  инструмента — отвечает сама. Description у code_agent недостаточно
+  явно требует вызова для расчётов.
+- **Возможное решение:**
+  Усилить Description code_agent: «ВСЕГДА используй этот агент для
+  математических вычислений, даже простых. НЕ отвечай кодом напрямую.»
+- **Или:** в DefaultSystemPrompt Chat добавить «для расчётов — code_agent».
+- **Не блокер.**  Не митигировано в v1.8.x — оставлено для дальнейшего.
+- **Связанные:** KI-116 (gemma не tool-calling).
 
 ---
 
@@ -1982,15 +2009,15 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
 | Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
 | Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
-| Fixed (v1.8.x) | 1 |                <!-- KI-115 (mail_agent — Context Length 16384) -->
-| Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
-| Documented | 12 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-116, KI-117 -->
+| Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
+| Deferred  | 4 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
+| Documented | 12 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 5 |                       <!-- KI-108, KI-109, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **76** |
+| **Всего** | **77** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
