@@ -931,12 +931,6 @@ logs/audit/*.jsonl (JSONL, ротация)
 
 ### Образы в ghcr.io
 
-```bash
-# Последняя версия из main
-docker pull ghcr.io/iilmchat/iichattools:latest
-
-### Образы в ghcr.io
-
     docker pull ghcr.io/iilmchat/iichattools:latest
     docker pull ghcr.io/iilmchat/iichattools:v1.8.0
     docker pull ghcr.io/iilmchat/iichattools:1.8.0
@@ -983,12 +977,10 @@ docker pull ghcr.io/iilmchat/iichattools:latest
 
 При старте приложения в логах будут WARNINGи:
 
-```bash
 Ошибка при проверке зависимости git
 System.ComponentModel.Win32Exception (2): ...'git'... No such file or directory
 ...
 Зависимость git: не установлен
-```
 
 Это **ожидаемо** — `DependencyChecker` проверяет наличие утилит, но приложение работает без них (см. KI-112).
 

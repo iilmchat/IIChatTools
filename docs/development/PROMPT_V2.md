@@ -92,7 +92,7 @@
   - +1 `database_agent`.
   - +7 mail-tools.
 - **Chat видит 12 инструментов**: 7 агентов + `consult_secondary_agent` + 3 RAG + `database_agent` + `mail_agent`.
-- **KI:** 69 в реестре; 65+ Fixed/Resolved; 4 Deferred; 8 Documented; 3 Planned.
+- **KI:** ~77 в реестре (на 2026-09-29); Fixed/Resolved = ~65; In Progress = 0; Deferred = 4; Documented = 12; Planned = 5; Partially Fixed = 1; Implemented = 3. Точные числа — в `docs/KNOWN_ISSUES.md` → «Сводка по статусам».
 
 ---
 
@@ -107,6 +107,14 @@
 - Privacy-first (без PII в логах).
 - Вложения в `mail-attachments/{uid}/` ≤ 10 MB.
 - Chat видит **12 инструментов**.
+
+**Post-release фиксы v1.8.x (после релиза):**
+
+- **KI-115** (Fixed) — `mail_agent`: Context Length 16384 в LM Studio (было 8192, prompt не влезал).
+- **KI-116** (Fixed) — `gemma-4-12b-coder-fable5-composer2.5-v1` **не поддерживает OpenAI tool calling** — `tool_calls: []` при правильном reasoning. Откат `code_agent`, `planner_agent`, `mail_agent` на `qwen/qwen3-4b-2507`.
+- **KI-117** (Documented) — Требование к LM Studio: **Context Length ≥ 16384** для всех агентов.
+- **KI-118** (Documented) — Chat LLM не вызывает `code_agent` для простых задач («2+2 через Python»).
+- **KI-112** (Documented) — Docker-образ lightweight, без `git`/`gh`/`python3`/`node`.
 
 **v1.7.1 (2026-09-29) — патч-релиз:**
 
@@ -164,7 +172,7 @@
 - **KI-108** — Per-user mail accounts (свой ящик у каждого пользователя). Таблица `UserMailAccount` + шифрование через `IDataProtector`.
 - Сохранение вложений при `read_email` (требует переделки `IMailClient`).
 - Прикрепление вложений к `send_email` (привязка к `MimeMessage`).
-- **PROMPT_V2 layout** — переработка разметки (текущая задача).
+- **PROMPT_V2 layout** — переработка разметки → **DONE** (v2.8, 2026-09-29).
 
 **v1.8.x / v1.9+ — External-LLM Agent (KI-109):**
 
@@ -262,8 +270,8 @@
 
 ### Рабочий путь
 
-- **Windows:** путь уточнять у пользователя (может быть `C:\Projects\...` или `D:\Projects\...` — зависит от машины).
-- Есть копии на нескольких машинах — обязательно уточнять путь при переключении.
+- **Основной (Windows):** `C:\Projects\AI\IIChatTools`.
+- Есть копии на других машинах (например, `D:\Projects\IIChatTools`) — обязательно уточнять путь при переключении.
 - В примерах команд используй `<repo-root>` как плейсхолдер.
 
 ### Стандартные команды
