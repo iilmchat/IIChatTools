@@ -72,6 +72,46 @@
     Фаза 7 (`SqlConnectionProviderTests` + `SqlQueryValidatorTests`).
   - **DoD Фазы 2:** `SqlConnectionProvider` открывает соединение `internal`
     (Sqlite), резолвит connection string из `IConfiguration`.
+- **Database Agent — Фаза 3: SqlQueryValidator (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.3)**:
+  - **`SqlQueryValidator`** (`Implementation/SqlAgent/`) — Singleton (stateless),
+    реализация `ISqlQueryValidator`. **7 шагов валидации** (DESIGN § 6.2):
+    <list type="number">
+      1. Базовые проверки (пустой, длина, первый токен — SELECT/WITH, multi-statement);
+      2. Токенизация (литералы и комментарии **исключаются** из проверок);
+      3. Запрет ключевых слов (INSERT, DELETE, DROP, ...);
+      4. Запрет функций (load_extension, readfile, ...);
+      5. Извлечение таблиц (FROM/JOIN, поддержка schema.table и CTE);
+      6. Whitelist / blacklist (Sqlite — case-sensitive, SqlServer — insensitive);
+      7. Auto-LIMIT (перед `;`, если LIMIT отсутствует).
+    </list>
+  - **`SqlToken` / `SqlTokenKind`** (`Implementation/SqlAgent/`, internal) —
+    внутренние типы токенизатора. Классификация: Identifier, StringLiteral,
+    QuotedIdentifier, Comment, Number, Punctuation. Escape-последовательности
+    (`''` в строках, `""` в quoted identifier) обрабатываются.
+  - **Startup.cs** — DI-регистрация: `services.AddSingleton<ISqlQueryValidator, SqlQueryValidator>()`.
+  - **Тесты** — `SqlQueryValidatorTests` (**27 тестов**):
+    базовые (5), keyword-denial (5), function-denial (3), whitelist (10),
+    auto-LIMIT (4), комплексный пример из DESIGN § 6.2 (Приложение A).
+    Покрытие `SqlQueryValidator` — **> 90%**.
+  - **DoD Фазы 3:** валидатор отклоняет `DELETE` / `DROP` / `AspNetUsers` /
+    multi-statement, пропускает `SELECT 'DROP TABLE Chats' AS x` (литерал не команда),
+    `WITH cte AS (...) SELECT ...` (CTE не таблица). Auto-LIMIT работает.
+  - **Fix (в том же коммите, №1):** CS1503 — `HashSet<string>` требует
+    `StringComparer` (`IEqualityComparer<string>`), а не `StringComparison`
+    (enum для `string.Equals`). Одна строка в `SqlQueryValidator.Validate` (шаг 6).
+  - **Fix (в том же коммите, №2):** тестовый хелпер `SqliteProvider` в
+    `SqlQueryValidatorTests` создавал `SqlAgentOptions` с пустым
+    `Connections`, из-за чего конструктор `SqlAgentOptionsProvider` падал
+    с `InvalidOperationException: DefaultConnection='internal' отсутствует
+    в Connections` (baseline-валидация DESIGN § 5.5). 29 тестов не
+    доходили до валидатора SQL. Fix: добавили минимальный `internal` в
+    `Connections` — реальные опции подключения всё равно передаются в
+    `Validate(sql, options)` отдельным аргументом.
+  - **KI-100 (Documented, план — Фаза 4):** относительный путь Sqlite
+    connection string (`Data Source=Data/iichattools-dev.db`) резолвится от
+    `Environment.CurrentDirectory`, а не от `ContentRootPath`. Проявится в
+    Фазе 4 при первом `execute_query`. План: резолвить относительно
+    `IWebHostEnvironment.ContentRootPath` в `SqlConnectionProvider`.
 
 ### Changed
 - **Docs — PROMPT_V2.md v2.4 → v2.5 (post-release v1.6.1)**:

@@ -1207,6 +1207,45 @@
 
 ---
 
+### KI-100 — SqlAgent: относительный путь Sqlite connection string резолвится от CWD, а не от ContentRoot
+- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.7.0 (Фаза 4 KI-097)
+- **Обнаружено:** 2026-09-29
+- **Файлы (план):** `IIChatTools.Services/Implementation/SqlAgent/SqlConnectionProvider.cs`,
+  User Secrets (`SqlAgent:Internal:ConnectionString`), `appsettings.Development.json`.
+- **Описание:** В Фазе 2 (KI-097) `SqlConnectionProvider` резолвит connection
+  string из `IConfiguration` **как есть**. Для Sqlite значение по умолчанию —
+  `Data Source=Data/iichattools-dev.db;Mode=ReadOnly` (**относительный** путь).
+
+  Проблема: SQLite открывает файл **относительно `Environment.CurrentDirectory`
+  процесса**, а не относительно `ContentRootPath`. Сейчас в dev это работает
+  (`dotnet run` из `IIChatTools.API` → CWD = ContentRoot). Но при запуске:
+  - из другой директории (`dotnet IIChatTools.API.dll` из корня),
+  - как Windows-службы (CWD = `C:\Windows\System32`),
+  - через `docker run -w /app` (Dockerfile может задать свой WORKDIR),
+  - через IIS / Kestrel за reverse-proxy,
+
+  SQLite либо не найдёт файл (`SQLite Error 14: unable to open database`), либо
+  откроет **пустую новую БД** (если `Mode=ReadOnly` не задан). Ошибка проявится
+  **только при первом `execute_query`** — при старте приложения ничего не сломается.
+- **Не проявляется в Фазе 2-3:** connection string резолвится, но не используется
+  (`SqlConnectionProvider.CreateConnectionAsync` ещё не вызывается).
+  Активируется в **Фазе 4** — при первом `SqlAgentService.ExecuteQueryAsync`.
+- **Симптом (гипотетический, Фаза 4):** `database_agent(execute_query, internal,
+  "SELECT COUNT(*) FROM Chats")` → `SqliteException: unable to open database file`
+  при `dotnet run` из `IIChatTools.API` работает; при запуске `dotnet run` из корня
+  репо или через публикацию — падает.
+- **Возможные решения (выбрать на Фазе 4):**
+  1. **Резолвить путь относительно ContentRoot** в `SqlConnectionProvider`:
+     если `Provider=Sqlite` и `Data Source` относительный — префиксовать
+     `IWebHostEnvironment.ContentRootPath`. Чисто, единообразно, без правки
+     User Secrets. **Рекомендуется.**
+  2. **Абсолютный путь в User Secrets:** `Data Source=C:\Projects\...\Data\iichattools-dev.db;Mode=ReadOnly`.
+     Работает, но привязывает секрет к машине (потеря переносимости).
+  3. **Оставить как есть:** работает при `dotnet run` из `IIChatTools.API`,
+     ломается в остальных сценариях. Приемлемо для dev, **не для prod**.
+- **Связанные:** KI-097 (Database Agent), KI-070 (Sqlite EnsureCreated),
+  KI-085 / KI-093 (Sqlite locked).
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия

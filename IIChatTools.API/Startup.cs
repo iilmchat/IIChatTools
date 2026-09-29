@@ -406,6 +406,8 @@ namespace IIChatTools.API
             services.Configure<SqlAgentOptions>(Configuration.GetSection("SqlAgent"));
             services.AddSingleton<SqlAgentOptionsProvider>();
             services.AddSingleton<ISqlConnectionProvider, SqlConnectionProvider>();
+            // v1.7.0 (KI-097, Фаза 3): валидатор SQL — Singleton (stateless).
+            services.AddSingleton<ISqlQueryValidator, SqlQueryValidator>();
 
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
