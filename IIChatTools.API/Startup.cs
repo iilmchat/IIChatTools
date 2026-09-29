@@ -18,6 +18,7 @@ using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.Implementation.Mail;           // v1.8.0 (KI-107): Mail Agent
+using IIChatTools.Services.Implementation.Tools.Mail;     // v1.8.0 (KI-107): Mail tools
 using IIChatTools.Services.Implementation.Tools.Rag;
 using IIChatTools.Services.Implementation.Tools.SqlAgent;   // v1.7.0 (KI-097): DatabaseAgentTool
 using IIChatTools.Services.Implementation.Tools.SubAgent;
@@ -469,6 +470,10 @@ namespace IIChatTools.API
             // Не регистрируется при SqlAgent:Enabled = false (DESIGN § 3.4).
             RegisterSqlAgentTools(services, Configuration);
 
+            // v1.8.0 (KI-107, Фаза 3A): Mail tools (list_emails, read_email, send_email).
+            // Не регистрируются при Mail:Enabled = false (DESIGN_MAIL_AGENT § 3.1).
+            RegisterMailTools(services, Configuration);
+
             // ============ 11. Политики авторизации ============
             services.AddAuthorization(options =>
             {
@@ -720,6 +725,37 @@ namespace IIChatTools.API
             }
 
             services.AddScoped<ITool, DatabaseAgentTool>();
+        }
+
+        /// <summary>
+        /// Регистрирует mail-tools (v1.8.0, KI-107, Фаза 3A).
+        ///
+        /// <para>
+        /// Если <c>Mail:Enabled = false</c> — инструменты не регистрируются,
+        /// LLM физически их не видит (DESIGN_MAIL_AGENT § 3.1).
+        /// </para>
+        ///
+        /// <para>
+        /// Фаза 3A — 3 инструмента: <c>list_emails</c>, <c>read_email</c>,
+        /// <c>send_email</c>. Фаза 3B добавит <c>search_emails</c>,
+        /// <c>delete_email</c>, <c>move_email</c>, <c>mark_as_read</c>.
+        /// </para>
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        /// <param name="configuration">Конфигурация (для чтения Mail:Enabled)</param>
+        private static void RegisterMailTools(
+            IServiceCollection services,
+            IConfiguration configuration)
+        {
+            var enabled = configuration.GetValue<bool>("Mail:Enabled", defaultValue: false);
+            if (!enabled)
+            {
+                return;
+            }
+
+            services.AddScoped<ITool, ListEmailsTool>();
+            services.AddScoped<ITool, ReadEmailTool>();
+            services.AddScoped<ITool, SendEmailTool>();
         }
 
         /// <summary>

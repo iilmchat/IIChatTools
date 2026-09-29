@@ -64,6 +64,20 @@
     dev — placeholder `CHANGE_ME_VIA_USER_SECRETS` для creds).
   - **Тесты:** +3 smoke (`MailKitClientSmokeTests`).
   - **DoD:** `dotnet build` 0/0. `dotnet test` — 375 → **378/378**.
+- **Mail Agent — Фаза 3A (v1.8.0, KI-107)**: 3 read/mutating tool'а.
+  - `Implementation/Tools/Mail/ListEmailsTool.cs` — `list_emails` (read-only).
+    Параметры: `mailbox?="INBOX"`, `count=20` (clamp 1..100), `unseenOnly=false`.
+  - `Implementation/Tools/Mail/ReadEmailTool.cs` — `read_email` (read-only).
+    Параметры: `uid` (required), `mailbox?="INBOX"`, `saveAttachments=true`.
+  - `Implementation/Tools/Mail/SendEmailTool.cs` — `send_email` (**approval**).
+    Параметры: `to[]`, `cc[]?`, `bcc[]?`, `subject`, `body`, `isHtml=false`,
+    `attachments[]?`. Валидация: email, ≤ 10 получателей, непустое body.
+    Rate limiting (20/час) + attachments — Фаза 4.
+  - `Startup.cs` — `RegisterMailTools(services, Configuration)`: 3 инструмента
+    только при `Mail:Enabled = true`.
+  - **Privacy:** в логах — только количество (recipients, attachments, bodyLen).
+  - **Тесты:** +16 (`MailToolsTests`).
+  - **DoD:** `dotnet test` — 378 → **394/394**.
 
 ---
 
