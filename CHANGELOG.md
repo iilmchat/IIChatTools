@@ -286,6 +286,31 @@
     Всего: **312 → 332**.
   - **KI-103** (Documented, план — v1.7.x): на `/status` часть UI — hardcoded RU
     в `status.js` (не входит в 6E — там только `/admin`).
+- **Database Agent — Фаза 7C: интеграционные тесты + документация (v1.7.0, KI-097)**:
+  - **`SqlAgentIntegrationTests`** (**3 теста**): сквозной путь
+    `DatabaseAgentTool → ISqlAgentService → ISqlQueryValidator → ISqlConnectionProvider`
+    → реальная Sqlite-БД (временный файл). Проверяет:
+    - `ExecuteQuery_ValidSelect_ReturnsRowCount` — успешный SELECT; проверяет
+      `Data.Rows[0]["Total"] == 3` (не `Message` — там «Возвращено 1 строк»,
+      т.к. это 1 строка с COUNT(*)).
+    - `ExecuteQuery_DeniedTable_ViaTool_ReturnsFail` — валидатор отбивает `AspNetUsers`.
+    - `ListDatabases_ViaTool_ReturnsInternalConnection`.
+  - **README.md** — обновлён:
+    - Chat видит **11** инструментов (было 10).
+    - Таблица «Инструменты»: +3 RAG +1 Database Agent = **50**.
+    - **Новый раздел «Database Agent (v1.7.0)»**: 4 действия, 5 уровней
+      безопасности, примеры вопросов, конфигурация, ограничения.
+    - API endpoints: +4 строки (`/api/admin/sql-agent/...`).
+    - Счётчик тестов: 241 → **341**.
+    - **Fix разметки**: восстановлен блок «Миграции и запуск»
+      (незакрытый `markdown` code-block из прошлого diff'а).
+  - **KNOWN_ISSUES.md:**
+    - **KI-097** → **Fixed (v1.7.0)**. Тело: 13 коммитов, 51 тест, все фазы 0-7.
+    - **KI-098** → **Fixed (v1.7.0, Фазы 6A-6E)**.
+    - **Сводка по статусам:** `Fixed (v1.7.0) = 4`, `Planned = 1`, `Documented = 9`.
+      Всего: **62**.
+  - **DoD Фазы 7C:** сквозной путь Database Agent проверен integration-тестами,
+    документация (README + KNOWN_ISSUES) обновлена. **Всего тестов: 341**.
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,

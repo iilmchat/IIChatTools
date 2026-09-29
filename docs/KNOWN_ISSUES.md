@@ -1147,7 +1147,7 @@
 ## v1.7.0 — Database Agent (roadmap)
 
 ### KI-097 — Database Agent (read-only SQL)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.7.0
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.7.0
 - **Обнаружено:** 2026-09-28
 - **DESIGN:** [`docs/development/v1.7/DESIGN_DB_AGENT.md`](development/v1.7/DESIGN_DB_AGENT.md)
 - **Описание:** LLM не имеет структурированного доступа к данным приложения
@@ -1166,13 +1166,34 @@
   - Admin UI `/admin → SQL Agent` — настройка whitelist в runtime.
 - **Что НЕ входит:** внешние БД (KI-099, Фаза 2), Domain-Oriented Tools
   (по факту обкатки), write-операции (никогда), Semantic Layer (v2.0).
-- **План:** 8 фаз, ~40 ч. Фаза 0 (DESIGN) — ✅ Done (2026-09-28).
-- **Связанные:** KI-098 (admin UI), KI-099 (внешние подключения).
+- **План:** 8 фаз, ~40 ч. Прогресс:
+  - Фаза 0 (DESIGN) — ✅ Done (2026-09-28).
+  - Фаза 1 (контракты + DTO) — ✅ Done (`a52c26b`, `a167d35`).
+  - Фаза 2 (SqlConnectionProvider + SqlAgentOptionsProvider) — ✅ Done (`6e68f9d`).
+  - Фаза 3 (SqlQueryValidator) — ✅ Done (`36f2a2d`, 29 тестов).
+  - Фаза 4 (SqlAgentService + fix KI-100) — ✅ Done (`c62ccd5`, 12 тестов).
+  - Фаза 5 (DatabaseAgentTool + Chat integration) — ✅ Done (`7cab7e0`, 13 тестов).
+  - Фаза 5.5 (per-action approval KI-101) — ✅ Done (`7ffcc5f`, 6 + 4 тестов).
+  - Фаза 6A (admin service + DTOs) — ✅ Done (`b6b38c9`).
+  - Фаза 6B (AdminSqlAgentController) — ✅ Done (`43140ea`).
+  - Фаза 6C+6D (UI + локализация) — ✅ Done (`ecee60c`).
+  - Фаза 6E (fix локализации KI-102) — ✅ Done (`eb49a37`).
+  - Фаза 7A+7B (admin layer tests, 20 тестов) — ✅ Done (`9328070`).
+  - Фаза 7C (integration tests + README + KNOWN_ISSUES) — ✅ Done.
+  - **Итого:** **+51 тест** (SqlAgent-related); общий счёт: **341**.
+  - **Коммиты:** 13 (включая fix'ы KI-100, KI-101, KI-102).
+- **Известные ограничения (не блокеры):**
+  - `KI-101` (per-action approval — реализовано через `RequiresApprovalForCall`) ✅ Fixed.
+  - `KI-103` (локализация `/status`) — Documented, план v1.7.x.
+  - Внешние БД (Postgres / MySQL) — KI-099, v1.8.0.
+- **Связанные:** KI-098 (admin UI — Fixed в 6E), KI-099 (внешние подключения),
+  KI-100 (Sqlite relative path — Fixed в 4), KI-101 (per-action approval — Fixed в 5.5),
+  KI-102 (Admin UI локализация — Fixed в 6E), KI-103 (`/status` локализация — Documented).
 
 ---
 
 ### KI-098 — Admin UI для SQL Agent whitelist
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.7.0 (Фаза 6 KI-097)
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.7.0 (Фазы 6A-6E KI-097)
 - **Обнаружено:** 2026-09-28
 - **Файлы (план):** `AdminSqlAgentController`, `AdminSqlAgentService`, вкладка
   в `Admin.cshtml`, `admin-sql-agent.js`, `.resx` (RU + EN).
@@ -1186,6 +1207,16 @@
   - Загрузка при старте (`Program.LoadSqlAgentOverridesAsync`).
   - Применение изменений в runtime (без перезапуска).
 - **Связанные:** KI-097.
+- **Решение (2026-09-29):**
+  - **Backend:** `IAdminSqlAgentService` + `AdminSqlAgentService` (Фаза 6A) +
+    `AdminSqlAgentController` (4 endpoints, Фаза 6B).
+  - **UI:** 9-я вкладка «SQL Agent» в `/admin` + `admin-sql-agent.js` (Фаза 6C).
+  - **Локализация:** `.resx` RU+EN, ~22 ключа; `data-*` для JS (Фаза 6C+6D).
+  - **Fix локализации** в остальных admin-вкладках (Фаза 6E, KI-102).
+  - **Тесты:** 13 unit (`AdminSqlAgentServiceTests`) + 7 unit
+    (`AdminSqlAgentControllerTests`) — Фаза 7A+7B.
+  - **DoD:** whitelist / MaxRows / Timeout / Enabled редактируются в runtime
+    без рестарта; кнопки Test/Reset работают; RU/EN переключается.
 
 ---
 
@@ -1491,13 +1522,14 @@
 | Fixed (v1.4.x) | 1 |                <!-- KI-087 -->
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
+| Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096 (GitHub Wiki), KI-099 -->
-| Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
+| Documented | 9 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-103 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
-| Planned | 3 |                     <!-- KI-088 (TESTING.md), KI-097, KI-098 (DB Agent) -->
+| Planned | 1 |                       <!-- KI-088 (TESTING.md) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **58** |
+| **Всего** | **62** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

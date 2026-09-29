@@ -277,9 +277,9 @@ dotnet user-secrets set "Browser:ProxyPassword" "<password>"
 
 ## Миграции и запуск
 
-**SqlServer** (требует применения миграций):
+**Sqlite / InMemory** (схема создаётся автоматически):
 ```bash
-dotnet ef database update --project IIChatTools.Data --startup-project IIChatTools.API
+dotnet run --project IIChatTools.API
 ```
 
 **Заменить на:**
@@ -348,6 +348,10 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/profile/workspace-index/enable` | Включить Workspace-индекс (opt-in) |
 | `POST` | `/api/profile/workspace-index/disable` | Отключить + очистить |
 | `POST` | `/api/profile/workspace-index/reindex` | Переиндексировать Workspace |
+| `GET` | `/api/admin/sql-agent/connections` | Список подключений Database Agent (Admin) |
+| `PUT` | `/api/admin/sql-agent/connections/{name}` | Обновить настройки подключения (Admin) |
+| `POST` | `/api/admin/sql-agent/connections/{name}/test` | Проверить подключение (SELECT 1, Admin) |
+| `POST` | `/api/admin/sql-agent/connections/{name}/reset` | Сбросить к baseline (Admin) |
 ---
 
 ## Инструменты (40)
@@ -364,11 +368,14 @@ dotnet run --project IIChatTools.API
 | Утилиты | 2 | 0 |
 | **Итого (в реестре)** | **40** | **18** |
 | **+ Агенты (v1.4.0)** | **+6** | **(по агенту)** |
-| **Итого (ToolRegistry)** | **46** | — |
+| **+ RAG (v1.5.0)** | **+3** | — |
+| **+ Database Agent (v1.7.0)** | **+1** | **✅** |
+| **Итого (ToolRegistry)** | **50** | — |
 
-> **Примечание:** Chat видит **10 инструментов** (6 агентов + `consult_secondary_agent`
+> **Примечание:** Chat видит **11 инструментов** (6 агентов + `consult_secondary_agent`
 > + 3 RAG-tool: `search_knowledge_base`, `search_chat_history`, `search_workspace` —
-> v1.5.0, KI-083). Все 40 «сырых» инструментов доступны **внутри** агентов.
+> v1.5.0, KI-083) + `database_agent` (v1.7.0, KI-097).
+> Все 40 «сырых» инструментов доступны **внутри** агентов.
 
 ---
 
@@ -494,7 +501,8 @@ Embeddings — LM Studio (`text-embedding-nomic-embed-text-v1.5`, 768 dim), ве
    Дедупликация по `(type, documentPath, chunkIndex)`. Сохраняются в
    `ChatMessage.MetadataJson` (camelCase), отдаются в `ChatMessageDto.Sources`.
 
-Chat видит **10 инструментов** (6 агентов + `consult_secondary_agent` + 3 RAG-tool).
+Chat видит **11 инструментов** (6 агентов + `consult_secondary_agent` + 3 RAG-tool
++ `database_agent` — v1.7.0, KI-097).
 
 ### Форматы и лимиты
 
@@ -551,6 +559,86 @@ _(Sources / citations реализованы в v1.6.0 — см. раздел «
 
 См. «API (основные endpoints)» выше: 4 endpoint'а для вложений чата,
 6 для админки Knowledge Base, 5 для Workspace-индекса в профиле.
+
+---
+
+## Database Agent (v1.7.0)
+
+Read-only SQL-доступ LLM к БД приложения (чаты, сообщения, аудит, RAG-чанки,
+вложения). **Никаких write-операций — принципиально.**
+
+### 4 действия инструмента `database_agent`
+
+| Action | Назначение | Approval |
+|:---|:---|:---:|
+| `list_databases` | Список подключений (метаданные, без connection string) | — |
+| `list_tables` | Whitelist-таблицы подключения + row count | — |
+| `describe_table` | Колонки таблицы + типы + пример значения | — |
+| `execute_query` | Read-only SQL (`SELECT` / `WITH`), auto-LIMIT | ✅ |
+
+### 5 уровней безопасности
+
+1. **Read-only роль в БД** (`Mode=ReadOnly` для Sqlite, `db_datareader` + `DENY INSERT/UPDATE/DELETE` для SqlServer).
+2. **Валидатор SQL** — `ISqlQueryValidator`: `SELECT`/`WITH` only, запрет keywords (`INSERT`, `DELETE`, `DROP`, ...), запрет функций (`load_extension`, `readfile`), single-statement.
+3. **Whitelist таблиц** — только разрешённые админом.
+4. **Timeout + Auto-LIMIT** — 15 сек на запрос, ≤ 100 строк по умолчанию.
+5. **Approval + Audit** — пользователь видит SQL перед выполнением; все вызовы — в `AuditLogs`.
+
+### Примеры вопросов для LLM
+
+- «Сколько чатов у меня в базе?» → `execute_query(sql='SELECT COUNT(*) FROM Chats')`
+- «Какие таблицы доступны?» → `list_tables(connection='internal')`
+- «Покажи последние 5 сообщений из чата N» → `execute_query(sql='SELECT * FROM ChatMessages WHERE ChatId = N ORDER BY CreatedAt DESC LIMIT 5')`
+
+### Admin UI
+
+`/admin → SQL Agent` (9-я вкладка): редактирование whitelist / MaxRows / Timeout / Enabled
+в runtime, кнопка «Проверить подключение» (`SELECT 1`), «Сбросить» к значениям из `appsettings.json`.
+
+### Конфигурация
+
+Секция `SqlAgent` в `appsettings.json`:
+
+```jsonc
+"SqlAgent": {
+  "Enabled": true,
+  "DefaultConnection": "internal",
+  "AdminUiEnabled": true,
+  "Connections": {
+    "internal": {
+      "DisplayName": "IIChatTools DB",
+      "Provider": "Sqlite",                       // Sqlite | SqlServer
+      "ConnectionStringKey": "SqlAgent:Internal:ConnectionString",
+      "AllowedTables": [ "Chats", "ChatMessages", "DocumentChunks", "AuditLogs" ],
+      "DeniedTables":  [ "AspNetUsers", "AspNetRoles", "UserSettings" ],
+      "MaxRows": 100,
+      "StatementTimeoutSeconds": 15,
+      "RequiresApproval": true
+    }
+  },
+  "QueryValidation": {
+    "DeniedKeywords": [ "INSERT", "UPDATE", "DELETE", "DROP", "TRUNCATE", "ALTER", ... ],
+    "DeniedFunctions": [ "load_extension", "readfile", "writefile" ],
+    "MaxSqlLength": 4000,
+    "AutoLimitIfMissing": true
+  }
+}
+```
+
+### Строка подключения — только в User Secrets / env:
+
+```bash
+dotnet user-secrets set "SqlAgent:Internal:ConnectionString" \
+    "Data Source=Data/iichattools-dev.db;Mode=ReadOnly"
+```
+
+### Ограничения (осознанные, MVP)
+
+- **Только `internal`** (собственная БД приложения). Внешние Postgres / MySQL —
+  Фаза 2 (v1.8.0, KI-099).
+- **Domain-Oriented Tools** (`get_recent_chats`, `get_user_stats`) — обкатка
+  на `execute_query`, потом добавим по факту.
+- **Semantic Layer (knowledge graph)** — не входит, план на v2.0.
 
 ---
 
@@ -697,7 +785,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 241/241 тестов проходят (unit + integration).
+**Статус**: 341/341 тестов проходят (unit + integration).
 
 ---
 
