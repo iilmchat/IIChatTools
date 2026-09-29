@@ -18,6 +18,20 @@
 
 ## [Unreleased]
 
+### Added
+- **Database Agent — Фаза 1: контракты + DTO (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.1)**:
+  - **DTO (`DTO/SqlAgent/`)** — 5 файлов: `DatabaseConnectionInfoDto`,
+    `SqlTableInfoDto`, `SqlColumnInfoDto`, `SqlQueryRequest`, `SqlQueryResultDto`.
+  - **Interfaces (`Interfaces/`)** — 3 файла: `ISqlAgentService` (оркестратор
+    list / describe / execute), `ISqlQueryValidator` (валидация SQL),
+    `ISqlConnectionProvider` (фабрика `DbConnection`).
+  - **Implementation (`Implementation/SqlAgent/`)** — 3 файла:
+    `ValidationResult` (результат валидации), `SqlAgentOptions`
+    (bind из `appsettings:SqlAgent`), `SqlAgentConnectionOptions`
+    (подсекция `Connections[*]`).
+  - **DoD Фазы 1:** `dotnet build` 0/0. Все типы компилируются, но
+    пока нигде не используются. Реализация — Фазы 2-6.
+
 ### Changed
 - **Docs — PROMPT_V2.md v2.4 → v2.5 (post-release v1.6.1)**:
   - Шапка: актуальный релиз `v1.6.0` → **v1.6.1**.
