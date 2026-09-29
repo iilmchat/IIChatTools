@@ -1,385 +1,393 @@
-PROMPT_V2.md — Стартовый промпт для нового чата
-Версия промпта: v2.7
-Дата: 2026-09-29
-Актуальный релиз проекта: v1.8.0 (2026-09-29)
-Статус: Mail Agent — реализован; следующий — External-LLM Agent (DESIGN готов, реализация в очереди).
+# PROMPT_V2.md — Стартовый промпт для нового чата
 
-Ты — ведущий архитектор и разработчик проекта IIChatTools.
-Мы продолжаем разработку. Ниже — контекст, правила и текущее состояние.
+**Версия промпта:** v2.8
+**Дата:** 2026-09-29
+**Актуальный релиз проекта:** v1.8.0 (2026-09-29)
+**Статус:** Mail Agent реализован; в очереди — External-LLM Agent + переработка docs.
 
-⚠️ ГЛАВНОЕ ПРАВИЛО ФОРМАТИРОВАНИЯ
-НЕ более одного уровня code fence'ов в твоём ответе. Если нужно вывести MD-блок с примером кода — используй 4-пробельный отступ для примера, а не тройной бэктик. Если нужна команда — inline-code: dotnet build.
+---
 
-Почему: 5 инцидентов с развалившейся разметкой в сессии v1.5.0 (2026-09-25 → 2026-09-28). DeepSeek-парсер не справляется с вложенными fence'ами даже при обёртке в 4 бэктика — внутренние слипаются с внешними, превращаясь в литерал «text».
+## § 0. Главное правило форматирования
 
-Как выводить большие MD-файлы (README, RULES, CHANGELOG, KNOWN_ISSUES, DESIGN, RELEASES, PROMPT_V2): только точечный diff («Найти X / Заменить на Y») или отдельную секцию. Никогда — целиком в одном ответе.
+**Не более одного уровня code fence'ов в твоём ответе.**
 
-Как выводить блоки кода: обычный тройной бэктик — но не вкладывать внутрь другого тройного.
+- Обычный код — тройной бэктик, **не вкладывать внутрь другого**.
+- Пример внутри markdown-блока — **4-пробельный отступ**, не тройной бэктик.
+- Команда (inline) — `dotnet build`.
 
-Что делать, если внутри блока нужен тройной бэктик (например, пример markdown-файла): заменяй внутренние fence'ы на 4-пробельный отступ. Пример:
+**Почему:** 5+ инцидентов с развалившейся разметкой (v1.5.0 → v1.7.x). DeepSeek-парсер ломает вложенные fence'ы — внутренние слипаются с внешними, превращаясь в литерал «text».
 
-powershell
-dotnet build
+**Большие MD-файлы (README, RULES, CHANGELOG, KNOWN_ISSUES, RELEASES, PROMPT_V2):**
+только **точечный diff** («Найти X / Заменить на Y») или **отдельная секция**. Никогда — целиком в одном ответе.
 
-(в чате выглядит как обычный fence; в файле — как отступ)
+Если риск поломки критичен — **порциями**: сначала 1-3 правки, после подтверждения — следующие.
 
-Но если ты выводишь файл, где сам контент — это markdown с fence'ами (например, шаблон .md), отдавай его через plain text между маркерами без внешней обёртки, чтобы пользователь скопировал всё целиком.
+---
 
-Когда риск поломки критичен (большой MD, вложенные fence'ы, 5+ уровней структуры) — отдавай порциями: сначала правки 1-3, потом (после подтверждения) — 4-6. Дешевле, чем переписывать сломанную разметку вручную.
+## § 1. Ссылка на репозиторий
 
-Ссылка на репозиторий
-https://github.com/iilmchat/IIChatTools
-Ветка по умолчанию: main
-Текущий релиз: v1.8.0 (готовится; Mail Agent реализован в 5 фазах)
-В работе: External-LLM Agent (DESIGN готов, реализация — следующая сессия)
+- **GitHub:** https://github.com/iilmchat/IIChatTools
+- **Ветка по умолчанию:** `main`
+- **Текущий релиз:** v1.8.0 (2026-09-29)
+- **В работе:** External-LLM Agent (DESIGN готов, реализация в очереди); переработка docs (PROMPT_V2 layout — DONE).
 
-Правила оформления (ОБЯЗАТЕЛЬНО)
-docs/development/RULES.md — v1.4.20 (2026-09-29)
+---
 
-Прочитай целиком перед началом работы. Ключевые разделы:
+## § 2. Правила оформления (ОБЯЗАТЕЛЬНО)
 
-§ 1 — базовые правила (naming, XML-doc, локализация, DI)
+**`docs/development/RULES.md` — v1.4.21 (2026-09-29).**
 
-§ 2 — документация (CHANGELOG, README, KNOWN_ISSUES — в том же коммите)
+Ключевые разделы:
 
-§ 3 — workflow (маленькие шаги, git add -A, dotnet build 0/0)
+- **§ 1** — базовые правила (naming, XML-doc, локализация, DI).
+- **§ 2** — документация (CHANGELOG, README, KNOWN_ISSUES — в том же коммите).
+- **§ 3** — workflow (маленькие шаги, `git add -A`, build 0/0).
+- **§ 4** — технические правила C# / .NET 10 (**47 правил**, включая свежие 4.44–4.47).
+- **§ 5** — безопасность (User Secrets, PathHelper, ArgumentList).
+- **§ 6** — git (commit message, `--force-with-lease`).
+- **§ 7** — актуальная KI-выжимка (после v1.8.0).
+- **§ 8** — история изменений правил.
 
-§ 4 — технические C# / .NET 10 (43 правила — включая свежие 4.34–4.43)
+**Самое важное для работы:**
 
-§ 5 — безопасность (User Secrets, PathHelper, ArgumentList)
+- **RULES § 4.30** — cref в XML-doc с перегрузками → используй `<c>...</c>`, не `<see cref="..."/>`.
+- **RULES § 4.44** — новый top-level `ITool` → обязательно в `allowedNames` Chat (RULES-применимо **только** к top-level, **не** к наследникам `AgentToolBase`).
+- **RULES § 4.45** — `Path.GetFileName` на Linux: нормализуй `\` → `/` перед вызовом.
+- **RULES § 4.46** — default interface method (C# 8+) не виден через конкретный тип — используй интерфейсную переменную.
+- **RULES § 4.47** — MailKit `IMessageSummary.Attachments` — `IEnumerable<BodyPartBasic>`, `.Count` — extension (LINQ). Используй `.Any()`.
 
-§ 6 — git (commit message, --force-with-lease)
+---
 
-§ 7 — актуальная KI-выжимка (после v1.5.0)
+## § 3. Текущее состояние (v1.8.0)
 
-§ 8 — история изменений правил
+### Стек
 
-Текущее состояние (v1.6.1)
-Стек:
+- **.NET 10 LTS** (SDK 10.0.401).
+- **ASP.NET Core** (Razor + JWT + Cookie).
+- **EF Core 10** (SqlServer / Sqlite / InMemory).
+- **LM Studio** (OpenAI-совместимый API + `/v1/embeddings`).
+- **MailKit 4.8.0** + MimeKit (транзитивно) — IMAP/SMTP.
+- **PdfPig 0.1.9** + **DocumentFormat.OpenXml 3.1.0** — PDF/DOCX в RAG.
+- **Microsoft.Data.Sqlite 10.0.12** + **Microsoft.Data.SqlClient 6.0.2** — SqlAgent.
+- **PuppeteerSharp 7.1**, **Prometheus-net**, **Microsoft.ML.Tokenizers** (tiktoken).
 
-.NET 10 LTS (SDK 10.0.401)
+### Архитектура — 4 слоя (API → Services → Data + Tests)
 
-ASP.NET Core (Razor + JWT + Cookie)
+- **IIChatTools.API** — Controllers + Views + ES-модули + `Startup.cs` + `Program.cs`.
+- **IIChatTools.Services** — бизнес-логика:
+  - Core: `ToolRegistry`, `ChatService`, `ChatStreamService`, `LmStudioClient`, `ChatApprovalCoordinator`, `ChatRetentionService`.
+  - RAG: `EmbeddingService`, `InMemoryVectorStore`, `DocumentIngestionService`, `RetrievalService`.
+  - SqlAgent: `SqlAgentService`, `SqlQueryValidator`, `SqlConnectionProvider`, `AdminSqlAgentService`.
+  - Mail: `MailKitClient`, `GlobalMailAccountProvider`, `MailAttachmentService`, `InMemoryMailRateLimiter`.
+- **IIChatTools.Data** — EF Entities + миграции (SqlServer).
+- **IIChatTools.Tests** — xUnit (**424/424**).
 
-EF Core 10 (SqlServer / Sqlite / InMemory)
+### Метрики
 
-LM Studio (OpenAI-совместимый API + /v1/embeddings)
+- **58 инструментов** в `ToolRegistry`:
+  - 40 raw (включая `consult_secondary_agent`).
+  - +6 специализированных агентов.
+  - +1 `mail_agent`.
+  - +3 RAG-tool.
+  - +1 `database_agent`.
+  - +7 mail-tools.
+- **Chat видит 12 инструментов**: 7 агентов + `consult_secondary_agent` + 3 RAG + `database_agent` + `mail_agent`.
+- **KI:** 69 в реестре; 65+ Fixed/Resolved; 4 Deferred; 8 Documented; 3 Planned.
 
-PuppeteerSharp 7.1, Prometheus-net, Microsoft.ML.Tokenizers (tiktoken)
+---
 
-PdfPig 0.1.9 + DocumentFormat.OpenXml 3.1.0 (KI-104, PDF/DOCX в RAG)
+## § 4. Что выпущено (v1.3.0 → v1.8.0)
 
-Microsoft.Data.Sqlite 10.0.12 + Microsoft.Data.SqlClient 6.0.2 (SqlAgent)
+**v1.8.0 (2026-09-29) — Mail Agent (KI-107):**
 
-MailKit 4.8.0 + MimeKit (транзитивно) (KI-107, Mail Agent — IMAP/SMTP)
+- Почтовый агент `mail_agent` + 7 mail-tools (`send_email`, `list_emails`, `read_email`, `search_emails`, `delete_email`, `move_email`, `mark_as_read`).
+- IMAP4/SMTP через MailKit 4.8.0.
+- Глобальные creds (App Password в User Secrets).
+- Rate limiting 20/час, 30 чтений/мин.
+- Privacy-first (без PII в логах).
+- Вложения в `mail-attachments/{uid}/` ≤ 10 MB.
+- Chat видит **12 инструментов**.
 
-Архитектура — 4 слоя (API → Services → Data + Tests):
+**v1.7.1 (2026-09-29) — патч-релиз:**
 
-IIChatTools.API — Controllers + Views + ES-модули + Startup.cs.
+- KI-104 — `PdfParser` (PdfPig) + `DocxParser` (OpenXml). RAG: 28 → 30 форматов.
+- KI-103 — локализация `/status`.
+- KI-105 — транзитивная уязвимость `System.IO.Packaging`.
+- KI-106 — оригинальное имя в источниках RAG для attachments.
 
-IIChatTools.Services — бизнес-логика (ToolRegistry, ChatService, ChatStreamService, LmStudioClient, ChatApprovalCoordinator, ChatRetentionService, RAG-сервисы: EmbeddingService, InMemoryVectorStore, DocumentIngestionService, RetrievalService; SqlAgent: SqlAgentService, SqlQueryValidator, SqlConnectionProvider, AdminSqlAgentService; Mail: MailKitClient, GlobalMailAccountProvider, MailAttachmentService, InMemoryMailRateLimiter).
+**v1.7.0 (2026-09-29) — Database Agent (KI-097):**
 
-IIChatTools.Data — EF Entities + миграции (SqlServer).
+- `database_agent` (top-level `ITool`): 4 action (`list_databases`, `list_tables`, `describe_table`, `execute_query`).
+- 5 уровней безопасности (read-only роль, валидатор SQL, whitelist, timeout, approval+audit).
+- Admin UI `/admin → SQL Agent`.
 
-IIChatTools.Tests — xUnit (374/374).
+**v1.6.1 (2026-09-28) — Web-tools sources:**
 
-Метрики:
+- `wikipedia_search`, `web_search`, `fetch_web_content` возвращают citations.
+- Sources через агентов (`SubAgentTaskResult.Sources`).
+- 4-полевой ключ дедупа `(Type|DocumentPath|Url|ChunkIndex)`.
 
-57 инструментов (40 raw + 7 агентов + 3 RAG + 1 SqlAgent + 7 mail-tools).
+**v1.6.0 (2026-09-28) — Sources / citations:**
 
-Chat видит 12 инструментов (7 агентов + 3 RAG-tool + database_agent + mail_agent).
+- Блок «📚 Источники» под ответом ассистента.
+- `ChatMessage.MetadataJson`, `ChatSourceDto`.
+- Побочный fix: RAG-tools не попадали в `allowedNames` Chat с v1.5.0.
 
-KI: 69 в реестре, 64+ Fixed/Resolved, ~4 Deferred, ~8 Documented, 4 Planned/In Progress.
+**v1.5.0 (2026-09-28) — RAG / Knowledge Base:**
 
-Что выпущено (v1.3.0 → v1.7.1):
+- 4 индекса (`project_docs`, `my_rag_docs`, `chat_history`, `workspace`).
+- 3 RAG-tool + вложения в чат (📎).
+- Admin KB UI, Profile Workspace UI.
 
-Database Agent (v1.7.0) — read-only SQL-доступ LLM к БД приложения (KI-097). 4 действия database_agent (list_databases / list_tables / describe_table / execute_query). 5 уровней безопасности (read-only роль в БД + валидатор SQL + whitelist + timeout+auto-LIMIT + approval+audit). Admin UI /admin → SQL Agent. Per-action approval (KI-101) через ITool.RequiresApprovalForCall (default interface method).
+**v1.4.x — Chat UX polish:**
 
-PDF / DOCX в RAG (v1.7.1) — PdfParser (PdfPig 0.1.9) + DocxParser (OpenXml 3.1.0) — RAG расширен с 28 → 30 форматов (KI-104). Fix accept для <input type="file"> (.pdf, .docx). KI-105 — System.IO.Packaging 8.0.0 → 10.0.0 (транзитивная уязвимость). KI-103 — локализация /status (4 hardcoded RU).
+- Per-user retention (KI-067), статистика агентов (KI-076), tiktoken (KI-049).
+- Search (Ctrl+F / Ctrl+K), collapse sidebar (Ctrl+B), DeepSeek-style input.
+- Логотип (KI-081).
 
-Chat UI — sidebar, SSE-стриминг, tool calling, approvals, AI-title, Markdown + code blocks + подсветка, Copy / Edit / Regenerate / Retry / Stop, ⌘K-поиск (Ctrl+K), inline-поиск (Ctrl+F), collapse sidebar (Ctrl+B), DeepSeek-style поле ввода.
+**v1.4.0 — Multi-Agent (KI-052):**
 
-Per-user retention (KI-067) — /profile + /admin.
+- 6 специализированных суб-агентов.
+- `SubAgentRegistry`, `AgentToolBase`, `SubAgentDescriptor`.
 
-Статистика агентов (KI-076) — /admin → Агенты.
+**v1.3.x — Chat UI:**
 
-tiktoken (KI-049) — токены + tok/s + duration в meta-сообщения.
+- Sidebar, SSE-стриминг, tool calling, approvals, Markdown + code blocks.
+- Approvals в чате (v1.3.0), inline-edit, AI-title.
 
-Локализация RU/EN.
+---
 
-Логотип IIChatTools (KI-081).
+## § 5. Roadmap
 
-RAG / Knowledge Base (v1.5.0) — 4 индекса, 3 tool для LLM, вложения в чат (📎), админка /admin → База знаний, opt-in Workspace-индекс в /profile.
+**v1.8.x (текущая ветка):**
 
-Sources / citations (v1.6.0) — блок «📚 Источники» под ответом ассистента: live (SSE done) + F5 (ChatMessageDto.Sources). Собираются из auto-inject + tool_result, дедупликация по (type, documentPath, chunkIndex). camelCase в MetadataJson. Побочный корневой fix: RAG-tools не попадали в allowedNames Chat с v1.5.0 (Chat видел 7 инструментов вместо 10).
+- **KI-108** — Per-user mail accounts (свой ящик у каждого пользователя). Таблица `UserMailAccount` + шифрование через `IDataProtector`.
+- Сохранение вложений при `read_email` (требует переделки `IMailClient`).
+- Прикрепление вложений к `send_email` (привязка к `MimeMessage`).
+- **PROMPT_V2 layout** — переработка разметки (текущая задача).
 
-Sources / citations для Web-tools (v1.6.1) — `wikipedia_search` / `web_search` / `fetch_web_content` возвращают citations. `WebSourceBuilder` — единый хелпер. Проброс через агентов (`SubAgentTaskResult.Sources`). Дедупликация в `ChatStreamService`: 4-полевой ключ `(Type|DocumentPath|Url|ChunkIndex)` — было багом в v1.6.0 (web/wiki схлопывались в один). Кросс-платформенный fix `DocumentPath` — относительные пути.
+**v1.8.x / v1.9+ — External-LLM Agent (KI-109):**
 
-**Sources / citations — оригинальное имя для attachments (KI-106, v1.7.1 — Fixed).** `ChatAttachmentService.UploadAsync` для citations передаёт `BuildRagDocumentPath(chatId, fileName, subfolder)` = `"chat-attachments/{chatId}/{fileName}"` (оригинальное имя). Физический файл — по-прежнему `{guid}.ext` (StoragePath). При удалении — fallback на StoragePath для записей до v1.7.1. Старые записи не мигрируются (косметика).
+- Агент `external_llm_agent` + 3 инструмента (`ask_external_llm`, `list_external_providers`, `check_internet_connection`).
+- OpenAI-совместимые провайдеры (DeepSeek, OpenAI, Groq, Together AI, Ollama).
+- 4 сценария-оркестратора (Fallback / Специализация / Разные знания / Сравнение).
+- Circuit breaker, дневной лимит ($5/день, 500k токенов), privacy-first.
+- **DESIGN готов** — `docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`.
 
-**MailKit API: `IMessageSummary.Attachments` — `IEnumerable<BodyPartBasic>`, `.Count` — extension (LINQ), не свойство (RULES § 4.47).** Без `()` — CS0019. Используй `s.Attachments?.Any() == true`. Тот же класс ошибок, что был в KI-107 Фаза 2: «типичные» предположения о .NET API → 2 итерации на fix.
+**v1.9+ — Anthropic / Gemini (KI-110):**
 
-**`ConcurrentDictionary.TryRemove(key, out _)` — CS1503 в C# 13 (неоднозначность перегрузок).** Заменяй на явную переменную: `UserState removed; if (_dict.TryRemove(key, out removed)) { ... }`. Урок KI-107 Фаза 4.
+- Свои форматы запросов (`/v1/messages`, `/v1beta/models`).
+- Расширение `IExternalLlmClient` (ветвление по `Format`).
 
-**Тесты, проверяющие `Reason`/`Message` — на фактический текст (обычно русский).** Не англ. идентификаторы. Для `InMemoryMailRateLimiter.Reason` — `«Превышен лимит: 20 писем/час»`, а не `"SendsPerHour"`. Урок KI-107 Фаза 4.
+**Инфраструктура (v1.8.x):**
 
-**`mail_agent` — НЕ требует правок `ChatStreamService`.** Наследник `AgentToolBase` → попадает в `allowedNames` через `SubAgentRegistry.GetEnabled()` (как 6 других агентов). RULES § 4.44 применим только к top-level ITool, **не** наследникам AgentToolBase (например, `database_agent` — не наследник, поэтому был добавлен явно).
+- **KI-107-fix** — сохранение вложений при `read_email` (переделка `IMailClient`).
+- **KI-091** — SqlServer цепочка миграций (обязательно перед prod-SqlServer).
+- **KI-070** — миграции Sqlite.
+- **Qdrant** — замена `InMemoryVectorStore` (если перерастём 10k чанков).
+- **KI-057** — config-driven exclusion patterns моделей LM Studio.
 
-Roadmap
+**Deferred:**
 
-v1.7.0 — Database Agent ✅ Done (2026-09-29)
-Read-only SQL-доступ LLM к БД приложения (KI-097). 4 действия database_agent.
-5 уровней безопасности (read-only роль, валидатор, whitelist, timeout+auto-LIMIT, approval+audit).
-Admin UI /admin → SQL Agent (whitelist / MaxRows / Timeout / Enabled в runtime).
-Per-action approval (KI-101). Локализация /admin (KI-102). Тесты: 312 → 341.
+- KI-047 — Fallback PATCH/DELETE через POST.
+- KI-053 — Multi-user approvals (роли approver).
+- KI-082 — Модалка-редактор длинных user-сообщений.
+- KI-096 — GitHub Wiki.
+- KI-099 — Внешние БД для Database Agent.
 
-v1.7.1 — патч-релиз: PDF/DOCX + локализация ✅ Done (2026-09-29)
-KI-104 — PdfParser (PdfPig 0.1.9) + DocxParser (OpenXml 3.1.0). RAG: 28 → 30 форматов.
-Fix accept для <input type="file"> в /chat (.pdf, .docx).
-KI-105 — System.IO.Packaging транзитивная уязвимость (override 8.0.0 → 10.0.0). Скрипт check-vulnerabilities.ps1 (прецедент KI-022).
-KI-103 — локализация /status (4 hardcoded RU-строки в status.js → data-*).
-Тесты: 341 → 374 (+33). Build 0/0. CI + Docker — зелёные.
+---
 
-v1.8.0 — Mail Agent ✅ Done (реализовано, 5 фаз)
-MailKit 4.8.0. Агент `mail_agent` (наследник AgentToolBase) + 7 mail-tools: send_email (approval), list_emails, read_email, search_emails, delete_email (approval), move_email (approval), mark_as_read. Глобальные creds (App Password) в User Secrets. Rate limiting 20/час, 30/мин. Privacy-first (без PII в логах). Аттачменты в mail-attachments/{uid}/, ≤ 10 MB. Chat видит 12 инструментов. Тесты 424/424.
-Отложено (не блокер): сохранение вложений при read_email; прикрепление вложений к send_email; OAuth2 (v1.9+).
+## § 6. Формат работы
 
-v1.8.x — доработки Mail Agent
-KI-108 — Per-user mail accounts (свой ящик у каждого пользователя). Таблица UserMailAccount + шифрование пароля через IDataProtector + UI в /profile → Почта.
-Сохранение вложений при read_email — требует переделки IMailClient.
-Прикрепление вложений к send_email — MimeMessage + BodyBuilder.
+1. **Полные файлы** с XML-документацией на русском.
+2. **Путь к файлу** в начале каждого блока кода.
+3. **Правка существующего файла** — точечный diff (Найти / Заменить на).
+4. **Новый файл** — выводить целиком.
+5. **Несколько правок в одном файле** — нумеровать: Правка 4.1, Правка 4.2.
+6. **Новые NuGet-пакеты** — с версиями и указанием проекта.
+7. **Сводка в конце**: что сделано / что проверить.
+8. **Новые проблемы** → `KI-XXX` в `docs/KNOWN_ISSUES.md`.
+9. **Новые UI-строки** → оба `.resx` (RU + EN) — правило 1.14.
+10. **Новый инструмент** → 1 класс + 1 строка регистрации в `Startup.cs`.
+11. **Обновление `AppVersion.Current`** — только при релизе (правило 2.7).
+12. **Большие MD-файлы** — только точечный diff или отдельная секция (RULES § 2.11).
 
-v1.8.x/v1.9+ — External-LLM Agent
-external_llm_agent(provider, prompt, include_context?). OpenAI-совместимые (DeepSeek, OpenAI, Groq, Together AI, Ollama). 4 сценария-оркестратора. Circuit breaker. Дневной лимит $5/день, 500k токенов. Anthropic / Gemini — v1.9+.
+### Формат вывода кода
 
-v1.8.x — инфраструктура
-KI-106 — оригинальное имя файла в источниках RAG (сейчас GUID от attachments). ~1 ч.
-KI-107 — динамический accept из IRagDocumentParserRegistry.GetAllSupportedExtensions(). ~2 ч.
-KI-096 — GitHub Wiki для проекта (scope уточняется).
-KI-091 — SqlServer цепочка миграций (обязательно перед prod-SqlServer).
-KI-070 — миграции Sqlite.
-KI-057 — config-driven exclusion patterns моделей LM Studio.
-Qdrant — замена InMemoryVectorStore (если перерастём 10k чанков). Интерфейс IVectorStore уже готов.
+Каждый файл — отдельным блоком с заголовком и путём. Пример структуры:
 
-Deferred
-KI-047 — Fallback PATCH/DELETE через POST (для старых сетей).
-KI-053 — Multi-user approvals (роли approver, уведомления).
-KI-082 — Модалка-редактор длинных user-сообщений.
-KI-096 — GitHub Wiki (scope уточняется).
-KI-099 — внешние БД для Database Agent (Postgres / MySQL / Oracle). v1.8.0+.
-
-Уже сделано (v1.4.x — v1.6.1)
-KI-087 — docs/development/ARCHITECTURE.md.
-KI-088 — docs/TESTING.md (чек-лист ручной приёмки).
-KI-083 — RAG / Knowledge Base (v1.5.0).
-KI-086 — Sources / citations (v1.6.0 + v1.6.1).
-Формат работы
-Полные файлы с XML-документацией на русском.
-
-Путь к файлу в начале каждого блока кода.
-
-При изменении существующего файла — полная версия (не diff) или точечный diff.
-
-Новые NuGet-пакеты — с версиями и указанием проекта.
-
-Сводка в конце блока: что сделано / что проверить.
-
-Новые проблемы → KI-XXX в docs/KNOWN_ISSUES.md.
-
-Новые UI-строки → оба .resx (RU + EN) — правило 1.14.
-
-Новый инструмент → 1 класс + 1 строка регистрации в Startup.cs.
-
-Обновление AppVersion.Current — только при релизе (правило 2.7).
-
-Большие MD-файлы — только точечный diff или отдельная секция (RULES § 2.11).
-
-📐 Формат вывода кода и ответа
-Каждый файл — отдельным блоком с заголовком и путём:
-
-📄 Файл N — <название> (новый | правка)
-Путь: C:\Projects\AI\IIChatTools...\File.cs
-
-<тройной бэктик с языком>
-<код>
-<закрывающий тройной бэктик>
+    📄 Файл N — название (новый | правка)
+    Путь: <repo-root>/.../File.cs
+    [открывающий fence с языком, например csharp]
+        код
+    [закрывающий fence]
 
 При правке существующего файла — пошагово:
 
-Найти: (полный фрагмент, который заменяем)
-
-Заменить на: (новый фрагмент)
+    Найти: (полный фрагмент, который заменяем)
+    Заменить на: (новый фрагмент)
 
 Несколько правок в одном файле — нумеровать: Правка 4.1, Правка 4.2.
 
 Новый файл — выводить целиком (с XML-doc).
 
-⚠️ Единый уровень fence'ов! Если файл сам содержит тройной бэктик (например, README.md с примерами кода) — оборачивай его в 4 бэктика. НО внутри 4 бэктиков не должно быть ещё одного слоя 3 бэктиков, вложенных в 3 — если такое случается, отдавай файл как plain text без обёртки.
+**Единый уровень fence'ов!** Если файл сам содержит тройной бэктик (например, README.md с примерами кода) — оборачивай его в 4 бэктика. НО внутри 4 бэктиков не должно быть ещё одного слоя 3 бэктиков, вложенных в 3 — если такое случается, отдавай файл как plain text без обёртки.
 
 Когда риск поломки критичен (большой MD, вложенные fence'ы, 5+ уровней структуры) — отдавай порциями: сначала правки 1-3, потом (после подтверждения) — 4-6. Дешевле, чем переписывать сломанную разметку вручную.
 
-Обязательные секции в конце ответа
+### Обязательные секции в конце ответа
+
 После всех правок — строго эти разделы, в этом порядке:
 
-🔨 Build + test — команды + ожидание (0 warnings, 0 errors; N/N тестов).
+- 🔨 **Build + test** — команды + ожидание (0 warnings, 0 errors; N/N тестов).
+- 🚀 **Commit** — here-string commit message + `git add -A` + `push`.
+- 🧪 **Smoke** — что проверить после коммита (сценарии / DevTools / SQL).
+- 📊 **Сводка** — статус + что жду (логи / скрины / `git log`).
+- 🎯 **Что дальше** — предложение следующего шага (с оценкой).
 
-🚀 Commit — here-string commit message + git add -A + push.
+### Если чего-то не хватает
 
-🧪 Smoke — что проверить после коммита (сценарии / DevTools / SQL).
+**Не выдумывай.** Если нужен файл, которого нет в контексте:
 
-📊 Сводка — статус + что жду (логи / скрины / git log).
+- Скажи явно: «Нужен файл X».
+- Дождись, пока пользователь его пришлёт.
+- Не предлагай «примерно так».
 
-🎯 Что дальше — предложение следующего шага (с оценкой).
+Если непонятно требование — **задай вопрос до кода**.
 
-Если чего-то не хватает
-Не выдумывай. Если нужен файл, которого нет в контексте:
+### Перед началом работы — дождись «ДА»
 
-Скажи явно: «Нужен файл X».
-
-Дождись, пока пользователь его пришлёт.
-
-Не предлагай «примерно так».
-
-Если непонятно требование — задай вопрос до кода.
-
-Перед началом работы — дождись «ДА»
 Не начинай писать код, пока пользователь не подтвердил план / DESIGN / предыдущий шаг.
 Исключение: прямое «делай» / «приступай».
 
-Рабочий путь
-Проект на Windows: C:\Projects\AI\IIChatTools (текущий).
-Также есть копии на других машинах — обязательно уточнять путь при переключении.
+### Рабочий путь
 
-Стандартные команды
-Остановить приложение (RULES § 3.14):
+- **Windows:** путь уточнять у пользователя (может быть `C:\Projects\...` или `D:\Projects\...` — зависит от машины).
+- Есть копии на нескольких машинах — обязательно уточнять путь при переключении.
+- В примерах команд используй `<repo-root>` как плейсхолдер.
 
-Get-Process IIChatTools.API -ErrorAction SilentlyContinue | Stop-Process -Force
+### Стандартные команды
 
-Чистая сборка:
+**Остановить приложение** (RULES § 3.14):
 
-cd C:\Projects\AI\IIChatTools
-Get-ChildItem -Recurse -Directory -Include bin,obj | Remove-Item -Recurse -Force
-dotnet restore IIChatTools.sln --configfile NuGet.Config.online --force --verbosity minimal
-dotnet build IIChatTools.sln --no-restore
-dotnet test IIChatTools.sln
+    Get-Process IIChatTools.API -ErrorAction SilentlyContinue | Stop-Process -Force
 
-Запуск (dev):
+**Build + test:**
 
-cd IIChatTools.API
-dotnet run
+    cd <repo-root>
+    dotnet build IIChatTools.sln
+    dotnet test IIChatTools.sln --no-build
 
-UI: https://localhost:5001
-Метрики: https://localhost:5001/metrics
+**Чистая сборка:**
 
-Commit (here-string — избежать проблем с PowerShell-экранированием):
+    cd <repo-root>
+    Get-ChildItem -Recurse -Directory -Include bin,obj | Remove-Item -Recurse -Force
+    dotnet restore IIChatTools.sln --configfile NuGet.Config.online --force --verbosity minimal
+    dotnet build IIChatTools.sln --no-restore
+    dotnet test IIChatTools.sln
 
-git add -A
-@'
-<type>(<scope>): <subject>
+**Запуск (dev):**
 
-пункт 1
+    cd <repo-root>/IIChatTools.API
+    dotnet run
 
-пункт 2
+UI: `https://localhost:5001`; Метрики: `https://localhost:5001/metrics`.
 
-Build 0/0. Tests 199/199.
-'@ | Out-File -FilePath .commit-msg.txt -Encoding utf8NoBOM
-git commit -F .commit-msg.txt
-Remove-Item .commit-msg.txt
-git push origin main
+**Commit** (here-string — избежать проблем с PowerShell-экранированием):
 
-Что сделать сейчас (твоё первое действие)
-Прочитай RULES.md целиком (v1.4.18) — 9 разделов.
+    git add -A
+    git status
 
-Спроси у меня, что делаем: продолжаем v1.5.x (инфраструктура) / v1.6.0 (sources) / новая задача / фикс / KI.
+    @'
+    <type>(<scope>): <subject>
 
-Не начинай код, пока не поймёшь задачу. Задавай вопросы.
+    пункт 1
+    пункт 2
 
-Формат — полные файлы, путь в начале блока.
+    Build 0/0. Tests N/N.
+    '@ | Out-File -FilePath .commit-msg.txt -Encoding utf8NoBOM
+    git commit -F .commit-msg.txt
+    Remove-Item .commit-msg.txt
 
-Большие MD — только diff (RULES § 2.11).
+    git push origin main
 
-Известные подводные камни (частые в нашем проекте)
+### Что сделать сейчас (первое действие в новом чате)
 
-- **Path.GetFileName кросс-платформенный** (RULES § 4.45): на Linux распознаёт только `/`, а не `\`. Абсолютный Windows-путь `C:\...\RULES.md` на Linux-CI вернётся целиком. Перед `Path.GetFileName` нормализовать `\` → `/`. Симптом: красный CI на ubuntu при зелёном локальном `dotnet test`.
+1. Прочитай `RULES.md` целиком (v1.4.21) — 9 разделов.
+2. Спроси, что делаем: v1.8.x / v1.9.0 (External-LLM) / новая задача / фикс / KI.
+3. **Не начинай код,** пока не поймёшь задачу.
+4. Формат — полные файлы, путь в начале блока.
+5. Большие MD — только diff (RULES § 2.11).
 
-- **Кэш браузера после правок chat.js / chat.css.** После изменений — `Ctrl+Shift+R` (жёсткая перезагрузка) + в DevTools Network поставить галку «Disable cache». Иначе работаешь со старым JS и думаешь, что фича сломана.
+---
 
-- **RAG-tools в allowedNames Chat** (RULES § 4.44): при добавлении нового top-level `ITool` в DI — обязательно добавить его имя в `allowedNames` в `ChatStreamService.StreamAsync`. Иначе LLM физически не сможет его вызвать. Было багом в v1.5.0 (Chat видел 7 инструментов вместо 10).
+## § 7. Известные подводные камни
 
-- **Sources: 4-полевой ключ дедупликации** (v1.6.1, KI-086-post): ключ `(Type|DocumentPath|Url|ChunkIndex)`. **Без `Url`** web/wiki-источники (у них `DocumentPath=null`, `ChunkIndex=null`) дают одинаковый ключ и схлопываются в один. Было багом в v1.6.0 (7 источников → 1 в UI).
+- **`Path.GetFileName` кросс-платформенный** (RULES § 4.45): на Linux распознаёт только `/`. Абсолютный Windows-путь `C:\...\RULES.md` на Linux-CI вернётся целиком. Нормализуй `\` → `/` перед вызовом.
+- **Кэш браузера** после правок `chat.js` / `chat.css`: `Ctrl+Shift+R` + в DevTools Network — галка «Disable cache».
+- **RAG-tools в `allowedNames` Chat** (RULES § 4.44): при добавлении нового top-level `ITool` в DI — обязательно добавить его имя в `allowedNames` в `ChatStreamService.StreamAsync`. **НЕ применяется** к наследникам `AgentToolBase` — они попадают через `SubAgentRegistry.GetEnabled()`.
+- **Sources: 4-полевой ключ дедупликации** (v1.6.1): `(Type|DocumentPath|Url|ChunkIndex)`. Без `Url` web/wiki-источники схлопываются в один.
+- **Sources через агентов** (v1.6.1): `SubAgentTaskResult.Sources` (`IReadOnlyList<ChatSourceDto>`). `SubAgentService` аккумулирует.
+- **`wikipedia_search` intermittent timeout** (KI-094): SSL через прокси. Fallback `web_search` работает.
+- **`.resx` ключи case-insensitive** — коллизия → MSB3568. Новые — camelCase.
+- **`git commit -m "..."` в PowerShell** — экранирование ломается на кавычках. Используй here-string + `-F .commit-msg.txt`.
+- **Локализация JS** — только через `data-*`-атрибуты (RULES § 4.17).
+- **CancellationToken требует `using System.Threading;`** в контроллерах.
+- **`[ApiController]` не подходит для View-контроллеров** — возвращает ProblemDetails 400 вместо формы.
+- **SqlServer vs Sqlite** — миграции применяются только для SqlServer. Для Sqlite — `EnsureCreatedAsync` (RULES § 4.25).
+- **`yield return` + scope переменных** — объявлять до `try-catch`, иначе CS0103 (RULES § 4.33).
+- **`ExecuteDeleteAsync` не поддерживается InMemory** (RULES § 4.29) — fallback `ToList` + `RemoveRange`.
+- **`Microsoft.ML.Tokenizers` — два пакета**: API + Data.Cl100kBase (RULES § 4.32).
+- **`cref` в XML-doc с перегрузками** — CS0419 (RULES § 4.30).
+- **Перед `dotnet build` — останови приложение**, иначе MSB3027 (RULES § 3.14).
+- **После изменения `chat.js` / `site.css`** — `Ctrl+F5` (кэш браузера).
+- **`ChatStreamService.StreamAsync` — `yield return` запрещён в try-catch** (CS1631).
+- **Sqlite + открытый DB Browser** — `database is locked` (KI-085). Открывать в Read Only.
+- **Расширение интерфейса** — grep по ВСЕМ fake-заглушкам (RULES § 4.34).
+- **InMemory + AddDbContext** — явный `InMemoryDatabaseRoot` + имя БД до лямбды (RULES § 4.42).
+- **`JToken.GetValue(name, comparison)`** не существует — перебирать `obj.Properties()` (RULES § 4.43).
+- **Перед `dotnet ef migrations add`** — проверить `Database:Provider` в `appsettings.Development.json` (RULES § 3.15).
+- **`IMessageSummary.Attachments`** — `IEnumerable`, `.Count` — extension (RULES § 4.47).
+- **`ConcurrentDictionary.TryRemove(key, out _)`** — CS1503 в C# 13. Явная переменная.
+- **Тесты `Reason`/`Message`** — проверяй **фактический** текст (обычно русский), не идентификаторы.
 
-- **Sources через агентов** (v1.6.1, KI-086-post): `SubAgentTaskResult.Sources` (`IReadOnlyList<ChatSourceDto>`). `SubAgentService` аккумулирует `ToolResult.Sources` от inner-вызовов с дедупликацией. `AgentToolBase` / `ConsultSecondaryAgentTool` пробрасывают в `ToolResult.Ok`.
+### PDF / DOCX (KI-104, v1.7.1)
 
-- **`wikipedia_search` intermittent timeout** (KI-094): SSL через прокси. Fallback `web_search` работает. Не блокер, план v1.6.2.
-.resx-ключи case-insensitive — коллизия (MSB3568). Новые — camelCase: ChatModelLabel, WelcomeTitle (RULES § 4.16).
+- **`.doc` (старый формат Word) — не поддерживается.** OpenXml работает только с `.docx`.
+- **OCR сканов PDF — не поддерживается.** PdfPig читает только текстовый слой.
+- **Шифрованные PDF** — `PdfDocument.Open` бросает исключение.
+- **Сложная вёрстка** (таблицы, multi-column) — текст склеивается.
+- **`accept` для `<input type="file">` — хардкод в `Views/Chat/Index.cshtml`.** При добавлении нового парсера — не забыть добавить расширение в `accept`.
 
-git commit -m "..." в PowerShell — экранирование ломается на кавычках. Использовать here-string + -F .commit-msg.txt.
+### Mail Agent (KI-107, v1.8.0)
 
-Локализация JS — только через data-*-атрибуты (RULES § 4.17), не хардкодить.
+- **Yandex: App Password ≠ включение IMAP.** Это две разные настройки. `Login invalid credentials or IMAP is disabled` — в 90% случаев IMAP не включён в веб-интерфейсе (`Настройки → Почтовые программы`).
+- **App Password — 16 символов без пробелов.** Yandex показывает группами для читаемости, но пробелы надо убрать.
+- **Логин — полный email** (`user@yandex.ru`), не просто `user`.
+- **`mail_agent` — НЕ требует правок `ChatStreamService`.** Наследник `AgentToolBase` → попадает в `allowedNames` через `SubAgentRegistry.GetEnabled()`.
+- **Вложения при `read_email` НЕ сохраняются** в workspace (v1.8.0) — метаданные отдаются, файлы нет.
+- **Прикрепление вложений к `send_email` НЕ реализовано** в v1.8.0.
 
-CancellationToken требует using System.Threading; в контроллерах.
+---
 
-[ApiController] не подходит для View-контроллеров (возвращает ProblemDetails 400 вместо формы).
+## § 8. Известные факты про LM Studio
 
-SqlServer vs Sqlite — миграции применяются только для SqlServer. Для Sqlite — EnsureCreatedAsync (RULES § 4.25: удалять .db при изменении модели).
+- Модель `qwen/qwen3-4b-2507` — плохо следует сложным инструкциям, иногда галлюцинирует.
+- `GET /v1/models` возвращает embedding-модели (`text-embedding-*`) — фильтруются в `/api/models`.
+- SSE-режим не отдаёт usage — токены через tiktoken (KI-049a).
+- `wikipedia_search` — intermittent SSL-обрывы (KI-064 Fixed, KI-094 Documented).
+- Embedding-модель: `text-embedding-nomic-embed-text-v1.5`, 768 dim, через `POST /v1/embeddings`.
+- Tool calling — поддерживается, но модель путается при >15 инструментах (отсюда Multi-Agent).
 
-**PDF / DOCX (KI-104, v1.7.1):**
-- **`.doc` (старый формат Word) — не поддерживается.** OpenXml работает только с `.docx`. При попытке приложить `.doc` — `InvalidDataException` → красный toast.
-- **OCR сканов PDF — не поддерживается.** PdfPig читает только текстовый слой. PDF-картинка без текста → `page.Text` пустой → 0 чанков (вложение создаётся, но `ChunksCount = 0`). Решение: Tesseract — v1.9+.
-- **Шифрованные PDF** — `PdfDocument.Open` бросает исключение → `InvalidDataException` → вложение не создаётся.
-- **Сложная вёрстка** (таблицы, multi-column) — текст склеивается. Ограничение всех PDF-экстракторов.
-- **`accept` для `<input type="file">` — хардкод в `Views/Chat/Index.cshtml`.** При добавлении нового парсера (например, `.odt` в v1.8+) — **не забыть** добавить расширение в `accept` вручную. Долгосрочное решение — KI-107 (динамический accept из `IRagDocumentParserRegistry`).
+---
 
-**Sources / citations — оригинальное имя для attachments (KI-106, v1.7.1 — Fixed).** В `ChatAttachmentService.UploadAsync` для citations используется `BuildRagDocumentPath(chatId, fileName, subfolder)` = `"chat-attachments/{chatId}/{fileName}"` (оригинальное имя). Физический файл — по-прежнему `{guid}.ext` (StoragePath). При удалении — fallback на StoragePath для записей до v1.7.1. Старые записи не мигрируются (косметика).
+## § 9. Начни с вопроса
 
-yield return + scope переменных — объявлять до try-catch, иначе CS0103 (RULES § 4.33).
-
-ExecuteDeleteAsync не поддерживается InMemory (RULES § 4.29) — fallback ToList + RemoveRange.
-
-Microsoft.ML.Tokenizers — два пакета: API + Data.Cl100kBase (RULES § 4.32).
-
-cref в XML-doc с перегрузками — CS0419 (RULES § 4.30).
-
-Перед dotnet build — остановить приложение, иначе MSB3027 (RULES § 3.14).
-
-После изменения chat.js / site.css — Ctrl+F5 (кэш браузера).
-
-ChatStreamService.StreamAsync — yield return запрещён в try-catch (CS1631).
-
-Sqlite + открытый DB Browser — database is locked (KI-085). Открывать в Read Only.
-
-Расширение интерфейса — grep по ВСЕМ fake-заглушкам в тестах, иначе CS0535 (RULES § 4.34).
-
-InMemory + AddDbContext — явный InMemoryDatabaseRoot + имя БД до лямбды; иначе разные scope = разные БД (RULES § 4.42).
-
-JToken.GetValue(name, comparison) не существует — перебирать obj.Properties() вручную (RULES § 4.43).
-
-Перед dotnet ef migrations add — проверить Database:Provider в appsettings.Development.json (RULES § 3.15, KI-090).
-
-SqlServer-миграции v1.5.0 — не применяются (KI-091). Prod-SqlServer — только после v1.5.x.
-
-Известные факты про LM Studio
-Модель qwen/qwen3-4b-2507 — плохо следует сложным инструкциям, иногда «галлюцинирует».
-
-GET /v1/models возвращает embedding-модели (text-embedding-*) — фильтруются в /api/models.
-
-SSE-режим не отдаёт usage — токены считаем через tiktoken (KI-049a).
-
-wikipedia_search — intermittent SSL-обрывы через корпоративный прокси (KI-064 Fixed: timeout 15s + retry; KI-094 Documented: всё ещё intermittent, план v1.6.2).
-
-Embedding-модель: text-embedding-nomic-embed-text-v1.5, 768 dim, через POST /v1/embeddings.
-
-Tool calling — поддерживается, но модель путается при >15 инструментах (отсюда Multi-Agent).
-
-Начни с вопроса
 Прочитай правила и это сообщение. Затем задай мне вопросы:
 
-Что делаем сегодня — v1.5.x (инфраструктура) / v1.6.0 (sources) / новая задача / фикс / KI?
+1. Что делаем сегодня — v1.8.x (инфраструктура) / v1.9.0 (External-LLM) / новая задача / фикс / KI?
+2. Есть ли специфичные требования?
+3. Нужны ли файлы, которых у тебя нет?
+4. Какой путь к проекту (уточнить — `C:\Projects\...` или `D:\Projects\...`)?
 
-Есть ли специфичные требования?
-
-Нужны ли файлы, которых у тебя нет?
-
-Какой путь к проекту (C:\Projects\AI\IIChatTools)?
-
-Готов? Приступаем.
+**Готов? Приступаем.**
