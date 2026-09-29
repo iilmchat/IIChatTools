@@ -32,6 +32,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **Аудит** всех действий: БД + опциональный JSONL-файл (`logs/audit/`).
 - **Безопасность**: `PathHelper`, `ArgumentList`, whitelist команд, лимиты размеров, TTL-сессии.
 - **Offline-развёртывание**: сборка без доступа к интернету через `LocalPackages/`.
+- **✉️ Mail Agent (v1.8.0)**: почтовый агент (IMAP/SMTP через MailKit 4.8.0). 7 инструментов: `send_email` (approval), `list_emails`, `read_email`, `search_emails`, `delete_email` (approval), `move_email` (approval), `mark_as_read`. Rate limiting 20 писем/час, 30 чтений/мин. Privacy-first (без PII в логах). Вложения в `mail-attachments/{uid}/`, ≤ 10 MB. Дизайн — [docs/development/v1.8/DESIGN_MAIL_AGENT.md](docs/development/v1.8/DESIGN_MAIL_AGENT.md).
 - **✅ RAG / Knowledge Base (v1.5.0)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. 4 индекса (project_docs, my_rag_docs, chat_history, workspace), 3 tool для LLM (search_knowledge_base, search_chat_history, search_workspace), auto-inject top-K из attached-чанков в system prompt. UI: 📎-вложения в чате, админка /admin → База знаний, opt-in в /profile → Workspace index. Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
 - **Логотип (KI-081):** фирменный знак IIChatTools (шестиугольник с переплетением) — в navbar, на главной (hero), на страницах входа/регистрации и в empty state чата. Favicon — SVG + PNG (16/32) + apple-touch-icon. Файлы: `wwwroot/images/logo-icon.svg`, `logo-full.svg`, `site.webmanifest`.
 
@@ -373,12 +374,13 @@ dotnet run --project IIChatTools.API
 | **+ Агенты (v1.4.0)** | **+6** | **(по агенту)** |
 | **+ RAG (v1.5.0)** | **+3** | — |
 | **+ Database Agent (v1.7.0)** | **+1** | **✅** |
-| **Итого (ToolRegistry)** | **50** | — |
+| **+ Mail Agent (v1.8.0)** | **+7** | **3 (send/delete/move)** |
+| **Итого (ToolRegistry)** | **57** | — |
 
-> **Примечание:** Chat видит **11 инструментов** (6 агентов + `consult_secondary_agent`
-> + 3 RAG-tool: `search_knowledge_base`, `search_chat_history`, `search_workspace` —
-> v1.5.0, KI-083) + `database_agent` (v1.7.0, KI-097).
-> Все 40 «сырых» инструментов доступны **внутри** агентов.
+> **Примечание:** Chat видит **12 инструментов** (7 агентов: 6 специализированных + `consult_secondary_agent`
+> + 3 RAG-tool: `search_knowledge_base`, `search_chat_history`, `search_workspace` — v1.5.0, KI-083
+> + `database_agent` (v1.7.0, KI-097) + `mail_agent` (v1.8.0, KI-107)).
+> Все «сырые» инструменты доступны **внутри** агентов.
 
 ---
 
@@ -646,6 +648,83 @@ dotnet user-secrets set "SqlAgent:Internal:ConnectionString" \
 
 ---
 
+## Mail Agent (v1.8.0)
+
+Работа с электронной почтой через IMAP4/SMTP. **Требует явного `Mail:Enabled = true`** —
+иначе агент и его инструменты не регистрируются в DI.
+
+### 7 инструментов внутри агента `mail_agent`
+
+| Tool | Approval | Назначение |
+|---|:---:|---|
+| `send_email` | ✅ | Отправка (to/cc/bcc/subject/body/isHtml/attachments) |
+| `list_emails` | — | Список писем из папки |
+| `read_email` | — | Чтение письма по UID |
+| `search_emails` | — | Поиск (from/subject/since/before/unseenOnly) |
+| `delete_email` | ✅ | Удаление (перемещение в Trash) |
+| `move_email` | ✅ | Перемещение между папками |
+| `mark_as_read` | — | Пометка прочитанным (approval уже на `mail_agent`) |
+
+**Chat видит один инструмент** — `mail_agent`. LLM вызывает его с задачей:
+«Прочитай последнее письмо от Иванова», «Отправь счёт на X» и т.п.
+Модалка approval — **одна на всю задачу** (не на каждый tool внутри).
+
+### Безопасность
+
+- **Approval** — на `mail_agent` (1 модалка на задачу).
+- **Rate limiting:** 20 писем/час, 2 письма/мин, 30 чтений/мин (per-user).
+- **Вложения:** только из workspace пользователя (`PathHelper`), ≤ 10 MB на письмо, ≤ 5 файлов.
+- **Privacy:** в логах — только метаданные (uid, count, bytes). Никогда — Subject / From / To / Body.
+
+### Конфигурация
+
+Секция `Mail` в `appsettings.json`:
+
+    "Mail": {
+      "Enabled": false,
+      "Imap": { "Host": "imap.yandex.ru", "Port": 993, "UseSsl": true },
+      "Smtp": { "Host": "smtp.yandex.ru", "Port": 465, "UseSsl": true },
+      "FromAddress": "agent@example.com",
+      "FromDisplayName": "IIChatTools Agent",
+      "Attachments": { "MaxFileSizeBytes": 10485760, "MaxFilesPerMessage": 5 },
+      "RateLimit": { "SendsPerHour": 20, "SendsPerMinute": 2, "ReadsPerMinute": 30 }
+    }
+
+### Credentials — только в User Secrets (не в appsettings!)
+
+    cd C:\Projects\AI\IIChatTools\IIChatTools.API
+
+    dotnet user-secrets set "Mail:Imap:Host" "imap.yandex.ru"
+    dotnet user-secrets set "Mail:Smtp:Host" "smtp.yandex.ru"
+    dotnet user-secrets set "Mail:FromAddress" "you@yandex.ru"
+    dotnet user-secrets set "Mail:Imap:Username" "you@yandex.ru"
+    dotnet user-secrets set "Mail:Imap:Password" "<app-password>"
+    dotnet user-secrets set "Mail:Smtp:Username" "you@yandex.ru"
+    dotnet user-secrets set "Mail:Smtp:Password" "<app-password>"
+    dotnet user-secrets set "Mail:Enabled" "true"
+
+### Как получить App Password (RU-специфика)
+
+- **Yandex** (рекомендуется в РФ, работает без VPN): https://id.yandex.ru/security → «Пароли приложений» → «Почта» → «IMAP-клиент».
+- **Mail.ru**: https://account.mail.ru/user/2-step-auth/passwords → включить 2FA → «Пароли для внешних приложений» → «IMAP».
+- **Gmail** (требует VPN в РФ): https://myaccount.google.com/security → 2FA → «Пароли приложений» → «Почта».
+- **OAuth2** (для Gmail / Outlook / Exchange) — запланировано на **v1.9+**.
+
+### Ограничения v1.8.0
+
+- **Один глобальный ящик** для всех пользователей (per-user — v1.8.x, KI-108).
+- **Сохранение вложений при `read_email`** — отложено (требует переделки `IMailClient`).
+- **Прикрепление вложений к `send_email`** — `ResolveForSendAsync` готов, но привязка к `MimeMessage` — v1.8.x.
+- **POP3, календарь, контакты** — не входят.
+
+### API
+
+Mail-tools — не имеют собственных REST-endpoint'ов. Вызываются через:
+- **Chat UI:** LLM вызывает `mail_agent` → SSE `tool_call` → approval → `tool_result`.
+- **`/api/tools/execute`:** прямой вызов (`{"toolName": "list_emails", "arguments": {...}}`).
+
+---
+
 ## Rate Limiting
 
 Per-user и per-IP лимиты запросов. Настраивается в `appsettings.json` (секция `RateLimiting`).
@@ -789,7 +868,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 375/375 тестов проходят (unit + integration).
+**Статус**: 424/424 тестов проходят (unit + integration).
 
 ---
 

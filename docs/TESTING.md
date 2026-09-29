@@ -1,15 +1,15 @@
 # TESTING.md — Чек-лист ручной приёмки IIChatTools
 
-**Версия:** 1.7.1
+**Версия:** 1.8.0
 **Обновлено:** 2026-09-29
-**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0), KI-103 (локализация `/status` — v1.7.1), KI-104 (PDF/DOCX парсеры — v1.7.1).
+**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0), KI-103 (локализация `/status` — v1.7.1), KI-104 (PDF/DOCX парсеры — v1.7.1), KI-107 (Mail Agent — v1.8.0).
 **Связанные DESIGN:** [v1.3](development/v1.3/DESIGN.md) (Chat UI), [v1.4](development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](development/v1.5/DESIGN.md) (RAG), [v1.7](development/v1.7/DESIGN_DB_AGENT.md) (Database Agent).
 
 ---
 
 ## § 1. Как пользоваться
 
-Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **374/374**) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end, Database Agent с реальной БД.
+Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **424/424**) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end, Database Agent с реальной БД, Mail Agent с реальным IMAP/SMTP.
 
 Каждый сценарий — таблица:
 
@@ -27,7 +27,7 @@
 
 ---
 
-## § 2. Smoke-сценарии v1.7.1 (18 шт, ~22 мин)
+## § 2. Smoke-сценарии v1.8.0 (20 шт, ~25 мин)
 
 | # | Действие | Ожидание | Статус | Комментарий |
 |:---:|---|---|:---:|---|
@@ -49,8 +49,12 @@
 | 16 | В `/chat`: «Покажи все данные из таблицы AspNetUsers» | LLM вызывает `database_agent(action=execute_query)` → approval → отказ валидатора «Таблицы запрещены: AspNetUsers». | | |
 | 17 | Новый чат → 📎 → приложить `.pdf` с текстовым слоем (договор/счёт) → задать вопрос по содержимому | В диалоге выбора файлов PDF **виден** (фильтр `accept`). Чип `📄 <имя>.pdf · N чанков`, `RAG: N чанков` (N > 0). Ответ — с опорой на текст PDF. | | |
 | 18 | Новый чат → 📎 → приложить `.docx` → задать вопрос по содержимому | В диалоге выбора файлов DOCX **виден**. Чип `📄 <имя>.docx · N чанков`. Ответ — с опорой на текст DOCX. | | |
+| 19 | `Mail:Enabled = true` (User Secrets с creds) → перезапуск → `/chat`: «Прочитай последнее письмо из INBOX» | LLM вызывает `mail_agent` → SSE `tool_approval_required` → модалка → Approve → LLM внутри вызывает `list_emails` + `read_email` → финальный ответ. В `/admin → Status` — запись `agent.mail_agent` (Success). | | |
+| 20 | `/chat`: «Отправь письмо на `<себе>` с темой Test и телом Hello» | LLM → `mail_agent` → approval → внутри `send_email` → SMTP-отправка. Письмо приходит. В AuditLogs — `mail.send_email`. **Без явной просьбы пользователя LLM НЕ отправляет.** | | |
 
-> **Если smoke (18/18 OK) — релиз можно публиковать.**
+> **Если smoke (20/20 OK) — релиз можно публиковать.**
+> **⚠️ Сценарии 19–20 требуют валидного `Mail:Enabled = true` + реальных creds** (App Password).
+> Без них — SKIP (не FAIL).
 
 ---
 
@@ -126,6 +130,23 @@
 | 3.5.6 | В `/chat`: «SELECT COUNT(*) FROM Chats» (без LIMIT) | Успех, auto-LIMIT добавлен, ответ — число. | | |
 | 3.5.7 | `Ctrl+Shift+R` (перезапуск приложения) | SqlAgent overrides применены из AppSettings (в логе: `SqlAgent overrides: применено 1 подключений`). | | |
 
+### § 3.6. Mail Agent (v1.8.0, KI-107)
+
+> **Требует `Mail:Enabled = true` + реальные creds** (App Password). Без них — SKIP.
+
+| # | Действие | Ожидание | Статус | Комментарий |
+|:---:|---|---|:---:|---|
+| 3.6.1 | `Mail:Enabled = false` → перезапуск | `mail_agent` **не виден** в Chat. `/api/tools` без mail-tools. | | |
+| 3.6.2 | `Mail:Enabled = true` + валидные creds → перезапуск | Лог: `SubAgentRegistry: 7 агентов (включая mail_agent)`. `/api/tools` содержит 7 mail-tools + `mail_agent`. | | |
+| 3.6.3 | Chat: «Прочитай последнее письмо» | `mail_agent` → approval → `list_emails` + `read_email` → ответ. | | |
+| 3.6.4 | Chat: «Найди письма от X за неделю» | `mail_agent` → `search_emails(from="X", since="YYYY-MM-DD")` → список. | | |
+| 3.6.5 | Chat: «Отправь письмо на Y с темой Z» | `mail_agent` → approval → `send_email` → SMTP. Письмо приходит. | | |
+| 3.6.6 | Chat: «Перемести последнее письмо в архив» | `mail_agent` → `move_email(uid, from="INBOX", to="Archive")`. | | |
+| 3.6.7 | 21-е письмо за час (быстрая серия) | 21-й вызов `send_email` → Fail «Превышен лимит отправки: 20 писем/час. Повторите через N мин.» | | |
+| 3.6.8 | Письмо с вложением → `read_email` | В ответе — метаданные вложения. **В workspace файл НЕ сохраняется** (отложено — CHANGELOG). | | |
+| 3.6.9 | `/admin → Status` → фильтр `agent.mail_agent` | Записи о запусках агента (Success/Error). Без Subject/From. | | |
+| 3.6.10 | Проверка privacy в логах приложения | В логах — только `Mail: {Action} uid={Uid} attachments={N}`. **Никогда** — Subject/From/To/Body. | | |
+
 ---
 
 ## § 4. UI/UX (~15 мин)
@@ -148,7 +169,7 @@
 
 ## § 5. Что НЕ покрыто автотестами (проверять **вручную**!)
 
-**Автотесты** (374/374) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов, **SqlAgent** (валидатор, connection provider, admin service + controller, integration через real Sqlite), **PDF/DOCX-парсеры** (`PdfParser`, `DocxParser`).
+**Автотесты** (424/424) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов, **SqlAgent** (валидатор, connection provider, admin service + controller, integration через real Sqlite), **PDF/DOCX-парсеры** (`PdfParser`, `DocxParser`), **Mail Agent** (7 tools, `MailAttachmentService`, `InMemoryMailRateLimiter`, `MailKitClient`, `GlobalMailAccountProvider`).
 
 **НЕ покрыто** — критично для ручной приёмки:
 
@@ -166,6 +187,7 @@
 | 5.10 | Docker-образ `ghcr.io/iilmchat/iichattools:v1.7.0` | Требует сборки после тега | После push тега `v1.7.0` |
 | 5.11 | Database Agent end-to-end (реальный LLM + реальная БД через Chat UI) | Требует LM Studio | Smoke 15, 16 |
 | 5.12 | Runtime-применение SqlAgent overrides без рестарта | Требует работающего приложения | 3.5.1, 3.5.2 |
+| 5.13 | Mail Agent с реальным IMAP/SMTP (Yandex) | Требует валидных creds (App Password) + интернета | 3.6.3–3.6.7 |
 
 ---
 
@@ -188,3 +210,4 @@
 | 2026-09-28 | 1.6.0 | Smoke +1 (Sources/citations, #11). |
 | 2026-09-29 | 1.7.0 | Фаза 7D: Smoke +5 (Database Agent, #12–16), § 3.5 (Database Agent, 7 сценариев), § 4 +2 (локализация admin, KI-102), § 5 +2 (5.11, 5.12). Автотесты 199 → 341. |
 | 2026-09-29 | 1.7.1 | KI-103 (локализация `/status`) + KI-104 (PDF/DOCX-парсеры). Smoke +2 (#17, #18), § 3.2 +4 (3.2.13–3.2.16). § 5.7 переведён из «не в MVP» в «требует реального файла». Автотесты 341 → 374. |
+| 2026-09-29 | 1.8.0 | KI-107 (Mail Agent — IMAP/SMTP через MailKit). Smoke +2 (#19, #20 — Mail Agent), § 3.6 — новый (10 сценариев Mail Agent), § 5 +5.13. Автотесты 374 → 424. |

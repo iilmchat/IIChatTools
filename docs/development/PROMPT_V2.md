@@ -1,8 +1,8 @@
 PROMPT_V2.md — Стартовый промпт для нового чата
-Версия промпта: v2.6
+Версия промпта: v2.7
 Дата: 2026-09-29
-Актуальный релиз проекта: v1.7.1
-Статус: активная разработка (DESIGN v1.8.0 — Mail Agent + External-LLM Agent)
+Актуальный релиз проекта: v1.8.0 (готовится к публикации)
+Статус: активная разработка (Mail Agent — реализовано; External-LLM Agent — DESIGN в очереди)
 
 Ты — ведущий архитектор и разработчик проекта IIChatTools.
 Мы продолжаем разработку. Ниже — контекст, правила и текущее состояние.
@@ -30,8 +30,8 @@ dotnet build
 Ссылка на репозиторий
 https://github.com/iilmchat/IIChatTools
 Ветка по умолчанию: main
-Текущий релиз: v1.7.1 (2026-09-29)
-В работе: DESIGN v1.8.0 — Mail Agent (IMAP/SMTP, MailKit) + External-LLM Agent (OpenAI-совместимые)
+Текущий релиз: v1.8.0 (готовится; Mail Agent реализован в 5 фазах)
+В работе: External-LLM Agent (DESIGN готов, реализация — следующая сессия)
 
 Правила оформления (ОБЯЗАТЕЛЬНО)
 docs/development/RULES.md — v1.4.20 (2026-09-29)
@@ -71,11 +71,13 @@ PdfPig 0.1.9 + DocumentFormat.OpenXml 3.1.0 (KI-104, PDF/DOCX в RAG)
 
 Microsoft.Data.Sqlite 10.0.12 + Microsoft.Data.SqlClient 6.0.2 (SqlAgent)
 
+MailKit 4.8.0 + MimeKit (транзитивно) (KI-107, Mail Agent — IMAP/SMTP)
+
 Архитектура — 4 слоя (API → Services → Data + Tests):
 
 IIChatTools.API — Controllers + Views + ES-модули + Startup.cs.
 
-IIChatTools.Services — бизнес-логика (ToolRegistry, ChatService, ChatStreamService, LmStudioClient, ChatApprovalCoordinator, ChatRetentionService, RAG-сервисы: EmbeddingService, InMemoryVectorStore, DocumentIngestionService, RetrievalService; SqlAgent: SqlAgentService, SqlQueryValidator, SqlConnectionProvider, AdminSqlAgentService).
+IIChatTools.Services — бизнес-логика (ToolRegistry, ChatService, ChatStreamService, LmStudioClient, ChatApprovalCoordinator, ChatRetentionService, RAG-сервисы: EmbeddingService, InMemoryVectorStore, DocumentIngestionService, RetrievalService; SqlAgent: SqlAgentService, SqlQueryValidator, SqlConnectionProvider, AdminSqlAgentService; Mail: MailKitClient, GlobalMailAccountProvider, MailAttachmentService, InMemoryMailRateLimiter).
 
 IIChatTools.Data — EF Entities + миграции (SqlServer).
 
@@ -83,11 +85,11 @@ IIChatTools.Tests — xUnit (374/374).
 
 Метрики:
 
-50 инструментов (40 raw + 6 агентов + 3 RAG + 1 SqlAgent).
+57 инструментов (40 raw + 7 агентов + 3 RAG + 1 SqlAgent + 7 mail-tools).
 
-Chat видит 11 инструментов (7 агентов + 3 RAG-tool + database_agent).
+Chat видит 12 инструментов (7 агентов + 3 RAG-tool + database_agent + mail_agent).
 
-KI: 63+ в реестре, 60+ Fixed/Resolved, ~5 Deferred, ~8 Documented.
+KI: 69 в реестре, 64+ Fixed/Resolved, ~4 Deferred, ~8 Documented, 4 Planned/In Progress.
 
 Что выпущено (v1.3.0 → v1.7.1):
 
@@ -115,6 +117,14 @@ Sources / citations для Web-tools (v1.6.1) — `wikipedia_search` / `web_sear
 
 **Sources / citations — оригинальное имя для attachments (KI-106, v1.7.1 — Fixed).** `ChatAttachmentService.UploadAsync` для citations передаёт `BuildRagDocumentPath(chatId, fileName, subfolder)` = `"chat-attachments/{chatId}/{fileName}"` (оригинальное имя). Физический файл — по-прежнему `{guid}.ext` (StoragePath). При удалении — fallback на StoragePath для записей до v1.7.1. Старые записи не мигрируются (косметика).
 
+**MailKit API: `IMessageSummary.Attachments` — `IEnumerable<BodyPartBasic>`, `.Count` — extension (LINQ), не свойство (RULES § 4.47).** Без `()` — CS0019. Используй `s.Attachments?.Any() == true`. Тот же класс ошибок, что был в KI-107 Фаза 2: «типичные» предположения о .NET API → 2 итерации на fix.
+
+**`ConcurrentDictionary.TryRemove(key, out _)` — CS1503 в C# 13 (неоднозначность перегрузок).** Заменяй на явную переменную: `UserState removed; if (_dict.TryRemove(key, out removed)) { ... }`. Урок KI-107 Фаза 4.
+
+**Тесты, проверяющие `Reason`/`Message` — на фактический текст (обычно русский).** Не англ. идентификаторы. Для `InMemoryMailRateLimiter.Reason` — `«Превышен лимит: 20 писем/час»`, а не `"SendsPerHour"`. Урок KI-107 Фаза 4.
+
+**`mail_agent` — НЕ требует правок `ChatStreamService`.** Наследник `AgentToolBase` → попадает в `allowedNames` через `SubAgentRegistry.GetEnabled()` (как 6 других агентов). RULES § 4.44 применим только к top-level ITool, **не** наследникам AgentToolBase (например, `database_agent` — не наследник, поэтому был добавлен явно).
+
 Roadmap
 
 v1.7.0 — Database Agent ✅ Done (2026-09-29)
@@ -130,9 +140,17 @@ KI-105 — System.IO.Packaging транзитивная уязвимость (ov
 KI-103 — локализация /status (4 hardcoded RU-строки в status.js → data-*).
 Тесты: 341 → 374 (+33). Build 0/0. CI + Docker — зелёные.
 
-v1.8.0 — Mail Agent + External-LLM Agent (DESIGN first, ~4-6 дней)
-DESIGN Mail Agent — IMAP/SMTP через MailKit (Apache 2.0). 6-7 инструментов: send_email (approval), list_emails / read_email / search_emails (read-only), delete_email / move_email / mark_as_read (approval). User Secrets (глобальные creds, App Password — v1.8.0; OAuth2 — позже). Вложения из Workspace/users/{id}/mail-attachments/, ≤ 10 MB. Промпт: «Никогда не отправляй без явной просьбы, всегда подтверждай адресата». Оценка: ~10-12 ч.
-DESIGN External-LLM Agent — external_llm_agent(provider, prompt, include_context?). OpenAI-совместимые (DeepSeek, OpenAI, Groq, Together AI, Ollama). 4 сценария-оркестратора: Fallback / Специализация / Разные знания / Сравнение. Circuit breaker по образцу KI-094. Дневной лимит запросов (защита от $1000 за ночь). Логирование без PII (только метаданные). Anthropic / Gemini — v1.9+. Оценка: ~6-8 ч для v1.
+v1.8.0 — Mail Agent ✅ Done (реализовано, 5 фаз)
+MailKit 4.8.0. Агент `mail_agent` (наследник AgentToolBase) + 7 mail-tools: send_email (approval), list_emails, read_email, search_emails, delete_email (approval), move_email (approval), mark_as_read. Глобальные creds (App Password) в User Secrets. Rate limiting 20/час, 30/мин. Privacy-first (без PII в логах). Аттачменты в mail-attachments/{uid}/, ≤ 10 MB. Chat видит 12 инструментов. Тесты 424/424.
+Отложено (не блокер): сохранение вложений при read_email; прикрепление вложений к send_email; OAuth2 (v1.9+).
+
+v1.8.x — доработки Mail Agent
+KI-108 — Per-user mail accounts (свой ящик у каждого пользователя). Таблица UserMailAccount + шифрование пароля через IDataProtector + UI в /profile → Почта.
+Сохранение вложений при read_email — требует переделки IMailClient.
+Прикрепление вложений к send_email — MimeMessage + BodyBuilder.
+
+v1.8.x/v1.9+ — External-LLM Agent
+external_llm_agent(provider, prompt, include_context?). OpenAI-совместимые (DeepSeek, OpenAI, Groq, Together AI, Ollama). 4 сценария-оркестратора. Circuit breaker. Дневной лимит $5/день, 500k токенов. Anthropic / Gemini — v1.9+.
 
 v1.8.x — инфраструктура
 KI-106 — оригинальное имя файла в источниках RAG (сейчас GUID от attachments). ~1 ч.
