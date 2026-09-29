@@ -935,21 +935,110 @@ logs/audit/*.jsonl (JSONL, ротация)
 # Последняя версия из main
 docker pull ghcr.io/iilmchat/iichattools:latest
 
-# Конкретный релиз
-docker pull ghcr.io/iilmchat/iichattools:v1.8.0
-docker pull ghcr.io/iilmchat/iichattools:1.8.0
-docker pull ghcr.io/iilmchat/iichattools:1.8
-docker pull ghcr.io/iilmchat/iichattools:1
+### Образы в ghcr.io
 
-Развёртывание на любом Linux-сервере с Docker:
-docker run -d \
-  --name iichattools \
-  -p 8080:8080 \
-  -e Jwt__Key="<ваш-секрет-≥32-символа>" \
-  -v iichattools-data:/app/Data \
-  -v iichattools-logs:/app/logs \
-  -v iichattools-workspace:/app/Workspace \
-  ghcr.io/iilmchat/iichattools:latest
+    docker pull ghcr.io/iilmchat/iichattools:latest
+    docker pull ghcr.io/iilmchat/iichattools:v1.8.0
+    docker pull ghcr.io/iilmchat/iichattools:1.8.0
+    docker pull ghcr.io/iilmchat/iichattools:1.8
+    docker pull ghcr.io/iilmchat/iichattools:1
+
+### Развёртывание (Docker)
+
+Базовая команда:
+
+    docker run -d \
+      --name iichattools \
+      -p 8080:8080 \
+      -e Jwt__Key="<ваш-секрет-≥32-символа>" \
+      -v iichattools-data:/app/Data \
+      -v iichattools-logs:/app/logs \
+      -v iichattools-workspace:/app/Workspace \
+      -v iichattools-keys:/home/app/.aspnet/DataProtection-Keys \
+      ghcr.io/iilmchat/iichattools:latest
+
+**Про volumes:**
+- `iichattools-data` — БД (Sqlite), настройки.
+- `iichattools-logs` — audit JSONL.
+- `iichattools-workspace` — workspace пользователей.
+- `iichattools-keys` — **важно!** DataProtection keys. Без него cookies сбрасываются при пересоздании контейнера.
+
+### Docker — что работает, что нет
+
+Образ `ghcr.io/iilmchat/iichattools` — **lightweight** (ASP.NET 10 runtime, ~600 MB).
+Внутри **нет** `git`, `gh`, `python3`, `node`, `bash`-утилит разработчика.
+
+| Компонент | Работает в контейнере? | Комментарий |
+|---|:---:|---|
+| **Chat UI** + SSE + tool calling | ✅ | Ядро приложения |
+| **Mail Agent** (IMAP/SMTP) | ✅ | MailKit встроен (NuGet) |
+| **RAG** (PDF/DOCX/embed) | ✅ | PdfPig, OpenXml, эмбеддинги LM Studio |
+| **SqlAgent** / Database Agent | ✅ | Microsoft.Data.Sqlite / SqlClient |
+| **`file_system_agent`** | ✅ | Workspace в контейнере |
+| **`web_agent`** | ✅ | HttpClient встроен |
+| **`code_agent`** | ❌ | Нет `python3`, `node`, `bash` |
+| **`git_agent`** | ❌ | Нет `git` |
+| **`github_agent`** | ❌ | Нет `gh` |
+| **`browser_*`** (PuppeteerSharp) | ⚠️ | Chromium не установлен по умолчанию (нужен `--build-arg INSTALL_BROWSER=true`) |
+
+При старте приложения в логах будут WARNINGи:
+
+```bash
+Ошибка при проверке зависимости git
+System.ComponentModel.Win32Exception (2): ...'git'... No such file or directory
+...
+Зависимость git: не установлен
+```
+
+Это **ожидаемо** — `DependencyChecker` проверяет наличие утилит, но приложение работает без них (см. KI-112).
+
+### LM Studio в контейнере
+
+LM Studio обычно работает **на хосте** (`http://localhost:8034`), а контейнер общается с ним через `host.docker.internal`.
+
+    docker run -d \
+      --name iichattools \
+      -p 8080:8080 \
+      -e LmStudio__BaseUrl="http://host.docker.internal:8034" \
+      -e Jwt__Key="<...>" \
+      ...
+
+**На Linux:** `--add-host=host.docker.internal:host-gateway` (иначе хост недоступен).
+
+### Mail Agent в контейнере
+
+User Secrets **не работают** в контейнере. Credentials — **через env-переменные** (префикс `Mail__`, двойное подчёркивание):
+
+    docker run -d \
+      --name iichattools \
+      -p 8080:8080 \
+      -e Jwt__Key="<...>" \
+      -e Mail__Enabled="true" \
+      -e Mail__Imap__Host="imap.yandex.ru" \
+      -e Mail__Imap__Username="user@yandex.ru" \
+      -e Mail__Imap__Password="<app-password>" \
+      -e Mail__Smtp__Host="smtp.yandex.ru" \
+      -e Mail__Smtp__Username="user@yandex.ru" \
+      -e Mail__Smtp__Password="<app-password>" \
+      -e Mail__FromAddress="user@yandex.ru" \
+      -v iichattools-data:/app/Data \
+      ghcr.io/iilmchat/iichattools:latest
+
+### HTTPS redirect в Docker
+
+Контейнер слушает **только HTTP** (порт 8080). В логах может появляться WARNING:
+
+    Failed to determine the https port for redirect.
+
+Это **не ошибка** — HTTPS-терминация обычно на reverse-proxy (nginx, Caddy, Traefik) перед контейнером. `UseHttpsRedirection` пропускает запросы, если HTTPS-порт не сконфигурирован.
+
+Для **чистого запуска без HTTPS** можно выставить:
+
+    -e ASPNETCORE_HTTPS_PORT=""
+
+Если HTTPS-терминация на reverse-proxy — дополнительно:
+
+    -e ASPNETCORE_FORWARDEDHEADERS_ENABLED="true"
 
 ---
 

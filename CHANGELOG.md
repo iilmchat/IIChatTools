@@ -18,6 +18,15 @@
 
 ## [Unreleased]
 
+### Added
+- **README — раздел «Docker — что работает, что нет» (v1.8.x, KI-112)**:
+  - Таблица: Chat UI, Mail Agent, RAG, SqlAgent, file_system_agent, web_agent —
+    работают; code_agent, git_agent, github_agent — нет (нет утилит в lightweight-образе).
+  - DataProtection volume `iichattools-keys:/home/app/.aspnet/DataProtection-Keys`.
+  - LM Studio через `host.docker.internal` (+ `--add-host` на Linux).
+  - Mail Agent credentials через env-переменные с префиксом `Mail__`.
+  - HTTPS redirect note + `ASPNETCORE_FORWARDEDHEADERS_ENABLED`.
+
 ### Fixed
 - **KI-116 — `code_agent` и `planner_agent` тоже откачены на qwen3-4b (v1.8.x)**:
   - **Подтверждение gemma не tool-calling:** логи LM Studio для `planner_agent`

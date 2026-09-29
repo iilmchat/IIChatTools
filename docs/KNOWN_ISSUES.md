@@ -1700,6 +1700,9 @@
 
 ### KI-112 — Docker-образ `iichattools` без `git`, `gh`, `python3`, `node`
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Решение (2026-09-29):** README пополнен разделом «Docker — что работает, что нет»
+  (таблица, DataProtection volume, LM Studio через `host.docker.internal`,
+  env-переменные для Mail Agent, HTTPS redirect note).
 - **Обнаружено:** 2026-09-29 (первый запуск Docker-образа v1.8.0)
 - **Файлы:** `Dockerfile` (multi-stage, `mcr.microsoft.com/dotnet/aspnet:10.0`).
 - **Описание:** В логах контейнера — при старте `DependencyChecker` пишет
