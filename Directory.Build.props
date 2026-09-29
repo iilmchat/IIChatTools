@@ -54,7 +54,20 @@
       Ветка 2.1.x — совместима с EF Core Sqlite 10.0.4.
       Источник: Directory.Build.props, значение используется в PackageReference.
     -->
-    <SQLitePCLRawVersion>2.1.13</SQLitePCLRawVersion>    
+    <SQLitePCLRawVersion>2.1.13</SQLitePCLRawVersion>
+
+    <!-- v1.7.1 (KI-104): парсеры PDF/DOCX для RAG.
+         PdfPig — Apache 2.0, ~500 KB, извлечение текста из PDF.
+         DocumentFormat.OpenXml — MIT, ~1.5 MB, .docx через OpenXml SDK. -->
+    <PdfPigVersion>0.1.9</PdfPigVersion>
+    <OpenXmlVersion>3.1.0</OpenXmlVersion>
+
+    <!-- v1.7.1 (KI-105): явный override транзитивного пакета
+         System.IO.Packaging 8.0.0 (тянется DocumentFormat.OpenXml 3.1.0).
+         Уязвимости GHSA-f32c-w444-8ppv / GHSA-qj66-m88j-hmgj (High).
+         Прецедент — KI-022 (SQLitePCLRaw 2.1.11 → 2.1.13).
+         Версия 10.0.0 — соответствует .NET 10 SDK (10.0.401). -->
+    <SystemIOPackagingVersion>10.0.0</SystemIOPackagingVersion>
   </PropertyGroup>
 
 </Project>

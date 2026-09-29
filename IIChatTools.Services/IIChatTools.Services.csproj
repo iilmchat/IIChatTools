@@ -47,6 +47,18 @@
          иначе NU1605 (downgrade). -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="$(MicrosoftDataSqliteVersion)" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="$(MicrosoftDataSqlClientVersion)" />
+
+    <!-- v1.7.1 (KI-104): парсеры PDF/DOCX для RAG.
+         PdfPig — Apache 2.0, извлечение текста (без OCR).
+         DocumentFormat.OpenXml — MIT, .docx через OpenXml SDK.
+         Оба регистрируются как IRagDocumentParser в Startup.cs. -->
+    <PackageReference Include="PdfPig" Version="$(PdfPigVersion)" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="$(OpenXmlVersion)" />
+
+    <!-- v1.7.1 (KI-105): явный override транзитивного System.IO.Packaging 8.0.0
+         (тянется DocumentFormat.OpenXml 3.1.0) — две High-уязвимости.
+         Явная версия 10.0.0 перебивает транзитивную (прецедент KI-022). -->
+    <PackageReference Include="System.IO.Packaging" Version="$(SystemIOPackagingVersion)" />
   </ItemGroup>
 
 </Project>

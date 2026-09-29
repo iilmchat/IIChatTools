@@ -36,6 +36,17 @@
     `Cancelled` — это **данные из API** (`AuditLog.LogStatus`), не UI.
   - **DoD:** badge'и переводятся RU/EN.
 
+### Security
+- **KI-105 — транзитивная уязвимость `System.IO.Packaging 8.0.0` (v1.7.1)**:
+  - Обнаружено `dotnet restore` после добавления `DocumentFormat.OpenXml 3.1.0`
+    (KI-104). **2 high-severity** advisory: `GHSA-f32c-w444-8ppv` +
+    `GHSA-qj66-m88j-hmgj` (DoS) на транзитивный `System.IO.Packaging 8.0.0`
+    — 6 warnings NU1903 в 3 проектах.
+  - **Fix:** явный `PackageReference Include="System.IO.Packaging" Version="10.0.0"`
+    в `IIChatTools.Services.csproj` — перебивает транзитивную 8.0.0.
+    Прецедент — KI-022 (SQLitePCLRaw).
+  - Версия в `Directory.Build.props` (`$(SystemIOPackagingVersion)`).
+
 ### Planned
 - **KI-104** (Planned, v1.7.x): PDF / DOCX парсеры для RAG
   (`PdfParser` через PdfPig + `DocxParser` через DocumentFormat.OpenXml).

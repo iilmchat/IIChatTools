@@ -1463,6 +1463,33 @@
 
 ---
 
+### KI-105 — Транзитивная уязвимость `System.IO.Packaging 8.0.0` (через `DocumentFormat.OpenXml`)
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.7.1
+- **Обнаружено:** 2026-09-29 (при `dotnet restore` после добавления KI-104)
+- **Файлы:** `Directory.Build.props`, `IIChatTools.Services/IIChatTools.Services.csproj`.
+- **Описание:** При добавлении `DocumentFormat.OpenXml 3.1.0` (KI-104 — парсер .docx)
+  NuGet Audit показал **2 high-severity** advisory на транзитивный
+  `System.IO.Packaging 8.0.0`:
+  - [`GHSA-f32c-w444-8ppv`](https://github.com/advisories/GHSA-f32c-w444-8ppv) — DoS;
+  - [`GHSA-qj66-m88j-hmgj`](https://github.com/advisories/GHSA-qj66-m88j-hmgj) — DoS.
+
+  Симптом в логе: `warning NU1903: У пакета "System.IO.Packaging" 8.0.0 есть
+  известная уязвимость ... (уровень серьезности: высокий)` — в 3 проектах
+  (Services, API, Tests) × 2 advisory = **6 warnings**.
+- **Решение (2026-09-29):**
+  - Явный `PackageReference Include="System.IO.Packaging" Version="10.0.0"`
+    в `IIChatTools.Services.csproj` — перебивает транзитивную 8.0.0.
+  - Версия 10.0.0 — соответствует .NET 10 SDK (10.0.401).
+  - Версия вынесена в `Directory.Build.props` (`$(SystemIOPackagingVersion)`).
+  - **Прецедент:** KI-022 (SQLitePCLRaw 2.1.11 → 2.1.13, GHSA-2m69-gcr7-jv3q).
+  - После override — `dotnet restore` без NU1903.
+- **Профилактика:** перед добавлением любого NuGet-пакета — проверять
+  `dotnet list package --vulnerable --include-transitive` (RULES § 3.9 —
+  restore после смены версий пакетов).
+- **Связанные:** KI-104 (парсеры PDF/DOCX), KI-022 (SQLitePCLRaw override).
+
+---
+
 ## v1.0.2 и ранее
 
 ### KI-001 — Неинформативное сообщение при отклонении действия
@@ -1567,7 +1594,7 @@
 | Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
 | Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
-| Fixed (v1.7.1) | 1 |                <!-- KI-103 -->
+| Fixed (v1.7.1) | 2 |                <!-- KI-103, KI-105 -->
 | Deferred | 4 |                      <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 8 |                    <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095 -->
 | In Progress | 0 |                   <!-- — -->
@@ -1575,7 +1602,7 @@
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 1 |                       <!-- KI-104 (PDF/DOCX parsers) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **63** |
+| **Всего** | **64** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
