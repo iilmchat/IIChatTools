@@ -409,6 +409,16 @@ namespace IIChatTools.API
             // v1.7.0 (KI-097, Фаза 3): валидатор SQL — Singleton (stateless).
             services.AddSingleton<ISqlQueryValidator, SqlQueryValidator>();
 
+            // v1.7.0 (KI-097, KI-100): провайдер путей приложения (ContentRootPath).
+            // Разрывает зависимость Services → API: SqlConnectionProvider резолвит
+            // относительные Sqlite-пути от ContentRootPath, а не от CWD (KI-100).
+            services.AddSingleton<IAppPathProvider>(sp =>
+                new AppPathProvider(
+                    sp.GetRequiredService<IWebHostEnvironment>().ContentRootPath));
+
+            // v1.7.0 (KI-097, Фаза 4): оркестратор Database Agent (4 операции).
+            services.AddScoped<ISqlAgentService, SqlAgentService>();
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 

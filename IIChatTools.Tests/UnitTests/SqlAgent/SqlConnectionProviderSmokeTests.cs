@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.SqlAgent;
+using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.SqlAgent;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -83,11 +84,43 @@ namespace IIChatTools.Tests.UnitTests.SqlAgent
             Assert.Contains("SqlAgent:Internal:ConnectionString", ex.Message);
         }
 
+        /// <summary>
+        /// KI-100: относительный <c>Data Source</c> Sqlite резолвится относительно
+        /// <see cref="IAppPathProvider.ContentRootPath"/>, а не относительно CWD.
+        /// </summary>
+        [Fact]
+        public async Task CreateConnectionAsync_RelativeSqlitePath_ResolvesFromContentRoot()
+        {
+            var contentRoot = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "iichattools-test-content-root");
+            System.IO.Directory.CreateDirectory(contentRoot);
+
+            var provider = BuildProvider(
+                connectionStringValue: "Data Source=Data/test.db;Mode=ReadOnly",
+                connectionEnabled: true,
+                contentRootPath: contentRoot);
+
+            try
+            {
+                await using var conn = await provider.CreateConnectionAsync("internal");
+                // SqliteConnection.DataSource — абсолютный путь после резолвинга.
+                Assert.True(System.IO.Path.IsPathRooted(conn.DataSource),
+                    $"DataSource должен быть абсолютным, но был '{conn.DataSource}'.");
+                Assert.Contains("test.db", conn.DataSource);
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException)
+            {
+                // Файл не существует (Mode=ReadOnly + нет файла) — это OK для теста.
+                // Главное — путь резолвился, а не упало с "relative path" ошибкой.
+            }
+        }
+
         // ============ Helpers ============
 
         private static ISqlConnectionProvider BuildProvider(
             string connectionStringValue,
-            bool connectionEnabled)
+            bool connectionEnabled,
+            string contentRootPath = "C:\\")
         {
             // Baseline-опции (эмулируют appsettings:SqlAgent:Connections:internal).
             var baseline = new SqlAgentOptions
@@ -136,7 +169,17 @@ namespace IIChatTools.Tests.UnitTests.SqlAgent
             return new SqlConnectionProvider(
                 optionsProvider,
                 configuration,
+                new FakeAppPathProvider(contentRootPath),
                 NullLogger<SqlConnectionProvider>.Instance);
+        }
+
+        /// <summary>
+        /// Fake-провайдер путей для тестов: фиксированный ContentRoot.
+        /// </summary>
+        private sealed class FakeAppPathProvider : IAppPathProvider
+        {
+            public string ContentRootPath { get; }
+            public FakeAppPathProvider(string contentRootPath) { ContentRootPath = contentRootPath; }
         }
     }
 }

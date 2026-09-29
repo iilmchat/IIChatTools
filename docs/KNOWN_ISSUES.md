@@ -1208,7 +1208,7 @@
 ---
 
 ### KI-100 — SqlAgent: относительный путь Sqlite connection string резолвится от CWD, а не от ContentRoot
-- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.7.0 (Фаза 4 KI-097)
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.7.0 (Фаза 4 KI-097)
 - **Обнаружено:** 2026-09-29
 - **Файлы (план):** `IIChatTools.Services/Implementation/SqlAgent/SqlConnectionProvider.cs`,
   User Secrets (`SqlAgent:Internal:ConnectionString`), `appsettings.Development.json`.
@@ -1245,6 +1245,19 @@
      ломается в остальных сценариях. Приемлемо для dev, **не для prod**.
 - **Связанные:** KI-097 (Database Agent), KI-070 (Sqlite EnsureCreated),
   KI-085 / KI-093 (Sqlite locked).
+- **Решение (2026-09-29, Фаза 4):**
+  - Введён `IAppPathProvider` (`Interfaces/`) + `AppPathProvider`
+    (`Implementation/`) — тонкая обёртка над `IWebHostEnvironment.ContentRootPath`.
+    Разрывает зависимость `Services → API` (тот же паттерн, что `AppVersionHolder` в ADR-001).
+  - `SqlConnectionProvider.ResolveSqlitePath(connStr, name)` — если провайдер
+    Sqlite и `Data Source` относительный (не `:memory:`, не `file:`),
+    префиксуется `ContentRootPath` через `SqliteConnectionStringBuilder`.
+  - `SqliteConnectionStringBuilder` (из `Microsoft.Data.Sqlite`) корректно
+    парсит и собирает connection string — не боимся `;Mode=ReadOnly` в хвосте.
+  - Регистрация: `services.AddSingleton<IAppPathProvider>(...)` в `Startup.cs`.
+  - Тест `CreateConnectionAsync_RelativeSqlitePath_ResolvesFromContentRoot`.  
+
+---
 
 ## v1.0.2 и ранее
 

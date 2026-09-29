@@ -8,6 +8,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.IO;   // v1.7.0 (KI-100): Path.Combine для Sqlite relative paths
 
 namespace IIChatTools.Services.Implementation.SqlAgent
 {
@@ -35,6 +36,7 @@ namespace IIChatTools.Services.Implementation.SqlAgent
     {
         private readonly SqlAgentOptionsProvider _optionsProvider;
         private readonly IConfiguration _configuration;
+        private readonly IAppPathProvider _appPathProvider;
         private readonly ILogger<SqlConnectionProvider> _logger;
 
         /// <summary>
@@ -42,15 +44,21 @@ namespace IIChatTools.Services.Implementation.SqlAgent
         /// </summary>
         /// <param name="optionsProvider">Провайдер актуальных опций SqlAgent</param>
         /// <param name="configuration">Конфигурация приложения (для резолвинга connection string)</param>
+        /// <param name="appPathProvider">
+        /// Провайдер путей приложения. Используется для резолвинга **относительных**
+        /// путей Sqlite относительно <c>ContentRootPath</c> (KI-100).
+        /// </param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если любой параметр = null</exception>
         public SqlConnectionProvider(
             SqlAgentOptionsProvider optionsProvider,
             IConfiguration configuration,
+            IAppPathProvider appPathProvider,
             ILogger<SqlConnectionProvider> logger)
         {
             _optionsProvider = optionsProvider ?? throw new ArgumentNullException(nameof(optionsProvider));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _appPathProvider = appPathProvider ?? throw new ArgumentNullException(nameof(appPathProvider));
             _logger = logger;
         }
 
@@ -96,7 +104,12 @@ namespace IIChatTools.Services.Implementation.SqlAgent
             switch (provider.ToLowerInvariant())
             {
                 case "sqlite":
-                    connection = new SqliteConnection(connStr);
+                    // KI-100: Sqlite открывает файл относительно CWD процесса, а не
+                    // относительно ContentRootPath. Резолвим относительный путь от
+                    // IWebHostEnvironment.ContentRootPath, чтобы `dotnet run` из любой
+                    // директории и запуск как службы работали одинаково.
+                    var sqliteConnStr = ResolveSqlitePath(connStr, connectionName);
+                    connection = new SqliteConnection(sqliteConnStr);
                     break;
                 case "sqlserver":
                     connection = new SqlConnection(connStr);
@@ -149,6 +162,52 @@ namespace IIChatTools.Services.Implementation.SqlAgent
                     "или через переменную окружения.");
 
             return connStr;
+        }
+
+        /// <summary>
+        /// Резолвит относительный путь Sqlite относительно
+        /// <see cref="IAppPathProvider.ContentRootPath"/> (KI-100).
+        /// <para>
+        /// <c>:memory:</c> и абсолютные пути возвращаются без изменений.
+        /// При ошибке парсинга — возвращаем строку как есть (defensive).
+        /// </para>
+        /// </summary>
+        /// <param name="connStr">Исходная connection string</param>
+        /// <param name="connectionName">Имя подключения (для логов)</param>
+        /// <returns>Connection string с абсолютным DataSource (если был относительный)</returns>
+        private string ResolveSqlitePath(string connStr, string connectionName)
+        {
+            try
+            {
+                var builder = new SqliteConnectionStringBuilder(connStr);
+                var dataSource = builder.DataSource;
+                if (string.IsNullOrWhiteSpace(dataSource)) return connStr;
+
+                // Специальные значения Sqlite — не трогаем.
+                if (string.Equals(dataSource, ":memory:", StringComparison.OrdinalIgnoreCase))
+                    return connStr;
+                if (dataSource.StartsWith("file:", StringComparison.OrdinalIgnoreCase))
+                    return connStr;
+
+                if (Path.IsPathRooted(dataSource)) return connStr;
+
+                var absolute = Path.GetFullPath(
+                    Path.Combine(_appPathProvider.ContentRootPath, dataSource));
+                builder.DataSource = absolute;
+
+                _logger.LogDebug(
+                    "Sqlite DataSource резолвлен: {Relative} → {Absolute} (connection={Name})",
+                    dataSource, absolute, connectionName);
+
+                return builder.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Не удалось резолвить Sqlite DataSource для connection={Name}. " +
+                    "Использую исходную строку.", connectionName);
+                return connStr;
+            }
         }
     }
 }

@@ -107,6 +107,42 @@
     доходили до валидатора SQL. Fix: добавили минимальный `internal` в
     `Connections` — реальные опции подключения всё равно передаются в
     `Validate(sql, options)` отдельным аргументом.
+
+- **Database Agent — Фаза 4: SqlAgentService + fix KI-100 (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.4)**:
+  - **`SqlAgentService`** (`Implementation/SqlAgent/`) — Scoped, реализация
+    `ISqlAgentService`. 4 операции: `ListConnectionsAsync`, `ListTablesAsync`,
+    `DescribeTableAsync`, `ExecuteQueryAsync`.
+    - `ListConnectionsAsync` — метаданные из `SqlAgentOptionsProvider` (без connection string).
+    - `ListTablesAsync` — whitelist минус DeniedTables + `SELECT COUNT(*)` (best-effort, -1 при ошибке).
+    - `DescribeTableAsync` — провайдер-специфичный запрос (`PRAGMA table_info` для Sqlite,
+      `INFORMATION_SCHEMA.COLUMNS` для SqlServer) + пример значения (первая непустая, ≤200 символов).
+    - `ExecuteQueryAsync` — валидатор → соединение → `CommandTimeout` →
+      `DataReader` с защитой от UNION-обхода (читаем до `MaxRows`, флаг `truncated`).
+    - Динамические идентификаторы через `QuoteIdentifier` (`[Name]` с escape `]]`).
+    - **Провайдер-специфичные whitelist-сравнения**: Sqlite — `Ordinal` (case-sensitive),
+      SqlServer — `OrdinalIgnoreCase` (DESIGN § 6.3).
+  - **KI-100 Fix:** `SqlConnectionProvider` резолвит **относительный** `Data Source` Sqlite
+    относительно `IWebHostEnvironment.ContentRootPath` (через новый `IAppPathProvider`).
+    Без этого фикса первый `execute_query` упал бы с `SQLite Error 14: unable to open
+    database file` при запуске не из `IIChatTools.API`.
+    - Новый интерфейс `IAppPathProvider` (`Interfaces/`) + `AppPathProvider` (`Implementation/`).
+    - Регистрация: `services.AddSingleton<IAppPathProvider>(...)` на основе `IWebHostEnvironment`.
+    - `:memory:` и абсолютные пути — не трогаются. Префикс `file:` — тоже.
+  - **`Startup.cs`** — DI: `IAppPathProvider` (Singleton) + `ISqlAgentService` (Scoped).
+  - **Тесты** — `SqlAgentServiceTests` (**11**), `SqlConnectionProviderSmokeTests` (**+1** на KI-100).
+    Всего: **274 → 286**.
+  - **DoD Фазы 4:** `SELECT COUNT(*) FROM Chats` возвращает число через
+    `ISqlAgentService`; Auto-LIMIT работает; невалидный SQL бросает `ArgumentException`.
+  - **Fix (в том же коммите, №1):** `IReadOnlyList<T>` не имеет `.Find` (это instance-метод
+    `List<T>`) — в `SqlAgentServiceTests` заменено на LINQ `FirstOrDefault` (×3, +`using System.Linq;`).
+    Плюс `Assert.Equal(1, ...Count)` → `Assert.Single(...)` (xUnit2013).
+  - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
+    когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
+    результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,
+    и `if (rows.Count >= maxRows)` не срабатывает. Добавлена post-loop проверка:
+    `if (!truncated && validation.LimitAdded && rows.Count >= maxRows) truncated = true;`
+    (консервативно — false positive возможен, если в таблице ровно `MaxRows` строк;
+    принимается как меньшая из зол).
   - **KI-100 (Documented, план — Фаза 4):** относительный путь Sqlite
     connection string (`Data Source=Data/iichattools-dev.db`) резолвится от
     `Environment.CurrentDirectory`, а не от `ContentRootPath`. Проявится в
