@@ -40,6 +40,12 @@
                 @Localizer["AdminTabKnowledgeBase"]
             </button>
         </li>
+        <!-- v1.7.0 (KI-097, Фаза 6C): SQL Agent -->
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-sql-agent" data-bs-toggle="tab" data-bs-target="#pane-sql-agent" type="button" role="tab">
+                @Localizer["AdminTabSqlAgent"]
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content border border-top-0 p-3 bg-white">
@@ -239,6 +245,55 @@
                 </table>
             </div>
         </div>
+
+        <!-- Вкладка: SQL Agent (v1.7.0, KI-097, Фаза 6C) -->
+        <div class="tab-pane fade"
+             id="pane-sql-agent"
+             role="tabpanel"
+             data-label-edit-title="@Localizer["SqlAgentEditTitle"]"
+             data-label-reset-confirm="@Localizer["SqlAgentResetConfirm"]"
+             data-label-reset-success="@Localizer["SqlAgentResetSuccess"]"
+             data-label-save-success="@Localizer["SqlAgentSaveSuccess"]"
+             data-label-test-success="@Localizer["SqlAgentTestSuccess"]"
+             data-label-test-failed="@Localizer["SqlAgentTestFailed"]"
+             data-label-edit="@Localizer["SqlAgentEdit"]"
+             data-label-reset="@Localizer["SqlAgentReset"]"
+             data-label-test="@Localizer["SqlAgentTestButton"]"
+             data-label-enabled="@Localizer["SqlAgentEnabledLabel"]"
+             data-label-allowed-tables="@Localizer["SqlAgentAllowedTables"]"
+             data-label-denied-tables="@Localizer["SqlAgentDeniedTables"]"
+             data-label-max-rows="@Localizer["SqlAgentMaxRowsLabel"]"
+             data-label-timeout="@Localizer["SqlAgentTimeoutLabel"]"
+             data-label-no-connections="@Localizer["SqlAgentNoConnections"]"
+             data-label-overridden-badge="@Localizer["SqlAgentOverriddenBadge"]">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="text-muted small">
+                    @Localizer["AdminTabSqlAgent"] — read-only доступ LLM к БД приложения.
+                </div>
+                <button id="btn-refresh-sql-agent" type="button" class="btn btn-outline-secondary btn-sm">
+                    @Localizer["Обновить"]
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>@Localizer["SqlAgentColumnName"]</th>
+                            <th>@Localizer["SqlAgentColumnDisplayName"]</th>
+                            <th>@Localizer["SqlAgentColumnProvider"]</th>
+                            <th>@Localizer["SqlAgentColumnEnabled"]</th>
+                            <th>@Localizer["SqlAgentColumnTables"]</th>
+                            <th>@Localizer["SqlAgentColumnMaxRows"]</th>
+                            <th>@Localizer["SqlAgentColumnTimeout"]</th>
+                            <th>@Localizer["SqlAgentColumnActions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sql-agent-connections-tbody">
+                        <tr><td colspan="8" class="text-center text-muted">@Localizer["Загрузка"]…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -304,8 +359,10 @@
         import { initAdminPage } from '/js/modules/admin.js';
         import { initAgentsTab } from '/js/modules/admin-agents.js';
         import { initKnowledgeTab } from '/js/modules/admin-knowledge.js';
+        import { initSqlAgentTab } from '/js/modules/admin-sql-agent.js';
         initAdminPage();
         initAgentsTab();
         initKnowledgeTab();
+        initSqlAgentTab();
     </script>
 }

@@ -512,4 +512,81 @@
   <data name="RagIndexColumnActions" xml:space="preserve">
       <value>Actions</value>
   </data>
+
+  <!-- ===== SQL Agent (v1.7.0, KI-097, Фаза 6C) ===== -->
+  <data name="AdminTabSqlAgent" xml:space="preserve">
+      <value>SQL Agent</value>
+  </data>
+  <data name="SqlAgentColumnName" xml:space="preserve">
+      <value>Name</value>
+  </data>
+  <data name="SqlAgentColumnDisplayName" xml:space="preserve">
+      <value>Display name</value>
+  </data>
+  <data name="SqlAgentColumnProvider" xml:space="preserve">
+      <value>Provider</value>
+  </data>
+  <data name="SqlAgentColumnEnabled" xml:space="preserve">
+      <value>Enabled</value>
+  </data>
+  <data name="SqlAgentColumnTables" xml:space="preserve">
+      <value>Tables (allowed)</value>
+  </data>
+  <data name="SqlAgentColumnMaxRows" xml:space="preserve">
+      <value>Max rows</value>
+  </data>
+  <data name="SqlAgentColumnTimeout" xml:space="preserve">
+      <value>Timeout</value>
+  </data>
+  <data name="SqlAgentColumnActions" xml:space="preserve">
+      <value>Actions</value>
+  </data>
+  <data name="SqlAgentEditTitle" xml:space="preserve">
+      <value>Connection settings</value>
+  </data>
+  <data name="SqlAgentResetConfirm" xml:space="preserve">
+      <value>Reset connection settings to defaults?</value>
+  </data>
+  <data name="SqlAgentResetSuccess" xml:space="preserve">
+      <value>Reset to defaults</value>
+  </data>
+  <data name="SqlAgentSaveSuccess" xml:space="preserve">
+      <value>Settings saved</value>
+  </data>
+  <data name="SqlAgentTestButton" xml:space="preserve">
+      <value>Test</value>
+  </data>
+  <data name="SqlAgentTestSuccess" xml:space="preserve">
+      <value>Connection OK ({0} ms)</value>
+  </data>
+  <data name="SqlAgentTestFailed" xml:space="preserve">
+      <value>Connection failed</value>
+  </data>
+  <data name="SqlAgentEdit" xml:space="preserve">
+      <value>Edit</value>
+  </data>
+  <data name="SqlAgentReset" xml:space="preserve">
+      <value>Reset</value>
+  </data>
+  <data name="SqlAgentEnabledLabel" xml:space="preserve">
+      <value>Connection enabled</value>
+  </data>
+  <data name="SqlAgentAllowedTables" xml:space="preserve">
+      <value>Allowed tables (one per line)</value>
+  </data>
+  <data name="SqlAgentDeniedTables" xml:space="preserve">
+      <value>Denied tables (one per line)</value>
+  </data>
+  <data name="SqlAgentMaxRowsLabel" xml:space="preserve">
+      <value>Max rows (1–10000)</value>
+  </data>
+  <data name="SqlAgentTimeoutLabel" xml:space="preserve">
+      <value>Statement timeout (sec, 1–300)</value>
+  </data>
+  <data name="SqlAgentNoConnections" xml:space="preserve">
+      <value>No connections registered</value>
+  </data>
+  <data name="SqlAgentOverriddenBadge" xml:space="preserve">
+      <value>modified</value>
+  </data>
 </root>

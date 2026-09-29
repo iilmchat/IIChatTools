@@ -512,4 +512,81 @@
     <data name="RagIndexColumnActions" xml:space="preserve">
       <value>Действия</value>
     </data>
+
+    <!-- ===== SQL Agent (v1.7.0, KI-097, Фаза 6C) ===== -->
+    <data name="AdminTabSqlAgent" xml:space="preserve">
+      <value>SQL Agent</value>
+    </data>
+    <data name="SqlAgentColumnName" xml:space="preserve">
+      <value>Имя</value>
+    </data>
+    <data name="SqlAgentColumnDisplayName" xml:space="preserve">
+      <value>Отображаемое</value>
+    </data>
+    <data name="SqlAgentColumnProvider" xml:space="preserve">
+      <value>Провайдер</value>
+    </data>
+    <data name="SqlAgentColumnEnabled" xml:space="preserve">
+      <value>Включён</value>
+    </data>
+    <data name="SqlAgentColumnTables" xml:space="preserve">
+      <value>Таблиц (allowed)</value>
+    </data>
+    <data name="SqlAgentColumnMaxRows" xml:space="preserve">
+      <value>Max строк</value>
+    </data>
+    <data name="SqlAgentColumnTimeout" xml:space="preserve">
+      <value>Таймаут</value>
+    </data>
+    <data name="SqlAgentColumnActions" xml:space="preserve">
+      <value>Действия</value>
+    </data>
+    <data name="SqlAgentEditTitle" xml:space="preserve">
+      <value>Настройки подключения</value>
+    </data>
+    <data name="SqlAgentResetConfirm" xml:space="preserve">
+      <value>Сбросить настройки подключения к значениям по умолчанию?</value>
+    </data>
+    <data name="SqlAgentResetSuccess" xml:space="preserve">
+      <value>Сброшено к значениям по умолчанию</value>
+    </data>
+    <data name="SqlAgentSaveSuccess" xml:space="preserve">
+      <value>Настройки сохранены</value>
+    </data>
+    <data name="SqlAgentTestButton" xml:space="preserve">
+      <value>Проверить</value>
+    </data>
+    <data name="SqlAgentTestSuccess" xml:space="preserve">
+      <value>Подключение OK ({0} мс)</value>
+    </data>
+    <data name="SqlAgentTestFailed" xml:space="preserve">
+      <value>Ошибка подключения</value>
+    </data>
+    <data name="SqlAgentEdit" xml:space="preserve">
+      <value>Изменить</value>
+    </data>
+    <data name="SqlAgentReset" xml:space="preserve">
+      <value>Сбросить</value>
+    </data>
+    <data name="SqlAgentEnabledLabel" xml:space="preserve">
+      <value>Подключение включено</value>
+    </data>
+    <data name="SqlAgentAllowedTables" xml:space="preserve">
+      <value>Whitelist таблиц (по одной в строке)</value>
+    </data>
+    <data name="SqlAgentDeniedTables" xml:space="preserve">
+      <value>Blacklist таблиц (по одной в строке)</value>
+    </data>
+    <data name="SqlAgentMaxRowsLabel" xml:space="preserve">
+      <value>Max строк (1–10000)</value>
+    </data>
+    <data name="SqlAgentTimeoutLabel" xml:space="preserve">
+      <value>Таймаут запроса (сек, 1–300)</value>
+    </data>
+    <data name="SqlAgentNoConnections" xml:space="preserve">
+      <value>Нет зарегистрированных подключений</value>
+    </data>
+    <data name="SqlAgentOverriddenBadge" xml:space="preserve">
+      <value>изменено</value>
+    </data>
 </root>

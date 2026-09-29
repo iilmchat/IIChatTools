@@ -230,6 +230,27 @@
   - Аудит действий — внутри `AdminSqlAgentService` (не дублируется).
   - **DoD Фазы 6B:** все 4 endpoint'а доступны администратору,
     изменения whitelist применяются в runtime без рестарта.
+- **Database Agent — Фаза 6C+6D: UI + локализация (v1.7.0, KI-097, DESIGN_DB_AGENT § 7.6)**:
+  - **9-я вкладка «SQL Agent»** в `Admin.cshtml` (после «База знаний»).
+    Таблица: name (с бейджем «изменено» при override) / displayName / provider /
+    enabled / allowed tables / maxRows / timeout / actions.
+  - **`admin-sql-agent.js`** (новый модуль, ~250 строк):
+    - `loadConnections` / `renderConnectionsTable` — таблица подключений;
+    - `openEditModal` — модалка (переиспользует `showModal` из `admin.js`);
+      редактирование whitelist/blacklist (textarea построчно), MaxRows, Timeout, Enabled;
+    - `testConnection` — `SELECT 1` через `POST .../test`;
+    - `resetConnection` — сброс к baseline через `POST .../reset`;
+    - локализация — через `data-*` на `#pane-sql-agent` (RULES § 4.17).
+  - **`.resx` (RU + EN)** — **22 ключа** (`AdminTabSqlAgent`,
+    `SqlAgentColumn*`, `SqlAgentEditTitle`, `SqlAgentReset*`, `SqlAgentTest*`,
+    `SqlAgentEnabledLabel`, `SqlAgentAllowedTables`, `SqlAgentDeniedTables`,
+    `SqlAgentMaxRowsLabel`, `SqlAgentTimeoutLabel`, `SqlAgentNoConnections`,
+    `SqlAgentOverriddenBadge`). Синхронизированы через `LocalizationSyncTests`.
+  - **DoD Фазы 6C+6D:** через `/admin → SQL Agent` можно:
+    (а) видеть список подключений с бейджем override,
+    (б) редактировать whitelist/MaxRows/Timeout/Enabled в модалке,
+    (в) проверить подключение (`SELECT 1`),
+    (г) сбросить к значениям из appsettings.json. Все изменения — в runtime.
   - **Fix (в том же коммите, №2):** `ExecuteQueryAsync` не выставлял `Truncated = true`,
     когда auto-LIMIT был добавлен валидатором. Причина: SQLite/SqlServer **сам** обрезает
     результат по `LIMIT`, reader возвращает ровно `MaxRows` строк, лишней итерации цикла нет,
