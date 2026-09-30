@@ -1978,6 +1978,45 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-122 — Смена темы оформления UI (5 популярных, кнопка рядом со сменой языка)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.9.x
+- **Обнаружено:** 2026-09-30 (запрос пользователя)
+- **Файлы (план):**
+  - `IIChatTools.API/Views/Shared/_Layout.cshtml` — кнопка-переключатель
+    рядом с переключателем языка (RU/EN).
+  - `IIChatTools.API/wwwroot/css/site.css` + `chat.css` — CSS-переменные
+    тем (`--bs-*` + свои).
+  - `IIChatTools.API/wwwroot/js/modules/theme.js` (новый) — переключение +
+    сохранение в `localStorage`.
+  - `SharedResources.resx` + `SharedResources.ru.resx` — названия тем
+    (5 штук × 2 языка).
+- **Описание:** Пользователь хочет выбирать тему оформления. Кнопка-
+  переключатель — **рядом с переключателем языка** (RU/EN) в navbar.
+  Состав — **5 самых популярных тем** (конкретный список согласовать
+  на старте задачи; предварительно: Light / Dark / Dimmed / Solarized Light /
+  High Contrast).
+- **Технически:**
+  - **Bootstrap 5.3+** поддерживает `data-bs-theme="dark"` — переключение
+    одним атрибутом на `<html>`. Кастомные темы — через CSS-переменные.
+  - Сохранение выбора: `localStorage["theme"]` (по образцу
+    `localStorage["chat.sidebarCollapsed"]`, KI-079).
+  - Начальная тема — из `localStorage`; fallback — `prefers-color-scheme: dark`.
+  - Переключатель — `<select>` или дропдаун (по образцу `#chat-model-select`).
+- **⚠️ Зависимость:** сейчас в `wwwroot/lib/bootstrap/` — **Bootstrap 5.2**
+  (см. KI-092 — warning `aria-hidden` при закрытии модалок). Для полноценных
+  тёмных тем нужен **Bootstrap 5.3+** (атрибут `data-bs-theme`). Обновление
+  Bootstrap — **отдельная задача** (проверка обратной совместимости со всеми
+  модалками, тултипами, dropdown'ами проекта; сейчас их десятки).
+- **Обоснование отсрочки:** не критично для функционала. Текущий фокус —
+  v1.8.2 (кэш) и v1.9.0 (Anthropic). Возможный порядок работ:
+  1. Обновление Bootstrap 5.2 → 5.3+ (устранит KI-092 попутно).
+  2. Светлая/тёмная тема на `data-bs-theme` (2 темы из 5).
+  3. +3 кастомные темы.
+- **Связанные:** KI-079 (collapse sidebar — образец localStorage),
+  KI-081 (логотип — фирменный стиль), KI-092 (Bootstrap 5.2 `aria-hidden`).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2085,14 +2124,14 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
 | Fixed (v1.8.1) | 1 | <!-- KI-109 (External-LLM Agent) -->
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
-| Deferred  | 4 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
+| Deferred  | 6 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122 -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 5 |                       <!-- KI-108, KI-110, KI-111, KI-113, KI-121 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **79** |
+| **Всего** | **80** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
