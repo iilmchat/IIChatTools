@@ -1,9 +1,9 @@
 # PROMPT_V2.md — Стартовый промпт для нового чата
 
-**Версия промпта:** v2.8
-**Дата:** 2026-09-29
-**Актуальный релиз проекта:** v1.8.0 (2026-09-29)
-**Статус:** Mail Agent реализован; в очереди — External-LLM Agent + переработка docs.
+**Версия промпта:** v2.9
+**Дата:** 2026-09-30
+**Актуальный релиз проекта:** v1.8.1 (2026-09-30)
+**Статус:** Mail Agent + External-LLM Agent реализованы; в очереди — Anthropic/Gemini (v1.9+).
 
 ---
 
@@ -28,8 +28,8 @@
 
 - **GitHub:** https://github.com/iilmchat/IIChatTools
 - **Ветка по умолчанию:** `main`
-- **Текущий релиз:** v1.8.0 (2026-09-29)
-- **В работе:** External-LLM Agent (DESIGN готов, реализация в очереди); переработка docs (PROMPT_V2 layout — DONE).
+- **Текущий релиз:** v1.8.1 (2026-09-30)
+- **В работе:** Anthropic Claude + Gemini провайдеры (KI-110, v1.9+); External-LLM follow-up (per-user API keys — KI-108-analog).
 
 ---
 
@@ -97,6 +97,15 @@
 ---
 
 ## § 4. Что выпущено (v1.3.0 → v1.8.0)
+
+**v1.8.1 (2026-09-30) — External-LLM Agent (KI-109):**
+
+- Агент `external_llm_agent` + 3 инструмента (`ask_external_llm` с `compare_with`, `list_external_providers`, `check_internet_connection`).
+- 5 OpenAI-совместимых провайдеров (DeepSeek / OpenAI / Groq / Together AI / Ollama).
+- Budget guardrails ($5/день, 500k токенов), circuit breaker (3 fail → 5 мин skip).
+- Privacy-first (`include_context: false`, без PII в логах).
+- Chat видит **13 инструментов** (было 12).
+- Тесты: 424 → 496 (+72, 3 Skip).
 
 **v1.8.0 (2026-09-29) — Mail Agent (KI-107):**
 
@@ -172,6 +181,7 @@
 - **KI-108** — Per-user mail accounts (свой ящик у каждого пользователя). Таблица `UserMailAccount` + шифрование через `IDataProtector`.
 - Сохранение вложений при `read_email` (требует переделки `IMailClient`).
 - Прикрепление вложений к `send_email` (привязка к `MimeMessage`).
+- **External-LLM follow-up** — per-user API keys (аналог KI-108).
 - **PROMPT_V2 layout** — переработка разметки → **DONE** (v2.8, 2026-09-29).
 
 **v1.8.x / v1.9+ — External-LLM Agent (KI-109):**

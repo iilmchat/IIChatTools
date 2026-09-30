@@ -18,6 +18,21 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)_
+
+---
+
+## [1.8.1] — 2026-09-30
+
+**External-LLM Agent (KI-109).** Агент `external_llm_agent` + 3 инструмента внутри:
+`ask_external_llm` (с опциональным `compare_with`), `list_external_providers`,
+`check_internet_connection`. 5 OpenAI-совместимых провайдеров
+(DeepSeek / OpenAI / Groq / Together AI / Ollama). Оркестратор с 4 сценариями
+(Fallback / Специализация / Разные знания / Сравнение). Budget guardrails
+($5/день, 500k токенов), circuit breaker (3 fail → 5 мин skip), privacy-first
+(без PII в логах). Chat видит **13 инструментов** (было 12).
+Тесты: **424 → 496** (+72, из них 3 Skip — реальные провайдеры).
+
 ### Added
 - **External-LLM Agent — Фаза 5: integration-тесты (v1.8.1, KI-109)**:
   - `ExternalLlmIntegrationTests` (`Tests/IntegrationTests/ExternalLlm/`) — 4 теста:

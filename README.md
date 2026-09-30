@@ -1,10 +1,10 @@
-# IIChatTools v1.8.0
+# IIChatTools v1.8.1
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.8.0
+© 2026 RuChating (iilmchat) · IIChatTools v1.8.1
 
 ---
 
@@ -398,11 +398,17 @@ dotnet run --project IIChatTools.API
 | **+ RAG (v1.5.0)** | **+3** | — |
 | **+ Database Agent (v1.7.0)** | **+1** | **✅** |
 | **+ Mail Agent (v1.8.0)** | **+7** | **3 (send/delete/move)** |
-| **Итого (ToolRegistry)** | **57** | — |
+| **+ External-LLM Agent (v1.8.1)** | **+3** | — |
+| **Итого (ToolRegistry)** | **60** | — |
 
-> **Примечание:** Chat видит **12 инструментов** (7 агентов: 6 специализированных + `consult_secondary_agent`
-> + 3 RAG-tool: `search_knowledge_base`, `search_chat_history`, `search_workspace` — v1.5.0, KI-083
-> + `database_agent` (v1.7.0, KI-097) + `mail_agent` (v1.8.0, KI-107)).
+> **Примечание:** Chat видит **13 инструментов**:
+> **8 специализированных агентов** из `SubAgentRegistry` — `file_system_agent`,
+> `code_agent`, `web_agent`, `git_agent`, `github_agent`, `planner_agent`,
+> `mail_agent` (v1.8.0, KI-107), `external_llm_agent` (v1.8.1, KI-109);
+> **+ `consult_secondary_agent`** (универсальный fallback);
+> **+ 3 RAG-tool**: `search_knowledge_base`, `search_chat_history`, `search_workspace`
+> (v1.5.0, KI-083);
+> **+ `database_agent`** (v1.7.0, KI-097).
 > Все «сырые» инструменты доступны **внутри** агентов.
 
 ---
@@ -817,6 +823,99 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 
 ---
 
+## External-LLM Agent (v1.8.1)
+
+Обращение к внешним LLM (DeepSeek / OpenAI / Groq / Together AI / Ollama).
+Все провайдеры — **OpenAI-совместимые** (единый формат `/v1/chat/completions`).
+
+**Требует явного `ExternalLlm:Enabled = true`** + API-ключи в User Secrets.
+
+### 3 инструмента внутри агента `external_llm_agent`
+
+| Tool | Approval | Назначение |
+|---|:---:|---|
+| `ask_external_llm` | — | Запрос к внешней модели. Параметры: `provider?`, `prompt`, `compare_with?`, `include_context?=false`, `max_tokens?`, `temperature?` |
+| `list_external_providers` | — | Список провайдеров + статус + тарифы |
+| `check_internet_connection` | — | Лёгкая проверка доступности |
+
+**Chat видит один инструмент** — `external_llm_agent`. LLM вызывает его с задачей:
+«Спроси DeepSeek, что нового в .NET 10», «Сравни ответы ChatGPT и DeepSeek про X».
+
+**Approval не требуется.** Защита — **дневной бюджет** ($5/день, per-user) +
+**circuit breaker** (3 fail → 5 мин skip) + **per-request MaxTokens** (8192).
+
+### Оркестратор — 4 сценария (внутри агента)
+
+1. **Fallback** — локальная модель не справляется → LLM зовёт внешнюю.
+2. **Специализация** — код → DeepSeek, свежие данные → OpenAI, быстро → Groq.
+3. **Разные знания** — 2 модели дают разные ответы.
+4. **Сравнение** — `ask_external_llm(provider="deepseek", compare_with="openai")` → 2 параллельных запроса + таблица сравнения.
+
+### Privacy
+
+- **`include_context: false` по умолчанию** — во внешнюю модель уходит **только prompt**, не история чата.
+- **Не логируются** prompt / ответ (только метаданные: провайдер, длина, токены, стоимость).
+- **Не сохраняются** в `ChatMessage.MetadataJson`.
+
+### Конфигурация
+
+Секция `ExternalLlm` в `appsettings.json`:
+
+    "ExternalLlm": {
+      "Enabled": false,
+      "DefaultProvider": "deepseek",
+      "DailyBudgetUsd": 5.0,
+      "DailyTokensLimit": 500000,
+      "CircuitBreaker": { "FailureThreshold": 3, "BreakDurationSeconds": 300 },
+      "Providers": {
+        "deepseek": { "BaseUrl": "https://api.deepseek.com/v1", "Model": "deepseek-chat", ... },
+        "openai":   { "BaseUrl": "https://api.openai.com/v1",   "Model": "gpt-4o-mini", ... },
+        "groq":     { "BaseUrl": "https://api.groq.com/openai/v1", "Model": "llama-3.3-70b-versatile", ... },
+        "together": { "BaseUrl": "https://api.together.xyz/v1", "Model": "meta-llama/Llama-3.3-70B-Instruct-Turbo", ... },
+        "ollama":   { "BaseUrl": "http://localhost:11434/v1", "Model": "qwen3:4b", ... }
+      }
+    }
+
+### API-ключи — только в User Secrets
+
+    cd C:\Projects\AI\IIChatTools\IIChatTools.API
+
+    # DeepSeek (работает в РФ без VPN — рекомендован)
+    dotnet user-secrets set "ExternalLlm:Enabled" "true"
+    dotnet user-secrets set "ExternalLlm:DeepSeek:ApiKey" "sk-..."
+
+    # OpenAI (требует VPN из РФ)
+    dotnet user-secrets set "ExternalLlm:OpenAI:ApiKey" "sk-proj-..."
+
+    # Groq (free tier, через VPN)
+    dotnet user-secrets set "ExternalLlm:Groq:ApiKey" "gsk_..."
+
+    # Ollama (локально, без оплаты) — ключ не нужен
+    dotnet user-secrets set "ExternalLlm:DefaultProvider" "ollama"
+
+**Получить ключи:**
+- **DeepSeek** — https://platform.deepseek.com/ (оплата: крипта / ЮMoney через посредников).
+- **OpenAI** — https://platform.openai.com/ (VPN + зарубежная карта).
+- **Groq** — https://console.groq.com/ (free tier, через VPN).
+- **Ollama** — https://ollama.com/download (локально, без регистрации).
+
+Подробности — [docs/development/v1.8/DESIGN_EXTERNAL_LLM.md](docs/development/v1.8/DESIGN_EXTERNAL_LLM.md) § 5.4.
+
+### Ограничения v1.8.1
+
+- **Только non-streaming** (без SSE с внешних API).
+- **Без function calling** на внешних API — только обычный prompt → text.
+- **Anthropic Claude / Google Gemini** — не входят (свои форматы, v1.9+, KI-110).
+- **Per-user API keys** — v1.8.x (по образцу KI-108 для Mail).
+
+### API
+
+External-LLM tools не имеют собственных REST-endpoint'ов. Вызываются через:
+- **Chat UI:** LLM → `external_llm_agent` → внутри `ask_external_llm`.
+- **`/api/tools/execute`:** прямой вызов (`{"toolName": "ask_external_llm", "arguments": {...}}`).
+
+---
+
 ## Rate Limiting
 
 Per-user и per-IP лимиты запросов. Настраивается в `appsettings.json` (секция `RateLimiting`).
@@ -932,8 +1031,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.8.0
-    docker pull ghcr.io/iilmchat/iichattools:1.8.0
+    docker pull ghcr.io/iilmchat/iichattools:v1.8.1
+    docker pull ghcr.io/iilmchat/iichattools:1.8.1
     docker pull ghcr.io/iilmchat/iichattools:1.8
     docker pull ghcr.io/iilmchat/iichattools:1
 
@@ -1041,7 +1140,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 424/424 тестов проходят (unit + integration).
+**Статус**: 496/496 тестов проходят (unit + integration), 3 Skip (реальные провайдеры).
 
 ---
 

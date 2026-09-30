@@ -21,23 +21,36 @@
 
 ---
 
-## § 1a. Известные ограничения релиза v1.8.0
+## § 1a. Известные ограничения релиза v1.8.1
 
 > **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
 > долги, которые переносятся в v1.8.x. Они **не блокируют** выпуск v1.8.0,
 > но должны быть учтены при развёртывании.
 
-### Новое в v1.8.0
+### Новое в v1.8.1
+
+- **External-LLM Agent** (KI-109) — агент `external_llm_agent` + 3 инструмента
+  (`ask_external_llm` с `compare_with`, `list_external_providers`,
+  `check_internet_connection`). 5 OpenAI-совместимых провайдеров
+  (DeepSeek / OpenAI / Groq / Together AI / Ollama). Budget guardrails
+  ($5/день, 500k токенов), circuit breaker (3 fail → 5 мин skip),
+  privacy-first (`include_context: false`, без PII в логах). Chat видит
+  **13 инструментов** (было 12). API-ключи — User Secrets.
+
+### Ранее в v1.8.0
 
 - **Mail Agent** (KI-107) — почтовый агент `mail_agent` + 7 инструментов
   (`send_email`, `list_emails`, `read_email`, `search_emails`, `delete_email`,
   `move_email`, `mark_as_read`). IMAP/SMTP через MailKit 4.8.0. Rate limiting
   (20 писем/час, 30 чтений/мин), privacy-first (без PII в логах), вложения
   в `mail-attachments/{uid}/` ≤ 10 MB. Глобальные creds (App Password в
-  User Secrets). Chat видит **12 инструментов** (было 11).
+  User Secrets).
 
-### Ограничения v1.8.0 (не блокеры)
+### Ограничения v1.8.1 (не блокеры)
 
+- **External-LLM Agent:** non-streaming (без SSE с внешних API), без function
+  calling на внешних API. Anthropic / Gemini — v1.9+ (KI-110). Per-user API keys
+  — v1.8.x.
 - **Один глобальный почтовый ящик** для всех пользователей. Per-user —
   v1.8.x (KI-108).
 - **OAuth2 (Gmail / Outlook / Exchange)** — v1.9+.

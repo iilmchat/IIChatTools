@@ -1,11 +1,11 @@
 # DESIGN v1.8 — External-LLM Agent
 
-**Версия:** 1.0
-**Дата:** 2026-09-29
+**Версия:** 1.1
+**Дата:** 2026-09-30
 **Автор:** IIChatTools Team
-**Статус:** **Draft** (согласование до реализации)
-**Связанные KI:** KI-109 (External-LLM Agent — новый), KI-110 (Anthropic/Gemini — v1.9+)
-**Целевой релиз:** v1.8.0 (OpenAI-совместимые: DeepSeek, OpenAI, Groq, Together AI, Ollama)
+**Статус:** **✅ Implemented (v1.8.1, 2026-09-30)**
+**Связанные KI:** KI-109 (External-LLM Agent — Fixed в v1.8.1), KI-110 (Anthropic/Gemini — Planned, v1.9+), KI-120 (галлюцинация числа — Documented)
+**Целевой релиз:** v1.8.1 (OpenAI-совместимые: DeepSeek, OpenAI, Groq, Together AI, Ollama)
 
 ---
 
@@ -662,12 +662,12 @@ Cleanup — `Timer` каждые 30 минут (удаляет устаревш�
 | Фаза | Что | Оценка | Зависимости |
 |:---:|---|:---:|---|
 | **0** | DESIGN (этот документ) | — | ✅ **Done (2026-09-29)** |
-| **1** | NuGet (нет — HttpClient встроен) + DTO + скелет | 2 ч | Фаза 0 |
-| **2** | ExternalLlmClient + CircuitBreaker + BudgetTracker | 3 ч | Фаза 1 |
-| **3** | 3 tools (ask/list/check) | 2.5 ч | Фаза 2 |
-| **4** | external_llm_agent + Chat integration | 1 ч | Фаза 3 |
-| **5** | Тесты (unit + integration) | 2.5 ч | Фазы 1-4 |
-| **6** | Документация + релиз v1.8.0 | 2 ч | Фазы 1-5 |
+| **1** | NuGet (нет — HttpClient встроен) + DTO + скелет | 2 ч | ✅ **Done (`de7e3eb`)** |
+| **2** | ExternalLlmClient + CircuitBreaker + BudgetTracker | 3 ч | ✅ **Done (`8b245bd`, `725e720`)** |
+| **3** | 3 tools (ask/list/check) | 2.5 ч | ✅ **Done (`b5d8d40`)** |
+| **4** | external_llm_agent + Chat integration | 1 ч | ✅ **Done (`4407aba`)** |
+| **5** | Тесты (unit + integration) | 2.5 ч | ✅ **Done (`3f0f7ad`)** |
+| **6** | Документация + релиз v1.8.1 | 2 ч | ✅ **Done (этот коммит)** |
 
 ### § 7.1. Фаза 1 — DTO + скелет (2 ч)
 

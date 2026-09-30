@@ -1636,8 +1636,8 @@
 ---
 
 ### KI-109 — External-LLM Agent (DeepSeek / OpenAI / Groq / Together / Ollama)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.0
-- **Обнаружено:** 2026-09-29
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.8.1
+- **Обнаружено:** 2026-09-29 | **Устранено:** 2026-09-30
 - **DESIGN:** [`docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`](development/v1.8/DESIGN_EXTERNAL_LLM.md)
 - **Описание:** LLM работает только локально (LM Studio + qwen3-4b). Нет механизма
   для обращения к внешним моделям (DeepSeek, OpenAI, Claude, Gemini).
@@ -1654,7 +1654,31 @@
 - **Что НЕ входит:** Anthropic / Gemini (KI-110, v1.9+), streaming с внешних API,
   function calling на внешних API, OAuth2.
 - **Оценка:** ~12–15 ч.
-- **Связанные:** KI-052 (Multi-Agent — эталон), KI-094 (circuit breaker — эталон), KI-110.
+- **Реализовано (2026-09-30, v1.8.1):** 5 фаз, 5 коммитов.
+  - **Фаза 1** — 7 DTO (`ExternalLlmOptions`, `ExternalProviderOptions`,
+    `ExternalLlmRequest`, `ExternalLlmResponse`, `ExternalLlmComparisonDto`,
+    `ProviderHealthStatus`, `ExternalLlmCircuitBreakerOptions`) + 4 интерфейса
+    (`IExternalLlmClient`, `IExternalLlmCircuitBreaker`, `IExternalLlmBudgetTracker`,
+    `IExternalProviderRegistry`). Коммит `de7e3eb`.
+  - **Фаза 2.1-2.4** — `ExternalProviderRegistry` (fail-fast валидация конфига),
+    `ExternalLlmCircuitBreaker` (3 fail → 5 мин skip), `ExternalLlmBudgetTracker`
+    (per-user, $5/день + 500k токенов), `ProviderCostCalculator`.
+    +41 тест. Коммит `8b245bd`.
+  - **Фаза 2.5-2.6** — `ExternalLlmClient` (OpenAI-совместимый POST, retry 1× при 5xx/429),
+    wire-up в `Startup.cs`, `appsettings.json` (5 провайдеров), fail-fast в `Program.cs`.
+    +14 тестов. Коммит `725e720`.
+    **Fix:** `HttpClient.Timeout` → `CancellationTokenSource.CancelAfter` (RULES § 4.48).
+  - **Фаза 3** — 3 tool'а: `AskExternalLlmTool` (одиночный + compare_with),
+    `ListExternalProvidersTool`, `CheckInternetConnectionTool`. +16 тестов.
+    Коммит `b5d8d40`. **Fix:** PascalCase в тестах (RULES § 4.43).
+  - **Фаза 4** — `ExternalLlmAgentTool` (наследник `AgentToolBase`) + секция
+    `SubAgents:external_llm_agent` в appsettings. Chat видит 13 инструментов.
+    Коммит `4407aba`.
+  - **Фаза 5** — integration-тесты (`DeepSeek`/`OpenAI`/`Ollama` — Skip,
+    fail-fast — без Skip). Коммит `3f0f7ad`.
+- **Итого:** +72 теста (424 → 496), 3 Skip.
+- **Связанные:** KI-052 (Multi-Agent — эталон), KI-094 (circuit breaker — эталон),
+  KI-110 (Anthropic/Gemini — Planned), KI-120 (галлюцинация числа — Documented).
 
 ---
 
@@ -2035,13 +2059,14 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
 | Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
 | Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
+| Fixed (v1.8.1) | 1 | <!-- KI-109 (External-LLM Agent) -->
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
 | Deferred  | 4 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 5 |                       <!-- KI-108, KI-109, KI-110, KI-111, KI-113 -->
+| Planned | 4 |                       <!-- KI-108, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **78** |
 

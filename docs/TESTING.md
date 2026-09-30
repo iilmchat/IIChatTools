@@ -1,8 +1,8 @@
 # TESTING.md — Чек-лист ручной приёмки IIChatTools
 
-**Версия:** 1.8.0
-**Обновлено:** 2026-09-29
-**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0), KI-103 (локализация `/status` — v1.7.1), KI-104 (PDF/DOCX парсеры — v1.7.1), KI-107 (Mail Agent — v1.8.0).
+**Версия:** 1.8.1
+**Обновлено:** 2026-09-30
+**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0), KI-103 (локализация `/status` — v1.7.1), KI-104 (PDF/DOCX парсеры — v1.7.1), KI-107 (Mail Agent — v1.8.0), KI-109 (External-LLM Agent — v1.8.1).
 **Связанные DESIGN:** [v1.3](development/v1.3/DESIGN.md) (Chat UI), [v1.4](development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](development/v1.5/DESIGN.md) (RAG), [v1.7](development/v1.7/DESIGN_DB_AGENT.md) (Database Agent).
 
 ---
@@ -18,7 +18,7 @@
 
 **Статус:** `OK` / `FAIL` / `SKIP` / `N/A`.
 
-- **Smoke** (§ 2) — обязательный прогон перед публикацией релиза. ~20 минут.
+- **Smoke** (§ 2) — обязательный прогон перед публикацией релиза. ~25 минут.
 - **Full regression** (§ 3) — для patch-релизов, тестируем всё. ~40 минут.
 - **UI/UX** (§ 4) — локализация, вёрстка, hotkeys. ~15 минут.
 - **Что НЕ покрыто** (§ 5) — важно: явный список того, что проверять **вручную**.
@@ -51,10 +51,14 @@
 | 18 | Новый чат → 📎 → приложить `.docx` → задать вопрос по содержимому | В диалоге выбора файлов DOCX **виден**. Чип `📄 <имя>.docx · N чанков`. Ответ — с опорой на текст DOCX. | | |
 | 19 | `Mail:Enabled = true` (User Secrets с creds) → перезапуск → `/chat`: «Прочитай последнее письмо из INBOX» | LLM вызывает `mail_agent` → SSE `tool_approval_required` → модалка → Approve → LLM внутри вызывает `list_emails` + `read_email` → финальный ответ. В `/admin → Status` — запись `agent.mail_agent` (Success). | | |
 | 20 | `/chat`: «Отправь письмо на `<себе>` с темой Test и телом Hello» | LLM → `mail_agent` → approval → внутри `send_email` → SMTP-отправка. Письмо приходит. В AuditLogs — `mail.send_email`. **Без явной просьбы пользователя LLM НЕ отправляет.** | | |
+| 21 | `ExternalLlm:Enabled = false` → перезапуск | Лог: `External-LLM: отключён (ExternalLlm:Enabled=false)`. `external_llm_agent` в Chat **виден** (агент зарегистрирован безусловно), но внутри `ask_external_llm` нет в DI → `ToolResult.Fail`. | | |
+| 22 | Задать ключ DeepSeek в User Secrets + `ExternalLlm:Enabled = true` → перезапуск | Лог: `External-LLM: реестр провайдеров загружен (Enabled=true)`. В `/admin → Агенты` — 8 агентов, `external_llm_agent` с Approval = «Нет». | | |
+| 23 | `/chat`: «Спроси DeepSeek, что нового в .NET 10» | LLM → `external_llm_agent` → внутри `ask_external_llm(provider="deepseek")` → ответ с пометкой «Использованный провайдер: DeepSeek». В `/admin → Аудит` — `agent.external_llm_agent` (Success). | | |
+| 24 | `/chat`: «Сравни ответы ChatGPT и DeepSeek про X» | LLM → `external_llm_agent` → `ask_external_llm(provider="openai", compare_with="deepseek")` → таблица сравнения. | | |
 
-> **Если smoke (20/20 OK) — релиз можно публиковать.**
-> **⚠️ Сценарии 19–20 требуют валидного `Mail:Enabled = true` + реальных creds** (App Password).
-> Без них — SKIP (не FAIL).
+> **Если smoke (24/24 OK) — релиз можно публиковать.**
+> **⚠️ Сценарии 19–20 требуют валидного `Mail:Enabled = true` + реальных creds** (App Password). Без них — SKIP (не FAIL).
+> **⚠️ Сценарии 22–24 требуют валидного `ExternalLlm:Enabled = true` + API-ключей** (DeepSeek + OpenAI). Без них — SKIP.
 
 ---
 
@@ -211,3 +215,4 @@
 | 2026-09-29 | 1.7.0 | Фаза 7D: Smoke +5 (Database Agent, #12–16), § 3.5 (Database Agent, 7 сценариев), § 4 +2 (локализация admin, KI-102), § 5 +2 (5.11, 5.12). Автотесты 199 → 341. |
 | 2026-09-29 | 1.7.1 | KI-103 (локализация `/status`) + KI-104 (PDF/DOCX-парсеры). Smoke +2 (#17, #18), § 3.2 +4 (3.2.13–3.2.16). § 5.7 переведён из «не в MVP» в «требует реального файла». Автотесты 341 → 374. |
 | 2026-09-29 | 1.8.0 | KI-107 (Mail Agent — IMAP/SMTP через MailKit). Smoke +2 (#19, #20 — Mail Agent), § 3.6 — новый (10 сценариев Mail Agent), § 5 +5.13. Автотесты 374 → 424. |
+| 2026-09-30 | 1.8.1 | KI-109 (External-LLM Agent — DeepSeek/OpenAI/Groq/Together/Ollama). Smoke +3 (#21–#24), § 5 +5.14. Автотесты 424 → 496 (+72, 3 Skip). |
