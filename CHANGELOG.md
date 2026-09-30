@@ -19,6 +19,22 @@
 ## [Unreleased]
 
 ### Added
+- **External-LLM Agent — Фаза 5: integration-тесты (v1.8.1, KI-109)**:
+  - `ExternalLlmIntegrationTests` (`Tests/IntegrationTests/ExternalLlm/`) — 4 теста:
+    - `CompleteAsync_UnknownProvider_FailsBeforeHttp` — **без Skip** (fail-fast без сети).
+    - `DeepSeek_RealRequest_ReturnsResponse` — `[Fact(Skip=...)]`.
+    - `OpenAI_RealRequest_ReturnsResponse` — `[Fact(Skip=...)]`.
+    - `Ollama_RealRequest_ReturnsResponse` — `[Fact(Skip=...)]`.
+  - Для запуска — env-переменная `EXTERNALLLM__{PROVIDER}__APIKEY` + убрать Skip вручную.
+  - **DoD:** `dotnet build` 0/0, `dotnet test` 495 → **496/496** (1 fail-fast + 3 Skip).
+
+### Documented
+- **KI-120 (new)** — Chat LLM галлюцинирует количество инструментов: перечисляет 13
+  корректно, потом пишет «правильно: 10». Ограничение qwen3-4b (аналогично KI-118).
+  **Зашитого числа в `ChatStreamService` НЕТ** (проверено). Workaround для smoke:
+  спрашивать «перечисли» вместо «сколько».
+
+### Added
 - **External-LLM Agent — Фаза 4: агент `external_llm_agent` (v1.8.1, KI-109)**:
   - `ExternalLlmAgentTool` (`Implementation/Tools/SubAgent/`) — наследник
     `AgentToolBase`, `Name = AgentName = "external_llm_agent"`.
