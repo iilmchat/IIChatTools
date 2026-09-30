@@ -726,6 +726,13 @@ namespace IIChatTools.API
             // Внутренние mail-tools регистрируются отдельно (RegisterMailTools)
             // только при Mail:Enabled = true.
             services.AddScoped<ITool, MailAgentTool>();
+
+            // v1.8.1 (KI-109, Фаза 4): агент внешних LLM (external_llm_agent).
+            // Регистрируется безусловно; видимость в Chat — через
+            // SubAgents:external_llm_agent:Enabled.
+            // Внутренние tools (ask_external_llm и др.) регистрируются отдельно
+            // (RegisterExternalLlmTools) только при ExternalLlm:Enabled = true.
+            services.AddScoped<ITool, ExternalLlmAgentTool>();
         }
 
         /// <summary>

@@ -168,6 +168,7 @@
 
 | KI | Приоритет | Статус | Суть | План |
 |----|-----------|--------|------|------|
+| **KI-109** | 🟡 | **In Progress** | External-LLM Agent (DeepSeek/OpenAI/Groq/Together/Ollama). Фазы 0–4 закрыты (DTO + Registry + CircuitBreaker + BudgetTracker + Client + 3 tool + агент). Осталось: **Фаза 5 (тесты — integration с реальным провайдером)** + **Фаза 6 (документация + релиз v1.8.1)**. DESIGN: `docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`. | **v1.8.1** |
 | KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.7.x |
 | KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.7.x+ |
 | KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.7.x+ |
@@ -231,6 +232,7 @@
 | 2026-09-29 | 1.4.21 | § 4.47 — MailKit `IMessageSummary.Attachments` — `IEnumerable`, `Count` — extension (CS0019). **KI-107 Фаза 2** (Mail Agent). |
 | 2026-09-30 | 1.4.22 | § 4.48 — `HttpClient.Timeout` нельзя менять после первого `SendAsync`; использовать `CancellationTokenSource.CancelAfter` в retry-цикле. **KI-109 Фаза 2.5** (ExternalLlmClient). |
 | 2026-09-30 | 1.4.23 | § 4.43 — уточнение: `JObject.FromObject(DTO)` → PascalCase; MVC-ответ → camelCase. **KI-109 Фаза 3** (`AskExternalLlmToolTests`). |
+| 2026-09-30 | 1.4.23b | § 7 — KI-109 → **In Progress** (Фазы 0–4 закрыты). **KI-109 Фаза 4** (`external_llm_agent`). |
 
 ---
 

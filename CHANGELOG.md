@@ -19,6 +19,24 @@
 ## [Unreleased]
 
 ### Added
+- **External-LLM Agent — Фаза 4: агент `external_llm_agent` (v1.8.1, KI-109)**:
+  - `ExternalLlmAgentTool` (`Implementation/Tools/SubAgent/`) — наследник
+    `AgentToolBase`, `Name = AgentName = "external_llm_agent"`.
+    `RequiresApprovalByDefault` резолвится из дескриптора
+    (`SubAgents:external_llm_agent:RequiresApproval = false`).
+  - `Startup.cs` — 1 строка в `RegisterSpecializedAgentTools`:
+    `services.AddScoped<ITool, ExternalLlmAgentTool>()`.
+  - `appsettings.json` + `.Development.json` — секция `SubAgents:external_llm_agent`
+    (`Enabled: true`, `Model: qwen/qwen3-4b-2507`, `MaxSteps: 5`,
+    `RequiresApproval: false`, `AllowedTools: [ask_external_llm,
+    list_external_providers, check_internet_connection]`, SystemPrompt с 4 сценариями).
+  - **ChatStreamService — НЕ требует правок:** `external_llm_agent` — наследник
+    `AgentToolBase`, попадает в `allowedNames` через `SubAgentRegistry.GetEnabled()`
+    (RULES § 4.44 здесь **не** применим — только для top-level `ITool` в Chat).
+  - **Chat видит 13 инструментов** (было 12): 8 агентов + consult + 3 RAG +
+    `database_agent` + `mail_agent` + `external_llm_agent`.
+  - **Тесты:** без unit (всё через `SubAgentRegistry` — конфигурация).
+  - **DoD:** `dotnet build` 0/0. `dotnet test` 495/495 (без изменений).
 - **External-LLM Agent — Фаза 3: 3 tools + регистрация (v1.8.1, KI-109)**:
   - `AskExternalLlmTool` (`Implementation/Tools/ExternalLlm/`) — `ask_external_llm`.
     Одиночный режим (`provider` + `prompt`) и сравнение (`compare_with` — 2 параллельных
