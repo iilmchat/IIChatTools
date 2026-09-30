@@ -19,6 +19,25 @@
 ## [Unreleased]
 
 ### Added
+- **External-LLM Agent — Фаза 2.1–2.4: Infrastructure (v1.8.1, KI-109)**:
+  - `ExternalProviderRegistry` (`Implementation/ExternalLlm/`) — Singleton, читает
+    `ExternalLlm:Providers` из конфигурации. Fail-fast валидация при `Enabled = true`
+    (DESIGN_EXTERNAL_LLM § 5.6).
+  - `ExternalLlmCircuitBreaker` (`Implementation/ExternalLlm/`) — Singleton, `IDisposable`.
+    Per-provider, N подряд fail → skip на `BreakDurationSeconds`. Cleanup Timer 5 мин (KI-043).
+  - `ExternalLlmBudgetTracker` (`Implementation/ExternalLlm/`) — Singleton, `IDisposable`.
+    Per-user, daily budget + tokens. Lazy-reset при смене дня UTC. Cleanup Timer 30 мин.
+  - `ProviderCostCalculator` (`Implementation/ExternalLlm/`) — static helper: USD по токенам.
+  - **Тесты:** +41 (Registry ×10, CircuitBreaker ×11, BudgetTracker ×11, CostCalculator ×9).
+  - **DoD:** `dotnet build` 0/0, `dotnet test` 424 → **465/465**.
+- **External-LLM Agent — Фаза 1: DTO + интерфейсы (v1.8.1, KI-109)**:
+  - `DTO/ExternalLlm/` — 7 файлов: `ExternalLlmOptions`, `ExternalLlmCircuitBreakerOptions`,
+    `ExternalProviderOptions`, `ExternalLlmRequest`, `ExternalLlmResponse`,
+    `ExternalLlmComparisonDto`, `ProviderHealthStatus`.
+  - `Interfaces/` — 4 файла: `IExternalLlmClient`, `IExternalLlmCircuitBreaker`,
+    `IExternalLlmBudgetTracker`, `IExternalProviderRegistry`.
+  - `Startup.cs` — закомментированный блок будущих регистраций (раскомментируется в Фазе 2.6).
+  - **DoD:** `dotnet build` 0/0.
 - **README — раздел «Docker — что работает, что нет» (v1.8.x, KI-112)**:
   - Таблица: Chat UI, Mail Agent, RAG, SqlAgent, file_system_agent, web_agent —
     работают; code_agent, git_agent, github_agent — нет (нет утилит в lightweight-образе).
