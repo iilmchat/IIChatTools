@@ -11,7 +11,9 @@ using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): Em
 using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): SqlAgentOptions
 using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.DTO.ExternalLlm;               // v1.8.1 (KI-109): External-LLM
+using IIChatTools.Services.DTO.Cache;                     // v1.8.2: ToolResultCacheOptions
 using IIChatTools.Services.Implementation.ExternalLlm;    // v1.8.1 (KI-109): ExternalLlmClient и т.д.
+using IIChatTools.Services.Implementation.Cache;          // v1.8.2: ToolResultCache
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
@@ -35,6 +37,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;              // ← добавить
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;   // v1.8.2: MemoryCacheOptions
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -353,6 +356,27 @@ namespace IIChatTools.API
 
             // ============ 7. Реестр инструментов ============
             services.AddScoped<IToolRegistry, ToolRegistry>();
+
+            // ============ 7.1. Tool result cache (v1.8.2) ============
+            // Слой 2: кэш результатов инструментов (web_search, wikipedia_search,
+            // RAG-поиск). Whitelist — appsettings:ToolCache:Tools.
+            // Singleton — обёртка над IMemoryCache. Scoped ToolRegistry
+            // зависит от Singleton IToolResultCache (валидно).
+            services.Configure<ToolResultCacheOptions>(Configuration.GetSection("ToolCache"));
+
+            // SizeLimit читаем напрямую из IConfiguration (не из IOptions<ToolResultCacheOptions>):
+            // AddMemoryCache принимает Action<MemoryCacheOptions>, а не фабрику —
+            // IServiceProvider здесь недоступен. Значение клампится как в ToolResultCache.
+            var toolCacheSizeLimit = Math.Clamp(
+                Configuration.GetValue<int>("ToolCache:SizeLimit", 10_000),
+                100, 1_000_000);
+
+            services.AddMemoryCache(options =>
+            {
+                options.SizeLimit = toolCacheSizeLimit;
+            });
+
+            services.AddSingleton<IToolResultCache, ToolResultCache>();
 
             // ============ 8. Клиент LM Studio и суб-агент ============
             // v1.5.0 (KI-083, Фаза 1): ILmStudioClient переведён в Singleton —
