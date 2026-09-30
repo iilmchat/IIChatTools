@@ -8,7 +8,7 @@ using IIChatTools.Services.DTO.SqlAgent;   // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 6 (KI-052)
 using IIChatTools.Services.Implementation.SqlAgent;  // v1.7.0 (KI-097): SqlAgentOptionsProvider
 using IIChatTools.Services.Implementation;
-using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Interfaces; // v1.8.1 (KI-109): IExternalProviderRegistry
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -272,6 +272,21 @@ namespace IIChatTools.API
                 // Читаем сохранённые в AppSettings override'ы подключений SQL Agent
                 // (ключи с префиксом SqlAgent.) и применяем к SqlAgentOptionsProvider.
                 LoadSqlAgentOverrides(services, logger);
+
+                // ---------- 7. External-LLM fail-fast (v1.8.1, KI-109) ----------
+                // Конструктор ExternalProviderRegistry выполняет fail-fast валидацию
+                // (BaseUrl, DefaultProvider, ApiKeySecretName) при Enabled = true.
+                // Принудительно резолвим Singleton, чтобы валидация сработала на старте,
+                // а не при первом вызове ask_external_llm.
+                if (configuration.GetValue<bool>("ExternalLlm:Enabled"))
+                {
+                    _ = services.GetRequiredService<IExternalProviderRegistry>();
+                    logger.LogInformation("External-LLM: реестр провайдеров загружен (Enabled=true).");
+                }
+                else
+                {
+                    logger.LogInformation("External-LLM: отключён (ExternalLlm:Enabled=false).");
+                }
 
                 logger.LogInformation(
                     "=== IIChatTools v{Version} готов к работе ===",

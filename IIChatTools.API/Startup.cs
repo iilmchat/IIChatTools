@@ -10,6 +10,8 @@ using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТ�
 using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): EmbeddingService
 using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): SqlAgentOptions
 using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Mail Agent
+using IIChatTools.Services.DTO.ExternalLlm;               // v1.8.1 (KI-109): External-LLM
+using IIChatTools.Services.Implementation.ExternalLlm;    // v1.8.1 (KI-109): ExternalLlmClient и т.д.
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
@@ -449,25 +451,19 @@ namespace IIChatTools.API
             services.AddSingleton<IMailRateLimiter, InMemoryMailRateLimiter>();
             services.AddScoped<IMailAttachmentService, MailAttachmentService>();
 
-            // ============ External-LLM Agent (v1.8.1, KI-109) — Фаза 1 ============
-            // Фаза 1 (2026-09-29): созданы только DTO (DTO/ExternalLlm/*) и интерфейсы
-            // (Interfaces/IExternalLlm*.cs, IExternalProviderRegistry.cs). Реализации
-            // (ExternalProviderRegistry, ExternalLlmCircuitBreaker, ExternalLlmBudgetTracker,
-            // ExternalLlmClient) появятся в Фазе 2 (DESIGN_EXTERNAL_LLM § 7.2).
+            // ============ External-LLM Agent (v1.8.1, KI-109, Фаза 2.6) ============
+            // Baseline-конфиг из appsettings:ExternalLlm. API-ключи — только через
+            // User Secrets / env (по ApiKeySecretName). Fail-fast валидация конфига —
+            // внутри ExternalProviderRegistry (при Enabled = true).
             //
-            // Регистрации ниже будут раскомментированы в Фазе 2.
-            //
-            // services.Configure<ExternalLlmOptions>(Configuration.GetSection("ExternalLlm"));
-            // services.AddSingleton<IExternalProviderRegistry, ExternalProviderRegistry>();
-            // services.AddSingleton<IExternalLlmCircuitBreaker, ExternalLlmCircuitBreaker>();
-            // services.AddSingleton<IExternalLlmBudgetTracker, ExternalLlmBudgetTracker>();
-            // services.AddSingleton<IExternalLlmClient, ExternalLlmClient>();
-            //
-            // // Tools (3 шт.) — только если ExternalLlm:Enabled = true (Фаза 3, DESIGN § 3.1).
-            // if (Configuration.GetValue<bool>("ExternalLlm:Enabled"))
-            // {
-            //     RegisterExternalLlmTools(services);
-            // }
+            // Все 4 сервиса — Singleton (stateless / per-user state в ConcurrentDictionary
+            // с Timer cleanup по образцу KI-043). Tools (3 шт.) регистрируются в Фазе 3
+            // (RegisterExternalLlmTools) — только при ExternalLlm:Enabled = true.
+            services.Configure<ExternalLlmOptions>(Configuration.GetSection("ExternalLlm"));
+            services.AddSingleton<IExternalProviderRegistry, ExternalProviderRegistry>();
+            services.AddSingleton<IExternalLlmCircuitBreaker, ExternalLlmCircuitBreaker>();
+            services.AddSingleton<IExternalLlmBudgetTracker, ExternalLlmBudgetTracker>();
+            services.AddSingleton<IExternalLlmClient, ExternalLlmClient>();
 
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());

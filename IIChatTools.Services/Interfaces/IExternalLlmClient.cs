@@ -25,22 +25,40 @@ namespace IIChatTools.Services.Interfaces
     {
         /// <summary>
         /// Выполнить один запрос к внешней LLM (non-streaming).
+        ///
+        /// <para>
+        /// Внутри клиента происходит:
+        /// <list type="number">
+        ///   <item>резолв провайдера (<c>request.Provider</c> или <c>DefaultProvider</c>);</item>
+        ///   <item>проверка circuit breaker (при открытом — throw);</item>
+        ///   <item>проверка дневного бюджета (per-user, при превышении — throw);</item>
+        ///   <item>HTTP POST <c>{BaseUrl}/chat/completions</c> с Bearer-токеном;</item>
+        ///   <item>парсинг ответа, расчёт стоимости (<c>ProviderCostCalculator</c>);</item>
+        ///   <item>запись успеха в breaker + расход в budget tracker.</item>
+        /// </list>
+        /// </para>
         /// </summary>
+        /// <param name="userId">Пользователь-инициатор (для budget tracker, per-user)</param>
         /// <param name="request">Запрос (provider, prompt, опции)</param>
         /// <param name="ct">Токен отмены (обёртка над HttpClient.Timeout + внешняя отмена)</param>
         /// <returns>
         /// Ответ с текстом, токенами, стоимостью и длительностью.
         /// </returns>
         /// <exception cref="System.InvalidOperationException">
-        /// Если провайдер не найден в конфигурации или API-ключ не задан.
+        /// Если провайдер не найден в конфигурации, API-ключ не задан,
+        /// circuit breaker открыт или бюджет пользователя исчерпан.
         /// </exception>
         /// <exception cref="System.Net.Http.HttpRequestException">
         /// Сетевая ошибка / HTTP 4xx-5xx от провайдера.
         /// </exception>
+        /// <exception cref="System.TimeoutException">
+        /// Таймаут HTTP-запроса (провайдер не ответил за <c>TimeoutSeconds</c>).
+        /// </exception>
         /// <exception cref="System.Threading.Tasks.TaskCanceledException">
-        /// Таймаут или внешняя отмена.
+        /// Внешняя отмена (<paramref name="ct"/>).
         /// </exception>
         Task<ExternalLlmResponse> CompleteAsync(
+            int userId,
             ExternalLlmRequest request,
             CancellationToken ct = default);
 

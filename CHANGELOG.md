@@ -19,6 +19,27 @@
 ## [Unreleased]
 
 ### Added
+- **External-LLM Agent — Фаза 2.5–2.6: Client + wire-up (v1.8.1, KI-109)**:
+  - `ExternalLlmClient` (`Implementation/ExternalLlm/`) — Singleton, `IExternalLlmClient`.
+    OpenAI-совместимый POST `{BaseUrl}/chat/completions` с Bearer-токеном. Retry 1×
+    при 5xx / 429 (не при 4xx и timeout). Circuit breaker + Budget tracker +
+    Cost calculator интегрированы. Privacy: без prompt/content в логах.
+  - `IExternalLlmClient.CompleteAsync(int userId, ...)` — расширена сигнатура:
+    `userId` нужен для per-user budget tracker (DESIGN § 6.4). `TestConnectionAsync`
+    без `userId` (не тратит бюджет).
+  - `Startup.cs` — раскомментированы 4 регистрации (`Configure<ExternalLlmOptions>` +
+    3 Singleton + Client).
+  - `appsettings.json` / `.Development.json` — секция `ExternalLlm` (`Enabled = false`
+    по умолчанию, 5 провайдеров: deepseek / openai / groq / together / ollama).
+  - `Program.cs` — fail-fast блок: resolve `IExternalProviderRegistry` при
+    `ExternalLlm:Enabled = true` (иначе валидация сработала бы только на первом вызове).
+  - **Тесты:** +14 (`ExternalLlmClientTests`).
+  - **Fix (в том же коммите):** `HttpClient.Timeout` нельзя менять после первого
+    `SendAsync` (`InvalidOperationException: This instance has already started...`).
+    В retry-цикле с переиспользованием `HttpClient` (mock, DI-контейнер) это ломается.
+    Заменено на `CancellationTokenSource.CancelAfter` — таймаут привязан к запросу,
+    а не к клиенту (см. RULES § 4.48).
+  - **DoD:** `dotnet build` 0/0, `dotnet test` 465 → **479/479**.
 - **External-LLM Agent — Фаза 2.1–2.4: Infrastructure (v1.8.1, KI-109)**:
   - `ExternalProviderRegistry` (`Implementation/ExternalLlm/`) — Singleton, читает
     `ExternalLlm:Providers` из конфигурации. Fail-fast валидация при `Enabled = true`
