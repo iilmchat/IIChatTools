@@ -78,5 +78,25 @@ namespace IIChatTools.Services.Metrics
             "iichattools_chat_cleanup_total",
             "Total number of chats deleted by retention policy.",
             new CounterConfiguration { LabelNames = new[] { "reason" } });
+
+        // ============ v1.8.2 (Tool result cache) ============
+
+        /// <summary>
+        /// Счётчик попаданий в кэш результатов инструментов (v1.8.2).
+        /// Labels: <c>tool_name</c>.
+        /// </summary>
+        public static readonly Counter ToolCacheHitsTotal = Prometheus.Metrics.CreateCounter(
+            "iichattools_tool_cache_hits_total",
+            "Total number of tool result cache hits.",
+            new CounterConfiguration { LabelNames = new[] { "tool_name" } });
+
+        /// <summary>
+        /// Счётчик промахов кэша результатов инструментов (v1.8.2).
+        /// Labels: <c>tool_name</c>.
+        /// </summary>
+        public static readonly Counter ToolCacheMissesTotal = Prometheus.Metrics.CreateCounter(
+            "iichattools_tool_cache_misses_total",
+            "Total number of tool result cache misses.",
+            new CounterConfiguration { LabelNames = new[] { "tool_name" } });
     }
 }
