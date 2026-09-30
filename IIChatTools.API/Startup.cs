@@ -449,6 +449,26 @@ namespace IIChatTools.API
             services.AddSingleton<IMailRateLimiter, InMemoryMailRateLimiter>();
             services.AddScoped<IMailAttachmentService, MailAttachmentService>();
 
+            // ============ External-LLM Agent (v1.8.1, KI-109) — Фаза 1 ============
+            // Фаза 1 (2026-09-29): созданы только DTO (DTO/ExternalLlm/*) и интерфейсы
+            // (Interfaces/IExternalLlm*.cs, IExternalProviderRegistry.cs). Реализации
+            // (ExternalProviderRegistry, ExternalLlmCircuitBreaker, ExternalLlmBudgetTracker,
+            // ExternalLlmClient) появятся в Фазе 2 (DESIGN_EXTERNAL_LLM § 7.2).
+            //
+            // Регистрации ниже будут раскомментированы в Фазе 2.
+            //
+            // services.Configure<ExternalLlmOptions>(Configuration.GetSection("ExternalLlm"));
+            // services.AddSingleton<IExternalProviderRegistry, ExternalProviderRegistry>();
+            // services.AddSingleton<IExternalLlmCircuitBreaker, ExternalLlmCircuitBreaker>();
+            // services.AddSingleton<IExternalLlmBudgetTracker, ExternalLlmBudgetTracker>();
+            // services.AddSingleton<IExternalLlmClient, ExternalLlmClient>();
+            //
+            // // Tools (3 шт.) — только если ExternalLlm:Enabled = true (Фаза 3, DESIGN § 3.1).
+            // if (Configuration.GetValue<bool>("ExternalLlm:Enabled"))
+            // {
+            //     RegisterExternalLlmTools(services);
+            // }
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 
