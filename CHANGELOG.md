@@ -19,6 +19,26 @@
 ## [Unreleased]
 
 ### Added
+- **External-LLM Agent — Фаза 3: 3 tools + регистрация (v1.8.1, KI-109)**:
+  - `AskExternalLlmTool` (`Implementation/Tools/ExternalLlm/`) — `ask_external_llm`.
+    Одиночный режим (`provider` + `prompt`) и сравнение (`compare_with` — 2 параллельных
+    запроса через `Task.WhenAll`, возврат `{ primary, secondary, totalCostUsd }`).
+    Параметры: `prompt` (required), `provider?`, `compare_with?`, `include_context?`
+    (Фаза 3: принимается, но не инжектится — реальный контекст в Фазе 4), `max_tokens?`,
+    `temperature?` (clamp [0, 2]). Approval не требуется (защита — DailyBudgetUsd).
+  - `ListExternalProvidersTool` — `list_external_providers`. Возвращает `{ default,
+    providers[] }` с именем, DisplayName, моделью, доступностью (circuit breaker),
+    тарифами, последней ошибкой. Без параметров.
+  - `CheckInternetConnectionTool` — `check_internet_connection`. Лёгкий `GET /models`
+    через `IExternalLlmClient.TestConnectionAsync`. Параметр `provider?`
+    (по умолчанию `DefaultProvider`).
+  - `Startup.cs`: `RegisterExternalLlmTools(services)` — 3 `Scoped<ITool>`, только при
+    `ExternalLlm:Enabled = true`. Chat их **не видит** напрямую — только через
+    `external_llm_agent` (Фаза 4, `AllowedTools` в `SubAgents:*`). **ChatStreamService
+    не правится** (RULES § 4.44 применим только к top-level `ITool` в Chat).
+  - **Тесты:** +16 (`AskExternalLlmToolTests` ×10, `ListExternalProvidersToolTests` ×3,
+    `CheckInternetConnectionToolTests` ×3).
+  - **DoD:** `dotnet build` 0/0, `dotnet test` 479 → **495/495**.
 - **External-LLM Agent — Фаза 2.5–2.6: Client + wire-up (v1.8.1, KI-109)**:
   - `ExternalLlmClient` (`Implementation/ExternalLlm/`) — Singleton, `IExternalLlmClient`.
     OpenAI-совместимый POST `{BaseUrl}/chat/completions` с Bearer-токеном. Retry 1×

@@ -21,6 +21,7 @@ using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.Implementation.Mail;           // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.Implementation.Tools.Mail;     // v1.8.0 (KI-107): Mail tools
+using IIChatTools.Services.Implementation.Tools.ExternalLlm;  // v1.8.1 (KI-109): External-LLM tools
 using IIChatTools.Services.Implementation.Tools.Rag;
 using IIChatTools.Services.Implementation.Tools.SqlAgent;   // v1.7.0 (KI-097): DatabaseAgentTool
 using IIChatTools.Services.Implementation.Tools.SubAgent;
@@ -465,6 +466,20 @@ namespace IIChatTools.API
             services.AddSingleton<IExternalLlmBudgetTracker, ExternalLlmBudgetTracker>();
             services.AddSingleton<IExternalLlmClient, ExternalLlmClient>();
 
+            // v1.8.1 (KI-109, Фаза 3): 3 tool'а для агента external_llm_agent.
+            // Регистрируются только при ExternalLlm:Enabled = true — иначе LLM
+            // не должен их видеть (DESIGN § 3.1).
+            //
+            // ВАЖНО: Chat НЕ видит эти tool'ы напрямую. Они доступны только
+            // через агента external_llm_agent (Фаза 4) — попадают в его
+            // AllowedTools в SubAgents:external_llm_agent. Это НЕ требует правок
+            // ChatStreamService (RULES § 4.44 применим только к top-level ITool
+            // в Chat, а не к наследникам AgentToolBase).
+            if (Configuration.GetValue<bool>("ExternalLlm:Enabled"))
+            {
+                RegisterExternalLlmTools(services);
+            }
+
             // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
 
@@ -792,6 +807,25 @@ namespace IIChatTools.API
             services.AddScoped<ITool, DeleteEmailTool>();
             services.AddScoped<ITool, MoveEmailTool>();
             services.AddScoped<ITool, MarkAsReadTool>();
+        }
+
+        /// <summary>
+        /// Регистрирует External-LLM tools (v1.8.1, KI-109, Фаза 3):
+        /// <c>ask_external_llm</c>, <c>list_external_providers</c>,
+        /// <c>check_internet_connection</c>.
+        ///
+        /// <para>
+        /// Не регистрируются при <c>ExternalLlm:Enabled = false</c>
+        /// (DESIGN_EXTERNAL_LLM § 3.1). Chat их не видит напрямую —
+        /// только через агента <c>external_llm_agent</c> (Фаза 4).
+        /// </para>
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        private static void RegisterExternalLlmTools(IServiceCollection services)
+        {
+            services.AddScoped<ITool, AskExternalLlmTool>();
+            services.AddScoped<ITool, ListExternalProvidersTool>();
+            services.AddScoped<ITool, CheckInternetConnectionTool>();
         }
 
         /// <summary>
