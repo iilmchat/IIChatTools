@@ -68,7 +68,12 @@
          Прецедент — KI-022 (SQLitePCLRaw 2.1.11 → 2.1.13).
          Версия 10.0.0 — соответствует .NET 10 SDK (10.0.401). -->
     <SystemIOPackagingVersion>10.0.0</SystemIOPackagingVersion>
-    <MailKitVersion>4.8.0</MailKitVersion>
+    <!-- v1.9.0-followup (KI-125): 4.8.0 -> 4.18.1.
+         Патчит 2 Moderate advisory:
+         - GHSA-9j88-vvj5-vhgr (MailKit, STARTTLS response injection) — fixed 4.16.0.
+         - GHSA-g7hc-96xr-gvvx (MimeKit, CRLF injection) — fixed 4.15.1.
+         MimeKit подтягивается транзитивно на ту же версию. -->
+    <MailKitVersion>4.18.1</MailKitVersion>
   </PropertyGroup>
 
 </Project>

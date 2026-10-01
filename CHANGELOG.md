@@ -18,6 +18,19 @@
 
 ## [Unreleased]
 
+### Security
+- **KI-125 — MailKit / MimeKit 4.8.0 → 4.18.1** (v1.9.0-followup):
+  закрыты 2 Moderate advisory:
+  - `GHSA-9j88-vvj5-vhgr` (MailKit, STARTTLS Response Injection + SASL
+    mechanism downgrade) — fixed в 4.16.0;
+  - `GHSA-g7hc-96xr-gvvx` (MimeKit, CRLF Injection в quoted local-part) —
+    fixed в 4.15.1.
+  `Directory.Build.props`: `<MailKitVersion>4.8.0 → 4.18.1</MailKitVersion>`.
+  MimeKit подтягивается транзитивно на ту же версию.
+  **Было 6 warnings NU1902** (Services / API / Tests × 2 advisory) —
+  после обновления 0. Breaking changes не ожидаются (4.16.0 — только
+  security fix + Dispose RNG).
+
 ### Added
 - **KI-123 — индикатор загрузки списка чатов** (Deferred → Fixed):
   spinner (Bootstrap `.spinner-border`) + локализованный текст

@@ -2102,6 +2102,31 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-125 — Уязвимости MailKit 4.8.0 / MimeKit 4.8.0 (NU1902 × 6)
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.9.0-followup
+- **Обнаружено:** 2026-10-01 (при `dotnet restore --configfile NuGet.Config.online`)
+- **Файлы:** `Directory.Build.props` (`MailKitVersion`).
+- **Описание:** При online-restore обнаружены 6 warnings `NU1902`:
+  - `MailKit 4.8.0` — [GHSA-9j88-vvj5-vhgr](https://github.com/advisories/GHSA-9j88-vvj5-vhgr)
+    (Moderate): STARTTLS Response Injection + SASL mechanism downgrade.
+    Патч — **4.16.0**.
+  - `MimeKit 4.8.0` — [GHSA-g7hc-96xr-gvvx](https://github.com/advisories/GHSA-g7hc-96xr-gvvx)
+    (Moderate): CRLF Injection в quoted local-part SMTP envelope.
+    Патч — **4.15.1**.
+  В CI (`dotnet restore` без `NuGet.Config.online`) warnings не видны,
+  так как пакеты берутся из `LocalPackages/`. **Не блокер v1.9.0**, но
+  технический долг.
+- **Решение (v1.9.0-followup):**
+  - `Directory.Build.props`: `<MailKitVersion>4.8.0 → 4.18.1</MailKitVersion>`.
+    Обновление выше обоих патчей. MimeKit подтягивается транзитивно.
+  - Breaking changes не ожидаются: release notes 4.16.0 — только security fix
+    и `Dispose` RNG.
+  - Smoke mail_agent — обязателен (см. RULES § 4.47 — `IMessageSummary.Attachments`).
+- **Связанные:** KI-107 (Mail Agent — база), KI-022 / KI-105 (прецеденты
+  override транзитивных уязвимостей).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2210,15 +2235,15 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.8.1) | 1 | <!-- KI-109 (External-LLM Agent) -->
 | Fixed (v1.8.2) | 1 | <!-- KI-121 (external_llm_agent — галлюцинация провайдеров) -->
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
-| Fixed (v1.9.0) | 2 | <!-- KI-110a (Anthropic Claude), KI-124 (Claude integration test) -->
-| Deferred  | 7 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122, KI-123 -->
+| Fixed (v1.9.0) | 3 | <!-- KI-110a (Anthropic Claude), KI-124 (Claude integration test), KI-125 (MailKit/MimeKit security) -->
+| Deferred  | 6 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122 (KI-123 -> Fixed) -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 4 |                       <!-- KI-108, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **83** |
+| **Всего** | **84** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
