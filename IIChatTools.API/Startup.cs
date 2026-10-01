@@ -750,6 +750,11 @@ namespace IIChatTools.API
             services.AddScoped<ITool, GitHubAgentTool>();
             services.AddScoped<ITool, PlannerAgentTool>();
 
+            // v1.11.0 (KI-126, Шаг 1C): агент-критик для Actor-Critic.
+            // Не требует approval (read-only: получает код, возвращает JSON).
+            // См. DESIGN_MULTI_AGENT_DEBATE.md § 2.2, § 6.
+            services.AddScoped<ITool, CodeReviewerAgentTool>();
+
             // v1.8.0 (KI-107, Фаза 5): почтовый агент (mail_agent).
             // Регистрируется безусловно (как 6 других агентов); видимость в Chat
             // управляется через SubAgents:mail_agent:Enabled.

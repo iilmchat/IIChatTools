@@ -20,22 +20,32 @@
 
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1A)**: сущности `AgentDebateSession` +
-      `AgentDebateRound` для Actor-Critic мультиагентов. 2 DbSet + конфигурация
-      в `AppDbContext` (FK `Chat` Cascade + FK `Session` Cascade, 3 индекса:
-      `IX_AgentDebateSessions_ChatId_StartedAt`, `IX_AgentDebateSessions_User_Status`,
-      `IX_AgentDebateRounds_Session_RoundNumber`). Миграция
-      `AddAgentDebateSessions` (SqlServer, `decimal(18,6)` для cost-полей).
+    `AgentDebateRound` для Actor-Critic мультиагентов. 2 DbSet + конфигурация
+    в `AppDbContext` (FK `Chat` Cascade + FK `Session` Cascade, 3 индекса:
+    `IX_AgentDebateSessions_ChatId_StartedAt`, `IX_AgentDebateSessions_User_Status`,
+    `IX_AgentDebateRounds_Session_RoundNumber`). Миграция
+    `AddAgentDebateSessions` (SqlServer, `decimal(18,6)` для cost-полей).
 
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1B)**: сервис `IAgentDebateSessionService` +
-      `AgentDebateSessionService` (Scoped). Concurrency-guard: max 3 активных
-      сессии на пользователя (по образцу `MaxBrowserSessionsPerUser`).
-      State machine: `Pending` → `InProgress` → (`Completed` | `Failed` | `Cancelled`).
-      DTO: `AgentDebateStatusDto`, `AgentDebateRoundDto`,
-      `AgentDebateConfigSnapshot` (MaxRounds / TokenBudget / ActorModel /
-      CriticModel / AllowEscalation / HumanApproval). Регистрация в DI
-      (`Startup.cs`). Фоновый цикл раундов и `InjectFeedbackAsync` —
-      заглушки (реальные — в Шагах 1D / 1E). Тесты: +8
-      (`AgentDebateSessionServiceTests`).
+    `AgentDebateSessionService` (Scoped). Concurrency-guard: max 3 активных
+    сессии на пользователя (по образцу `MaxBrowserSessionsPerUser`).
+    State machine: `Pending` → `InProgress` → (`Completed` | `Failed` | `Cancelled`).
+    DTO: `AgentDebateStatusDto`, `AgentDebateRoundDto`,
+    `AgentDebateConfigSnapshot` (MaxRounds / TokenBudget / ActorModel /
+    CriticModel / AllowEscalation / HumanApproval). Регистрация в DI
+    (`Startup.cs`). Фоновый цикл раундов и `InjectFeedbackAsync` —
+    заглушки (реальные — в Шагах 1D / 1E). Тесты: +8
+    (`AgentDebateSessionServiceTests`).
+
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1C)**: агент-критик `code_reviewer_agent`
+    (Critic) для Actor-Critic. Наследник `AgentToolBase`. Модель
+    `qwen/qwen3-4b-2507`, `MaxSteps=3`, `RequiresApproval=false`
+    (read-only анализ), `AllowedTools=[]` (критик не вызывает инструменты).
+    SystemPrompt — по DESIGN § 2.3 (edge cases / безопасность / обработка
+    ошибок; формат JSON `{verdict, issues, summary}`). Секция
+    `SubAgents:code_reviewer_agent` в обоих `appsettings*.json`. Регистрация
+    в DI (`RegisterSpecializedAgentTools`). Тесты: +4
+    (`CodeReviewerAgentToolTests`).
 
 ---
 
