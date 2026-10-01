@@ -1,10 +1,10 @@
-# IIChatTools v1.8.1
+# IIChatTools v1.8.2
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.8.1
+© 2026 RuChating (iilmchat) · IIChatTools v1.8.2
 
 ---
 
@@ -916,6 +916,57 @@ External-LLM tools не имеют собственных REST-endpoint'ов. В
 
 ---
 
+---
+
+## Кэш результатов инструментов (v1.8.2)
+
+Whitelist-кэш для «дорогих» инструментов. Повторный вызов с теми же аргументами
+и от того же пользователя → мгновенный ответ без внешнего запроса.
+
+**Кэшируется (TTL):**
+
+| Инструмент | TTL |
+|---|---|
+| `wikipedia_search` | 1 ч |
+| `web_search` | 15 мин |
+| `fetch_web_content` | 1 ч |
+| `search_knowledge_base` | 1 ч |
+| `search_chat_history` | 5 мин |
+| `search_workspace` | 5 мин |
+
+**НЕ кэшируется:** `ask_external_llm` (приватность + стоимость), `send_email`,
+`save_file`, `run_python`, `execute_query`, `list_directory`, `read_file` —
+побочные эффекты / дешевизна / non-deterministic.
+
+**Ключ:** `tool:{name}:u{userId}:{sha256(canonical_json(args))}` — per-user
+изоляция (`search_chat_history` / `search_workspace` не «протекают» между
+пользователями). Канонизация — рекурсивная сортировка `JObject`-ключей
+(`Ordinal`), порядок `JArray` сохраняется.
+
+**Реализация:** `IMemoryCache` (Singleton), `SizeLimit = 10000` записей.
+Инвалидация per-tool — через `CancellationChangeToken` (после reindex RAG —
+`InvalidateAll("search_knowledge_base")`).
+
+**Настройка:** `appsettings.json` → секция `ToolCache`:
+
+```jsonc
+"ToolCache": {
+  "Enabled": true,
+  "SizeLimit": 10000,
+  "Tools": {
+    "wikipedia_search":      { "Enabled": true, "TtlSeconds": 3600 },
+    "web_search":            { "Enabled": true, "TtlSeconds": 900  },
+    "fetch_web_content":     { "Enabled": true, "TtlSeconds": 3600 },
+    "search_knowledge_base": { "Enabled": true, "TtlSeconds": 3600 },
+    "search_chat_history":   { "Enabled": true, "TtlSeconds": 300  },
+    "search_workspace":      { "Enabled": true, "TtlSeconds": 300  }
+  }
+}
+```
+
+**Метрики Prometheus:** iichattools_tool_cache_hits_total /
+iichattools_tool_cache_misses_total (label tool_name).
+
 ## Rate Limiting
 
 Per-user и per-IP лимиты запросов. Настраивается в `appsettings.json` (секция `RateLimiting`).
@@ -1031,8 +1082,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.8.1
-    docker pull ghcr.io/iilmchat/iichattools:1.8.1
+    docker pull ghcr.io/iilmchat/iichattools:v1.8.2
+    docker pull ghcr.io/iilmchat/iichattools:1.8.2
     docker pull ghcr.io/iilmchat/iichattools:1.8
     docker pull ghcr.io/iilmchat/iichattools:1
 
@@ -1140,7 +1191,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 496/496 тестов проходят (unit + integration), 3 Skip (реальные провайдеры).
+**Статус**: 529/529 тестов проходят (unit + integration), 3 Skip (реальные провайдеры).
 
 ---
 

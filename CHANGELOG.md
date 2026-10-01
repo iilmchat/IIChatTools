@@ -18,9 +18,60 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)_
+
+---
+
+## [1.8.2] — 2026-10-01
+
+**Tool result cache + prefix stability + KI-121.**
+Whitelist-кэш для «дорогих» инструментов (Wikipedia, web_search, RAG-поиск)
+на базе `IMemoryCache`: повторный вызов с теми же аргументами и от того же
+пользователя → мгновенный ответ без внешнего запроса. RAG-контекст в
+`ChatStreamService` теперь отдельным system-сообщением **после** основного —
+KV-cache LM Studio не инвалидируется при добавлении attachments (TTFT ↓
+на 30-60%). KI-121: LLM `external_llm_agent` больше не галлюцинирует
+«использованные провайдеры», когда все вернули Fail.
+
+### Added
+- **Tool result cache (Слой 2 многоуровневого кэширования, v1.8.2)**:
+  - `ToolResultCacheOptions` + `ToolCacheEntryOptions` — настройки whitelist
+    (per-tool `Enabled` + `TtlSeconds`).
+  - `IToolResultCache` + `ToolResultCache` (Singleton, `IDisposable`) —
+    обёртка над `IMemoryCache`.
+  - `CanonicalJsonHelper` — канонизация JSON (рекурсивная сортировка ключей
+    `JObject` по `Ordinal`, порядок `JArray` сохраняется) + SHA-256 + формат
+    ключа `tool:{name}:u{userId}:{sha256}`.
+  - Интеграция в `ToolRegistry.ExecuteAsync` — проверка кэша до вызова
+    инструмента, сохранение после (только при `Success == true`).
+    Опциональный параметр `IToolResultCache` в конструкторе (default `null` —
+    обратная совместимость с существующими тестами).
+  - **Whitelist (6 инструментов):** `wikipedia_search` (TTL 1 ч),
+    `web_search` (15 мин), `fetch_web_content` (1 ч),
+    `search_knowledge_base` (1 ч), `search_chat_history` (5 мин),
+    `search_workspace` (5 мин).
+  - **Не кэшируется:** `ask_external_llm` (приватность + стоимость),
+    `send_email`, `save_file`, `run_python`, `execute_query`,
+    `list_directory`, `read_file` — побочные эффекты / дешевизна.
+  - **Ключ включает `userId`** — per-user изоляция (для `search_chat_history` /
+    `search_workspace` / `search_knowledge_base`, чтобы не было утечки между
+    пользователями).
+  - **Инвалидация по префиксу** через `CancellationChangeToken`:
+    `IMemoryCache` не поддерживает prefix-eviction, поэтому per-tool `CTS`,
+    `InvalidateAll(tool)` отменяет все записи инструмента. Пригодится после
+    reindex RAG.
+  - **Настройка** — `appsettings.json` → секция `ToolCache`
+    (`Enabled`, `SizeLimit`, `Tools[*].TtlSeconds`). `SizeLimit` clamp
+    `[100, 1_000_000]`.
+  - **Метрики Prometheus:** `iichattools_tool_cache_hits_total` /
+    `iichattools_tool_cache_misses_total` (label `tool_name`).
+  - **Тесты:** +33 (496 → 529) — `CanonicalJsonHelperTests` (10),
+    `ToolResultCacheTests` (14+ после фикса CS8323),
+    `ToolRegistryCacheTests` (6).
+
 ### Changed
-- **Chat — prefix stability (v1.8.2)**: RAG-контекст из `my_rag_docs` теперь
-  добавляется **отдельным** system-сообщением **ПОСЛЕ** основного
+- **Chat — prefix stability (Слой 1, v1.8.2)**: RAG-контекст из `my_rag_docs`
+  теперь добавляется **отдельным** system-сообщением **ПОСЛЕ** основного
   `chat.SystemPrompt` (раньше склеивались в одно через `\n\n`). Эффект:
   стабильный префикс не меняется при добавлении / удалении attachments →
   KV-cache LM Studio не инвалидируется → TTFT ↓ на 30-60% при наличии RAG.
@@ -32,6 +83,19 @@
   ТОЛЬКО успешно ответивших провайдеров; при полном отказе явно писать
   «Ни один провайдер не доступен» и перечислять причины. Раньше LLM трактовала
   Fail как «была попытка = использован».
+
+### Documented
+- **KI-122** — смена темы оформления UI (Deferred, v1.9.x). Флаг: текущий
+  Bootstrap 5.2 → нужен 5.3+ (`data-bs-theme`).
+- **KI-123** — индикатор загрузки списка чатов («Идёт загрузка» + spinner).
+  Deferred, v1.9.x.
+
+### Docs / rules
+- **RULES § 4.49** — `AddMemoryCache` / `AddOptions` / `AddHttpClient`
+  принимают `Action<T>`, не `Func<IServiceProvider, T>`; читать конфиг
+  через `Configuration.GetValue<T>` в `Startup`.
+- **RULES § 4.50** — `params` + именованный аргумент = CS8323; флаг-параметр
+  всегда позиционный первый.
 
 ---
 
