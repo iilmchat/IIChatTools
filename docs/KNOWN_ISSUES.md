@@ -2145,6 +2145,46 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.0
+- **Обнаружено:** 2026-10-01 (обсуждение с пользователем)
+- **DESIGN:** [`docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`](development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md)
+- **Описание:** Сейчас Chat-LLM вызывает суб-агентов последовательно, без
+  внутренней критики. Ошибки (`code_agent` пишет рабочий, но неоптимальный
+  код; `planner_agent` пропускает edge cases) ловит пользователь. Идея —
+  добавить **автономное взаимодействие агентов с ролями «Исполнитель» (Actor)
+  и «Критик» (Critic)**, с возможностью Human-in-the-loop и эскалации
+  на внешнюю LLM при неуверенности критика.
+- **Что входит (Фаза 1, v1.11.0):**
+  - **Actor-Critic** для `code_agent`: новый агент `code_reviewer_agent`
+    (тот же qwen3-4b + system prompt «опытный код-ревьюер»).
+  - Цикл: actor → critic → (rejected? actor-раунд-2 → critic-раунд-2) → … →
+    max 3 раунда или verdict Approved.
+  - **Эскалация:** если critic вернул `Uncertain` — вызывается
+    `ask_external_llm` (DeepSeek по умолчанию) для второго мнения.
+  - **Новая сущность** `AgentDebateSession` + `AgentDebateRound` (state
+    machine, токены/cost per round).
+  - **Новый инструмент** `code_agent_with_review` (top-level `ITool` в Chat;
+    альтернатива обычному `code_agent`).
+  - **SSE-события:** `debate_started` / `debate_round` / `debate_escalated` /
+    `debate_completed`.
+  - **UI-селектор** между двумя режимами отображения: **диалог** (раунды как
+    пузыри) и **сворачиваемый** (финал + `▼ Показать детали`).
+  - **Настройки** (per-user / глобальные): MaxRounds, TokenBudget,
+    AllowEscalation, DefaultCriticModel.
+- **Что НЕ входит (Фазы 2-3, v1.11.x / v2.0):**
+  - **Debate** для `planner_agent` (3 роли: Pro / Contra / Judge) — v1.11.x.
+  - **Orchestrator-Worker** и **Blackboard** — v2.0.
+  - **Reflection** (один агент сам себя критикует) — рассматривался, но
+    менее эффективен, чем Actor-Critic. Отложен.
+- **Оценка:** ~12-15 ч (Ф1 ~5-6 ч, Ф2 ~5-6 ч, Ф3 ~3-4 ч).
+- **Связанные:** KI-052 (Multi-Agent — база), KI-109 (External-LLM —
+  для эскалации), KI-111 (stateless agent — решается через Blackboard в Фазе 3),
+  KI-113 (галлюцинация успеха — критик частично закрывает).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2261,9 +2301,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 3 |                       <!-- KI-108, KI-111, KI-113 -->
+| Planned | 4 |                       <!-- KI-108, KI-111, KI-113, KI-126 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **84** |
+| **Всего** | **85** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
