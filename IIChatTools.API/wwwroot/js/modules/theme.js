@@ -155,3 +155,52 @@ export function watchSystemTheme() {
     }
     return () => {};
 }
+
+/**
+ * Инициализирует UI-переключатель темы (<select>). Шаг B3.
+ *
+ * - Устанавливает текущее значение из getTheme();
+ * - на "change" → setTheme();
+ * - подписывается на "theme-changed" (для программных изменений:
+ *   clearTheme(), watchSystemTheme()) — синхронизирует value селекта.
+ *
+ * Идемпотентна: повторный вызов на том же элементе — no-op (маркер
+ * через dataset.themeSelectInitialized).
+ *
+ * @param {HTMLSelectElement | null | undefined} selectEl Элемент <select>.
+ * @returns {boolean} true, если инициализация выполнена.
+ */
+export function initThemeSelect(selectEl) {
+    if (!selectEl) {
+        console.warn("[theme] initThemeSelect: элемент не найден.");
+        return false;
+    }
+
+    if (selectEl.dataset.themeSelectInitialized === "1") {
+        return true;
+    }
+    selectEl.dataset.themeSelectInitialized = "1";
+
+    // Синхронизация value с фактической темой (может отличаться от value в HTML —
+    // например, при первом заходе пользователя, если data-bs-theme установлен
+    // anti-FOUC-скриптом по системной теме).
+    selectEl.value = getTheme();
+
+    selectEl.addEventListener("change", (e) => {
+        const next = e.target.value;
+        if (!setTheme(next)) {
+            // Не удалось применить (неизвестная тема) — откатить UI.
+            selectEl.value = getTheme();
+        }
+    });
+
+    // Программные изменения (clearTheme / watchSystemTheme / вызов из другого модуля).
+    window.addEventListener("theme-changed", (e) => {
+        const next = e && e.detail ? e.detail.theme : null;
+        if (next && selectEl.value !== next) {
+            selectEl.value = next;
+        }
+    });
+
+    return true;
+}

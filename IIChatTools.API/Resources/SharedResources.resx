@@ -703,4 +703,24 @@
   <data name="StatusNotInstalled" xml:space="preserve">
       <value>Not installed</value>
   </data>
+
+  <!-- ===== Темы оформления UI (v1.10.x, KI-122, шаг B3) ===== -->
+  <data name="ThemeSelectTitle" xml:space="preserve">
+      <value>Theme</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+      <value>Light</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+      <value>Dark</value>
+  </data>
+  <data name="ThemeDimmed" xml:space="preserve">
+      <value>Dimmed</value>
+  </data>
+  <data name="ThemeSolarizedLight" xml:space="preserve">
+      <value>Solarized Light</value>
+  </data>
+  <data name="ThemeHighContrast" xml:space="preserve">
+      <value>High Contrast</value>
+  </data>
 </root>

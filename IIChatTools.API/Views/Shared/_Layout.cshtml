@@ -92,7 +92,23 @@
                             </li>
                         }
                     </ul>
-                    <ul class="navbar-nav">
+                    <ul class="navbar-nav align-items-center">
+                        <!-- KI-122 (B3): переключатель темы оформления (5 тем).
+                             Значения value — из theme.js (getAvailableThemes()).
+                             Синхронизация с localStorage / системной темой —
+                             в initThemeSelect() (theme.js). -->
+                        <li class="nav-item d-flex align-items-center me-2">
+                            <select id="theme-select"
+                                    class="navbar-theme-select"
+                                    title="@Localizer["ThemeSelectTitle"]"
+                                    aria-label="@Localizer["ThemeSelectTitle"]">
+                                <option value="light">@Localizer["ThemeLight"]</option>
+                                <option value="dark">@Localizer["ThemeDark"]</option>
+                                <option value="dimmed">@Localizer["ThemeDimmed"]</option>
+                                <option value="solarized-light">@Localizer["ThemeSolarizedLight"]</option>
+                                <option value="high-contrast">@Localizer["ThemeHighContrast"]</option>
+                            </select>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark"
                                asp-controller="Home" asp-action="SetLanguage"
@@ -141,10 +157,11 @@
     <!-- Точка входа ES-модулей -->
     <script type="module" src="~/js/main.js" asp-append-version="true"></script>
 
-    <!-- KI-122 (B2): следим за системной темой, если пользователь не выбрал свою. -->
+    <!-- KI-122 (B2/B3): следим за системной темой + инициализируем переключатель. -->
     <script type="module">
-        import { watchSystemTheme } from '/js/modules/theme.js';
+        import { watchSystemTheme, initThemeSelect } from '/js/modules/theme.js';
         watchSystemTheme();
+        initThemeSelect(document.getElementById('theme-select'));
     </script>
     @RenderSection("Scripts", required: false)
 </body>

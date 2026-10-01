@@ -291,3 +291,43 @@ pre {
     --bs-highlight-bg: #ffff00;
     --bs-highlight-color: #000000;
 }
+
+/* ============================================================================
+ * KI-122 (B3): переключатель темы в navbar
+ * ----------------------------------------------------------------------------
+ * Использует Bootstrap-переменные (--bs-*) — согласован с активной темой.
+ * В B4 navbar перестанет быть белым хардкодом (bg-white) и станет единым
+ * с селектом. До B4 возможен визуальный диссонанс: navbar белый, селект —
+ * темизированный.
+ * ========================================================================== */
+
+.navbar-theme-select {
+    font-size: .8rem;
+    padding: .15rem .35rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    cursor: pointer;
+    min-width: 140px;
+    max-width: 180px;
+    transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+
+.navbar-theme-select:hover {
+    border-color: var(--bs-secondary-color);
+}
+
+.navbar-theme-select:focus {
+    outline: none;
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .25);
+}
+
+@media (max-width: 575.98px) {
+    .navbar-theme-select {
+        min-width: 110px;
+        max-width: 140px;
+        font-size: .75rem;
+    }
+}

@@ -32,7 +32,13 @@
     `watchSystemTheme`. Хранение — `localStorage["theme"]` (fallback на
     `prefers-color-scheme: dark`). Anti-FOUC: синхронный inline-скрипт
     в `<head>` `_Layout.cshtml` (до первого paint). Событие `theme-changed`
-    для UI-синхронизации (пригодится в B3).
+    для UI-синхронизации.
+  - **B3/5: переключатель `<select id="theme-select">` в navbar.**
+    Перед RU/EN. Стиль — `.navbar-theme-select` (Bootstrap-переменные).
+    `theme.js` — новая функция `initThemeSelect(selectEl)` (идемпотентная,
+    синхронизирует value с `theme-changed`). Локализация — +6 ключей × 2
+    языка (`ThemeSelectTitle`, `ThemeLight`, `ThemeDark`, `ThemeDimmed`,
+    `ThemeSolarizedLight`, `ThemeHighContrast`).
 
 ---
 
