@@ -1712,23 +1712,36 @@
 ---
 
 ### KI-110b — Google Gemini провайдер
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.9.x
+- **Приоритет:** 🟢 Low | **Статус:** In Progress | **Запланировано:** v1.10.0
 - **Обнаружено:** 2026-09-29
-- **DESIGN:** [`docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md`](development/v1.9/DESIGN_ANTHROPIC_GEMINI.md)
-- **Описание:** Google Gemini (`POST /v1beta/models/{model}:generateContent`,
-  API key в query-параметре, свой формат запроса/ответа) — зарезервировано
-  на v1.9.x (KI-110b).
+- **DESIGN:** [`docs/development/v1.9/DESIGN_GEMINI.md`](development/v1.9/DESIGN_GEMINI.md)
+  (Draft согласован 2026-10-01).
+- **Описание:** Google Gemini (`POST /v1/models/{model}:generateContent`,
+  API key в заголовке `x-goog-api-key`, свой формат запроса/ответа) —
+  целевой релиз **v1.10.0**.
 - **Что уже готово (v1.9.0):**
   - `ProviderFormat.Gemini = 2` в enum.
   - `appsettings.json` / `.Development.json` — секция `gemini`
     (валидна для `ExternalProviderRegistry`).
-  - `ExternalLlmClient.CompleteAsync` — `NotSupportedException` с текстом
-    «Gemini запланирован на v1.9.x (KI-110b)».
-- **Что нужно доделать (v1.9.x):**
-  - `GeminiRequestBuilder` (свой формат `/v1beta/models`).
-  - `GeminiResponseParser` (`candidates[0].content.parts[].text`).
-  - Ветка `CompleteGeminiAsync` в `ExternalLlmClient`.
-- **Связанные:** KI-110a (Anthropic — Done), KI-109 (External-LLM Agent).
+  - `ExternalLlmClient.CompleteAsync` — `NotSupportedException` (заглушка,
+    будет удалена в v1.10.0 Фазе 3).
+  - `SendWithRetryAsync` / `SendOnceAsync` параметризованы заголовками
+    (готово для `x-goog-api-key`).
+- **Что доделывается (v1.10.0):**
+  - **Фаза 0** — DESIGN (этот документ) — ✅ Done 2026-10-01.
+  - **Фаза 1** — `GeminiRequestBuilder` + тесты — ⏳.
+  - **Фаза 2** — `GeminiResponseParser` + тесты — ⏳.
+  - **Фаза 3** — `CompleteGeminiAsync` + switch (удаление заглушки) — ⏳.
+  - **Фаза 4** — `appsettings.json` (BaseUrl `v1beta` → `v1`) + README — ⏳.
+  - **Фаза 5** — релиз v1.10.0 — ⏳.
+- **Ключевые решения DESIGN:**
+  - API **v1** (stable), не v1beta.
+  - Auth — **`x-goog-api-key` header** (не query `?key=`).
+  - `POST /models/{model}:generateContent` (non-stream).
+  - `systemInstruction` — отдельное поле (объект Content).
+  - `generationConfig.maxOutputTokens` — обязателен.
+- **Оценка:** ~5 ч (5 фаз).
+- **Связанные:** KI-110a (Anthropic — Fixed v1.9.0), KI-109 (External-LLM Agent).
 
 ---
 
@@ -2238,10 +2251,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.9.0) | 3 | <!-- KI-110a (Anthropic Claude), KI-124 (Claude integration test), KI-125 (MailKit/MimeKit security) -->
 | Deferred  | 6 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122 (KI-123 -> Fixed) -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
-| In Progress | 0 |                   <!-- — -->
+| In Progress | 1 |                   <!-- KI-110b (Gemini) -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 4 |                       <!-- KI-108, KI-110, KI-111, KI-113 -->
+| Planned | 3 |                       <!-- KI-108, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **84** |
 

@@ -32,6 +32,17 @@
   security fix + Dispose RNG).
 
 ### Added
+- **v1.10.0 Фаза 0 (KI-110b): DESIGN_GEMINI.md** — дизайн-документ для
+  Google Gemini (`docs/development/v1.9/DESIGN_GEMINI.md`). Draft согласован
+  2026-10-01. Ключевые решения:
+  - API **v1** (stable) — BaseUrl `v1beta` → `v1`;
+  - Auth — **`x-goog-api-key` header** (не query `?key=`);
+  - `POST /models/{model}:generateContent` (non-stream);
+  - `systemInstruction` — отдельное поле (объект Content);
+  - `generationConfig.maxOutputTokens` — обязателен.
+  План: 5 фаз (Builders → Parser → Client → Config → Релиз), ~5 ч.
+  Целевой релиз — **v1.10.0**. KI-110b → **In Progress**.
+
 - **KI-123 — индикатор загрузки списка чатов** (Deferred → Fixed):
   spinner (Bootstrap `.spinner-border`) + локализованный текст
   «Идёт загрузка списка чатов…» в sidebar `/chat`.
