@@ -46,6 +46,27 @@
   - Тесты: `AnthropicRequestBuilderTests` (12) + `AnthropicResponseParserTests` (8).
     **531 → 551** (3 Skip внешних).
 
+### Added
+- **v1.9.0 Фаза 3 (KI-110a): рефакторинг `ExternalLlmClient`**:
+  - `CompleteAsync` — switch по `ProviderFormat` → приватные методы:
+    - `CompleteOpenAiAsync` — существующее поведение (DeepSeek, OpenAI, Groq,
+      Together, Ollama), вынесено без изменений логики;
+    - `CompleteAnthropicAsync` — новый путь (`POST /messages`, `x-api-key` +
+      `anthropic-version: 2023-06-01`, вызов `AnthropicRequestBuilder` /
+      `AnthropicResponseParser` из Фазы 2);
+    - `Gemini` → `NotSupportedException` (v1.9.x, KI-110b). Не увеличивает
+      fail-счётчик circuit breaker (не сетевая ошибка);
+    - неизвестный `Format` → `InvalidOperationException` (fail-fast).
+  - `SendWithRetryAsync` / `SendOnceAsync` — параметризованы
+    `IReadOnlyDictionary<string, string> headers` вместо хардкоженного
+    Bearer. Поддержка `Authorization` (типизировано в `Headers.Authorization`),
+    `x-api-key`, `anthropic-version` (через `TryAddWithoutValidation`).
+  - Общая обвязка (`circuit breaker` / `budget` / cost-calc / audit) —
+    без изменений, применяется ко всем форматам единообразно.
+  - Тесты: `ExternalLlmClientTests` +7 (x-api-key, anthropic-version,
+    `/messages` endpoint, парсинг content[], multi-block, 400 без retry,
+    Gemini NotSupported, unknown format). **551 → 558** (3 Skip).
+
 ### Changed
 - **v1.9.0 Фаза 2 (KI-110a): `ExternalLlmRequest.System`** (nullable) — нужно
   для правила «`system` добавляется, если не пуст» (DESIGN § 3.4).

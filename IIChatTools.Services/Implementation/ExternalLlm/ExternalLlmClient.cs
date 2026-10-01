@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
@@ -7,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.ExternalLlm;
+using IIChatTools.Services.Implementation.ExternalLlm.Formats;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -16,31 +18,45 @@ using Newtonsoft.Json.Linq;
 namespace IIChatTools.Services.Implementation.ExternalLlm
 {
     /// <summary>
-    /// Клиент внешних LLM (OpenAI-совместимый API)
-    /// (v1.8.1, KI-109, Фаза 2.5, DESIGN_EXTERNAL_LLM § 4.1).
+    /// Клиент внешних LLM (v1.8.1, KI-109; v1.9.0, KI-110a — Anthropic).
     ///
     /// <para>
     /// <b>Singleton.</b> Stateless, использует <see cref="IHttpClientFactory"/>.
-    /// Провайдеры: DeepSeek, OpenAI, Groq, Together AI, Ollama.
     /// </para>
     ///
     /// <para>
-    /// <b>Внутри CompleteAsync:</b>
+    /// <b>Форматы:</b>
+    /// <list type="bullet">
+    ///   <item><description><see cref="ProviderFormat.OpenAI"/> — <c>POST {BaseUrl}/chat/completions</c>,
+    ///   <c>Authorization: Bearer</c>. Провайдеры: DeepSeek, OpenAI, Groq, Together AI, Ollama.</description></item>
+    ///   <item><description><see cref="ProviderFormat.Anthropic"/> — <c>POST {BaseUrl}/messages</c>,
+    ///   <c>x-api-key</c> + <c>anthropic-version: 2023-06-01</c>.</description></item>
+    ///   <item><description><see cref="ProviderFormat.Gemini"/> — зарезервировано на v1.9.x (KI-110b),
+    ///   сейчас <c>NotSupportedException</c>.</description></item>
+    /// </list>
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Внутри CompleteAsync (общая обвязка для всех форматов):</b>
     /// <list type="number">
     ///   <item>валидация запроса (prompt не пуст);</item>
     ///   <item>резолв провайдера (request.Provider или DefaultProvider);</item>
     ///   <item>проверка circuit breaker;</item>
     ///   <item>проверка дневного бюджета (per-user);</item>
     ///   <item>резолв API-ключа из конфигурации;</item>
-    ///   <item>HTTP POST с Bearer-токеном и retry 1× при 5xx/429;</item>
-    ///   <item>парсинг ответа, расчёт стоимости;</item>
-    ///   <item>запись успеха в breaker + расход в budget tracker.</item>
+    ///   <item>switch по <see cref="ProviderFormat"/> → приватный метод
+    ///   (<c>CompleteOpenAiAsync</c> / <c>CompleteAnthropicAsync</c>);</item>
+    ///   <item>расчёт стоимости (<c>ProviderCostCalculator</c>), запись
+    ///   в breaker + budget tracker;</item>
+    ///   <item>return <see cref="ExternalLlmResponse"/>.</item>
     /// </list>
     /// </para>
     ///
     /// <para>
     /// <b>Privacy:</b> в логах — только метаданные (длина prompt, токены,
-    /// стоимость, длительность). Никогда не логируются prompt и content.
+    /// стоимость, длительность). Никогда не логируются prompt, content,
+    /// API-ключ. Значение заголовка <c>x-api-key</c> / <c>Authorization</c>
+    /// не выводится в лог даже при ошибке.
     /// </para>
     /// </summary>
     public sealed class ExternalLlmClient : IExternalLlmClient
@@ -48,6 +64,12 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
         private const int MaxRetryAttempts = 2;              // 1 попытка + 1 retry
         private const int RetryDelayMs = 1000;
         private static readonly TimeSpan TestConnectionTimeout = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Значение заголовка <c>anthropic-version</c> — обязателен для
+        /// Anthropic Messages API (DESIGN § 3.3, KI-110a).
+        /// </summary>
+        internal const string AnthropicApiVersion = "2023-06-01";
 
         private readonly IExternalProviderRegistry _registry;
         private readonly IExternalLlmCircuitBreaker _circuitBreaker;
@@ -120,38 +142,46 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             if (!_budgetTracker.CanSpend(userId))
             {
                 throw new InvalidOperationException(
-                    $"Превышен дневной бюджет External-LLM. Повторите завтра (UTC).");
+                    "Превышен дневной бюджет External-LLM. Повторите завтра (UTC).");
             }
 
-            // 4. API-ключ.
+            // 4. API-ключ (для Ollama может быть null — ApiKeySecretName не задан).
             var apiKey = ResolveApiKey(providerName, provider);
 
-            // 5. Формирование OpenAI-совместимого запроса.
-            var payload = new JObject
-            {
-                ["model"] = provider.Model,
-                ["messages"] = new JArray
-                {
-                    new JObject
-                    {
-                        ["role"] = "user",
-                        ["content"] = request.Prompt
-                    }
-                },
-                ["temperature"] = request.Temperature ?? 0.7,
-                ["max_tokens"] = request.MaxTokens ?? provider.MaxTokens,
-                ["stream"] = false
-            };
-
-            var url = provider.BaseUrl.TrimEnd('/') + "/chat/completions";
-            var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);
-
-            // 6. HTTP с retry.
+            // 5. HTTP + парсинг. Switch по Format — единственная точка ветвления.
             var sw = Stopwatch.StartNew();
-            JObject responseJson;
+            (string Content, int PromptTokens, int CompletionTokens) parsed;
             try
             {
-                responseJson = await SendWithRetryAsync(url, payload, apiKey, timeoutSec, ct);
+                parsed = provider.Format switch
+                {
+                    ProviderFormat.OpenAI =>
+                        await CompleteOpenAiAsync(provider, apiKey, request, providerName, ct),
+
+                    ProviderFormat.Anthropic =>
+                        await CompleteAnthropicAsync(provider, apiKey, request, providerName, ct),
+
+                    // Gemini — зарезервировано на v1.9.x (KI-110b).
+                    // Fail-fast на уровне клиента: конфиг уже валиден (registry пропустил),
+                    // но функциональность честно отсутствует.
+                    ProviderFormat.Gemini =>
+                        throw new NotSupportedException(
+                            "Провайдер Gemini запланирован на v1.9.x (KI-110b). " +
+                            "Используйте OpenAI-совместимый (DeepSeek, OpenAI, Groq, ...) " +
+                            "или Anthropic (Claude)."),
+
+                    _ => throw new InvalidOperationException(
+                        $"Неизвестный ProviderFormat: {provider.Format} " +
+                        $"(провайдер '{providerName}').")
+                };
+            }
+            catch (NotSupportedException)
+            {
+                // Gemini — не сетевая ошибка, не увеличиваем fail-счётчик
+                // в circuit breaker (иначе «сломаем» провайдера за то,
+                // что пользователь вызвал несуществующую фичу).
+                sw.Stop();
+                throw;
             }
             catch (Exception ex)
             {
@@ -164,33 +194,28 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             }
             sw.Stop();
 
-            // 7. Парсинг ответа.
-            var choice = responseJson["choices"]?[0];
-            if (choice == null)
-                throw new InvalidOperationException(
-                    $"Провайдер '{providerName}' вернул ответ без choices[].");
+            // 6. Расчёт стоимости (одинаков для всех форматов).
+            var cost = ProviderCostCalculator.Calculate(
+                parsed.PromptTokens, parsed.CompletionTokens, provider);
 
-            var content = choice["message"]?["content"]?.ToString() ?? string.Empty;
-            var promptTokens = responseJson["usage"]?["prompt_tokens"]?.Value<int>() ?? 0;
-            var completionTokens = responseJson["usage"]?["completion_tokens"]?.Value<int>() ?? 0;
-            var cost = ProviderCostCalculator.Calculate(promptTokens, completionTokens, provider);
-
-            // 8. Учёты.
+            // 7. Учёты.
             _circuitBreaker.RecordSuccess(providerName);
-            _budgetTracker.RecordUsage(userId, promptTokens, completionTokens, cost);
+            _budgetTracker.RecordUsage(
+                userId, parsed.PromptTokens, parsed.CompletionTokens, cost);
 
             _logger.LogInformation(
-                "External-LLM: {Provider} promptLen={PromptLen} tokens={PromptTokens}+{CompletionTokens} " +
-                "cost=${Cost} durationMs={Duration}",
-                providerName, request.Prompt.Length,
-                promptTokens, completionTokens, cost, sw.ElapsedMilliseconds);
+                "External-LLM: {Provider} ({Format}) promptLen={PromptLen} " +
+                "tokens={PromptTokens}+{CompletionTokens} cost=${Cost} durationMs={Duration}",
+                providerName, provider.Format, request.Prompt.Length,
+                parsed.PromptTokens, parsed.CompletionTokens, cost, sw.ElapsedMilliseconds);
 
+            // 8. Ответ.
             return new ExternalLlmResponse
             {
                 Provider = providerName,
-                Content = content,
-                PromptTokens = promptTokens,
-                CompletionTokens = completionTokens,
+                Content = parsed.Content,
+                PromptTokens = parsed.PromptTokens,
+                CompletionTokens = parsed.CompletionTokens,
                 CostUsd = cost,
                 DurationMs = sw.ElapsedMilliseconds
             };
@@ -241,16 +266,149 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
         }
 
         // ============================================================
-        // Private
+        // Private — форматы
         // ============================================================
 
         /// <summary>
-        /// HTTP POST с retry 1 раз при 5xx или 429.
+        /// OpenAI-совместимый формат: <c>POST {BaseUrl}/chat/completions</c>,
+        /// <c>Authorization: Bearer &lt;key&gt;</c>.
+        ///
+        /// <para>
+        /// Провайдеры: DeepSeek, OpenAI, Groq, Together AI, Ollama.
+        /// Возвращает распарсенный content + токены; сборка DTO
+        /// и расчёт стоимости — в <see cref="CompleteAsync"/>.
+        /// </para>
         /// </summary>
+        /// <param name="provider">Настройки провайдера</param>
+        /// <param name="apiKey">API-ключ (может быть <c>null</c> для Ollama)</param>
+        /// <param name="request">Запрос</param>
+        /// <param name="providerName">Имя провайдера (для сообщений об ошибках)</param>
+        /// <param name="ct">Токен отмены</param>
+        /// <returns>Кортеж (content, promptTokens, completionTokens)</returns>
+        private async Task<(string Content, int PromptTokens, int CompletionTokens)>
+            CompleteOpenAiAsync(
+                ExternalProviderOptions provider,
+                string apiKey,
+                ExternalLlmRequest request,
+                string providerName,
+                CancellationToken ct)
+        {
+            var payload = new JObject
+            {
+                ["model"] = provider.Model,
+                ["messages"] = new JArray
+                {
+                    new JObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = request.Prompt
+                    }
+                },
+                ["temperature"] = request.Temperature ?? 0.7,
+                ["max_tokens"] = request.MaxTokens ?? provider.MaxTokens,
+                ["stream"] = false
+            };
+
+            var url = provider.BaseUrl.TrimEnd('/') + "/chat/completions";
+            var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);
+
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                headers["Authorization"] = $"Bearer {apiKey}";
+            }
+
+            var responseJson = await SendWithRetryAsync(url, payload, headers, timeoutSec, ct);
+
+            var choice = responseJson["choices"]?[0];
+            if (choice == null)
+            {
+                throw new InvalidOperationException(
+                    $"Провайдер '{providerName}' вернул ответ без choices[].");
+            }
+
+            var content = choice["message"]?["content"]?.ToString() ?? string.Empty;
+            var promptTokens = responseJson["usage"]?["prompt_tokens"]?.Value<int>() ?? 0;
+            var completionTokens = responseJson["usage"]?["completion_tokens"]?.Value<int>() ?? 0;
+
+            return (content, promptTokens, completionTokens);
+        }
+
+        /// <summary>
+        /// Anthropic Messages API: <c>POST {BaseUrl}/messages</c>,
+        /// <c>x-api-key</c> + <c>anthropic-version: 2023-06-01</c>
+        /// (DESIGN § 3.3, KI-110a).
+        ///
+        /// <para>
+        /// Тело собирает <see cref="AnthropicRequestBuilder"/>
+        /// (<c>system</c> — отдельное поле, <c>max_tokens</c> обязателен,
+        /// <c>temperature</c> clamp [0, 1]), ответ парсит
+        /// <see cref="AnthropicResponseParser"/> (склейка блоков
+        /// <c>content[type=text]</c> через <c>\n</c>, <c>usage.input_tokens</c>
+        /// / <c>usage.output_tokens</c>).
+        /// </para>
+        ///
+        /// <para>
+        /// Блоки <c>type=="tool_use"</c> игнорируются (v1.9.0 — без function
+        /// calling). <c>stop_reason</c> не извлекается (не критично для
+        /// v1.9.0).
+        /// </para>
+        /// </summary>
+        /// <param name="provider">Настройки провайдера</param>
+        /// <param name="apiKey">API-ключ (Anthropic всегда требует)</param>
+        /// <param name="request">Запрос (prompt, system, temperature, maxTokens)</param>
+        /// <param name="providerName">Имя провайдера (для сообщений об ошибках)</param>
+        /// <param name="ct">Токен отмены</param>
+        /// <returns>Кортеж (content, promptTokens, completionTokens)</returns>
+        private async Task<(string Content, int PromptTokens, int CompletionTokens)>
+            CompleteAnthropicAsync(
+                ExternalProviderOptions provider,
+                string apiKey,
+                ExternalLlmRequest request,
+                string providerName,
+                CancellationToken ct)
+        {
+            // Тело собирает helper из Фазы 2.
+            var payload = AnthropicRequestBuilder.Build(provider, request);
+
+            var url = provider.BaseUrl.TrimEnd('/') + "/messages";
+            var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);
+
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["anthropic-version"] = AnthropicApiVersion
+            };
+
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                headers["x-api-key"] = apiKey;
+            }
+
+            var responseJson = await SendWithRetryAsync(url, payload, headers, timeoutSec, ct);
+
+            // Парсер не падает при отсутствии полей (DESIGN § 3.5).
+            // Если Anthropic вернул error-ответ при HTTP 200 (маловероятно) —
+            // парсер вернёт пустую строку + 0 токенов, cost = 0.
+            return AnthropicResponseParser.Parse(responseJson);
+        }
+
+        // ============================================================
+        // Private — HTTP
+        // ============================================================
+
+        /// <summary>
+        /// HTTP POST с retry 1 раз при 5xx или 429 (не при 4xx и timeout).
+        /// </summary>
+        /// <param name="url">Полный URL</param>
+        /// <param name="payload">Тело запроса</param>
+        /// <param name="headers">Дополнительные заголовки (Authorization / x-api-key / anthropic-version)</param>
+        /// <param name="timeoutSec">Таймаут запроса (секунды)</param>
+        /// <param name="ct">Внешний токен отмены</param>
+        /// <returns>Распарсенный JSON-ответ</returns>
         private async Task<JObject> SendWithRetryAsync(
             string url,
             JObject payload,
-            string apiKey,
+            IReadOnlyDictionary<string, string> headers,
             int timeoutSec,
             CancellationToken ct)
         {
@@ -260,7 +418,7 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             {
                 try
                 {
-                    return await SendOnceAsync(url, payload, apiKey, timeoutSec, ct);
+                    return await SendOnceAsync(url, payload, headers, timeoutSec, ct);
                 }
                 catch (Exception ex) when (IsTransient(ex) && attempt < MaxRetryAttempts)
                 {
@@ -281,10 +439,16 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
         /// <summary>
         /// Одна попытка HTTP POST.
         /// </summary>
+        /// <param name="url">Полный URL</param>
+        /// <param name="payload">Тело запроса</param>
+        /// <param name="headers">Дополнительные заголовки</param>
+        /// <param name="timeoutSec">Таймаут запроса (секунды)</param>
+        /// <param name="ct">Внешний токен отмены</param>
+        /// <returns>Распарсенный JSON-ответ</returns>
         private async Task<JObject> SendOnceAsync(
             string url,
             JObject payload,
-            string apiKey,
+            IReadOnlyDictionary<string, string> headers,
             int timeoutSec,
             CancellationToken ct)
         {
@@ -305,10 +469,35 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
                     "application/json")
             };
 
-            if (!string.IsNullOrWhiteSpace(apiKey))
+            // Заголовки. Authorization — типизировано (Headers.Authorization),
+            // остальные (x-api-key, anthropic-version) — через TryAddWithoutValidation.
+            if (headers != null)
             {
-                httpRequest.Headers.Authorization =
-                    new AuthenticationHeaderValue("Bearer", apiKey);
+                foreach (var kv in headers)
+                {
+                    if (string.IsNullOrEmpty(kv.Value))
+                        continue;
+
+                    if (string.Equals(kv.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Формат "Scheme value" (Bearer xxx / Basic yyy).
+                        var spaceIndex = kv.Value.IndexOf(' ');
+                        if (spaceIndex > 0)
+                        {
+                            httpRequest.Headers.Authorization = new AuthenticationHeaderValue(
+                                kv.Value.Substring(0, spaceIndex),
+                                kv.Value.Substring(spaceIndex + 1));
+                        }
+                        else
+                        {
+                            httpRequest.Headers.TryAddWithoutValidation("Authorization", kv.Value);
+                        }
+                    }
+                    else
+                    {
+                        httpRequest.Headers.TryAddWithoutValidation(kv.Key, kv.Value);
+                    }
+                }
             }
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -367,6 +556,8 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
         /// <summary>
         /// Transient ли ошибка (можно retry): 5xx / 429 / сеть.
         /// </summary>
+        /// <param name="ex">Исключение</param>
+        /// <returns>true, если ошибку имеет смысл повторить</returns>
         private static bool IsTransient(Exception ex)
         {
             if (ex is HttpRequestException)
@@ -384,6 +575,12 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
         /// Резолвит API-ключ из конфигурации. Возвращает <c>null</c>,
         /// если <c>ApiKeySecretName</c> не задан (Ollama).
         /// </summary>
+        /// <param name="providerName">Имя провайдера</param>
+        /// <param name="provider">Настройки провайдера</param>
+        /// <returns>API-ключ или <c>null</c></returns>
+        /// <exception cref="InvalidOperationException">
+        /// Если <c>ApiKeySecretName</c> задан, но значение не найдено.
+        /// </exception>
         private string ResolveApiKey(string providerName, ExternalProviderOptions provider)
         {
             if (string.IsNullOrWhiteSpace(provider.ApiKeySecretName))
@@ -404,6 +601,9 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
         /// <summary>
         /// Обрезает строку до указанной длины.
         /// </summary>
+        /// <param name="value">Строка</param>
+        /// <param name="max">Максимум символов</param>
+        /// <returns>Обрезанная строка с «…»</returns>
         private static string Truncate(string value, int max)
         {
             if (string.IsNullOrEmpty(value)) return value;
