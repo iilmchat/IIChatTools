@@ -8,7 +8,10 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background: #f8f9fa;
+    /* KI-122 (B1): фон через Bootstrap-переменную (было #f8f9fa).
+       --bs-tertiary-bg = #f8f9fa в light-теме (без визуальных изменений),
+       в тёмных темах — свой оттенок. */
+    background: var(--bs-tertiary-bg);
 }
 
 main {
@@ -194,4 +197,97 @@ pre {
 /* Ошибка индексации — компактная плашка */
 #profile-workspace-error {
     border-left: 3px solid #ffc107;
+}
+
+/* ============================================================================
+ * KI-122: Темы оформления UI
+ * ----------------------------------------------------------------------------
+ * 5 тем (по KI-122):
+ *   - light           — стандартная Bootstrap 5.3.2 (по умолчанию)
+ *   - dark            — стандартная Bootstrap 5.3.2
+ *   - dimmed          — кастомная (в стиле GitHub Dimmed)
+ *   - solarized-light — кастомная (Ethan Schoonover, Solarized palette)
+ *   - high-contrast   — кастомная (WCAG AAA, чёрный на белом)
+ *
+ * Переключение: атрибут data-bs-theme на <html>. Логика — в theme.js (B2).
+ * light / dark предоставлены Bootstrap 5.3.2 из коробки — не переопределяем.
+ *
+ * Ref: https://getbootstrap.com/docs/5.3/customize/color-modes/
+ * ========================================================================== */
+
+/* --- Dimmed — в стиле GitHub Dimmed --- */
+[data-bs-theme="dimmed"] {
+    --bs-body-bg: #22272e;
+    --bs-body-bg-rgb: 34, 39, 46;
+    --bs-body-color: #adbac7;
+    --bs-body-color-rgb: 173, 186, 199;
+    --bs-emphasis-color: #cdd9e5;
+    --bs-emphasis-color-rgb: 205, 217, 229;
+    --bs-secondary-color: rgba(173, 186, 199, 0.75);
+    --bs-secondary-bg: #2d333b;
+    --bs-secondary-bg-rgb: 45, 51, 59;
+    --bs-tertiary-color: rgba(173, 186, 199, 0.5);
+    --bs-tertiary-bg: #2d333b;
+    --bs-tertiary-bg-rgb: 45, 51, 59;
+    --bs-border-color: #444c56;
+    --bs-border-color-translucent: rgba(205, 217, 229, 0.15);
+    --bs-link-color: #539bf5;
+    --bs-link-color-rgb: 83, 155, 245;
+    --bs-link-hover-color: #6cb6ff;
+    --bs-link-hover-color-rgb: 108, 182, 255;
+    --bs-code-color: #f47067;
+    --bs-highlight-bg: #6b4a00;
+    --bs-highlight-color: #cdd9e5;
+}
+
+/* --- Solarized Light — Ethan Schoonover, Solarized palette --- *
+ * Палитра: base3 #fdf6e3, base2 #eee8d5, base01 #586e75, base00 #657b83,
+ * base1 #93a1a1, blue #268bd2, orange #cb4b16.                        */
+[data-bs-theme="solarized-light"] {
+    --bs-body-bg: #fdf6e3;
+    --bs-body-bg-rgb: 253, 246, 227;
+    --bs-body-color: #657b83;
+    --bs-body-color-rgb: 101, 123, 131;
+    --bs-emphasis-color: #586e75;
+    --bs-emphasis-color-rgb: 88, 110, 117;
+    --bs-secondary-color: rgba(101, 123, 131, 0.75);
+    --bs-secondary-bg: #eee8d5;
+    --bs-secondary-bg-rgb: 238, 232, 213;
+    --bs-tertiary-color: rgba(101, 123, 131, 0.5);
+    --bs-tertiary-bg: #eee8d5;
+    --bs-tertiary-bg-rgb: 238, 232, 213;
+    --bs-border-color: #93a1a1;
+    --bs-border-color-translucent: rgba(88, 110, 117, 0.15);
+    --bs-link-color: #268bd2;
+    --bs-link-color-rgb: 38, 139, 210;
+    --bs-link-hover-color: #cb4b16;
+    --bs-link-hover-color-rgb: 203, 75, 22;
+    --bs-code-color: #cb4b16;
+    --bs-highlight-bg: #fff1a8;
+    --bs-highlight-color: #586e75;
+}
+
+/* --- High Contrast — WCAG AAA (contrast ratio ≥ 7:1) --- */
+[data-bs-theme="high-contrast"] {
+    --bs-body-bg: #ffffff;
+    --bs-body-bg-rgb: 255, 255, 255;
+    --bs-body-color: #000000;
+    --bs-body-color-rgb: 0, 0, 0;
+    --bs-emphasis-color: #000000;
+    --bs-emphasis-color-rgb: 0, 0, 0;
+    --bs-secondary-color: #1a1a1a;
+    --bs-secondary-bg: #f2f2f2;
+    --bs-secondary-bg-rgb: 242, 242, 242;
+    --bs-tertiary-color: #333333;
+    --bs-tertiary-bg: #f2f2f2;
+    --bs-tertiary-bg-rgb: 242, 242, 242;
+    --bs-border-color: #000000;
+    --bs-border-color-translucent: rgba(0, 0, 0, 0.9);
+    --bs-link-color: #0000ee;
+    --bs-link-color-rgb: 0, 0, 238;
+    --bs-link-hover-color: #0000bb;
+    --bs-link-hover-color-rgb: 0, 0, 187;
+    --bs-code-color: #b80000;
+    --bs-highlight-bg: #ffff00;
+    --bs-highlight-color: #000000;
 }

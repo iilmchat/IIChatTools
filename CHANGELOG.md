@@ -18,7 +18,15 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)_
+### Added
+- **KI-122 — темы оформления UI (B1/5: CSS-переменные 5 тем)**:
+  `data-bs-theme="light"` на `<html>` (default). Кастомные темы
+  `dimmed` (в стиле GitHub Dimmed) / `solarized-light` (Ethan Schoonover) /
+  `high-contrast` (WCAG AAA) — через override Bootstrap-переменных
+  (`[data-bs-theme="..."]`) в `site.css`. `light` / `dark` — из коробки
+  Bootstrap **5.3.2** (уже установлен, `data-bs-theme` доступен).
+  Заменён хардкод `body { background: #f8f9fa; }` → `var(--bs-tertiary-bg)`
+  (иначе смена темы не работала бы). Логика переключения — B2 (`theme.js`).
 
 ---
 
