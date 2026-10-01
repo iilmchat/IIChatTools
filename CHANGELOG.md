@@ -45,6 +45,23 @@
     Админка, Тест, RU, EN). `_LoginPartial.cshtml`: `text-dark` из 4 ссылок
     (displayName, Выход, Регистрация, Вход). `site.css`: `.footer` →
     `var(--bs-body-bg)`; `.agent-stat-*` и `.rag-chunk-*` → переменные тем.
+  - **B4.2/5: `chat.css` на Bootstrap-переменные.** ~70 замен `#xxx` →
+    `var(--bs-*)` в 17 секциях: `.chat-container`, `.chat-sidebar*`,
+    `.chat-list-item*` (включая active/hover/inline-edit), `.chat-messages`,
+    `.chat-input-box` / `.chat-input-textarea`, `.chat-message-content`
+    (user/assistant), `.chat-tool-block` / `.chat-tool-result`,
+    `.chat-typing-indicator`, `.chat-message-error`, `.chat-scroll-down`,
+    `.chat-message-action*`, `.chat-markdown*` (blockquote/code/table),
+    `.chat-code-block*`, `.chat-model-select`, `.chat-message-edit`,
+    `.chat-sidebar-icon-btn`, `.chat-search-bar` / `.chat-search-btn`,
+    `.chat-global-search-dialog` / `-input` / `-close` / `-clear` / `-item*`,
+    `.chat-message-sources*`, `.chat-attachments-bar` / `-chip*`,
+    `.chat-input-action-attach`. Использованы `--bs-body-bg`,
+    `--bs-tertiary-bg`, `--bs-secondary-bg`, `--bs-border-color`,
+    `--bs-secondary-color`, `--bs-emphasis-color`, `--bs-primary`,
+    `--bs-danger`, `--bs-success`, `--bs-code-color`, `--bs-link-color`,
+    `--bs-primary-bg-subtle`, `--bs-danger-bg-subtle`, `--bs-success-bg-subtle`,
+    `--bs-danger-text-emphasis`, `--bs-danger-border-subtle`.
 
 ---
 
