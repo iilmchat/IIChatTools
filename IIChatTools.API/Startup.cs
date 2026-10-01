@@ -17,6 +17,7 @@ using IIChatTools.Services.Implementation.ExternalLlm;    // v1.8.1 (KI-109): Ex
 using IIChatTools.Services.Implementation.Cache;          // v1.8.2: ToolResultCache
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
+using IIChatTools.Services.Implementation.Tools.Debate;   // v1.11.0 (KI-126, Шаг 1D)
 using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
 using IIChatTools.Services.Implementation.Tools.Git;
@@ -532,6 +533,11 @@ namespace IIChatTools.API
 
             // v1.5.0 (KI-083, Шаг 5B): RAG-tools (search_knowledge_base, search_chat_history).
             RegisterRagTools(services);
+
+            // v1.11.0 (KI-126, Шаг 1D): top-level Actor-Critic оркестратор.
+            // Не наследник AgentToolBase (DESIGN § 5.1) — по образцу DatabaseAgentTool.
+            // Требует явного добавления в allowedNames ChatStreamService (RULES § 4.44).
+            services.AddScoped<ITool, CodeAgentWithReviewTool>();
 
             // v1.7.0 (KI-097, Фаза 5): Database Agent tool.
             // Не регистрируется при SqlAgent:Enabled = false (DESIGN § 3.4).

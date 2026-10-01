@@ -11,7 +11,7 @@ using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Rag;
-using IIChatTools.Services.Implementation.Agents; 
+using IIChatTools.Services.Implementation.Agents;
 using IIChatTools.Services.Implementation.ChatTools;
 using IIChatTools.Services.Implementation.Rag;        // v1.6.0 (KI-086): RagSourceBuilder
 using IIChatTools.Services.Implementation.Tools;
@@ -82,6 +82,13 @@ namespace IIChatTools.Services.Implementation
         /// </para>
         /// </summary>
         private const string DatabaseAgentToolName = "database_agent";
+
+        /// <summary>
+        /// v1.11.0 (KI-126, Шаг 1D): имя Actor-Critic оркестратора.
+        /// Явно добавляется в <c>allowedNames</c> при построении <c>tools[]</c>
+        /// для Chat (RULES § 4.44).
+        /// </summary>
+        private const string CodeAgentWithReviewToolName = "code_agent_with_review";
 
         /// <summary>Сколько top-K чанков вставлять в system prompt (по умолчанию).</summary>
         private const int DefaultAutoInjectTopK = 5;
@@ -337,6 +344,13 @@ namespace IIChatTools.Services.Implementation
                 if (!allowedNames.Contains(DatabaseAgentToolName, StringComparer.OrdinalIgnoreCase))
                 {
                     allowedNames.Add(DatabaseAgentToolName);
+                }
+
+                // v1.11.0 (KI-126, Шаг 1D): Actor-Critic оркестратор.
+                // RULES § 4.44 — новый top-level ITool → обязательно в allowedNames.
+                if (!allowedNames.Contains(CodeAgentWithReviewToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(CodeAgentWithReviewToolName);
                 }
 
                 tools = ToolDefinitionsBuilder.Build(

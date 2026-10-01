@@ -47,6 +47,21 @@
     в DI (`RegisterSpecializedAgentTools`). Тесты: +4
     (`CodeReviewerAgentToolTests`).
 
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1D)**: top-level `ITool`
+    `code_agent_with_review` — оркестратор Actor-Critic. Не наследник
+    `AgentToolBase` (DESIGN § 5.1, по образцу `DatabaseAgentTool`).
+    Координирует `code_agent` (actor) и `code_reviewer_agent` (critic)
+    через `IToolRegistry`. Цикл: actor → critic → (Rejected → повтор
+    с feedback) до Approved / MaxRounds. Lenient-парсер вердикта
+    (JSON в markdown-блоке, свободный текст). `RequiresApproval=true`.
+    `Description` — для сложных задач кодинга (DESIGN § 5.3). RULES § 4.44:
+    добавлен в `allowedNames` в `ChatStreamService`. Секция
+    `SubAgents:code_agent_with_review` в обоих `appsettings*.json`.
+    Регистрация в DI. Тесты: +9 (`CodeAgentWithReviewToolTests`).
+    **Отложено в 1E/1F:** персистенция сессии в `AgentDebateSession` /
+    `AgentDebateRound`, SSE-события `debate_*`, Human-in-the-loop,
+    эскалация на `ask_external_llm`.
+
 ---
 
 ## [1.10.1] — 2026-10-01
