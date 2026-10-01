@@ -135,6 +135,59 @@ namespace IIChatTools.Tests.UnitTests.ExternalLlm
             return root.ToString();
         }
 
+        /// <summary>
+        /// Настройки Gemini-провайдера (v1.10.0, KI-110b).
+        /// </summary>
+        private static ExternalProviderOptions GeminiProviderOptions() => new ExternalProviderOptions
+        {
+            DisplayName = "Google Gemini",
+            Format = ProviderFormat.Gemini,
+            BaseUrl = "https://generativelanguage.googleapis.com/v1",
+            Model = "gemini-2.0-flash",
+            ApiKeySecretName = "ExternalLlm:Gemini:ApiKey",
+            CostPer1kInputUsd = 0.0001m,
+            CostPer1kOutputUsd = 0.0004m,
+            MaxTokens = 8192,
+            TimeoutSeconds = 60
+        };
+
+        /// <summary>
+        /// Типовой успешный ответ Google Gemini API.
+        /// </summary>
+        private static string BuildGeminiSuccessResponse(
+            string text = "Четыре",
+            int promptTokens = 20,
+            int candidatesTokens = 3)
+        {
+            var root = new JObject
+            {
+                ["candidates"] = new JArray
+                {
+                    new JObject
+                    {
+                        ["content"] = new JObject
+                        {
+                            ["role"] = "model",
+                            ["parts"] = new JArray
+                            {
+                                new JObject { ["text"] = text }
+                            }
+                        },
+                        ["finishReason"] = "STOP",
+                        ["index"] = 0
+                    }
+                },
+                ["usageMetadata"] = new JObject
+                {
+                    ["promptTokenCount"] = promptTokens,
+                    ["candidatesTokenCount"] = candidatesTokens,
+                    ["totalTokenCount"] = promptTokens + candidatesTokens
+                },
+                ["modelVersion"] = "gemini-2.0-flash-001"
+            };
+            return root.ToString();
+        }
+
         private static ExternalLlmClient Create(
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler,
             ExternalProviderOptions provider = null,
@@ -648,28 +701,127 @@ namespace IIChatTools.Tests.UnitTests.ExternalLlm
         // ============================================================
 
         [Fact]
-        public async Task CompleteAsync_GeminiFormat_ThrowsNotSupported()
+        public async Task CompleteAsync_GeminiFormat_UsesXGoogApiKeyHeader()
         {
-            var geminiProvider = AnthropicProviderOptions();
-            geminiProvider.Format = ProviderFormat.Gemini;
-            geminiProvider.BaseUrl = "https://generativelanguage.googleapis.com/v1beta";
-            geminiProvider.Model = "gemini-2.0-flash";
+            HttpRequestMessage captured = null;
 
             var client = Create(
-                (req, ct) => throw new InvalidOperationException("HTTP-запрос не должен выполняться"),
-                provider: geminiProvider,
+                (req, ct) =>
+                {
+                    captured = req;
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(BuildGeminiSuccessResponse(),
+                            Encoding.UTF8, "application/json")
+                    });
+                },
+                provider: GeminiProviderOptions(),
                 apiKey: "AIza-test",
                 providerName: "gemini");
 
-            var ex = await Assert.ThrowsAsync<NotSupportedException>(
+            await client.CompleteAsync(UserId, new ExternalLlmRequest
+            {
+                Provider = "gemini",
+                Prompt = "2+2?"
+            });
+
+            Assert.NotNull(captured);
+            // x-goog-api-key — НЕ Authorization: Bearer.
+            Assert.True(captured.Headers.Contains("x-goog-api-key"),
+                "Ожидался заголовок x-goog-api-key (не Authorization).");
+            Assert.Equal("AIza-test", captured.Headers.GetValues("x-goog-api-key").First());
+            Assert.Null(captured.Headers.Authorization);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_GeminiFormat_UsesGenerateContentEndpoint()
+        {
+            HttpRequestMessage captured = null;
+
+            var client = Create(
+                (req, ct) =>
+                {
+                    captured = req;
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(BuildGeminiSuccessResponse(),
+                            Encoding.UTF8, "application/json")
+                    });
+                },
+                provider: GeminiProviderOptions(),
+                apiKey: "AIza-test",
+                providerName: "gemini");
+
+            await client.CompleteAsync(UserId, new ExternalLlmRequest
+            {
+                Provider = "gemini",
+                Prompt = "hi"
+            });
+
+            Assert.NotNull(captured);
+            // Модель в URL (не в body — спец. Gemini API).
+            Assert.Equal(
+                "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent",
+                captured.RequestUri.ToString());
+        }
+
+        [Fact]
+        public async Task CompleteAsync_GeminiFormat_ParsesCandidates()
+        {
+            var client = Create(
+                (req, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        BuildGeminiSuccessResponse(text: "Четыре", promptTokens: 20, candidatesTokens: 3),
+                        Encoding.UTF8, "application/json")
+                }),
+                provider: GeminiProviderOptions(),
+                apiKey: "AIza-test",
+                providerName: "gemini");
+
+            var response = await client.CompleteAsync(UserId, new ExternalLlmRequest
+            {
+                Provider = "gemini",
+                Prompt = "2+2?"
+            });
+
+            Assert.Equal("gemini", response.Provider);
+            Assert.Equal("Четыре", response.Content);
+            Assert.Equal(20, response.PromptTokens);
+            Assert.Equal(3, response.CompletionTokens);
+            // (20 / 1000) * 0.0001 + (3 / 1000) * 0.0004 = 0.000002 + 0.0000012 = 0.0000032
+            Assert.Equal(0.0000032m, response.CostUsd);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_GeminiFormat_500_ThrowsAfterRetry()
+        {
+            var attemptCount = 0;
+
+            var client = Create(
+                (req, ct) =>
+                {
+                    attemptCount++;
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                    {
+                        Content = new StringContent(
+                            "{\"error\":{\"code\":500,\"message\":\"Internal error\",\"status\":\"INTERNAL\"}}",
+                            Encoding.UTF8, "application/json")
+                    });
+                },
+                provider: GeminiProviderOptions(),
+                apiKey: "AIza-test",
+                providerName: "gemini");
+
+            await Assert.ThrowsAsync<HttpRequestException>(
                 () => client.CompleteAsync(UserId, new ExternalLlmRequest
                 {
                     Provider = "gemini",
                     Prompt = "hi"
                 }));
 
-            Assert.Contains("Gemini", ex.Message);
-            Assert.Contains("KI-110b", ex.Message);
+            // 2 попытки (1 + 1 retry).
+            Assert.Equal(2, attemptCount);
         }
 
         [Fact]

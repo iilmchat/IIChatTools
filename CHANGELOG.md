@@ -32,6 +32,22 @@
   security fix + Dispose RNG).
 
 ### Added
+- **v1.10.0 Фаза 3 (KI-110b): рефакторинг `ExternalLlmClient`**:
+  - Switch по `ProviderFormat`: `Gemini` → `CompleteGeminiAsync`
+    (удалена заглушка `NotSupportedException`).
+  - `CompleteGeminiAsync` — `POST {BaseUrl}/models/{model}:generateContent`,
+    `x-goog-api-key` header (не Bearer / не query), вызов builders из
+    Фаз 1-2. **Модель в URL, не в body** (специфика Gemini).
+  - Удалён `catch (NotSupportedException)` — больше не нужен
+    (несуществующая фича стала работающей).
+  - Общая обвязка (circuit breaker / budget / cost / audit) — без изменений.
+  - Тесты: `ExternalLlmClientTests` — удалён старый тест заглушки,
+    +4 новых (`x-goog-api-key`, `/models/...:generateContent`, парсинг
+    candidates, 500 без retry).
+  - Интеграционный `[Fact(Skip=...)]` для Gemini — env
+    `EXTERNALLLM__GEMINI__APIKEY`, VPN из РФ.
+  - **588 → 592** (587 pass, 5 skip).
+
 - **v1.10.0 Фаза 2 (KI-110b): `GeminiResponseParser`**:
   - `Implementation/ExternalLlm/Formats/GeminiResponseParser.cs` — static helper.
     Извлекает текст из `candidates[0].content.parts[]` (склейка блоков

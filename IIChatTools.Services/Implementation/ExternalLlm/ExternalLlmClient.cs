@@ -31,8 +31,8 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
     ///   <c>Authorization: Bearer</c>. Провайдеры: DeepSeek, OpenAI, Groq, Together AI, Ollama.</description></item>
     ///   <item><description><see cref="ProviderFormat.Anthropic"/> — <c>POST {BaseUrl}/messages</c>,
     ///   <c>x-api-key</c> + <c>anthropic-version: 2023-06-01</c>.</description></item>
-    ///   <item><description><see cref="ProviderFormat.Gemini"/> — зарезервировано на v1.9.x (KI-110b),
-    ///   сейчас <c>NotSupportedException</c>.</description></item>
+    ///   <item><description><see cref="ProviderFormat.Gemini"/> — <c>POST {BaseUrl}/models/{model}:generateContent</c>,
+    ///   <c>x-goog-api-key</c> (v1.10.0, KI-110b).</description></item>
     /// </list>
     /// </para>
     ///
@@ -161,27 +161,13 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
                     ProviderFormat.Anthropic =>
                         await CompleteAnthropicAsync(provider, apiKey, request, providerName, ct),
 
-                    // Gemini — зарезервировано на v1.9.x (KI-110b).
-                    // Fail-fast на уровне клиента: конфиг уже валиден (registry пропустил),
-                    // но функциональность честно отсутствует.
                     ProviderFormat.Gemini =>
-                        throw new NotSupportedException(
-                            "Провайдер Gemini запланирован на v1.9.x (KI-110b). " +
-                            "Используйте OpenAI-совместимый (DeepSeek, OpenAI, Groq, ...) " +
-                            "или Anthropic (Claude)."),
+                        await CompleteGeminiAsync(provider, apiKey, request, providerName, ct),
 
                     _ => throw new InvalidOperationException(
                         $"Неизвестный ProviderFormat: {provider.Format} " +
                         $"(провайдер '{providerName}').")
                 };
-            }
-            catch (NotSupportedException)
-            {
-                // Gemini — не сетевая ошибка, не увеличиваем fail-счётчик
-                // в circuit breaker (иначе «сломаем» провайдера за то,
-                // что пользователь вызвал несуществующую фичу).
-                sw.Stop();
-                throw;
             }
             catch (Exception ex)
             {
@@ -390,6 +376,72 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             // Если Anthropic вернул error-ответ при HTTP 200 (маловероятно) —
             // парсер вернёт пустую строку + 0 токенов, cost = 0.
             return AnthropicResponseParser.Parse(responseJson);
+        }
+
+        /// <summary>
+        /// Google Gemini API: <c>POST {BaseUrl}/models/{Model}:generateContent</c>,
+        /// <c>x-goog-api-key</c> (v1.10.0, KI-110b, DESIGN_GEMINI § 3.3).
+        ///
+        /// <para>
+        /// Тело собирает <see cref="GeminiRequestBuilder"/>
+        /// (<c>contents[]</c>, <c>systemInstruction</c> — отдельный Content-объект,
+        /// <c>generationConfig.maxOutputTokens</c> обязателен), ответ парсит
+        /// <see cref="GeminiResponseParser"/> (склейка
+        /// <c>candidates[0].content.parts[].text</c> через <c>\n</c>,
+        /// <c>usageMetadata.promptTokenCount</c> / <c>candidatesTokenCount</c>).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Модель в URL, не в body</b> — в отличие от OpenAI/Anthropic,
+        /// Gemini требует <c>/models/{model}:generateContent</c>.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Auth</b> — заголовок <c>x-goog-api-key</c> (не Bearer, не query).
+        /// Ключ не логируется.
+        /// </para>
+        ///
+        /// <para>
+        /// Блоки <c>thought: true</c>, <c>functionCall</c>, <c>functionResponse</c>,
+        /// <c>inlineData</c>, <c>codeExecutionResult</c> игнорируются
+        /// (v1.10.0 — только prompt → text).
+        /// </para>
+        /// </summary>
+        /// <param name="provider">Настройки провайдера</param>
+        /// <param name="apiKey">API-ключ (Gemini всегда требует)</param>
+        /// <param name="request">Запрос (prompt, system, temperature, maxTokens)</param>
+        /// <param name="providerName">Имя провайдера (для сообщений об ошибках)</param>
+        /// <param name="ct">Токен отмены</param>
+        /// <returns>Кортеж (content, promptTokens, completionTokens)</returns>
+        private async Task<(string Content, int PromptTokens, int CompletionTokens)>
+            CompleteGeminiAsync(
+                ExternalProviderOptions provider,
+                string apiKey,
+                ExternalLlmRequest request,
+                string providerName,
+                CancellationToken ct)
+        {
+            // Тело собирает helper из Фазы 1 (DESIGN_GEMINI § 3.1).
+            var payload = GeminiRequestBuilder.Build(provider, request);
+
+            // URL с моделью в пути (специфика Gemini — /models/{model}:generateContent).
+            var url = $"{provider.BaseUrl.TrimEnd('/')}/models/{provider.Model}:generateContent";
+            var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);
+
+            // Заголовки: x-goog-api-key (DESIGN_GEMINI § 6.1).
+            // Не Authorization: Bearer, не query ?key=.
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                headers["x-goog-api-key"] = apiKey;
+            }
+
+            var responseJson = await SendWithRetryAsync(url, payload, headers, timeoutSec, ct);
+
+            // Парсер не падает при отсутствии полей (DESIGN_GEMINI § 3.2 / § 3.4).
+            // SAFETY / пустой candidates[] → пустая строка + токены.
+            return GeminiResponseParser.Parse(responseJson);
         }
 
         // ============================================================

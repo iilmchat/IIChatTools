@@ -242,6 +242,62 @@ namespace IIChatTools.Tests.IntegrationTests.ExternalLlm
             Assert.True(response.DurationMs > 0);
         }
 
+        /// <summary>
+        /// Реальный запрос к Google Gemini (v1.10.0, KI-110b).
+        ///
+        /// <para>
+        /// Требует env <c>EXTERNALLLM__GEMINI__APIKEY</c> + <b>VPN из РФ</b>
+        /// (Google блокирует регистрацию и API-запросы по IP РФ,
+        /// см. DESIGN_GEMINI § 5.3).
+        /// </para>
+        ///
+        /// <para>
+        /// Проверяет путь <c>CompleteGeminiAsync</c> (Фаза 3 KI-110b):
+        /// <c>POST /v1/models/{model}:generateContent</c>,
+        /// <c>x-goog-api-key</c>, парсинг <c>candidates[0].content.parts[].text</c>
+        /// через <c>GeminiResponseParser</c>.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Free tier доступен</b> (15 RPM, 1500 req/day) — не тратит деньги.
+        /// </para>
+        /// </summary>
+        [Fact(Skip = "Требует EXTERNALLLM__GEMINI__APIKEY env + VPN из РФ")]
+        public async Task Gemini_RealRequest_ReturnsResponse()
+        {
+            var apiKey = Environment.GetEnvironmentVariable("EXTERNALLLM__GEMINI__APIKEY");
+            Assert.False(string.IsNullOrWhiteSpace(apiKey),
+                "Не задан env EXTERNALLLM__GEMINI__APIKEY.");
+
+            var client = CreateRealClient(
+                provider: "gemini",
+                baseUrl: "https://generativelanguage.googleapis.com/v1",
+                model: "gemini-2.0-flash",
+                apiKey: apiKey,
+                format: ProviderFormat.Gemini);
+
+            var response = await client.CompleteAsync(
+                userId: 1,
+                new ExternalLlmRequest
+                {
+                    Provider = "gemini",
+                    Prompt = TestPrompt,
+                    MaxTokens = 20
+                },
+                CancellationToken.None);
+
+            _output.WriteLine($"Provider: {response.Provider}");
+            _output.WriteLine($"Content:  {response.Content}");
+            _output.WriteLine($"Tokens:   {response.PromptTokens}+{response.CompletionTokens}");
+            _output.WriteLine($"Cost:     ${response.CostUsd}");
+
+            Assert.Equal("gemini", response.Provider);
+            Assert.False(string.IsNullOrWhiteSpace(response.Content));
+            Assert.True(response.PromptTokens > 0);
+            Assert.True(response.CompletionTokens > 0);
+            Assert.True(response.DurationMs > 0);
+        }
+
         // ============================================================
         // Private
         // ============================================================
