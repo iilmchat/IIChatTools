@@ -32,6 +32,18 @@
   security fix + Dispose RNG).
 
 ### Added
+- **v1.10.0 Фаза 2 (KI-110b): `GeminiResponseParser`**:
+  - `Implementation/ExternalLlm/Formats/GeminiResponseParser.cs` — static helper.
+    Извлекает текст из `candidates[0].content.parts[]` (склейка блоков
+    с `text` через `\n`), токены из `usageMetadata.promptTokenCount` /
+    `candidatesTokenCount`. Блоки `thought: true`, `functionCall`,
+    `functionResponse`, `inlineData`, `codeExecutionResult` — игнорируются
+    (v1.10.0 — только prompt → text). Не падает при `SAFETY` / пустом
+    `candidates[]` — возвращает пустую строку + токены.
+  - Тесты: `GeminiResponseParserTests` (12 — базовые + edge-cases:
+    multi-part, empty parts, no candidates, SAFETY, thought/fc-блоки,
+    null-guard). **576 → 588** (+12, 4 skip).
+
 - **v1.10.0 Фаза 1 (KI-110b): `GeminiRequestBuilder`**:
   - `Implementation/ExternalLlm/Formats/GeminiRequestBuilder.cs` — static helper.
     Собирает тело для `POST {BaseUrl}/models/{model}:generateContent`:
