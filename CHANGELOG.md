@@ -67,6 +67,24 @@
     `/messages` endpoint, парсинг content[], multi-block, 400 без retry,
     Gemini NotSupported, unknown format). **551 → 558** (3 Skip).
 
+### Added
+- **v1.9.0 Фаза 4 (KI-110a): конфигурация Anthropic / Gemini + README**:
+  - `appsettings.json` / `appsettings.Development.json` — **+2 провайдера**
+    в `ExternalLlm:Providers`:
+    - `anthropic` — `Format: "Anthropic"`, `claude-haiku-4-5`,
+      BaseUrl `https://api.anthropic.com/v1`, тарифы $0.001 / $0.005
+      за 1k токенов (input / output);
+    - `gemini` — `Format: "Gemini"`, `gemini-2.0-flash`,
+      BaseUrl `https://generativelanguage.googleapis.com/v1beta`.
+      **Заглушка** — при вызове `NotSupportedException` (KI-110b, v1.9.x).
+  - README («External-LLM Agent») — Anthropic в intro; инструкция получения
+    ключа (`VPN обязателен`, `sk-ant-...`, `dotnet user-secrets`); отдельный
+    блок про Gemini-заглушку; обновлён раздел «Ограничения» (Anthropic
+    поддержан; Gemini — v1.9.x).
+  - **Обратная совместимость:** 5 существующих провайдеров (DeepSeek, OpenAI,
+    Groq, Together, Ollama) не задают `Format` — продолжают работать
+    с дефолтом `ProviderFormat.OpenAI`.
+
 ### Changed
 - **v1.9.0 Фаза 2 (KI-110a): `ExternalLlmRequest.System`** (nullable) — нужно
   для правила «`system` добавляется, если не пуст» (DESIGN § 3.4).

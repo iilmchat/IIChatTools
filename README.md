@@ -823,10 +823,13 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 
 ---
 
-## External-LLM Agent (v1.8.1)
+## External-LLM Agent (v1.8.1 + Anthropic v1.9.0)
 
-Обращение к внешним LLM (DeepSeek / OpenAI / Groq / Together AI / Ollama).
-Все провайдеры — **OpenAI-совместимые** (единый формат `/v1/chat/completions`).
+Обращение к внешним LLM. Поддерживаются **OpenAI-совместимые** провайдеры
+(DeepSeek / OpenAI / Groq / Together AI / Ollama — единый формат
+`POST {BaseUrl}/chat/completions`) и **Anthropic Claude** (свой формат:
+`POST {BaseUrl}/messages`, `x-api-key` + `anthropic-version: 2023-06-01`).
+**Google Gemini** — зарезервирован на v1.9.x (KI-110b).
 
 **Требует явного `ExternalLlm:Enabled = true`** + API-ключи в User Secrets.
 
@@ -898,15 +901,41 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 - **OpenAI** — https://platform.openai.com/ (VPN + зарубежная карта).
 - **Groq** — https://console.groq.com/ (free tier, через VPN).
 - **Ollama** — https://ollama.com/download (локально, без регистрации).
+- **Anthropic Claude** (v1.9.0, KI-110a) — https://console.anthropic.com/ (VPN обязателен из РФ).
 
-Подробности — [docs/development/v1.8/DESIGN_EXTERNAL_LLM.md](docs/development/v1.8/DESIGN_EXTERNAL_LLM.md) § 5.4.
+**Anthropic Claude (v1.9.0, KI-110a):**
 
-### Ограничения v1.8.1
+- **VPN обязателен** — регистрация и API-запросы блокируются по IP РФ.
+- API key: https://console.anthropic.com/settings/keys → «Create Key».
+  Формат: `sk-ant-...`.
+- Пополнение баланса: зарубежная карта (Visa / Mastercard, **не РФ**). Минимум $5.
+- Модель по умолчанию: `claude-haiku-4-5` — $0.001 / $0.005 за 1k токенов
+  (input / output).
+- Заголовок `anthropic-version: 2023-06-01` — задаётся **в коде**, не в конфиге.
+
+    dotnet user-secrets set "ExternalLlm:Anthropic:ApiKey" "sk-ant-..."
+
+**Google Gemini (v1.9.x, KI-110b — заглушка):**
+
+Запись в `appsettings.json` **присутствует** (`Format: "Gemini"`), но при вызове
+`ask_external_llm(provider="gemini")` возвращается `ToolResult.Fail` с текстом
+«Gemini — v1.9.x, KI-110b». Ключ можно задать сейчас (пригодится для v1.9.x):
+
+    dotnet user-secrets set "ExternalLlm:Gemini:ApiKey" "AIza..."
+
+Подробности — [docs/development/v1.8/DESIGN_EXTERNAL_LLM.md](docs/development/v1.8/DESIGN_EXTERNAL_LLM.md) § 5.4
+и [docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md](docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md) § 5.
+
+### Ограничения
 
 - **Только non-streaming** (без SSE с внешних API).
 - **Без function calling** на внешних API — только обычный prompt → text.
-- **Anthropic Claude / Google Gemini** — не входят (свои форматы, v1.9+, KI-110).
-- **Per-user API keys** — v1.8.x (по образцу KI-108 для Mail).
+- **Anthropic Claude** — поддержан с v1.9.0 (KI-110a). Не поддерживаются:
+  streaming, function calling, vision, prompt caching (`cache_control`),
+  extended thinking.
+- **Google Gemini** — не входит в v1.9.0 (v1.9.x, KI-110b). Запись в конфиге
+  есть, при вызове — `ToolResult.Fail`.
+- **Per-user API keys** — v1.9.x (по образцу KI-108 для Mail).
 
 ### API
 
