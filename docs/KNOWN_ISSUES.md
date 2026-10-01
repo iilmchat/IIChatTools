@@ -1712,35 +1712,29 @@
 ---
 
 ### KI-110b — Google Gemini провайдер
-- **Приоритет:** 🟢 Low | **Статус:** In Progress | **Запланировано:** v1.10.0
-- **Обнаружено:** 2026-09-29
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.10.0
+- **Обнаружено:** 2026-09-29 | **Устранено:** 2026-10-01
 - **DESIGN:** [`docs/development/v1.9/DESIGN_GEMINI.md`](development/v1.9/DESIGN_GEMINI.md)
-  (Draft согласован 2026-10-01).
+  (Implemented, 2026-10-01).
 - **Описание:** Google Gemini (`POST /v1/models/{model}:generateContent`,
-  API key в заголовке `x-goog-api-key`, свой формат запроса/ответа) —
-  целевой релиз **v1.10.0**.
-- **Что уже готово (v1.9.0):**
-  - `ProviderFormat.Gemini = 2` в enum.
-  - `appsettings.json` / `.Development.json` — секция `gemini`
-    (валидна для `ExternalProviderRegistry`).
-  - `ExternalLlmClient.CompleteAsync` — `NotSupportedException` (заглушка,
-    будет удалена в v1.10.0 Фазе 3).
-  - `SendWithRetryAsync` / `SendOnceAsync` параметризованы заголовками
-    (готово для `x-goog-api-key`).
-- **Что доделывается (v1.10.0):**
-  - **Фаза 0** — DESIGN (этот документ) — ✅ Done 2026-10-01.
-  - **Фаза 1** — `GeminiRequestBuilder` + тесты — ⏳.
-  - **Фаза 2** — `GeminiResponseParser` + тесты — ⏳.
-  - **Фаза 3** — `CompleteGeminiAsync` + switch (удаление заглушки) — ⏳.
-  - **Фаза 4** — `appsettings.json` (BaseUrl `v1beta` → `v1`) + README — ⏳.
-  - **Фаза 5** — релиз v1.10.0 — ⏳.
+  API key в заголовке `x-goog-api-key`, свой формат запроса/ответа).
+- **Что сделано (v1.10.0, 5 фаз):**
+  - **Фаза 0** — DESIGN_GEMINI.md (Draft согласован 2026-10-01). Коммит `bba6390`.
+  - **Фаза 1** — `GeminiRequestBuilder` + 13 тестов. Коммит `28d156a`.
+  - **Фаза 2** — `GeminiResponseParser` + 12 тестов. Коммит `08d36b9`.
+  - **Фаза 3** — `CompleteGeminiAsync` + switch (удаление заглушки) +
+    4 новых теста + 1 интеграционный Skip. Коммит `e448406`.
+  - **Фаза 4** — `appsettings.json` (`BaseUrl` `v1beta` → `v1`) + README.
+    Коммит `edf13f5`.
+  - **Фаза 5** — релиз v1.10.0.
 - **Ключевые решения DESIGN:**
   - API **v1** (stable), не v1beta.
   - Auth — **`x-goog-api-key` header** (не query `?key=`).
   - `POST /models/{model}:generateContent` (non-stream).
-  - `systemInstruction` — отдельное поле (объект Content).
+  - `systemInstruction` — отдельное поле (объект Content, без `role`).
   - `generationConfig.maxOutputTokens` — обязателен.
-- **Оценка:** ~5 ч (5 фаз).
+  - Модель в URL, не в body (специфика Gemini).
+- **Тесты:** 559 → **592** (+33, 5 Skip).
 - **Связанные:** KI-110a (Anthropic — Fixed v1.9.0), KI-109 (External-LLM Agent).
 
 ---
@@ -2249,9 +2243,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.8.2) | 1 | <!-- KI-121 (external_llm_agent — галлюцинация провайдеров) -->
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
 | Fixed (v1.9.0) | 3 | <!-- KI-110a (Anthropic Claude), KI-124 (Claude integration test), KI-125 (MailKit/MimeKit security) -->
+| Fixed (v1.10.0) | 1 | <!-- KI-110b (Google Gemini) -->
 | Deferred  | 6 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122 (KI-123 -> Fixed) -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
-| In Progress | 1 |                   <!-- KI-110b (Gemini) -->
+| In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 3 |                       <!-- KI-108, KI-111, KI-113 -->

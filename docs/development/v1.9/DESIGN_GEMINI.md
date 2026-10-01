@@ -3,9 +3,9 @@
 **Версия:** 1.0
 **Дата:** 2026-10-01
 **Автор:** IIChatTools Team
-**Статус:** **Draft** (согласование до реализации)
-**Связанные KI:** KI-110b (Google Gemini — Planned, v1.10.0), KI-110a (Anthropic Claude — Fixed v1.9.0), KI-109 (External-LLM Agent — база)
-**Целевой релиз:** v1.10.0
+**Статус:** **Implemented (v1.10.0, 2026-10-01)**
+**Связанные KI:** KI-110b (Google Gemini — Fixed в v1.10.0), KI-110a (Anthropic Claude — Fixed v1.9.0), KI-109 (External-LLM Agent — база)
+**Целевой релиз:** v1.10.0 ✅ Done
 
 ---
 
@@ -342,12 +342,12 @@ headers["x-goog-api-key"] = apiKey;
 
 | Фаза | Что | Оценка | Статус |
 |:---:|---|:---:|:---:|
-| **0** | DESIGN (этот документ) | 1 ч | 🔄 **В работе** |
-| **1** | `GeminiRequestBuilder` + тесты | 1 ч | ⏳ |
-| **2** | `GeminiResponseParser` + тесты | 1 ч | ⏳ |
-| **3** | Рефакторинг `ExternalLlmClient` (switch → `CompleteGeminiAsync`) + тесты | 1 ч | ⏳ |
-| **4** | `appsettings.json` (BaseUrl v1beta → v1) + README + `.Development.json` | 0.5 ч | ⏳ |
-| **5** | Релиз v1.10.0 (CHANGELOG, KNOWN_ISSUES, tag, Release) | 0.5 ч | ⏳ |
+| **0** | DESIGN (этот документ) | 1 ч | ✅ Done (`bba6390`) |
+| **1** | `GeminiRequestBuilder` + тесты | 1 ч | ✅ Done (`28d156a`) |
+| **2** | `GeminiResponseParser` + тесты | 1 ч | ✅ Done (`08d36b9`) |
+| **3** | Рефакторинг `ExternalLlmClient` (switch → `CompleteGeminiAsync`) + тесты | 1 ч | ✅ Done (`e448406`) |
+| **4** | `appsettings.json` (BaseUrl v1beta → v1) + README + `.Development.json` | 0.5 ч | ✅ Done (`edf13f5`) |
+| **5** | Релиз v1.10.0 (CHANGELOG, KNOWN_ISSUES, tag, Release) | 0.5 ч | ✅ Done |
 
 ### § 7.1. Фаза 1 — `GeminiRequestBuilder` (1 ч)
 
@@ -399,13 +399,13 @@ headers["x-goog-api-key"] = apiKey;
 
 ### § 8.1. Функциональные требования
 
-- [ ] `GeminiRequestBuilder` — собирает Gemini-body.
-- [ ] `GeminiResponseParser` — парсит `candidates[].content.parts[]` + `usageMetadata`.
-- [ ] `ExternalLlmClient.CompleteGeminiAsync` — `POST /models/{model}:generateContent`.
-- [ ] `x-goog-api-key` header (не Bearer).
-- [ ] `NotSupportedException` заглушка удалена из switch.
-- [ ] `appsettings.json` / `.Development.json` — `BaseUrl` → `v1`.
-- [ ] 6 существующих провайдеров работают **без изменений конфига**.
+- [x] `GeminiRequestBuilder` — собирает Gemini-body.
+- [x] `GeminiResponseParser` — парсит `candidates[].content.parts[]` + `usageMetadata`.
+- [x] `ExternalLlmClient.CompleteGeminiAsync` — `POST /models/{model}:generateContent`.
+- [x] `x-goog-api-key` header (не Bearer).
+- [x] `NotSupportedException` заглушка удалена из switch.
+- [x] `appsettings.json` / `.Development.json` — `BaseUrl` → `v1`.
+- [x] 6 существующих провайдеров работают **без изменений конфига**.
 
 ### § 8.2. Нефункциональные
 

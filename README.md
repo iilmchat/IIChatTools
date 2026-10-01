@@ -1,10 +1,10 @@
-# IIChatTools v1.9.0
+# IIChatTools v1.10.0
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.9.0
+© 2026 RuChating (iilmchat) · IIChatTools v1.10.0
 
 ---
 
@@ -823,7 +823,7 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 
 ---
 
-## External-LLM Agent (v1.8.1 + Anthropic v1.9.0 + Gemini v1.10.0)
+## External-LLM Agent (v1.8.1 + Anthropic v1.9.0 + Gemini v1.10.0 ✅)
 
 Обращение к внешним LLM. Поддерживаются **три формата**:
 - **OpenAI-совместимые** (DeepSeek / OpenAI / Groq / Together AI / Ollama) —
@@ -1117,9 +1117,9 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.9.0
-    docker pull ghcr.io/iilmchat/iichattools:1.9.0
-    docker pull ghcr.io/iilmchat/iichattools:1.9
+    docker pull ghcr.io/iilmchat/iichattools:v1.10.0
+    docker pull ghcr.io/iilmchat/iichattools:1.10.0
+    docker pull ghcr.io/iilmchat/iichattools:1.10
     docker pull ghcr.io/iilmchat/iichattools:1
 
 ### Развёртывание (Docker)
@@ -1226,7 +1226,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 559/559 тестов проходят (unit + integration), 3 Skip (реальные провайдеры).
+**Статус**: 592/592 тестов проходят (unit + integration), 5 Skip (реальные провайдеры).
 
 ---
 

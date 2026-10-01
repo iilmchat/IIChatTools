@@ -2,8 +2,8 @@
 
 **Версия промпта:** v3.0
 **Дата:** 2026-10-01
-**Актуальный релиз проекта:** v1.9.0 (2026-10-01)
-**Статус:** v1.9.0 (Anthropic Claude, KI-110a) выпущен. В работе — **v1.9.x (Google Gemini, KI-110b)**.
+**Актуальный релиз проекта:** v1.10.0 (2026-10-01)
+**Статус:** v1.10.0 (Google Gemini, KI-110b) выпущен. В работе — **KI-122 (темы оформления) / KI-108 (per-user mail) / KI-091 (SqlServer миграции)**.
 
 ---
 
@@ -28,8 +28,8 @@
 
 - **GitHub:** https://github.com/iilmchat/IIChatTools
 - **Ветка по умолчанию:** `main`
-- **Текущий релиз:** v1.9.0 (2026-10-01)
-- **В работе:** v1.9.x (Google Gemini, KI-110b). DESIGN — `docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md` (Implemented для v1.9.0).
+- **Текущий релиз:** v1.10.0 (2026-10-01)
+- **В работе:** KI-122 (темы оформления) / KI-108 (per-user mail) / KI-091 (SqlServer миграции). DESIGN Gemini — `docs/development/v1.9/DESIGN_GEMINI.md` (Implemented для v1.10.0).
 
 ---
 
@@ -87,7 +87,7 @@
   - ExternalLlm: `ExternalLlmClient`, `ExternalProviderRegistry`, `ExternalLlmCircuitBreaker`, `ExternalLlmBudgetTracker`.
   - Cache: `ToolResultCache`, `CanonicalJsonHelper`.
 - **IIChatTools.Data** — EF Entities + миграции (SqlServer).
-- **IIChatTools.Tests** — xUnit (**559/559**, 3 Skip).
+- **IIChatTools.Tests** — xUnit (**592/592**, 5 Skip).
 
 ### Метрики
 
@@ -175,6 +175,13 @@
 ---
 
 ## § 5. Roadmap
+
+### v1.10.0 (✅ Done, 2026-10-01) — Google Gemini (KI-110b)
+
+**DESIGN:** `docs/development/v1.9/DESIGN_GEMINI.md` (Implemented).
+Третий формат API в `External-LLM Agent` — `ProviderFormat.Gemini`.
+`CompleteGeminiAsync` — `POST /models/{model}:generateContent`, `x-goog-api-key`.
+Builder + Parser + Client + Config. Тесты: **559 → 592** (+33).
 
 ### v1.9.0 (✅ Done, 2026-10-01) — Anthropic Claude (KI-110a)
 

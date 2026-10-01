@@ -27,7 +27,28 @@
 > долги. Они **не блокируют** выпуск v1.9.0, но должны быть учтены
 > при развёртывании.
 
-### Новое в v1.9.0
+## § 1a. Известные ограничения релиза v1.10.0
+
+> **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
+> долги. Они **не блокируют** выпуск v1.10.0, но должны быть учтены
+> при развёртывании.
+
+### Новое в v1.10.0
+
+- **Google Gemini (KI-110b)** — третий провайдер в `External-LLM Agent`.
+  `ProviderFormat.Gemini` полностью реализован (не заглушка).
+  `CompleteGeminiAsync` — `POST /v1/models/{model}:generateContent`,
+  `x-goog-api-key`. Требуется `ExternalLlm:Enabled = true` +
+  `ExternalLlm:Gemini:ApiKey` в User Secrets. **VPN обязателен из РФ.**
+  Free tier: 15 RPM / 1500 req/day.
+- **Anthropic Claude (KI-110a)** — работает с v1.9.0.
+- **KI-124 / KI-125 (Fixed)** — интеграционный тест Anthropic +
+  MailKit/MimeKit security update (4.8.0 → 4.18.1). Интегрированы в v1.10.0.
+- **KI-123 (Fixed)** — индикатор загрузки списка чатов (`/chat`).
+- **7 провайдеров** (DeepSeek, OpenAI, Groq, Together, Ollama, Anthropic,
+  Gemini) — работают независимо.
+
+### Ранее в v1.9.0
 
 - **Anthropic Claude (KI-110a)** — новый провайдер в `External-LLM Agent`.
   `ProviderFormat` enum + switch в `ExternalLlmClient`.

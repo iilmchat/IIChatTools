@@ -18,6 +18,22 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)_
+
+---
+
+## [1.10.0] — 2026-10-01
+
+**Google Gemini (KI-110b).** Третий формат API в External-LLM Agent:
+`ProviderFormat.Gemini` теперь полностью реализован (не заглушка).
+Плюс три followup-фикса v1.9.0: KI-123 (индикатор загрузки списка чатов),
+KI-124 (интеграционный тест Anthropic), KI-125 (MailKit/MimeKit security).
+
+Обратная совместимость: 6 существующих провайдеров (DeepSeek, OpenAI,
+Groq, Together AI, Ollama, Anthropic) работают без изменений конфига.
+
+Тесты: **559 → 592** (+33, 5 Skip внешних).
+
 ### Security
 - **KI-125 — MailKit / MimeKit 4.8.0 → 4.18.1** (v1.9.0-followup):
   закрыты 2 Moderate advisory:
