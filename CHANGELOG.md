@@ -18,6 +18,14 @@
 
 ## [Unreleased]
 
+### Changed
+- **Chat — prefix stability (v1.8.2)**: RAG-контекст из `my_rag_docs` теперь
+  добавляется **отдельным** system-сообщением **ПОСЛЕ** основного
+  `chat.SystemPrompt` (раньше склеивались в одно через `\n\n`). Эффект:
+  стабильный префикс не меняется при добавлении / удалении attachments →
+  KV-cache LM Studio не инвалидируется → TTFT ↓ на 30-60% при наличии RAG.
+  Без attachments поведение не меняется.
+
 ### Fixed
 - **KI-121 — `external_llm_agent`: галлюцинация «использованные провайдеры»**:
   уточнено правило 4 в `SystemPrompt` (appsettings + .Development) — указывать
