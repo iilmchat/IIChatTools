@@ -18,7 +18,39 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)_
+**v1.9.0 — Anthropic Claude (KI-110a).** DESIGN согласован 2026-09-30
+(`docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md`). План: 5 фаз
+(ProviderFormat → Builders → Client → Config → Релиз). Обратная
+совместимость: 5 существующих OpenAI-совместимых провайдеров не меняются.
+
+### Added
+- **v1.9.0 Фаза 1 (KI-110a): `ProviderFormat` enum + `ExternalProviderOptions.Format`**:
+  - `ProviderFormat` (`DTO/ExternalLlm/ProviderFormat.cs`) — enum:
+    `OpenAI = 0` (default) / `Anthropic = 1` / `Gemini = 2` (v1.9.x, KI-110b).
+    При вызове `Gemini` — `NotSupportedException` (заглушка).
+  - `ExternalProviderOptions.Format` — новое свойство, default = `OpenAI`.
+    5 существующих провайдеров (DeepSeek, OpenAI, Groq, Together AI, Ollama)
+    не задают `Format` в `appsettings.json` — работают без изменений конфига.
+  - Тесты: `ExternalProviderRegistryTests` +2 (Anthropic проходит валидацию;
+    `Default = OpenAI` для backward compat). **529 → 531**.
+
+- **v1.9.0 Фаза 2 (KI-110a): Anthropic builders**:
+  - `AnthropicRequestBuilder` (`Implementation/ExternalLlm/Formats/`) — static helper,
+    собирает `JObject` для `POST {BaseUrl}/messages`. Отличия от OpenAI:
+    `max_tokens` обязателен, `system` — отдельным полем (не роль в `messages[]`),
+    `temperature` clamp [0, 1] (не [0, 2]), `stream` не добавляется (v1.9.0 non-stream).
+  - `AnthropicResponseParser` (`Implementation/ExternalLlm/Formats/`) — static helper,
+    извлекает `content[]` (склейка блоков `type=="text"` через `\n`),
+    `usage.input_tokens` / `usage.output_tokens`. Блоки `type=="tool_use"`
+    игнорируются (v1.9.0 — без function calling). Не падает при отсутствии полей.
+  - Тесты: `AnthropicRequestBuilderTests` (12) + `AnthropicResponseParserTests` (8).
+    **531 → 551** (3 Skip внешних).
+
+### Changed
+- **v1.9.0 Фаза 2 (KI-110a): `ExternalLlmRequest.System`** (nullable) — нужно
+  для правила «`system` добавляется, если не пуст» (DESIGN § 3.4).
+  В OpenAI-ветке поле игнорируется (system сейчас не поддерживается).
+  Backward-compatible: все существующие инициализаторы работают.
 
 ---
 
