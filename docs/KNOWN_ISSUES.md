@@ -2145,6 +2145,37 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-127 — Chat LLM не выбирает `code_agent_with_review` для кодинг-задач
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Обнаружено:** 2026-10-01
+- **Файлы:** `SubAgents:code_agent_with_review:Description` (appsettings.json +
+    appsettings.Development.json), `ChatStreamService.DefaultSystemPrompt`.
+- **Описание:** Chat LLM (qwen3-4b) при запросе «Напиши функцию на Python для
+    проверки палиндрома» выбирает **`code_agent`** напрямую, а не
+    `code_agent_with_review`. Даже когда задача явно требует review
+    (edge cases — регистр, пробелы, unicode). Аналогично KI-118
+    (`code_agent` не вызывается для простых задач).
+- **Симптом:** в DevTools видно `Approval required: code_agent` (не
+    `code_agent_with_review`); таблица `AgentDebateSessions` пуста; SSE
+    `debate_*` события не эмитятся (persistence by design при
+    `ChatId != null` не срабатывает — потому что tool не вызван).
+- **Не баг:** `code_agent_with_review` зарегистрирован, виден через
+    `/api/tools`, работает через прямой вызов `/api/tools/execute`
+    (правда, без persistence — ChatId = null) и через Chat при явном
+    вызове LLM. Ограничение выбора модели.
+- **Возможные решения (митигация — Шаг 1E-fix3, v1.11.0):**
+    - Усилить `Description`: явно просить использовать **`code_agent_with_review`**
+        для задач со словами «алгоритм», «парсер», «валидация», «безопасность»,
+        «edge cases», «обработать исключения».
+    - Добавить в `ChatStreamService.DefaultSystemPrompt` правило:
+        «Для сложных задач кодинга (алгоритмы, парсеры, security-критичный код,
+        обработка edge cases) используй `code_agent_with_review`. Для простых
+        (rename, add import) — `code_agent`.»
+    - Опционально: `SubAgents:code_agent_with_review:AlwaysReview = true`
+        (в DEVELOPMENT) — жёсткий форсинг для smoke-тестов.
+- **Связанные:** KI-118 (`code_agent` для простых задач), KI-126 (Шаг 1E).
+
+---
+
 ### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate)
 
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.0
