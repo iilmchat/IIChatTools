@@ -148,7 +148,7 @@ namespace IIChatTools.Services.DTO.Chat
             {
                 Type = "tool_result",
                 Data = dto
-            };     
+            };
 
 
         /// <summary>
@@ -173,6 +173,59 @@ namespace IIChatTools.Services.DTO.Chat
             {
                 Type = "tool_approval_resolved",
                 Data = dto
-            };                   
+            };
+
+        // ============================================================
+        // Actor-Critic debate events (v1.11.0, KI-126, Шаг 1E)
+        // ============================================================
+
+        /// <summary>
+        /// Создаёт событие <c>debate_started</c> — Actor-Critic сессия началась.
+        /// </summary>
+        /// <param name="dto">Метаданные сессии</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent DebateStarted(ChatDebateStartedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "debate_started",
+                Data = dto
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>debate_round</c> — завершён один раунд actor-critic.
+        /// </summary>
+        /// <param name="dto">Данные раунда (actor + critic)</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent DebateRound(ChatDebateRoundDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "debate_round",
+                Data = dto
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>debate_escalated</c> — критик вернул Uncertain,
+        /// запрос перенаправлен на внешнюю LLM (Шаг 1F).
+        /// </summary>
+        /// <param name="dto">Провайдер и стоимость эскалации</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent DebateEscalated(ChatDebateEscalatedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "debate_escalated",
+                Data = dto
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>debate_completed</c> — сессия завершена.
+        /// </summary>
+        /// <param name="dto">Финальный вердикт + артефакт</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent DebateCompleted(ChatDebateCompletedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "debate_completed",
+                Data = dto
+            };
     }
 }

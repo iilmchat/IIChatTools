@@ -41,9 +41,13 @@ namespace IIChatTools.Tests.UnitTests.Debate
             var chat = chatService.CreateChatAsync(TestUserId, TestModel, "Тест")
                 .GetAwaiter().GetResult();
 
+            var coordinator = new AgentDebateCoordinator(
+                NullLogger<AgentDebateCoordinator>.Instance);
+
             var service = new AgentDebateSessionService(
                 db,
                 chatService,
+                coordinator,
                 NullLogger<AgentDebateSessionService>.Instance);
 
             return (service, db, chat);
@@ -197,13 +201,14 @@ namespace IIChatTools.Tests.UnitTests.Debate
         }
 
         [Fact]
-        public async Task InjectFeedbackAsync_Stub_ReturnsFalse()
+        public async Task InjectFeedbackAsync_NoWaitingCoordinator_ReturnsFalse()
         {
             var (service, _, chat) = CreateServiceWithChat();
 
             var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
 
-            // Заглушка 1B: возвращает false (реальная — в 1E).
+            // Шаг 1E: InjectFeedbackAsync — реальный. Но фоновый цикл не запущен,
+            // ожидающего в coordinator нет → возвращает false.
             var ok = await service.InjectFeedbackAsync(sessionId, TestUserId, "Учти edge case");
 
             Assert.False(ok);

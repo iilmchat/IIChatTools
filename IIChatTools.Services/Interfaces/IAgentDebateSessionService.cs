@@ -106,5 +106,55 @@ namespace IIChatTools.Services.Interfaces
             int userId,
             string feedback,
             CancellationToken cancellationToken = default);
+
+        // ============================================================
+        // Методы для фонового цикла actor-critic (v1.11.0, KI-126, Шаг 1E)
+        // ============================================================
+
+        /// <summary>
+        /// Переводит сессию в статус <c>InProgress</c> (первый раунд начался).
+        /// </summary>
+        /// <param name="sessionId">Идентификатор сессии.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// <c>true</c> — статус изменён.
+        /// <c>false</c> — сессия не найдена / уже не в <c>Pending</c>.
+        /// </returns>
+        Task<bool> MarkInProgressAsync(
+            int sessionId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Добавляет раунд к сессии (actor output + critic verdict).
+        /// </summary>
+        /// <param name="sessionId">Идентификатор сессии.</param>
+        /// <param name="round">Данные раунда.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// <c>true</c> — раунд добавлен.
+        /// <c>false</c> — сессия не найдена.
+        /// </returns>
+        Task<bool> AddRoundAsync(
+            int sessionId,
+            DTO.Debate.AgentDebateRoundDto round,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Завершает сессию (устанавливает <c>Status = Completed</c>,
+        /// <c>FinalVerdict</c>, <c>FinalArtifactJson</c>, <c>CompletedAt</c>).
+        /// </summary>
+        /// <param name="sessionId">Идентификатор сессии.</param>
+        /// <param name="finalVerdict">Финальный вердикт (Approved / MaxRoundsReached / ...).</param>
+        /// <param name="finalArtifactJson">Финальный артефакт (JSON, опционально).</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// <c>true</c> — сессия завершена.
+        /// <c>false</c> — сессия не найдена / уже завершена.
+        /// </returns>
+        Task<bool> CompleteAsync(
+            int sessionId,
+            string finalVerdict,
+            string finalArtifactJson,
+            CancellationToken cancellationToken = default);
     }
 }

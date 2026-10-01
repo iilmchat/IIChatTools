@@ -361,6 +361,11 @@ namespace IIChatTools.API
             // Singleton — связывает SSE-стрим и REST-endpoint в разных HTTP-scope.
             services.AddSingleton<IChatApprovalCoordinator, ChatApprovalCoordinator>();
 
+            // ============ Agent debate coordinator (v1.11.0, KI-126, Шаг 1E) ============
+            // Singleton — Human-in-the-loop между раундами Actor-Critic.
+            // По образцу ChatApprovalCoordinator (RULES § 4.23).
+            services.AddSingleton<IAgentDebateCoordinator, AgentDebateCoordinator>();
+
             // ============ 7. Реестр инструментов ============
             services.AddScoped<IToolRegistry, ToolRegistry>();
 

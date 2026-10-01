@@ -66,6 +66,7 @@ namespace IIChatTools.Services.Implementation.Debate
 
         private readonly AppDbContext _db;
         private readonly IChatService _chatService;
+        private readonly IAgentDebateCoordinator _coordinator;
         private readonly ILogger<AgentDebateSessionService> _logger;
 
         /// <summary>
@@ -73,15 +74,20 @@ namespace IIChatTools.Services.Implementation.Debate
         /// </summary>
         /// <param name="db">Контекст БД</param>
         /// <param name="chatService">Сервис чатов (для проверки владения)</param>
+        /// <param name="coordinator">
+        /// Координатор Human-in-the-loop (Singleton).
+        /// </param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public AgentDebateSessionService(
             AppDbContext db,
             IChatService chatService,
+            IAgentDebateCoordinator coordinator,
             ILogger<AgentDebateSessionService> logger)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
+            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -228,26 +234,154 @@ namespace IIChatTools.Services.Implementation.Debate
         }
 
         /// <inheritdoc />
-        public Task<bool> InjectFeedbackAsync(
+        public async Task<bool> InjectFeedbackAsync(
             int sessionId,
             int userId,
             string feedback,
             CancellationToken cancellationToken = default)
         {
-            // Заглушка Шага 1B.
-            //
-            // Реальная реализация — в Шаге 1E: понадобится Singleton-coordinator
-            // с ConcurrentDictionary<string, TaskCompletionSource<string>>
-            // (по образцу ChatApprovalCoordinator — RULES § 4.23) плюс SSE-события
-            // debate_round / debate_started для доставки feedback в фоновый цикл.
-            //
-            // Возвращаем false — сигнал «фича не активна».
-            _logger.LogDebug(
-                "InjectFeedbackAsync (заглушка 1B): sessionId={SessionId}, userId={UserId}, " +
-                "feedbackLen={FeedbackLen}",
-                sessionId, userId, feedback?.Length ?? 0);
+            if (string.IsNullOrWhiteSpace(feedback))
+            {
+                return false;
+            }
 
-            return Task.FromResult(false);
+            // 1. Проверка владения + статуса (Pending / InProgress).
+            var session = await _db.AgentDebateSessions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == sessionId
+                                          && s.InitiatedByUserId == userId,
+                    cancellationToken);
+
+            if (session == null)
+            {
+                return false;
+            }
+
+            if (session.Status != StatusPending && session.Status != StatusInProgress)
+            {
+                _logger.LogWarning(
+                    "InjectFeedback: сессия {SessionId} в статусе {Status} — feedback не принят",
+                    sessionId, session.Status);
+                return false;
+            }
+
+            // 2. Прокидываем feedback в ожидающий TCS.
+            var ok = await _coordinator.ProvideFeedbackAsync(sessionId, feedback.Trim());
+
+            _logger.LogInformation(
+                "InjectFeedback: sessionId={SessionId}, userId={UserId}, len={Len}, ok={Ok}",
+                sessionId, userId, feedback.Length, ok);
+
+            return ok;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> MarkInProgressAsync(
+            int sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            var session = await _db.AgentDebateSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
+
+            if (session == null) return false;
+            if (session.Status != StatusPending) return false;
+
+            session.Status = StatusInProgress;
+            session.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Debate session {SessionId}: Pending → InProgress", sessionId);
+
+            return true;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> AddRoundAsync(
+            int sessionId,
+            DTO.Debate.AgentDebateRoundDto round,
+            CancellationToken cancellationToken = default)
+        {
+            if (round == null) return false;
+
+            var sessionExists = await _db.AgentDebateSessions
+                .AnyAsync(s => s.Id == sessionId, cancellationToken);
+
+            if (!sessionExists) return false;
+
+            var entity = new AgentDebateRound
+            {
+                SessionId = sessionId,
+                RoundNumber = round.RoundNumber,
+                ActorOutput = round.ActorOutput,
+                CriticVerdict = round.CriticVerdict,
+                CriticFeedbackJson = round.CriticFeedbackJson,
+                ActorModel = round.ActorModel,
+                CriticModel = round.CriticModel,
+                WasEscalated = round.WasEscalated,
+                EscalationProvider = round.EscalationProvider,
+                TokensIn = round.TokensIn,
+                TokensOut = round.TokensOut,
+                CostUsd = round.CostUsd,
+                DurationMs = round.DurationMs,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.AgentDebateRounds.Add(entity);
+
+            // Обновляем totals сессии (increment).
+            var session = await _db.AgentDebateSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
+
+            if (session != null)
+            {
+                session.TotalCostUsd += round.CostUsd;
+                session.TotalTokensIn += round.TokensIn;
+                session.TotalTokensOut += round.TokensOut;
+                session.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
+
+            _logger.LogDebug(
+                "Debate session {SessionId}: раунд {Round} добавлен (verdict={Verdict})",
+                sessionId, round.RoundNumber, round.CriticVerdict);
+
+            return true;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> CompleteAsync(
+            int sessionId,
+            string finalVerdict,
+            string finalArtifactJson,
+            CancellationToken cancellationToken = default)
+        {
+            var session = await _db.AgentDebateSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
+
+            if (session == null) return false;
+
+            // Завершать можно только из Pending / InProgress.
+            if (session.Status == StatusCancelled
+                || session.Status == "Completed"
+                || session.Status == "Failed")
+            {
+                return false;
+            }
+
+            session.Status = "Completed";
+            session.FinalVerdict = finalVerdict;
+            session.FinalArtifactJson = finalArtifactJson;
+            session.CompletedAt = DateTime.UtcNow;
+            session.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Debate session {SessionId}: завершена, verdict={Verdict}, rounds={Rounds}",
+                sessionId, finalVerdict, session.TotalTokensIn);
+
+            return true;
         }
 
         /// <summary>

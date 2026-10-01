@@ -26,5 +26,18 @@ namespace IIChatTools.Services.DTO
         /// Токен отмены операции.
         /// </summary>
         public CancellationToken CancellationToken { get; set; }
+
+        /// <summary>
+        /// Идентификатор чата, из которого вызван инструмент
+        /// (v1.11.0, KI-126, Шаг 1E).
+        ///
+        /// <para>
+        /// <c>null</c>, если вызов вне чата (например,
+        /// <c>/api/tools/execute</c> напрямую). Используется
+        /// <c>CodeAgentWithReviewTool</c> для привязки
+        /// <c>AgentDebateSession</c> к чату.
+        /// </para>
+        /// </summary>
+        public int? ChatId { get; set; }
     }
 }
