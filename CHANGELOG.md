@@ -54,6 +54,27 @@
     только при `dotnet run` (`ValidateOnBuild`), не на build/test.
 
 ### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1E-part2)**: полная интеграция
+    `code_agent_with_review` — персистенция сессии + SSE-события +
+    Human-in-the-loop.
+    `ToolExecutionContext.EventWriter` (`ChannelWriter<ChatStreamEvent>`) —
+    для эмита событий из tool'а. `ChatStreamService` — Channel-based
+    параллельный стриминг events во время `await ExecuteAsync`
+    (для tool'ов, которые эмитят прогресс: `debate_started` /
+    `debate_round` / `debate_completed`).
+    `CodeAgentWithReviewTool`:
+    (а) persistence в `AgentDebateSession` / `AgentDebateRound` через
+    `IAgentDebateSessionService` (при `context.ChatId != null`),
+    (б) SSE-события через `EventWriter`,
+    (в) Human-in-the-loop между раундами при
+    `HumanApproval = "BetweenRounds"` (TCS-ожидание через
+    `IAgentDebateCoordinator`, макс 5 мин).
+    Endpoint `POST /api/chat/debate/{sessionId}/inject` + DTO
+    `InjectDebateFeedbackRequest`. `ChatStreamController` — DI + endpoint.
+    Тесты: обновлён `CodeAgentWithReviewToolTests` (+3 сценария —
+    events, human-approval, без ChatId).
+    **Отложено в 1F:** эскалация на `ask_external_llm` при `Uncertain`.
+
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1E-part1)**: инфраструктура SSE + Human-in-the-loop
   для Actor-Critic. Новые DTO `ChatDebateStartedDto` / `ChatDebateRoundDto` /
   `ChatDebateEscalatedDto` / `ChatDebateCompletedDto` + 4 factory-метода в

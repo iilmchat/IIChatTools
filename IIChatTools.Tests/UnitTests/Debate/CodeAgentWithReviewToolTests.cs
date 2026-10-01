@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.DTO.Chat;
+using IIChatTools.Services.DTO.Debate;
 using IIChatTools.Services.Implementation.Tools.Debate;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Newtonsoft.Json.Linq;
 using Xunit;
 
@@ -15,34 +18,26 @@ namespace IIChatTools.Tests.UnitTests.Debate
 {
     /// <summary>
     /// Unit-тесты <see cref="CodeAgentWithReviewTool"/>
-    /// (v1.11.0, KI-126, Шаг 1D).
-    ///
-    /// <para>
-    /// Проверяют: структуру (Name / Description / Parameters), валидацию аргументов,
-    /// корректность парсинга verdict критика (без реального вызова LM Studio).
-    /// Полный e2e-цикл actor-critic — в интеграционных тестах Шага 1I.
-    /// </para>
+    /// (v1.11.0, KI-126, Шаг 1E-part2 — обновлено).
     /// </summary>
     public class CodeAgentWithReviewToolTests
     {
-        /// <summary>
-        /// Минимальный in-memory конфиг для тестов.
-        /// </summary>
         private static IConfiguration BuildConfig(int maxRounds = 3)
         {
             var dict = new Dictionary<string, string>
             {
                 ["SubAgents:code_agent_with_review:MaxRounds"] = maxRounds.ToString(),
-                ["SubAgents:code_agent_with_review:TokenBudget"] = "50000"
+                ["SubAgents:code_agent_with_review:TokenBudget"] = "50000",
+                ["SubAgents:code_agent_with_review:AllowEscalation"] = "true",
+                ["SubAgents:code_agent_with_review:HumanApproval"] = "Never",
+                ["SubAgents:code_agent:Model"] = "qwen/qwen3-4b-2507",
+                ["SubAgents:code_reviewer_agent:Model"] = "qwen/qwen3-4b-2507"
             };
             return new ConfigurationBuilder()
                 .AddInMemoryCollection(dict)
                 .Build();
         }
 
-        /// <summary>
-        /// Fake-реестр с одним настроенным tool'ом (или с цепочкой ответов).
-        /// </summary>
         private sealed class FakeToolRegistry : IToolRegistry
         {
             public Dictionary<string, Queue<ToolResult>> ResponsesByTool { get; }
@@ -51,9 +46,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
             public List<string> CalledTools { get; } = new List<string>();
 
             public IReadOnlyList<ToolDescriptor> GetAllDescriptors() => Array.Empty<ToolDescriptor>();
-
             public ToolDescriptor GetDescriptor(string name) => null;
-
             public ITool GetTool(string name) => null;
 
             public Task<ToolResult> ExecuteAsync(
@@ -68,88 +61,141 @@ namespace IIChatTools.Tests.UnitTests.Debate
             }
         }
 
-        /// <summary>
-        /// Хелпер: сформировать успешный ответ агента с заданным finalAnswer.
-        /// </summary>
         private static ToolResult AgentOk(string finalAnswer) =>
             ToolResult.Ok(new { finalAnswer, completed = true }, message: null);
+
+        /// <summary>
+        /// Создаёт tool с моками <see cref="IAgentDebateSessionService"/> и
+        /// <see cref="IAgentDebateCoordinator"/>.
+        /// </summary>
+        private static CodeAgentWithReviewTool CreateTool(
+            FakeToolRegistry registry,
+            int maxRounds = 3,
+            Mock<IAgentDebateSessionService> sessionMock = null,
+            Mock<IAgentDebateCoordinator> coordinatorMock = null)
+        {
+            sessionMock ??= new Mock<IAgentDebateSessionService>();
+            sessionMock.Setup(s => s.StartAsync(
+                    It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
+                    It.IsAny<AgentDebateConfigSnapshot>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(999);
+            sessionMock.Setup(s => s.MarkInProgressAsync(
+                    It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            sessionMock.Setup(s => s.AddRoundAsync(
+                    It.IsAny<int>(), It.IsAny<AgentDebateRoundDto>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            sessionMock.Setup(s => s.CompleteAsync(
+                    It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            coordinatorMock ??= new Mock<IAgentDebateCoordinator>();
+            coordinatorMock.Setup(c => c.WaitForFeedbackAsync(
+                    It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string)null);   // таймаут по умолчанию
+
+            return new CodeAgentWithReviewTool(
+                () => registry,
+                sessionMock.Object,
+                coordinatorMock.Object,
+                BuildConfig(maxRounds),
+                NullLogger<CodeAgentWithReviewTool>.Instance);
+        }
+
+        private static ToolExecutionContext CtxWithChat(int chatId = 1) =>
+            new ToolExecutionContext { UserId = 1, ChatId = chatId };
+
+        // ============ Структура ============
 
         [Fact]
         public void Name_ReturnsCodeAgentWithReview()
         {
-            var tool = new CodeAgentWithReviewTool(
-                () => new FakeToolRegistry(),
-                BuildConfig(),
-                NullLogger<CodeAgentWithReviewTool>.Instance);
-
+            var tool = CreateTool(new FakeToolRegistry());
             Assert.Equal("code_agent_with_review", tool.Name);
         }
 
         [Fact]
         public void RequiresApprovalByDefault_IsTrue()
         {
-            var tool = new CodeAgentWithReviewTool(
-                () => new FakeToolRegistry(),
-                BuildConfig(),
-                NullLogger<CodeAgentWithReviewTool>.Instance);
-
+            var tool = CreateTool(new FakeToolRegistry());
             Assert.True(tool.RequiresApprovalByDefault);
         }
 
         [Fact]
         public void Description_MentionsActorCriticAndApproval()
         {
-            var tool = new CodeAgentWithReviewTool(
-                () => new FakeToolRegistry(),
-                BuildConfig(),
-                NullLogger<CodeAgentWithReviewTool>.Instance);
-
+            var tool = CreateTool(new FakeToolRegistry());
             var description = tool.Description;
+
             Assert.Contains("Actor-Critic", description, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("code_agent", description, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("code_reviewer_agent", description, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("approval", description, StringComparison.OrdinalIgnoreCase);
         }
 
+        // ============ Валидация ============
+
         [Fact]
         public async Task ExecuteAsync_EmptyTask_ReturnsFail()
         {
-            var tool = new CodeAgentWithReviewTool(
-                () => new FakeToolRegistry(),
-                BuildConfig(),
-                NullLogger<CodeAgentWithReviewTool>.Instance);
-
-            var ctx = new ToolExecutionContext { UserId = 1 };
-            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "   " });
+            var tool = CreateTool(new FakeToolRegistry());
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "   " });
 
             Assert.False(result.Success);
             Assert.Contains("задача", result.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
-        public async Task ExecuteAsync_ApprovedFirstRound_StopsAfterOneRound()
+        public async Task ExecuteAsync_WithoutChatId_NoPersistence()
         {
-            // Actor: 1 ответ; Critic: 1 ответ = Approved.
-            var fakeRegistry = new FakeToolRegistry();
-            fakeRegistry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
             {
-                AgentOk("def is_palindrome(s): return s == s[::-1]")
+                AgentOk("def f(): pass")
             });
-            fakeRegistry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
             });
 
-            var tool = new CodeAgentWithReviewTool(
-                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
+            var sessionMock = new Mock<IAgentDebateSessionService>();
+            var tool = CreateTool(registry, sessionMock: sessionMock);
 
-            var ctx = new ToolExecutionContext { UserId = 1 };
-            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Палиндром" });
+            var ctx = new ToolExecutionContext { UserId = 1, ChatId = null };
+            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Test" });
 
             Assert.True(result.Success);
-            Assert.Equal(2, fakeRegistry.CalledTools.Count);   // actor + critic
-            Assert.Equal("code_agent", fakeRegistry.CalledTools[0]);
-            Assert.Equal("code_reviewer_agent", fakeRegistry.CalledTools[1]);
+            // sessionService не должен вызываться.
+            sessionMock.Verify(s => s.StartAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<AgentDebateConfigSnapshot>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        // ============ Основные сценарии ============
+
+        [Fact]
+        public async Task ExecuteAsync_ApprovedFirstRound_StopsAfterOneRound()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("def is_palindrome(s): return s == s[::-1]")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
+            });
+
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Палиндром" });
+
+            Assert.True(result.Success);
+            Assert.Equal(2, registry.CalledTools.Count);
 
             var data = JObject.FromObject(result.Data);
             Assert.Equal("Approved", data["verdict"]?.ToString());
@@ -159,26 +205,24 @@ namespace IIChatTools.Tests.UnitTests.Debate
         [Fact]
         public async Task ExecuteAsync_RejectedThenApproved_StopsAfterTwoRounds()
         {
-            var fakeRegistry = new FakeToolRegistry();
-            fakeRegistry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
             {
-                AgentOk("def v1(): pass"),  // раунд 1
-                AgentOk("def v2(): return 42")  // раунд 2 (учитывает feedback)
+                AgentOk("def v1(): pass"),
+                AgentOk("def v2(): return 42")
             });
-            fakeRegistry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("{\"verdict\":\"Rejected\",\"issues\":[{\"severity\":\"Major\"}],\"summary\":\"Нет обработки\"}"),
                 AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
             });
 
-            var tool = new CodeAgentWithReviewTool(
-                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
-
-            var ctx = new ToolExecutionContext { UserId = 1 };
-            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
 
             Assert.True(result.Success);
-            Assert.Equal(4, fakeRegistry.CalledTools.Count);   // actor+critic × 2
+            Assert.Equal(4, registry.CalledTools.Count);
 
             var data = JObject.FromObject(result.Data);
             Assert.Equal("Approved", data["verdict"]?.ToString());
@@ -188,25 +232,21 @@ namespace IIChatTools.Tests.UnitTests.Debate
         [Fact]
         public async Task ExecuteAsync_MaxRoundsReached_ReturnsMaxRoundsReached()
         {
-            var fakeRegistry = new FakeToolRegistry();
-
-            // 3 раунда — все Rejected.
-            fakeRegistry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("code v1"), AgentOk("code v2"), AgentOk("code v3")
             });
-            fakeRegistry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("{\"verdict\":\"Rejected\",\"issues\":[],\"summary\":\"no\"}"),
                 AgentOk("{\"verdict\":\"Rejected\",\"issues\":[],\"summary\":\"no\"}"),
                 AgentOk("{\"verdict\":\"Rejected\",\"issues\":[],\"summary\":\"no\"}")
             });
 
-            var tool = new CodeAgentWithReviewTool(
-                () => fakeRegistry, BuildConfig(maxRounds: 3), NullLogger<CodeAgentWithReviewTool>.Instance);
-
-            var ctx = new ToolExecutionContext { UserId = 1 };
-            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
+            var tool = CreateTool(registry, maxRounds: 3);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
 
             Assert.True(result.Success);
             var data = JObject.FromObject(result.Data);
@@ -217,21 +257,19 @@ namespace IIChatTools.Tests.UnitTests.Debate
         [Fact]
         public async Task ExecuteAsync_CriticUncertain_StopsEarly()
         {
-            var fakeRegistry = new FakeToolRegistry();
-            fakeRegistry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("code v1")
             });
-            fakeRegistry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("{\"verdict\":\"Uncertain\",\"issues\":[],\"summary\":\"Не уверен\"}")
             });
 
-            var tool = new CodeAgentWithReviewTool(
-                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
-
-            var ctx = new ToolExecutionContext { UserId = 1 };
-            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
 
             Assert.True(result.Success);
             var data = JObject.FromObject(result.Data);
@@ -242,22 +280,19 @@ namespace IIChatTools.Tests.UnitTests.Debate
         [Fact]
         public async Task ExecuteAsync_CriticReturnsMarkdownJson_ParsesCorrectly()
         {
-            // qwen3-4b может вернуть JSON в markdown-блоке.
-            var fakeRegistry = new FakeToolRegistry();
-            fakeRegistry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("def foo(): pass")
             });
-            fakeRegistry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("```json\n{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"хорошо\"}\n```")
             });
 
-            var tool = new CodeAgentWithReviewTool(
-                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
-
-            var ctx = new ToolExecutionContext { UserId = 1 };
-            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
 
             Assert.True(result.Success);
             var data = JObject.FromObject(result.Data);
@@ -267,26 +302,128 @@ namespace IIChatTools.Tests.UnitTests.Debate
         [Fact]
         public async Task ExecuteAsync_CriticReturnsFreeText_FallsBackToUncertain()
         {
-            // Если критик вернул не-JSON и без явного вердикта — fallback на Uncertain.
-            var fakeRegistry = new FakeToolRegistry();
-            fakeRegistry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
             {
                 AgentOk("def foo(): pass")
             });
-            fakeRegistry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
             {
-                AgentOk("Код выглядит нормально, но я не совсем уверен в требованиях.")
+                AgentOk("Код выглядит нормально, но я не совсем уверен.")
             });
 
-            var tool = new CodeAgentWithReviewTool(
-                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
-
-            var ctx = new ToolExecutionContext { UserId = 1 };
-            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
 
             Assert.True(result.Success);
             var data = JObject.FromObject(result.Data);
             Assert.Equal("Uncertain", data["verdict"]?.ToString());
+        }
+
+        // ============ SSE-события (EventWriter) ============
+
+        [Fact]
+        public async Task ExecuteAsync_EmitsDebateEvents()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("def foo(): pass")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
+            });
+
+            var tool = CreateTool(registry);
+
+            var channel = Channel.CreateUnbounded<ChatStreamEvent>();
+            var ctx = new ToolExecutionContext
+            {
+                UserId = 1,
+                ChatId = 1,
+                EventWriter = channel.Writer
+            };
+
+            var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Test" });
+            Assert.True(result.Success);
+
+            channel.Writer.TryComplete();
+
+            var events = new List<ChatStreamEvent>();
+            await foreach (var evt in channel.Reader.ReadAllAsync())
+            {
+                events.Add(evt);
+            }
+
+            // Ожидаем: debate_started + debate_round + debate_completed
+            Assert.Contains(events, e => e.Type == "debate_started");
+            Assert.Contains(events, e => e.Type == "debate_round");
+            Assert.Contains(events, e => e.Type == "debate_completed");
+        }
+
+        // ============ Human-in-the-loop ============
+
+        [Fact]
+        public async Task ExecuteAsync_HumanApprovalBetweenRounds_CallsCoordinator()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("code v1"),
+                AgentOk("code v2")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Rejected\",\"issues\":[],\"summary\":\"no\"}"),
+                AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
+            });
+
+            var coordinatorMock = new Mock<IAgentDebateCoordinator>();
+            coordinatorMock.Setup(c => c.WaitForFeedbackAsync(
+                    It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("пользовательский feedback");
+
+            // HumanApproval: BetweenRounds
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    ["SubAgents:code_agent_with_review:MaxRounds"] = "3",
+                    ["SubAgents:code_agent_with_review:HumanApproval"] = "BetweenRounds",
+                    ["SubAgents:code_agent:Model"] = "qwen/qwen3-4b-2507",
+                    ["SubAgents:code_reviewer_agent:Model"] = "qwen/qwen3-4b-2507"
+                })
+                .Build();
+
+            var sessionMock = new Mock<IAgentDebateSessionService>();
+            sessionMock.Setup(s => s.StartAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
+                    It.IsAny<AgentDebateConfigSnapshot>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(999);
+            sessionMock.Setup(s => s.MarkInProgressAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            sessionMock.Setup(s => s.AddRoundAsync(It.IsAny<int>(), It.IsAny<AgentDebateRoundDto>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            sessionMock.Setup(s => s.CompleteAsync(It.IsAny<int>(), It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            var tool = new CodeAgentWithReviewTool(
+                () => registry,
+                sessionMock.Object,
+                coordinatorMock.Object,
+                config,
+                NullLogger<CodeAgentWithReviewTool>.Instance);
+
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Test" });
+
+            Assert.True(result.Success);
+            // Coordinator должен быть вызван ровно 1 раз (после Rejected, перед Round 2).
+            coordinatorMock.Verify(c => c.WaitForFeedbackAsync(
+                It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()),
+                Times.Once);
         }
     }
 }

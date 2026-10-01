@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using IIChatTools.Data;
 using IIChatTools.Data.Entities;
@@ -624,18 +625,17 @@ namespace IIChatTools.Services.Implementation
                                 UserId = userId,
                                 WorkspaceRoot = workspaceRoot,
                                 ClientIp = null,
-                                CancellationToken = cancellationToken
+                                CancellationToken = cancellationToken,
+                                ChatId = request.ChatId   // v1.11.0 (KI-126, 1E-part2)
                             };
 
-                            try
+                            var holder = new ToolStreamingResult();
+                            await foreach (var evt in ExecuteToolWithStreamingAsync(
+                                functionName, execContext, args, holder, cancellationToken))
                             {
-                                toolResult = await _toolRegistry.ExecuteAsync(functionName, execContext, args);
+                                yield return evt;
                             }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex, "Ошибка выполнения инструмента {Tool} после approval", functionName);
-                                toolResult = ToolResult.Fail($"Ошибка выполнения: {ex.Message}");
-                            }
+                            toolResult = holder.Result;
                         }
                         else if (decision == ChatApprovalDecision.Expired)
                         {
@@ -656,18 +656,17 @@ namespace IIChatTools.Services.Implementation
                             UserId = userId,
                             WorkspaceRoot = workspaceRoot,
                             ClientIp = null,
-                            CancellationToken = cancellationToken
+                            CancellationToken = cancellationToken,
+                            ChatId = request.ChatId   // v1.11.0 (KI-126, 1E-part2)
                         };
 
-                        try
+                        var holder = new ToolStreamingResult();
+                        await foreach (var evt in ExecuteToolWithStreamingAsync(
+                            functionName, execContext, args, holder, cancellationToken))
                         {
-                            toolResult = await _toolRegistry.ExecuteAsync(functionName, execContext, args);
+                            yield return evt;
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Ошибка выполнения инструмента {Tool} в чате", functionName);
-                            toolResult = ToolResult.Fail($"Ошибка выполнения: {ex.Message}");
-                        }
+                        toolResult = holder.Result;
                     }
 
                     // SSE-событие: tool_result
@@ -792,6 +791,101 @@ namespace IIChatTools.Services.Implementation
                     lastFinishReason,
                     accumulatedSources.Count > 0 ? accumulatedSources : null);
             }
+        }
+
+        /// <summary>
+        /// Выполняет tool с параллельным стримингом SSE-событий из
+        /// <see cref="ToolExecutionContext.EventWriter"/> (v1.11.0, KI-126, Шаг 1E-part2).
+        ///
+        /// <para>
+        /// Используется для tool'ов, которые эмитят события во время своего
+        /// выполнения (<c>code_agent_with_review</c>). Иначе события копились бы
+        /// до завершения tool'а — UI не увидел бы прогресс.
+        /// </para>
+        /// </summary>
+        /// <param name="functionName">Имя tool'а.</param>
+        /// <param name="ctx">Контекст выполнения (без <c>EventWriter</c>).</param>
+        /// <param name="args">Аргументы вызова.</param>
+        /// <param name="resultHolder">
+        /// Контейнер для финального <see cref="ToolResult"/> — обходной путь,
+        /// т.к. async-enumerable не может вернуть значение через <c>ref</c>/<c>out</c>.
+        /// </param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// Поток SSE-событий из tool'а, финальный <see cref="ToolResult"/> —
+        /// через <paramref name="resultHolder"/>.
+        /// </returns>
+        private async IAsyncEnumerable<ChatStreamEvent> ExecuteToolWithStreamingAsync(
+            string functionName,
+            ToolExecutionContext ctx,
+            JObject args,
+            ToolStreamingResult resultHolder,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            if (resultHolder == null) throw new ArgumentNullException(nameof(resultHolder));
+
+            var channel = Channel.CreateUnbounded<ChatStreamEvent>(
+                new UnboundedChannelOptions
+                {
+                    SingleReader = true,
+                    SingleWriter = false
+                });
+
+            ctx.EventWriter = channel.Writer;
+
+            // Запускаем tool без ожидания.
+            var toolTask = _toolRegistry.ExecuteAsync(functionName, ctx, args);
+
+            // Стримим события, пока tool не завершён.
+            // ВАЖНО: yield не разрешён в try-catch (CS1631) — поэтому try-catch
+            // вынесен за пределы цикла.
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                while (channel.Reader.TryRead(out var evt))
+                {
+                    yield return evt;
+                }
+
+                if (toolTask.IsCompleted) break;
+
+                var readTask = channel.Reader.WaitToReadAsync(cancellationToken).AsTask();
+                await Task.WhenAny(readTask, toolTask);
+            }
+
+            // Финализация — читаем всё, что осталось в буфере.
+            channel.Writer.TryComplete();
+            while (channel.Reader.TryRead(out var evt))
+            {
+                yield return evt;
+            }
+
+            // Обработка результата tool'а (try-catch без yield — OK).
+            ToolResult result;
+            try
+            {
+                result = await toolTask;
+            }
+            catch (OperationCanceledException)
+            {
+                result = ToolResult.Fail("Операция отменена");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка выполнения инструмента {Tool}", functionName);
+                result = ToolResult.Fail($"Ошибка выполнения: {ex.Message}");
+            }
+
+            resultHolder.Result = result ?? ToolResult.Fail("Пустой результат");
+        }
+
+        /// <summary>
+        /// Контейнер для финального <see cref="ToolResult"/>, возвращаемого
+        /// из <see cref="ExecuteToolWithStreamingAsync"/> (обходной путь:
+        /// async-enumerable не может вернуть значение через ref или out).
+        /// </summary>
+        private sealed class ToolStreamingResult
+        {
+            public ToolResult Result { get; set; }
         }
 
         /// <summary>

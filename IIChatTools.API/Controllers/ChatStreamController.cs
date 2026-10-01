@@ -27,6 +27,7 @@ namespace IIChatTools.API.Controllers
         private readonly IChatStreamService _chatStreamService;
         private readonly IChatService _chatService;
         private readonly IChatApprovalCoordinator _approvalCoordinator;
+        private readonly IAgentDebateSessionService _debateSessionService;
         private readonly IAuditService _auditService;
         private readonly ILogger<ChatStreamController> _logger;
 
@@ -36,6 +37,9 @@ namespace IIChatTools.API.Controllers
         /// <param name="chatStreamService">Сервис стриминга чата</param>
         /// <param name="chatService">Сервис CRUD чатов (для edit user-message)</param>
         /// <param name="approvalCoordinator">Координатор подтверждений (Singleton)</param>
+        /// <param name="debateSessionService">
+        /// Сервис управления сессиями Actor-Critic (v1.11.0, KI-126, Шаг 1E-part2).
+        /// </param>
         /// <param name="auditService">Сервис аудита (для записи Stop)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
@@ -43,12 +47,14 @@ namespace IIChatTools.API.Controllers
             IChatStreamService chatStreamService,
             IChatService chatService,
             IChatApprovalCoordinator approvalCoordinator,
+            IAgentDebateSessionService debateSessionService,
             IAuditService auditService,
             ILogger<ChatStreamController> logger)
         {
             _chatStreamService = chatStreamService ?? throw new ArgumentNullException(nameof(chatStreamService));
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
+            _debateSessionService = debateSessionService ?? throw new ArgumentNullException(nameof(debateSessionService));
             _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -334,6 +340,68 @@ namespace IIChatTools.API.Controllers
             return await ResolveApprovalAsync(callId, ChatApprovalDecision.Rejected);
         }
 
+        // ============================================================
+        // Actor-Critic debate feedback (v1.11.0, KI-126, Шаг 1E-part2)
+        // ============================================================
+
+        /// <summary>
+        /// Передаёт feedback пользователя в ожидающий Actor-Critic раунд
+        /// (Human-in-the-loop между раундами).
+        ///
+        /// <para>
+        /// Используется SSE-клиентом при получении события <c>debate_round</c>
+        /// с <c>criticVerdict = "Rejected"</c> и активной опцией
+        /// <c>HumanApproval = "BetweenRounds"</c>.
+        /// </para>
+        /// </summary>
+        /// <param name="sessionId">Идентификатор debate-сессии.</param>
+        /// <param name="request">Текст feedback.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>JSON { success, data: { resolved } } или { success: false, message }.</returns>
+        [HttpPost("debate/{sessionId:int}/inject")]
+        public async Task<IActionResult> InjectDebateFeedbackAsync(
+            int sessionId,
+            [FromBody] InjectDebateFeedbackRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.Feedback))
+                {
+                    return Ok(new { success = false, message = "Пустой feedback." });
+                }
+
+                var userId = GetCurrentUserId();
+
+                _logger.LogInformation(
+                    "Debate inject: sessionId={SessionId}, userId={UserId}, len={Len}",
+                    sessionId, userId, request.Feedback.Length);
+
+                var ok = await _debateSessionService.InjectFeedbackAsync(
+                    sessionId, userId, request.Feedback, cancellationToken);
+
+                if (!ok)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "Сессия не найдена, уже завершена, или ожидающий раунд отсутствует."
+                    });
+                }
+
+                return Ok(new { success = true, data = new { resolved = true } });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка inject debate feedback sessionId={SessionId}", sessionId);
+                return Ok(new { success = false, message = "Внутренняя ошибка сервера." });
+            }
+        }
+
         /// <summary>
         /// Общий метод approve/reject: находит ожидающего, будит его.
         /// </summary>
@@ -380,6 +448,6 @@ namespace IIChatTools.API.Controllers
                 _logger.LogError(ex, "Ошибка resolve approval callId={CallId}", callId);
                 return Ok(new { success = false, message = "Внутренняя ошибка сервера." });
             }
-        }        
+        }
     }
 }
