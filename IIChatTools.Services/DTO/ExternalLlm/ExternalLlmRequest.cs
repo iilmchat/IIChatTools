@@ -1,7 +1,7 @@
 namespace IIChatTools.Services.DTO.ExternalLlm
 {
     /// <summary>
-    /// Запрос к внешней LLM (v1.8.1, KI-109).
+    /// Запрос к внешней LLM (v1.8.1, KI-109; v1.9.0, KI-110a — +<see cref="System"/>).
     ///
     /// <para>
     /// Заполняется инструментом <c>ask_external_llm</c> из аргументов, переданных LLM.
@@ -21,6 +21,24 @@ namespace IIChatTools.Services.DTO.ExternalLlm
         /// Текст запроса (prompt) — единственное обязательное поле.
         /// </summary>
         public string Prompt { get; set; }
+
+        /// <summary>
+        /// System prompt (v1.9.0, KI-110a).
+        ///
+        /// <para>
+        /// Используется <b>только Anthropic-веткой</b>
+        /// (<see cref="Implementation.ExternalLlm.Formats.AnthropicRequestBuilder"/> —
+        /// отдельное поле <c>system</c> в теле запроса). OpenAI-формат передаёт system
+        /// как роль <c>system</c> в <c>messages[]</c>, но текущий
+        /// <see cref="Implementation.ExternalLlm.ExternalLlmClient"/> system
+        /// не поддерживает — в OpenAI-ветке поле игнорируется.
+        /// </para>
+        ///
+        /// <para>
+        /// <c>null</c> / пустая строка / whitespace — поле не добавляется в тело запроса.
+        /// </para>
+        /// </summary>
+        public string System { get; set; }
 
         /// <summary>
         /// Включать ли последние N сообщений из чата в prompt.
