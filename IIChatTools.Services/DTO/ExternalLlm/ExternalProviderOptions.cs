@@ -24,6 +24,24 @@ namespace IIChatTools.Services.DTO.ExternalLlm
         public string DisplayName { get; set; }
 
         /// <summary>
+        /// Формат API провайдера (v1.9.0, KI-110a).
+        ///
+        /// <para>
+        /// По умолчанию <see cref="ProviderFormat.OpenAI"/> — 5 существующих
+        /// провайдеров (DeepSeek, OpenAI, Groq, Together AI, Ollama) не задают
+        /// это поле в <c>appsettings.json</c> и продолжают работать без изменений
+        /// (DESIGN v1.9 § 3.2).
+        /// </para>
+        ///
+        /// <para>
+        /// <see cref="ProviderFormat.Anthropic"/> включает Anthropic-ветку
+        /// (<c>POST /messages</c>, <c>x-api-key</c>, system отдельно).
+        /// <see cref="ProviderFormat.Gemini"/> зарезервирован на v1.9.x (KI-110b).
+        /// </para>
+        /// </summary>
+        public ProviderFormat Format { get; set; } = ProviderFormat.OpenAI;
+
+        /// <summary>
         /// Base URL провайдера без trailing slash,
         /// например <c>https://api.deepseek.com/v1</c>.
         /// Должен быть <c>https://</c> (DESIGN § 6.6).

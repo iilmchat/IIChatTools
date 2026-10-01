@@ -252,5 +252,57 @@ namespace IIChatTools.Tests.UnitTests.ExternalLlm
             Assert.Null(registry.Get(""));
             Assert.Null(registry.Get(null));
         }
+
+        /// <summary>
+        /// v1.9.0 (KI-110a): <see cref="ExternalProviderOptions.Format"/>
+        /// не влияет на валидацию <see cref="ExternalProviderRegistry"/>
+        /// (DESIGN v1.9 § 3.2). Провайдер с <c>Format=Anthropic</c>
+        /// проходит те же проверки, что и <c>Format=OpenAI</c>.
+        /// </summary>
+        [Fact]
+        public void EnabledTrue_AnthropicFormat_ValidatesOk()
+        {
+            var anthropic = ValidProvider();
+            anthropic.Format = ProviderFormat.Anthropic;
+            anthropic.BaseUrl = "https://api.anthropic.com/v1";
+            anthropic.Model = "claude-haiku-4-5";
+
+            var opts = new ExternalLlmOptions
+            {
+                Enabled = true,
+                DefaultProvider = "anthropic",
+                Providers = new Dictionary<string, ExternalProviderOptions>
+                {
+                    ["anthropic"] = anthropic
+                }
+            };
+
+            var registry = new ExternalProviderRegistry(
+                Options.Create(opts),
+                Config(),
+                NullLogger<ExternalProviderRegistry>.Instance);
+
+            var provider = registry.Get("anthropic");
+            Assert.NotNull(provider);
+            Assert.Equal(ProviderFormat.Anthropic, provider.Format);
+        }
+
+        /// <summary>
+        /// v1.9.0 (KI-110a): значение по умолчанию
+        /// <see cref="ExternalProviderOptions.Format"/> — <c>OpenAI</c>.
+        ///
+        /// <para>
+        /// Гарантирует обратную совместимость: 5 существующих провайдеров
+        /// (DeepSeek, OpenAI, Groq, Together AI, Ollama) не задают
+        /// <c>Format</c> в <c>appsettings.json</c> — работают как раньше
+        /// (DESIGN v1.9 § 3.2).
+        /// </para>
+        /// </summary>
+        [Fact]
+        public void DefaultFormat_IsOpenAI()
+        {
+            var provider = new ExternalProviderOptions();
+            Assert.Equal(ProviderFormat.OpenAI, provider.Format);
+        }
     }
 }
