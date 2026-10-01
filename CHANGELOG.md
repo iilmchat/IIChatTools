@@ -20,9 +20,22 @@
 
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1A)**: сущности `AgentDebateSession` +
-  `AgentDebateRound` для Actor-Critic мультиагентов. 2 DbSet + конфигурация
-  в `AppDbContext` (FK `Chat` Cascade + FK `Session` Cascade, 3 индекса).
-  Миграция `AddAgentDebateSessions` (SqlServer).
+      `AgentDebateRound` для Actor-Critic мультиагентов. 2 DbSet + конфигурация
+      в `AppDbContext` (FK `Chat` Cascade + FK `Session` Cascade, 3 индекса:
+      `IX_AgentDebateSessions_ChatId_StartedAt`, `IX_AgentDebateSessions_User_Status`,
+      `IX_AgentDebateRounds_Session_RoundNumber`). Миграция
+      `AddAgentDebateSessions` (SqlServer, `decimal(18,6)` для cost-полей).
+
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1B)**: сервис `IAgentDebateSessionService` +
+      `AgentDebateSessionService` (Scoped). Concurrency-guard: max 3 активных
+      сессии на пользователя (по образцу `MaxBrowserSessionsPerUser`).
+      State machine: `Pending` → `InProgress` → (`Completed` | `Failed` | `Cancelled`).
+      DTO: `AgentDebateStatusDto`, `AgentDebateRoundDto`,
+      `AgentDebateConfigSnapshot` (MaxRounds / TokenBudget / ActorModel /
+      CriticModel / AllowEscalation / HumanApproval). Регистрация в DI
+      (`Startup.cs`). Фоновый цикл раундов и `InjectFeedbackAsync` —
+      заглушки (реальные — в Шагах 1D / 1E). Тесты: +8
+      (`AgentDebateSessionServiceTests`).
 
 ---
 

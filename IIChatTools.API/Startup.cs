@@ -7,6 +7,7 @@ using IIChatTools.Data;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТЬ
+using IIChatTools.Services.Implementation.Debate;         // v1.11.0 (KI-126, Шаг 1B): AgentDebateSessionService
 using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): EmbeddingService
 using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): SqlAgentOptions
 using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Mail Agent
@@ -191,7 +192,7 @@ namespace IIChatTools.API
                     }
                 };
             });
-            
+
             // ============ 3.5. Multipart + Kestrel limits (v1.5.0, KI-083, Шаг 6B) ============
             // Поднимаем лимиты для загрузки файлов (multipart) до 40 MB:
             //   32 MB (Rag:Attachments:MaxFileSizeBytes) + запас на multipart-overhead.
@@ -208,7 +209,7 @@ namespace IIChatTools.API
             });
 
             // ============ 4. MVC + локализация ============
-            
+
             //services.AddLocalization(options => options.ResourcesPath = "Resources");
             services.AddLocalization(options => options.ResourcesPath = "");
             services.AddControllersWithViews()
@@ -249,7 +250,7 @@ namespace IIChatTools.API
                 options.RequestCultureProviders.Add(new Microsoft.AspNetCore.Localization.CookieRequestCultureProvider());
                 options.RequestCultureProviders.Add(new Microsoft.AspNetCore.Localization.AcceptLanguageHeaderRequestCultureProvider());
             });
-            
+
             // ============ 5. HttpClient с настройкой прокси ============
             services.AddHttpClient();
 
@@ -348,7 +349,12 @@ namespace IIChatTools.API
             services.AddScoped<IChatTitleService, ChatTitleService>();
 
             // ============ Chat stream service (v1.3 Фаза 1.5) ============
-            services.AddScoped<IChatStreamService, ChatStreamService>();            
+            services.AddScoped<IChatStreamService, ChatStreamService>();
+
+            // ============ Debate session service (v1.11.0, KI-126, Шаг 1B) ============
+            // Scoped — работает с AppDbContext (создание / отмена сессии, чтение статуса).
+            // Concurrency-guard (max 3 активных на пользователя) — внутри сервиса.
+            services.AddScoped<IAgentDebateSessionService, AgentDebateSessionService>();
 
             // ============ Chat approval coordinator (v1.3 Фаза 1.7) ============
             // Singleton — связывает SSE-стрим и REST-endpoint в разных HTTP-scope.
@@ -593,7 +599,7 @@ namespace IIChatTools.API
                     pattern: "{controller=Home}/{action=Index}/{id?}");
 
                 // Prometheus /metrics — публичный, без авторизации (для скрейпера).
-                endpoints.MapMetrics("/metrics");                    
+                endpoints.MapMetrics("/metrics");
 
                 // Health checks — анонимные, БЕЗ rate limiting.
                 endpoints.MapHealthChecks("/health/live", new HealthCheckOptions
