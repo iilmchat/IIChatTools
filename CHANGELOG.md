@@ -32,6 +32,18 @@
   security fix + Dispose RNG).
 
 ### Added
+- **v1.10.0 Фаза 4 (KI-110b): конфигурация Gemini + README**:
+  - `appsettings.json` / `appsettings.Development.json`:
+    `gemini.BaseUrl` `v1beta` → `v1` (stable API).
+    `DisplayName` без «(v1.9.x, KI-110b)» — фича реализована.
+    Тарифы: `$0.0001 / $0.0004` за 1k токенов (вместо placeholder 0).
+  - README («External-LLM Agent») — заголовок обновлён до v1.10.0;
+    intro упоминает 3 формата (OpenAI / Anthropic / Gemini);
+    блок про Gemini-заглушку заменён на полноценную инструкцию
+    (VPN из РФ, free tier 15 RPM / 1500 req/day, `x-goog-api-key`).
+  - **Обратная совместимость:** 6 существующих провайдеров
+    (DeepSeek, OpenAI, Groq, Together, Ollama, Anthropic) — без изменений.
+
 - **v1.10.0 Фаза 3 (KI-110b): рефакторинг `ExternalLlmClient`**:
   - Switch по `ProviderFormat`: `Gemini` → `CompleteGeminiAsync`
     (удалена заглушка `NotSupportedException`).

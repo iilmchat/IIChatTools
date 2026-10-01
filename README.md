@@ -823,13 +823,15 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 
 ---
 
-## External-LLM Agent (v1.8.1 + Anthropic v1.9.0)
+## External-LLM Agent (v1.8.1 + Anthropic v1.9.0 + Gemini v1.10.0)
 
-Обращение к внешним LLM. Поддерживаются **OpenAI-совместимые** провайдеры
-(DeepSeek / OpenAI / Groq / Together AI / Ollama — единый формат
-`POST {BaseUrl}/chat/completions`) и **Anthropic Claude** (свой формат:
-`POST {BaseUrl}/messages`, `x-api-key` + `anthropic-version: 2023-06-01`).
-**Google Gemini** — зарезервирован на v1.9.x (KI-110b).
+Обращение к внешним LLM. Поддерживаются **три формата**:
+- **OpenAI-совместимые** (DeepSeek / OpenAI / Groq / Together AI / Ollama) —
+  `POST {BaseUrl}/chat/completions`, `Authorization: Bearer`.
+- **Anthropic Claude** — `POST {BaseUrl}/messages`, `x-api-key` +
+  `anthropic-version: 2023-06-01`.
+- **Google Gemini** (v1.10.0, KI-110b) — `POST {BaseUrl}/models/{model}:generateContent`,
+  `x-goog-api-key`.
 
 **Требует явного `ExternalLlm:Enabled = true`** + API-ключи в User Secrets.
 
@@ -915,16 +917,20 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 
     dotnet user-secrets set "ExternalLlm:Anthropic:ApiKey" "sk-ant-..."
 
-**Google Gemini (v1.9.x, KI-110b — заглушка):**
+**Google Gemini (v1.10.0, KI-110b):**
 
-Запись в `appsettings.json` **присутствует** (`Format: "Gemini"`), но при вызове
-`ask_external_llm(provider="gemini")` возвращается `ToolResult.Fail` с текстом
-«Gemini — v1.9.x, KI-110b». Ключ можно задать сейчас (пригодится для v1.9.x):
+- **VPN обязателен** — регистрация и API-запросы блокируются по IP РФ.
+- API key: https://aistudio.google.com/app/apikey → «Create API key».
+  Формат: `AIza...`.
+- **Free tier доступен** — 15 RPM / 1500 req/day для `gemini-2.0-flash`.
+  Для сравнения с Anthropic Haiku: Gemini в ~15 раз дешевле по output
+  ($0.0004 vs $0.005 за 1k токенов).
+- Модель по умолчанию: `gemini-2.0-flash`.
+- Заголовок `x-goog-api-key` — задаётся **в коде**, не в конфиге.
 
     dotnet user-secrets set "ExternalLlm:Gemini:ApiKey" "AIza..."
 
-Подробности — [docs/development/v1.8/DESIGN_EXTERNAL_LLM.md](docs/development/v1.8/DESIGN_EXTERNAL_LLM.md) § 5.4
-и [docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md](docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md) § 5.
+Подробности — [docs/development/v1.9/DESIGN_GEMINI.md](docs/development/v1.9/DESIGN_GEMINI.md) § 5.
 
 ### Ограничения
 
