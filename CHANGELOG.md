@@ -18,7 +18,11 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)_
+### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1A)**: сущности `AgentDebateSession` +
+  `AgentDebateRound` для Actor-Critic мультиагентов. 2 DbSet + конфигурация
+  в `AppDbContext` (FK `Chat` Cascade + FK `Session` Cascade, 3 индекса).
+  Миграция `AddAgentDebateSessions` (SqlServer).
 
 ---
 

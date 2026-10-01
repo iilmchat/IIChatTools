@@ -45,6 +45,15 @@ namespace IIChatTools.Data
         /// </summary>
         public DbSet<ChatAttachment> ChatAttachments { get; set; }
 
+        /// <summary>
+        /// Сессии Actor-Critic / Debate (v1.11.0, KI-126).
+        /// </summary>
+        public DbSet<AgentDebateSession> AgentDebateSessions { get; set; }
+
+        /// <summary>
+        /// Раунды внутри сессий Actor-Critic / Debate (v1.11.0, KI-126).
+        /// </summary>
+        public DbSet<AgentDebateRound> AgentDebateRounds { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -213,6 +222,58 @@ namespace IIChatTools.Data
                 // Индекс 2: дедупликация по (UserId, ContentHash).
                 entity.HasIndex(e => new { e.UserId, e.ContentHash })
                     .HasDatabaseName("IX_ChatAttachments_User_Hash");
+            });
+
+            // ============ AgentDebateSessions / Rounds (v1.11.0, KI-126, Шаг 1A) ============
+            modelBuilder.Entity<AgentDebateSession>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Task).IsRequired();               // nvarchar(max)
+                entity.Property(e => e.PatternType).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+                entity.Property(e => e.FinalVerdict).HasMaxLength(50);
+                entity.Property(e => e.FinalArtifactJson);               // nvarchar(max)
+                entity.Property(e => e.ConfigSnapshotJson);              // nvarchar(max)
+                entity.Property(e => e.TotalCostUsd).HasPrecision(18, 6);
+
+                // FK на Chat с каскадным удалением:
+                // удаление чата → удаление всех его debate-сессий.
+                entity.HasOne(e => e.Chat)
+                    .WithMany()
+                    .HasForeignKey(e => e.ChatId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Индекс 1: список сессий чата (сортировка по StartedAt).
+                entity.HasIndex(e => new { e.ChatId, e.StartedAt })
+                    .HasDatabaseName("IX_AgentDebateSessions_ChatId_StartedAt");
+
+                // Индекс 2: проверка concurrency (Active на пользователя) + фильтрация.
+                entity.HasIndex(e => new { e.InitiatedByUserId, e.Status })
+                    .HasDatabaseName("IX_AgentDebateSessions_User_Status");
+            });
+
+            modelBuilder.Entity<AgentDebateRound>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.ActorOutput);                     // nvarchar(max)
+                entity.Property(e => e.CriticVerdict).HasMaxLength(20);
+                entity.Property(e => e.CriticFeedbackJson);              // nvarchar(max)
+                entity.Property(e => e.ActorModel).HasMaxLength(100);
+                entity.Property(e => e.CriticModel).HasMaxLength(100);
+                entity.Property(e => e.EscalationProvider).HasMaxLength(50);
+                entity.Property(e => e.CostUsd).HasPrecision(18, 6);
+
+                // FK на Session с каскадным удалением.
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.Rounds)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Индекс: загрузка раундов сессии в порядке номеров.
+                entity.HasIndex(e => new { e.SessionId, e.RoundNumber })
+                    .HasDatabaseName("IX_AgentDebateRounds_Session_RoundNumber");
             });
         }
     }
