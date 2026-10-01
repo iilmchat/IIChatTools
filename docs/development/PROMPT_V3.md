@@ -1,9 +1,9 @@
 # PROMPT_V3.md — Стартовый промпт для нового чата
 
-**Версия промпта:** v3.0
+**Версия промпта:** v3.1
 **Дата:** 2026-10-01
-**Актуальный релиз проекта:** v1.10.0 (2026-10-01)
-**Статус:** v1.10.0 (Google Gemini, KI-110b) выпущен. В работе — **KI-122 (темы оформления) / KI-108 (per-user mail) / KI-091 (SqlServer миграции)**.
+**Актуальный релиз проекта:** v1.10.1 (2026-10-01)
+**Статус:** v1.10.1 (темы оформления UI, KI-122 + KI-092) выпущен. В работе — **KI-126 (Actor-Critic мультиагенты) / KI-108 (per-user mail) / KI-091 (SqlServer миграции)**.
 
 ---
 
@@ -28,8 +28,8 @@
 
 - **GitHub:** https://github.com/iilmchat/IIChatTools
 - **Ветка по умолчанию:** `main`
-- **Текущий релиз:** v1.10.0 (2026-10-01)
-- **В работе:** KI-122 (темы оформления) / KI-108 (per-user mail) / KI-091 (SqlServer миграции). DESIGN Gemini — `docs/development/v1.9/DESIGN_GEMINI.md` (Implemented для v1.10.0).
+- **Текущий релиз:** v1.10.1 (2026-10-01)
+- **В работе:** KI-126 (Actor-Critic мультиагенты, DESIGN — `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`) / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
 
 ---
 
@@ -62,7 +62,7 @@
 
 ---
 
-## § 3. Текущее состояние (v1.8.2)
+## § 3. Текущее состояние (v1.10.1)
 
 ### Стек
 
@@ -93,13 +93,15 @@
 
 - **60 инструментов** в `ToolRegistry`:
   - 40 raw (включая `consult_secondary_agent`).
-  - +6 специализированных агентов (`file_system`, `code`, `web`, `git`, `github`, `planner`).
+  - +8 специализированных агентов (`file_system`, `code`, `web`, `git`, `github`, `planner`, `mail`, `external_llm`).
   - +3 RAG-tool.
   - +1 `database_agent`.
   - +7 mail-tools.
   - +3 external-llm-tools.
-- **Chat видит 13 инструментов**: 8 агентов + `consult_secondary_agent` + 3 RAG + `database_agent` (посчитано по `SubAgentRegistry.GetEnabled()` + RagToolNames + DatabaseAgentToolName в `ChatStreamService`).
-- **KI:** ~82 в реестре; Fixed = ~68; Deferred = 7; Documented = 13; Planned = 4; In Progress = 1 (KI-110a); Partially Fixed = 1; Implemented = 3.
+- **Chat видит 13 инструментов**: 8 агентов + `consult_secondary_agent` + 3 RAG + `database_agent`.
+- **Тесты:** 592/592 (5 Skip — реальные внешние провайдеры).
+- **KI:** 85 в реестре; Fixed ≈ 71; Deferred = 5; Documented = 12; Planned = 4 (KI-108, KI-111, KI-113, KI-126); Partially Fixed = 1; Implemented = 3.
+- **Релизы после v1.8.2:** v1.9.0 (Anthropic, KI-110a) · v1.10.0 (Gemini, KI-110b) · v1.10.1 (темы UI, KI-122 + KI-092). Детали — `CHANGELOG.md`.
 
 ---
 
@@ -176,6 +178,31 @@
 
 ## § 5. Roadmap
 
+### v1.11.0 (🚧 В работе) — Actor-Critic мультиагенты (KI-126, Фаза 1)
+
+**DESIGN:** `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md` (Draft).
+Автономное взаимодействие суб-агентов с ролями «Исполнитель» (Actor)
+и «Критик» (Critic). Actor-Critic для `code_agent` — новый агент
+`code_reviewer_agent` + top-level tool `code_agent_with_review`.
+
+- **Новые сущности:** `AgentDebateSession`, `AgentDebateRound`.
+- **SSE-события:** `debate_started` / `debate_round` / `debate_escalated` /
+  `debate_completed`.
+- **Цикл:** до 3 раундов, консенсус — раньше.
+- **Эскалация:** при `critic.verdict == Uncertain` → `ask_external_llm`.
+- **UI:** селектор между «диалог» и «сворачиваемый».
+- **План:** 3 фазы (~12-15 ч). Ф1 — Actor-Critic (~5-6 ч);
+  Ф2 — Debate для `planner_agent` (v1.11.x); Ф3 — Orchestrator-Worker +
+  Blackboard (v2.0).
+- **Скоуп Ф1:** шаги 1A-1J (entities → state machine → reviewer →
+  tool → SSE → escalation → UI → localization → tests → release).
+
+### v1.10.1 (✅ Done, 2026-10-01) — Темы оформления UI (KI-122)
+
+5 тем: Light / Dark / Dimmed / Solarized Light / High Contrast.
+Переключатель в navbar. Рефакторинг CSS на Bootstrap-переменные.
+Попутно закрыт **KI-092** (Bootstrap `aria-hidden` warning).
+
 ### v1.10.0 (✅ Done, 2026-10-01) — Google Gemini (KI-110b)
 
 **DESIGN:** `docs/development/v1.9/DESIGN_GEMINI.md` (Implemented).
@@ -188,26 +215,30 @@ Builder + Parser + Client + Config. Тесты: **559 → 592** (+33).
 **DESIGN:** `docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md` (Implemented).
 Клиент `ExternalLlmClient` — switch по `ProviderFormat` (OpenAI / Anthropic / Gemini).
 Anthropic-ветка: `POST /messages`, `x-api-key`, `anthropic-version: 2023-06-01`.
-Gemini — заглушка `NotSupportedException` (v1.9.x, KI-110b).
 
-- `ProviderFormat` enum (OpenAI / Anthropic / Gemini), default = OpenAI.
-- `ExternalProviderOptions.Format` — новое свойство.
-- `AnthropicRequestBuilder` + `AnthropicResponseParser` (static helpers).
-- Рефакторинг `ExternalLlmClient.CompleteAsync` — switch по `Format` → 3 приватных метода.
-- Anthropic Haiku 4.5: `$0.001` / `$0.005` за 1k токенов (подтверждено на anthropic.com/pricing).
-- **НЕ входит:** Gemini (v1.9.x, KI-110b), streaming, function calling, vision, prompt caching.
-- План: 5 фаз, ~9.5 ч.
+### v1.11.x+ / v2.0 (запланировано)
 
-### v1.9.x (после v1.9.0)
-
-- **KI-110b** — Google Gemini (свой формат `/v1beta/models`).
+- **KI-126 Фаза 2** — Debate для `planner_agent` (Pro / Contra / Judge).
+- **KI-126 Фаза 3** — Orchestrator-Worker + Blackboard.
 - **KI-108** — Per-user mail accounts (таблица `UserMailAccount` + `IDataProtector`).
+- **KI-091** — SqlServer цепочка миграций (обязательно перед prod-SqlServer).
+- **KI-111 / KI-113** — улучшения `mail_agent` (stateless + честность ответов).
+- **KI-082** — модалка-редактор длинных сообщений.
 - **Per-user External-LLM API keys** (аналог KI-108).
-- **KI-122** — Темы оформления UI (5 популярных, кнопка рядом со сменой языка). **⚠️ Зависимость:** Bootstrap 5.2 → 5.3+.
-- **KI-123** — Индикатор загрузки списка чатов («Идёт загрузка» + spinner).
-- Сохранение вложений при `read_email`.
-- Прикрепление вложений к `send_email`.
-- **PROMPT_V3** — при необходимости обновление.
+- Сохранение вложений при `read_email` + прикрепление к `send_email`.
+
+### Done ранее (справка)
+
+- v1.10.1 — Темы UI (KI-122, KI-092).
+- v1.10.0 — Gemini (KI-110b).
+- v1.9.0 — Anthropic (KI-110a).
+- v1.8.2 — Tool result cache + KI-121.
+- v1.8.1 — External-LLM Agent (KI-109).
+- v1.8.0 — Mail Agent (KI-107).
+- v1.7.0 — Database Agent (KI-097).
+- v1.5.0 — RAG / Knowledge Base (KI-083).
+- v1.4.0 — Multi-Agent (KI-052).
+- v1.3.x — Chat UI.
 
 ### v1.10+ / инфраструктура
 
@@ -441,9 +472,18 @@ UI: `https://localhost:5001`; Метрики: `https://localhost:5001/metrics`.
 
 Прочитай правила и это сообщение. Затем задай мне вопросы:
 
-1. Что делаем сегодня — v1.9.0 (Anthropic, KI-110a) / v1.8.x hotfix / новая задача / KI?
+1. Что делаем сегодня — **KI-126 Фаза 1 (Actor-Critic мультиагенты)**
+   / KI-108 (per-user mail) / KI-091 (SqlServer миграции) / новая задача?
 2. Есть ли специфичные требования?
 3. Нужны ли файлы, которых у тебя нет?
 4. Какой путь к проекту — `C:\Projects\AI\IIChatTools` или другой?
+
+**Контекст KI-126 Фаза 1 (если её делаем):**
+- DESIGN — `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`.
+- Согласовано: Actor-Critic для `code_agent` (не Debate).
+- Цикл: max 3 раунда + консенсус; настройка через `appsettings.json`.
+- Эскалация: `critic.verdict == Uncertain` → `ask_external_llm` (DeepSeek).
+- UI: селектор «диалог / сворачиваемый».
+- План Ф1: шаги 1A-1J (~5-6 ч).
 
 **Готов? Приступаем.**
