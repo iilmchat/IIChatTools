@@ -56,9 +56,14 @@
                    data-label-no-results="@Localizer["ChatSearchNoResults"]" />
         </div>
 
-        <div id="chat-list" class="chat-list">
-            <div class="text-muted text-center p-3 small">
-                @Localizer["Загрузка"]…
+        <!-- KI-123: индикатор загрузки списка чатов (fallback при медленной сети).
+             JS перезаписывает innerHTML при fetch — см. renderChatListLoading(). -->
+        <div id="chat-list"
+             class="chat-list"
+             data-label-loading="@Localizer["ChatListLoading"]">
+            <div class="chat-list-loading">
+                <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                <span>@Localizer["ChatListLoading"]</span>
             </div>
         </div>
     </aside>

@@ -798,7 +798,9 @@ async function loadModels() {
 
 async function loadChats() {
     const listEl = document.getElementById('chat-list');
-    if (listEl) listEl.innerHTML = '<div class="text-muted text-center p-3 small">Загрузка…</div>';
+    // KI-123: индикатор загрузки (spinner + «Идёт загрузка списка чатов…»).
+    // Локализация — из data-label-loading на #chat-list (RULES § 4.17).
+    renderChatListLoading(listEl);
 
     // KI-068: если есть активный поисковый запрос — используем server-side search.
     // Пустой запрос → полный список (поведение как до KI-068).
@@ -829,6 +831,26 @@ function _scheduleSearch() {
         _searchDebounceTimer = null;
         loadChats();
     }, 300);
+}
+
+/**
+ * KI-123: показывает в sidebar индикатор загрузки списка чатов —
+ * spinner (Bootstrap `.spinner-border`) + текст.
+ *
+ * Текст локализуется через `data-label-loading` на `#chat-list`
+ * (RULES § 4.17 — не хардкодить JS-строки).
+ *
+ * @param {HTMLElement} listEl — контейнер `#chat-list`
+ */
+function renderChatListLoading(listEl) {
+    if (!listEl) return;
+
+    const label = listEl.dataset.labelLoading || 'Loading chats…';
+    listEl.innerHTML = `
+        <div class="chat-list-loading">
+            <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+            <span>${escapeHtml(label)}</span>
+        </div>`;
 }
 
 function renderChatList() {

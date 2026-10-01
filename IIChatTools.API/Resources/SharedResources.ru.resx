@@ -247,6 +247,8 @@
   <data name="ChatSearchGlobalClear" xml:space="preserve"><value>Очистить поле</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Свернуть боковую панель</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Открыть боковую панель</value></data>
+  <!-- KI-123: индикатор загрузки списка чатов -->
+  <data name="ChatListLoading" xml:space="preserve"><value>Идёт загрузка списка чатов…</value></data>
 
   <!-- ===== Chat: Sources / citations (v1.6.0, KI-086, Шаг 4) ===== -->
   <data name="ChatSourcesHeader" xml:space="preserve"><value>Источники</value></data>

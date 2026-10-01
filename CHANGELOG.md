@@ -18,6 +18,16 @@
 
 ## [Unreleased]
 
+### Added
+- **KI-123 — индикатор загрузки списка чатов** (Deferred → Fixed):
+  spinner (Bootstrap `.spinner-border`) + локализованный текст
+  «Идёт загрузка списка чатов…» в sidebar `/chat`.
+  Появляется на время `GET /api/chats` (включая поиск с `?search=`).
+  Локализация через `data-label-loading` на `#chat-list` (RULES § 4.17),
+  +2 ключа в `.resx` (RU + EN). `chat.js` — новый helper
+  `renderChatListLoading(listEl)`, вызывается из `loadChats()` вместо
+  hardcoded «Загрузка…».
+
 ### Fixed
 - **KI-124 — Интеграционный тест Anthropic Claude** (v1.9.0-followup):
   добавлен `Anthropic_RealRequest_ReturnsResponse` в

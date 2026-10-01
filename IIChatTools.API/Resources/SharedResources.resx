@@ -247,6 +247,8 @@
   <data name="ChatSearchGlobalClear" xml:space="preserve"><value>Clear field</value></data>
   <data name="ChatSidebarCollapse" xml:space="preserve"><value>Collapse sidebar</value></data>
   <data name="ChatSidebarExpand" xml:space="preserve"><value>Open sidebar</value></data>
+  <!-- KI-123: индикатор загрузки списка чатов -->
+  <data name="ChatListLoading" xml:space="preserve"><value>Loading chats…</value></data>
 
   <!-- ===== Chat: Sources / citations (v1.6.0, KI-086, Шаг 4) ===== -->
   <data name="ChatSourcesHeader" xml:space="preserve"><value>Sources</value></data>

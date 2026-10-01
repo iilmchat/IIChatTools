@@ -65,6 +65,21 @@
     padding: .5rem;
 }
 
+/* KI-123: индикатор загрузки списка чатов (spinner + текст) */
+.chat-list-loading {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .75rem 1rem;
+    color: #6c757d;
+    font-size: .875rem;
+}
+
+.chat-list-loading .spinner-border {
+    flex-shrink: 0;
+    color: #6c757d;
+}
+
 /* Элемент списка чатов */
 .chat-list-item {
     display: flex;
