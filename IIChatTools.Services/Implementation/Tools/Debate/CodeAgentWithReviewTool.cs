@@ -65,25 +65,35 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         /// <summary>Жёсткий верхний предел раундов (защита от бесконечного цикла).</summary>
         private const int HardMaxRounds = 5;
 
-        private readonly IToolRegistry _toolRegistry;
+        /// <summary>
+        /// Ленивая фабрика реестра инструментов — разрывает DI-цикл
+        /// <c>ToolRegistry → IEnumerable&lt;ITool&gt; → CodeAgentWithReviewTool → IToolRegistry</c>
+        /// (по образцу ADR-002, <c>Func&lt;ISubAgentService&gt;</c> в <c>ConsultSecondaryAgentTool</c>).
+        /// </summary>
+        private readonly Func<IToolRegistry> _toolRegistryFactory;
+
         private readonly IConfiguration _configuration;
         private readonly ILogger<CodeAgentWithReviewTool> _logger;
 
         /// <summary>
         /// Создаёт инструмент.
         /// </summary>
-        /// <param name="toolRegistry">
-        /// Реестр инструментов — для вызова <c>code_agent</c> и <c>code_reviewer_agent</c>.
+        /// <param name="toolRegistryFactory">
+        /// Ленивая фабрика реестра инструментов — для вызова <c>code_agent</c>
+        /// и <c>code_reviewer_agent</c>. Фабрика (а не прямой <see cref="IToolRegistry"/>)
+        /// разрывает DI-цикл (ADR-002): <c>ToolRegistry → IEnumerable&lt;ITool&gt;</c>
+        /// содержит этот tool, а он сам зависит от реестра.
         /// </param>
         /// <param name="configuration">Конфигурация (SubAgents:code_agent_with_review).</param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если параметр равен null.</exception>
         public CodeAgentWithReviewTool(
-            IToolRegistry toolRegistry,
+            Func<IToolRegistry> toolRegistryFactory,
             IConfiguration configuration,
             ILogger<CodeAgentWithReviewTool> logger)
         {
-            _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+            _toolRegistryFactory = toolRegistryFactory
+                ?? throw new ArgumentNullException(nameof(toolRegistryFactory));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -190,7 +200,10 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     "Actor-Critic round {Round}/{MaxRounds}: запуск code_agent (user={UserId})",
                     round, maxRounds, context.UserId);
 
-                var actorResult = await _toolRegistry.ExecuteAsync(
+                // ADR-002: получаем IToolRegistry лениво (разрыв DI-цикла).
+                var toolRegistry = _toolRegistryFactory();
+
+                var actorResult = await toolRegistry.ExecuteAsync(
                     CodeAgentToolName, context, actorArgs);
 
                 if (!actorResult.Success)
@@ -214,7 +227,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     "Actor-Critic round {Round}/{MaxRounds}: запуск code_reviewer_agent",
                     round, maxRounds);
 
-                var criticResult = await _toolRegistry.ExecuteAsync(
+                var criticResult = await toolRegistry.ExecuteAsync(
                     ReviewerToolName, context, criticArgs);
 
                 if (!criticResult.Success)

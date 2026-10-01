@@ -78,7 +78,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
         public void Name_ReturnsCodeAgentWithReview()
         {
             var tool = new CodeAgentWithReviewTool(
-                new FakeToolRegistry(),
+                () => new FakeToolRegistry(),
                 BuildConfig(),
                 NullLogger<CodeAgentWithReviewTool>.Instance);
 
@@ -89,7 +89,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
         public void RequiresApprovalByDefault_IsTrue()
         {
             var tool = new CodeAgentWithReviewTool(
-                new FakeToolRegistry(),
+                () => new FakeToolRegistry(),
                 BuildConfig(),
                 NullLogger<CodeAgentWithReviewTool>.Instance);
 
@@ -100,7 +100,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
         public void Description_MentionsActorCriticAndApproval()
         {
             var tool = new CodeAgentWithReviewTool(
-                new FakeToolRegistry(),
+                () => new FakeToolRegistry(),
                 BuildConfig(),
                 NullLogger<CodeAgentWithReviewTool>.Instance);
 
@@ -115,7 +115,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
         public async Task ExecuteAsync_EmptyTask_ReturnsFail()
         {
             var tool = new CodeAgentWithReviewTool(
-                new FakeToolRegistry(),
+                () => new FakeToolRegistry(),
                 BuildConfig(),
                 NullLogger<CodeAgentWithReviewTool>.Instance);
 
@@ -141,7 +141,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
             });
 
             var tool = new CodeAgentWithReviewTool(
-                fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
+                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
 
             var ctx = new ToolExecutionContext { UserId = 1 };
             var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Палиндром" });
@@ -172,7 +172,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
             });
 
             var tool = new CodeAgentWithReviewTool(
-                fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
+                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
 
             var ctx = new ToolExecutionContext { UserId = 1 };
             var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
@@ -203,7 +203,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
             });
 
             var tool = new CodeAgentWithReviewTool(
-                fakeRegistry, BuildConfig(maxRounds: 3), NullLogger<CodeAgentWithReviewTool>.Instance);
+                () => fakeRegistry, BuildConfig(maxRounds: 3), NullLogger<CodeAgentWithReviewTool>.Instance);
 
             var ctx = new ToolExecutionContext { UserId = 1 };
             var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
@@ -228,7 +228,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
             });
 
             var tool = new CodeAgentWithReviewTool(
-                fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
+                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
 
             var ctx = new ToolExecutionContext { UserId = 1 };
             var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
@@ -254,7 +254,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
             });
 
             var tool = new CodeAgentWithReviewTool(
-                fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
+                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
 
             var ctx = new ToolExecutionContext { UserId = 1 };
             var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });
@@ -279,7 +279,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
             });
 
             var tool = new CodeAgentWithReviewTool(
-                fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
+                () => fakeRegistry, BuildConfig(), NullLogger<CodeAgentWithReviewTool>.Instance);
 
             var ctx = new ToolExecutionContext { UserId = 1 };
             var result = await tool.ExecuteAsync(ctx, new JObject { ["task"] = "Задача" });

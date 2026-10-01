@@ -62,6 +62,20 @@
     `AgentDebateRound`, SSE-события `debate_*`, Human-in-the-loop,
     эскалация на `ask_external_llm`.
 
+### Fixed
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1D-fix)**: circular dependency при
+  `dotnet run`. `CodeAgentWithReviewTool` (ITool) инжектил `IToolRegistry`
+  напрямую, а `ToolRegistry` строит `IEnumerable<ITool>` (включая сам
+  `CodeAgentWithReviewTool`) → цикл `ToolRegistry → IEnumerable<ITool> →
+  CodeAgentWithReviewTool → IToolRegistry`. Сборка и тесты (614/614)
+  не ловили — проблема видна только при старте ServiceProvider
+  (`ValidateOnBuild`). Решение по образцу ADR-002: заменить прямой
+  `IToolRegistry` на ленивую фабрику `Func<IToolRegistry>` +
+  регистрация `services.AddScoped<Func<IToolRegistry>>(sp => () =>
+  sp.GetRequiredService<IToolRegistry>())` (рядом с существующей
+  `Func<ISubAgentService>`). Прецедент — `ConsultSecondaryAgentTool`
+  и `AgentToolBase`.
+
 ---
 
 ## [1.10.1] — 2026-10-01

@@ -511,8 +511,11 @@ namespace IIChatTools.API
                 RegisterExternalLlmTools(services);
             }
 
-            // Фабрика для разрыва DI-цикла: ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
+            // Фабрики для разрыва DI-циклов (ADR-002):
+            // - ConsultSecondaryAgentTool → ISubAgentService → IToolRegistry
+            // - CodeAgentWithReviewTool → IToolRegistry → IEnumerable<ITool> → CodeAgentWithReviewTool
             services.AddScoped<Func<ISubAgentService>>(sp => () => sp.GetRequiredService<ISubAgentService>());
+            services.AddScoped<Func<IToolRegistry>>(sp => () => sp.GetRequiredService<IToolRegistry>());
 
 
             // ============ 9. Менеджер браузерных сессий (singleton) ============
