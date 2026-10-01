@@ -1052,26 +1052,28 @@
 ---
 
 ## KI-092 — Bootstrap 5: warning `aria-hidden` при закрытии вложенных модалок
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Обнаружено:** 2026-09-25
-- **Файлы:** `wwwroot/lib/bootstrap/` — сторонняя библиотека (Bootstrap 5.x), не наш код.
-- **Описание:** В консоли браузера при закрытии модалок (`#adminModal`, `#ragChunksModal`)
-  периодически появляется warning: **«Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users»**.
-  Элемент с фокусом — `<button.btn-close>`, предок с `aria-hidden` — `<div.modal fade#ragChunksModal>`.
-
-  Причина: Bootstrap 5.2 (текущая версия в `wwwroot/lib/bootstrap/`) устанавливает
-`aria-hidden="true"` на `.modal` при закрытии, но кнопка `.btn-close` внутри неё
-может сохранять фокус — отсюда предупреждение о конфликте с WCAG.
-- **Влияние на UX:** **нулевое.** Модалка закрывается корректно, фокус после
-закрытия восстанавливается Bootstrap-ом. Warning — информационный (не ошибка).
-- **Решение (при необходимости):**
-1. Обновить Bootstrap до **5.3+** (там вместо `aria-hidden` используется
-   атрибут `inert`, который не даёт такого конфликта).
-2. Или вручную в JS-обёртке: перед `modal.hide()` вызывать `document.activeElement?.blur()`.
-- **Обоснование отсрочки:** не влияет на функциональность. Обновление Bootstrap
-до 5.3 — отдельная задача (проверка обратной совместимости со всеми модалками
-и тултипами проекта), не блокер v1.5.0.
-- **Не баг приложения:** внутреннее поведение библиотеки. Зафиксировано для истории
-(по образцу KI-007, KI-009, KI-032).
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.10.1 (попутно с KI-122)
+- **Обнаружено:** 2026-09-25 | **Устранено:** 2026-10-01
+- **Файлы:** `wwwroot/lib/bootstrap/` — сторонняя библиотека.
+- **Описание (первоначально):** В консоли браузера при закрытии модалок
+  (`#adminModal`, `#ragChunksModal`) появлялся warning:
+  **«Blocked aria-hidden on an element because its descendant retained focus.
+  The focus must not be hidden from assistive technology users»**.
+  Элемент с фокусом — `<button.btn-close>`, предок с `aria-hidden` —
+  `<div.modal fade#ragChunksModal>`.
+- **Причина:** Bootstrap **5.2** устанавливал `aria-hidden="true"` на `.modal`
+  при закрытии, но кнопка `.btn-close` внутри неё могла сохранять фокус —
+  warning о конфликте с WCAG.
+- **Решение:** **автоматически устранено** при обновлении до Bootstrap **5.3.2**
+  (в `wwwroot/lib/bootstrap/dist/` уже 5.3.2 с момента предыдущей задачи;
+  версия получена через `configs/libman.json` → cdnjs).
+  Bootstrap 5.3+ использует атрибут **`inert`** вместо `aria-hidden` —
+  warning не генерируется.
+- **Проверка (2026-10-01, v1.10.1 smoke):** Console → Filter = Default levels →
+  открыть и закрыть модалки `/admin` (`#adminModal`, `#ragChunksModal`),
+  approval-модалку в `/chat`. **Warning «Blocked aria-hidden...» отсутствует.**
+- **Связанные:** KI-122 (тоже требовал Bootstrap 5.3+; фактически обновление
+  уже было сделано до старта KI-122).
 
 ---
 
@@ -2019,41 +2021,50 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-122 — Смена темы оформления UI (5 популярных, кнопка рядом со сменой языка)
-- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.9.x
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.10.1
 - **Обнаружено:** 2026-09-30 (запрос пользователя)
-- **Файлы (план):**
-  - `IIChatTools.API/Views/Shared/_Layout.cshtml` — кнопка-переключатель
-    рядом с переключателем языка (RU/EN).
-  - `IIChatTools.API/wwwroot/css/site.css` + `chat.css` — CSS-переменные
-    тем (`--bs-*` + свои).
-  - `IIChatTools.API/wwwroot/js/modules/theme.js` (новый) — переключение +
-    сохранение в `localStorage`.
-  - `SharedResources.resx` + `SharedResources.ru.resx` — названия тем
-    (5 штук × 2 языка).
-- **Описание:** Пользователь хочет выбирать тему оформления. Кнопка-
-  переключатель — **рядом с переключателем языка** (RU/EN) в navbar.
-  Состав — **5 самых популярных тем** (конкретный список согласовать
-  на старте задачи; предварительно: Light / Dark / Dimmed / Solarized Light /
-  High Contrast).
-- **Технически:**
-  - **Bootstrap 5.3+** поддерживает `data-bs-theme="dark"` — переключение
-    одним атрибутом на `<html>`. Кастомные темы — через CSS-переменные.
-  - Сохранение выбора: `localStorage["theme"]` (по образцу
-    `localStorage["chat.sidebarCollapsed"]`, KI-079).
-  - Начальная тема — из `localStorage`; fallback — `prefers-color-scheme: dark`.
-  - Переключатель — `<select>` или дропдаун (по образцу `#chat-model-select`).
-- **⚠️ Зависимость:** сейчас в `wwwroot/lib/bootstrap/` — **Bootstrap 5.2**
-  (см. KI-092 — warning `aria-hidden` при закрытии модалок). Для полноценных
-  тёмных тем нужен **Bootstrap 5.3+** (атрибут `data-bs-theme`). Обновление
-  Bootstrap — **отдельная задача** (проверка обратной совместимости со всеми
-  модалками, тултипами, dropdown'ами проекта; сейчас их десятки).
-- **Обоснование отсрочки:** не критично для функционала. Текущий фокус —
-  v1.8.2 (кэш) и v1.9.0 (Anthropic). Возможный порядок работ:
-  1. Обновление Bootstrap 5.2 → 5.3+ (устранит KI-092 попутно).
-  2. Светлая/тёмная тема на `data-bs-theme` (2 темы из 5).
-  3. +3 кастомные темы.
-- **Связанные:** KI-079 (collapse sidebar — образец localStorage),
-  KI-081 (логотип — фирменный стиль), KI-092 (Bootstrap 5.2 `aria-hidden`).
+- **Файлы (итог):**
+  - `Views/Shared/_Layout.cshtml` — `data-bs-theme="light"` на `<html>`;
+    anti-FOUC inline-скрипт; `<select id="theme-select">` перед RU/EN;
+    подключение `theme.js` (ES-модуль) + `theme-hljs.css`.
+  - `Views/Shared/_LoginPartial.cshtml` — убраны `text-dark`.
+  - `Views/Home/Admin.cshtml` — `tab-content bg-white` → `bg-body`;
+    убраны 7× `<thead class="table-light">`.
+  - `Views/Home/Status.cshtml` — убран `<thead class="table-light">`.
+  - `Views/Shared/_ApprovalModal.cshtml` — `bg-light` → `bg-body-secondary`.
+  - `Views/Chat/Index.cshtml` — подключение `theme-hljs.css`.
+  - `wwwroot/css/site.css` — CSS-переменные 5 тем; `.footer`,
+    `.agent-stat-*`, `.rag-chunk-*`, правило `.table > thead > tr > th`.
+  - `wwwroot/css/chat.css` — ~70 замен `#xxx` → `var(--bs-*)` в 17 секциях.
+  - `wwwroot/css/theme-hljs.css` (**новый**) — палитра hljs для тёмных тем.
+  - `wwwroot/js/modules/theme.js` (**новый**) — модуль переключения.
+  - `Resources/SharedResources.resx` + `.ru.resx` — 6 ключей × 2 языка.
+- **Что сделано (5 подшагов, ~3.5 ч):**
+  1. **B1** — CSS-переменные 5 тем (`light` / `dark` из Bootstrap 5.3.2;
+     `dimmed` в стиле GitHub Dimmed; `solarized-light` Ethan Schoonover;
+     `high-contrast` WCAG AAA).
+  2. **B2** — `theme.js` (`getTheme` / `setTheme` / `clearTheme` /
+     `watchSystemTheme`); anti-FOUC inline-скрипт в `<head>`; fallback на
+     `prefers-color-scheme: dark`.
+  3. **B3** — `<select id="theme-select">` в navbar перед RU/EN.
+     `initThemeSelect()` в `theme.js`; синхронизация с `theme-changed`.
+  4. **B4.1-4.3** — рефакторинг CSS на Bootstrap-переменные:
+     `site.css` (navbar / footer / agent-stat / rag-chunk / thead),
+     `chat.css` (~70 замен в 17 секциях), `theme-hljs.css` (палитра hljs
+     для 4 тем). Попутно: `bg-light` → `bg-body-secondary` в approval-модалке;
+     `table-light` / `bg-white` убраны из `/admin` и `/status`.
+  5. **B5** — KI-122 → Fixed; KI-092 → Fixed (попутно); релиз v1.10.1.
+- **Хранение:** `localStorage["theme"]` (по образцу `chat.sidebarCollapsed`,
+  KI-079).
+- **⚠️ Зависимость — снята:** на старте задачи ожидался Bootstrap 5.2, но
+  фактически в `wwwroot/lib/bootstrap/dist/` уже **5.3.2** (получено через
+  `configs/libman.json` → cdnjs). Этап A (обновление Bootstrap) не потребовался.
+- **Связанные:** KI-079 (образец localStorage), KI-081 (логотип),
+  KI-092 (попутно — Fixed).
+- **Обновление (2026-10-01):** попутно закрыт KI-092 — Bootstrap 5.3.2
+  использует `inert` вместо `aria-hidden`. Проверено на smoke: warning
+  «Blocked aria-hidden on an element...» в Console **отсутствует** при закрытии
+  модалок `/admin`, `/chat` approval, `ragChunksModal`.
 
 ---
 
@@ -2244,8 +2255,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
 | Fixed (v1.9.0) | 3 | <!-- KI-110a (Anthropic Claude), KI-124 (Claude integration test), KI-125 (MailKit/MimeKit security) -->
 | Fixed (v1.10.0) | 1 | <!-- KI-110b (Google Gemini) -->
-| Deferred  | 6 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122 (KI-123 -> Fixed) -->
-| Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
+| Fixed (v1.10.1) | 2 | <!-- KI-122 (темы UI), KI-092 (Bootstrap aria-hidden warning — попутно) -->
+| Deferred  | 5 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
+| Documented | 12 | <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->

@@ -18,6 +18,17 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)_
+
+---
+
+## [1.10.1] — 2026-10-01
+
+**Темы оформления UI (KI-122).** 5 тем (Light / Dark / Dimmed /
+Solarized Light / High Contrast) + переключатель в navbar рядом с RU/EN.
+Попутно закрыт **KI-092** (Bootstrap `aria-hidden` warning — Bootstrap 5.3.2
+уже использует `inert`). UI-only patch, без изменений API / серверной логики.
+
 ### Added
 - **KI-122 — темы оформления UI**:
   - **B1/5: CSS-переменные 5 тем.** `data-bs-theme="light"` на `<html>`
@@ -75,8 +86,16 @@
     - `wwwroot/css/theme-hljs.css` (новый): override ~15 ключевых классов
       hljs для 4 тем — `dark` / `dimmed` (палитра github-dark),
       `high-contrast` (WCAG AAA), `solarized-light` (Ethan Schoonover).
-      Подключается в `Chat/Index.cshtml` `@section Styles` после
+    - `Chat/Index.cshtml`: подключён `theme-hljs.css` после
       `github.min.css` и `chat.css`.
+
+### Fixed
+- **KI-092 — Bootstrap `aria-hidden` warning при закрытии вложенных модалок**
+  (попутно с KI-122). Bootstrap 5.3.2 использует атрибут `inert` вместо
+  `aria-hidden` — warning исчез. Проверено на smoke v1.10.1 (модалки `/admin`
+  `#adminModal` / `#ragChunksModal`, approval-модалка `/chat`). Ранее
+  Bootstrap 5.2 давал warning «Blocked aria-hidden on an element because
+  its descendant retained focus».
 
 ---
 
