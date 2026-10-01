@@ -20,7 +20,8 @@ main {
 
 .footer {
     flex-shrink: 0;
-    background: #fff;
+    /* KI-122 (B4.1): фон через Bootstrap-переменную (было #fff). */
+    background: var(--bs-body-bg);
 }
 
 .copyright a {
@@ -52,14 +53,15 @@ pre {
     display: flex;
     flex-direction: column;
     padding: .75rem .9rem;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
+    /* KI-122 (B4.1): фон/рамка через Bootstrap-переменные. */
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
     border-radius: .5rem;
     transition: box-shadow .15s, border-color .15s;
 }
 
 .agent-stat-card:hover {
-    border-color: #adb5bd;
+    border-color: var(--bs-secondary-color);
     box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
 }
 
@@ -74,12 +76,13 @@ pre {
 .agent-stat-card-title {
     font-weight: 600;
     font-size: .9rem;
-    color: #212529;
+    /* KI-122 (B4.1): переменные темы. */
+    color: var(--bs-emphasis-color);
 }
 
 .agent-stat-card-name {
     font-size: .7rem;
-    color: #6c757d;
+    color: var(--bs-secondary-color);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -100,21 +103,22 @@ pre {
 .agent-stat-value {
     font-size: 1.05rem;
     font-weight: 700;
-    color: #0d6efd;
+    /* KI-122 (B4.1): Bootstrap primary color (в теме — свои). */
+    color: var(--bs-primary);
     font-family: var(--bs-font-monospace);
     line-height: 1.2;
 }
 
 .agent-stat-label {
     font-size: .68rem;
-    color: #6c757d;
+    color: var(--bs-secondary-color);
     text-transform: uppercase;
     letter-spacing: .02em;
     margin-top: .1rem;
 }
 
 .agent-stat-card-footer {
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid var(--bs-border-color);
     padding-top: .35rem;
     margin-top: auto;
 }
@@ -167,14 +171,14 @@ pre {
 /* Путь документа в таблице чанков (моноширинный, с переносом длинных путей) */
 .rag-chunk-path {
     font-size: .78rem;
-    color: #57606a;
+    /* KI-122 (B4.1): переменные темы. */
+    color: var(--bs-secondary-color);
     word-break: break-all;
 }
 
-/* Превью текста чанка — однострочное с ellipsis */
 .rag-chunk-preview {
     font-size: .82rem;
-    color: #57606a;
+    color: var(--bs-secondary-color);
     max-width: 500px;
     white-space: nowrap;
     overflow: hidden;

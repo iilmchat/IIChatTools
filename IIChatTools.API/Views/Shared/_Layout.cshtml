@@ -50,7 +50,7 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm border-bottom box-shadow mb-3">
             <div class="container">
                 <a class="navbar-brand d-flex align-items-center gap-2" asp-controller="Home" asp-action="Index">
                     <img src="~/images/logo-icon.svg"
@@ -68,27 +68,27 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">@Localizer["Главная"]</a>
+                            <a class="nav-link" asp-controller="Home" asp-action="Index">@Localizer["Главная"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="/chat">@Localizer["Чат"]</a>
+                            <a class="nav-link" href="/chat">@Localizer["Чат"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Status">@Localizer["Статус"]</a>
+                            <a class="nav-link" asp-controller="Home" asp-action="Status">@Localizer["Статус"]</a>
                         </li>
                         @if (User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" href="/profile">@Localizer["ProfileMenu"]</a>
+                                <a class="nav-link" href="/profile">@Localizer["ProfileMenu"]</a>
                             </li>
                         }
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Home" asp-action="Admin">@Localizer["Админка"]</a>
+                                <a class="nav-link" asp-controller="Home" asp-action="Admin">@Localizer["Админка"]</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Home" asp-action="Test">@Localizer["Тест"]</a>
+                                <a class="nav-link" asp-controller="Home" asp-action="Test">@Localizer["Тест"]</a>
                             </li>
                         }
                     </ul>
@@ -110,13 +110,13 @@
                             </select>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark"
+                            <a class="nav-link"
                                asp-controller="Home" asp-action="SetLanguage"
                                asp-route-culture="ru"
                                asp-route-returnUrl="@Context.Request.Path">RU</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark"
+                            <a class="nav-link"
                                asp-controller="Home" asp-action="SetLanguage"
                                asp-route-culture="en"
                                asp-route-returnUrl="@Context.Request.Path">EN</a>

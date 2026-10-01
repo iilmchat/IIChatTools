@@ -39,6 +39,12 @@
     синхронизирует value с `theme-changed`). Локализация — +6 ключей × 2
     языка (`ThemeSelectTitle`, `ThemeLight`, `ThemeDark`, `ThemeDimmed`,
     `ThemeSolarizedLight`, `ThemeHighContrast`).
+  - **B4.1/5: navbar + footer + ссылки на Bootstrap-переменные.**
+    `_Layout.cshtml`: убраны устаревший `navbar-light` и хардкод `bg-white`
+    из `<nav>`; `text-dark` из 8 ссылок (Главная, Чат, Статус, Профиль,
+    Админка, Тест, RU, EN). `_LoginPartial.cshtml`: `text-dark` из 4 ссылок
+    (displayName, Выход, Регистрация, Вход). `site.css`: `.footer` →
+    `var(--bs-body-bg)`; `.agent-stat-*` и `.rag-chunk-*` → переменные тем.
 
 ---
 

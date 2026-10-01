@@ -15,13 +15,13 @@
         var displayName = user?.FullName ?? User.Identity?.Name;
 
         <li class="nav-item">
-            <a class="nav-link text-dark" href="/profile" title="@Localizer["ProfileMenu"]">
+            <a class="nav-link" href="/profile" title="@Localizer["ProfileMenu"]">
                 @displayName
             </a>
         </li>
         <li class="nav-item">
             <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
-                <button type="submit" class="btn btn-link nav-link text-dark">
+                <button type="submit" class="btn btn-link nav-link">
                     @Localizer["Выход"]
                 </button>
             </form>
@@ -30,10 +30,10 @@
     else
     {
         <li class="nav-item">
-            <a class="nav-link text-dark" asp-controller="Auth" asp-action="Register">@Localizer["Регистрация"]</a>
+            <a class="nav-link" asp-controller="Auth" asp-action="Register">@Localizer["Регистрация"]</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link text-dark" asp-controller="Auth" asp-action="Login">@Localizer["Вход"]</a>
+            <a class="nav-link" asp-controller="Auth" asp-action="Login">@Localizer["Вход"]</a>
         </li>
     }
 </ul>
