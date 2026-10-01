@@ -32,6 +32,17 @@
   security fix + Dispose RNG).
 
 ### Added
+- **v1.10.0 Фаза 1 (KI-110b): `GeminiRequestBuilder`**:
+  - `Implementation/ExternalLlm/Formats/GeminiRequestBuilder.cs` — static helper.
+    Собирает тело для `POST {BaseUrl}/models/{model}:generateContent`:
+    `contents[]` (`{role, parts:[{text}]}`), `systemInstruction` (отдельный
+    Content-объект, без `role`), `generationConfig` (`maxOutputTokens` обязателен,
+    `temperature` clamp [0, 2]).
+  - **Модель в URL, не в body** — builder её не возвращает (специфика Gemini).
+  - Тесты: `GeminiRequestBuilderTests` (13 — 12 базовых + edge-cases:
+    null-guards ×2, whitespace-system, empty-prompt, model-not-in-body).
+    **563 → 576** (+13, 4 skip).
+
 - **v1.10.0 Фаза 0 (KI-110b): DESIGN_GEMINI.md** — дизайн-документ для
   Google Gemini (`docs/development/v1.9/DESIGN_GEMINI.md`). Draft согласован
   2026-10-01. Ключевые решения:
