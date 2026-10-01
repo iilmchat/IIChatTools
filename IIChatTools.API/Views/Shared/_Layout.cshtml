@@ -10,6 +10,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] — IIChatTools</title>
 
+    <!-- KI-122 (B2): anti-FOUC — устанавливаем тему ДО первого paint.
+         Синхронный inline-скрипт (без type="module" — модули грузятся асинхронно).
+         Алгоритм дублирует theme.js/getTheme() — см. комментарий в модуле. -->
+    <script>
+        (function () {
+            try {
+                var valid = ["light", "dark", "dimmed", "solarized-light", "high-contrast"];
+                var t = localStorage.getItem("theme");
+                if (!t || valid.indexOf(t) === -1) {
+                    t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)
+                        ? "dark"
+                        : "light";
+                }
+                document.documentElement.setAttribute("data-bs-theme", t);
+            } catch (e) {
+                /* no-op: при ошибке остаётся data-bs-theme="light" из <html> */
+            }
+        })();
+    </script>
+
     <!-- KI-081: favicon (файлы от realfavicongenerator в wwwroot/images/) -->
     <link rel="icon" type="image/svg+xml" href="~/images/favicon.svg" asp-append-version="true" />
     <link rel="icon" type="image/x-icon" href="~/images/favicon.ico" asp-append-version="true" />
@@ -113,8 +133,19 @@
     <!-- Bootstrap 5 Bundle (включает Popper, локально) -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
 
+    <!-- KI-122 (B2): модуль тем оформления. Экспортирует getTheme / setTheme /
+         getAvailableThemes / clearTheme / watchSystemTheme — используются в B3 (<select>).
+         Подключается отдельным тегом (не через main.js): модуль глобальный, не привязан к странице. -->
+    <script type="module" src="~/js/modules/theme.js" asp-append-version="true"></script>
+
     <!-- Точка входа ES-модулей -->
     <script type="module" src="~/js/main.js" asp-append-version="true"></script>
+
+    <!-- KI-122 (B2): следим за системной темой, если пользователь не выбрал свою. -->
+    <script type="module">
+        import { watchSystemTheme } from '/js/modules/theme.js';
+        watchSystemTheme();
+    </script>
     @RenderSection("Scripts", required: false)
 </body>
 </html>
