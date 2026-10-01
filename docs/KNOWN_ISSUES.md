@@ -2017,6 +2017,36 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-123 — Индикатор загрузки списка чатов («Идёт загрузка» + spinner)
+- **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.9.x
+- **Обнаружено:** 2026-10-01 (запрос пользователя)
+- **Файлы (план):**
+  - `IIChatTools.API/Views/Chat/Index.cshtml` — placeholder в
+    `<ul id="chat-list">` (или над ним) для состояния «загрузка».
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` — функция `loadChats()`:
+    показать spinner перед `fetch`, скрыть после (успех / ошибка).
+  - `IIChatTools.API/wwwroot/css/chat.css` — стили spinner'а в sidebar.
+  - `SharedResources.resx` + `SharedResources.ru.resx` — ключ
+    `ChatListLoading` («Loading chats…» / «Идёт загрузка списка чатов…»).
+- **Описание:** При открытии `/chat` sidebar пуст до завершения
+  `loadChats()` (fetch `/api/chats`). Если чатов много или сеть медленная —
+  выглядит как «пустой sidebar» / «ничего нет». Нужен индикатор:
+  **spinner + текст «Идёт загрузка списка чатов…»** в области списка до
+  прихода данных.
+- **Технически:**
+  - **Bootstrap 5** уже подключён — использовать готовый класс
+    `.spinner-border` (или `.spinner-grow`).
+  - Порядок состояний в `loadChats()`:
+    1. Показать `<div class="chat-list-loading">` со spinner'ом.
+    2. `await fetch(...)`.
+    3. Скрыть spinner, отрисовать `state.chats`.
+    4. При ошибке — показать `.chat-list-error` (не пустой список).
+  - Не заменять на skeleton (сложнее, не наш стиль) — простого spinner'а
+    достаточно.
+- **Связанные:** KI-079 (collapse sidebar — тот же модуль `chat.js`).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2124,14 +2154,14 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
 | Fixed (v1.8.1) | 1 | <!-- KI-109 (External-LLM Agent) -->
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
-| Deferred  | 6 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122 -->
+| Deferred  | 7 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122, KI-123 -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 5 |                       <!-- KI-108, KI-110, KI-111, KI-113, KI-121 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **80** |
+| **Всего** | **81** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
