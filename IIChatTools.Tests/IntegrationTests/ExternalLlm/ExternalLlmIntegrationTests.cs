@@ -185,6 +185,63 @@ namespace IIChatTools.Tests.IntegrationTests.ExternalLlm
             Assert.False(string.IsNullOrWhiteSpace(response.Content));
         }
 
+        /// <summary>
+        /// Реальный запрос к Anthropic Claude (v1.9.0, KI-110a, KI-124).
+        ///
+        /// <para>
+        /// Требует env <c>EXTERNALLLM__ANTHROPIC__APIKEY</c> + <b>VPN из РФ</b>
+        /// (Anthropic блокирует регистрацию и API-запросы по IP РФ,
+        /// см. DESIGN_ANTHROPIC_GEMINI § 5.3).
+        /// </para>
+        ///
+        /// <para>
+        /// Проверяет путь <c>CompleteAnthropicAsync</c> (Фаза 3 KI-110a):
+        /// <c>POST /v1/messages</c>, <c>x-api-key</c>,
+        /// <c>anthropic-version: 2023-06-01</c>, парсинг <c>content[]</c>
+        /// через <c>AnthropicResponseParser</c>.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Тратит реальные деньги</b> — один запрос ≈ $0.0004 (Haiku 4.5,
+        /// 20 output токенов).
+        /// </para>
+        /// </summary>
+        [Fact(Skip = "Требует EXTERNALLLM__ANTHROPIC__APIKEY env + VPN из РФ")]
+        public async Task Anthropic_RealRequest_ReturnsResponse()
+        {
+            var apiKey = Environment.GetEnvironmentVariable("EXTERNALLLM__ANTHROPIC__APIKEY");
+            Assert.False(string.IsNullOrWhiteSpace(apiKey),
+                "Не задан env EXTERNALLLM__ANTHROPIC__APIKEY.");
+
+            var client = CreateRealClient(
+                provider: "anthropic",
+                baseUrl: "https://api.anthropic.com/v1",
+                model: "claude-haiku-4-5",
+                apiKey: apiKey,
+                format: ProviderFormat.Anthropic);
+
+            var response = await client.CompleteAsync(
+                userId: 1,
+                new ExternalLlmRequest
+                {
+                    Provider = "anthropic",
+                    Prompt = TestPrompt,
+                    MaxTokens = 20
+                },
+                CancellationToken.None);
+
+            _output.WriteLine($"Provider: {response.Provider}");
+            _output.WriteLine($"Content:  {response.Content}");
+            _output.WriteLine($"Tokens:   {response.PromptTokens}+{response.CompletionTokens}");
+            _output.WriteLine($"Cost:     ${response.CostUsd}");
+
+            Assert.Equal("anthropic", response.Provider);
+            Assert.False(string.IsNullOrWhiteSpace(response.Content));
+            Assert.True(response.PromptTokens > 0);
+            Assert.True(response.CompletionTokens > 0);
+            Assert.True(response.DurationMs > 0);
+        }
+
         // ============================================================
         // Private
         // ============================================================
@@ -196,15 +253,22 @@ namespace IIChatTools.Tests.IntegrationTests.ExternalLlm
         /// <param name="baseUrl">Base URL</param>
         /// <param name="model">Модель</param>
         /// <param name="apiKey">API-ключ (null — без ключа, для Ollama)</param>
+        /// <param name="format">
+        /// Формат API (v1.9.0, KI-110a, KI-124). По умолчанию
+        /// <see cref="ProviderFormat.OpenAI"/> — обратно совместимо с DeepSeek /
+        /// OpenAI / Ollama-тестами.
+        /// </param>
         private static ExternalLlmClient CreateRealClient(
             string provider,
             string baseUrl,
             string model,
-            string apiKey)
+            string apiKey,
+            ProviderFormat format = ProviderFormat.OpenAI)
         {
             var providerOptions = new ExternalProviderOptions
             {
                 DisplayName = provider,
+                Format = format,
                 BaseUrl = baseUrl,
                 Model = model,
                 ApiKeySecretName = $"ExternalLlm:Providers:{provider}:ApiKey",

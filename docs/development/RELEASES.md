@@ -38,9 +38,10 @@
   «v1.9.x, KI-110b». Ключ можно задать сейчас.
 - **5 существующих провайдеров** (DeepSeek, OpenAI, Groq, Together AI,
   Ollama) — **без изменений** (Format по умолчанию = OpenAI).
-- **KI-124 (new)** — интеграционный `[Fact(Skip=...)]` для Claude
-  (`ExternalLlmIntegrationTests`) не добавлен в v1.9.0 (файл не был
-  в контексте). Отложено в v1.9.x.
+- **KI-124 (Fixed, v1.9.0-followup)** — интеграционный `[Fact(Skip=...)]`
+  для Claude (`Anthropic_RealRequest_ReturnsResponse`) добавлен сразу после
+  релиза v1.9.0. Env `EXTERNALLLM__ANTHROPIC__APIKEY`, требует VPN из РФ.
+  Тест проверяет путь `CompleteAnthropicAsync`.
 
 ### Новое в v1.8.1
 

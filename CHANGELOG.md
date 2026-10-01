@@ -18,7 +18,16 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)_
+### Fixed
+- **KI-124 — Интеграционный тест Anthropic Claude** (v1.9.0-followup):
+  добавлен `Anthropic_RealRequest_ReturnsResponse` в
+  `ExternalLlmIntegrationTests.cs` — `[Fact(Skip=...)]`, env
+  `EXTERNALLLM__ANTHROPIC__APIKEY`, требует VPN из РФ. Проверяет путь
+  `CompleteAnthropicAsync` (`POST /v1/messages`, `x-api-key`,
+  `anthropic-version: 2023-06-01`).
+  `CreateRealClient` — +опциональный `ProviderFormat format = OpenAI`
+  (обратно совместимо).
+  **562 → 563 tests** (559 pass, **4** skip).
 
 ---
 

@@ -2080,6 +2080,28 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-124 — Интеграционный тест для Anthropic Claude
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.9.0 (followup)
+- **Обнаружено:** 2026-10-01 (в Фазе 3 KI-110a) | **Устранено:** 2026-10-01
+- **Файлы:** `IIChatTools.Tests/IntegrationTests/ExternalLlm/ExternalLlmIntegrationTests.cs`.
+- **Описание:** При рефакторинге `ExternalLlmClient` (Фаза 3 KI-110a) предполагалось
+  добавить `[Fact(Skip=...)]`-тест для Anthropic — по образцу DeepSeek / OpenAI / Ollama.
+  Файл `ExternalLlmIntegrationTests.cs` не был в контексте сессии — тест не добавлен,
+  отложен в KI-124. В GitHub Release v1.9.0 явно указан как «Planned».
+- **Решение (v1.9.0-followup):**
+  - Добавлен `Anthropic_RealRequest_ReturnsResponse` (`[Fact(Skip=...)]`).
+    Env: `EXTERNALLLM__ANTHROPIC__APIKEY`, BaseUrl `https://api.anthropic.com/v1`,
+    Model `claude-haiku-4-5`, требует VPN из РФ.
+  - `CreateRealClient` — +опциональный параметр
+    `ProviderFormat format = ProviderFormat.OpenAI` (обратно совместимо;
+    существующие 3 теста не меняются).
+  - Тест проверяет путь `CompleteAnthropicAsync` (`POST /v1/messages`,
+    `x-api-key`, `anthropic-version: 2023-06-01`, парсинг `content[]`).
+- **Тесты:** 562 → **563** (559 pass, **4** skip).
+- **Связанные:** KI-110a (Anthropic Claude — Fixed v1.9.0), KI-109 (External-LLM Agent).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2188,7 +2210,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.8.1) | 1 | <!-- KI-109 (External-LLM Agent) -->
 | Fixed (v1.8.2) | 1 | <!-- KI-121 (external_llm_agent — галлюцинация провайдеров) -->
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
-| Fixed (v1.9.0) | 1 | <!-- KI-110a (Anthropic Claude) -->
+| Fixed (v1.9.0) | 2 | <!-- KI-110a (Anthropic Claude), KI-124 (Claude integration test) -->
 | Deferred  | 7 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122, KI-123 -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
 | In Progress | 0 |                   <!-- — -->
@@ -2196,7 +2218,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 4 |                       <!-- KI-108, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **82** |
+| **Всего** | **83** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
