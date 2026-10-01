@@ -62,6 +62,21 @@
     `--bs-danger`, `--bs-success`, `--bs-code-color`, `--bs-link-color`,
     `--bs-primary-bg-subtle`, `--bs-danger-bg-subtle`, `--bs-success-bg-subtle`,
     `--bs-danger-text-emphasis`, `--bs-danger-border-subtle`.
+  - **B4.3/5: финал CSS + highlight.js override.**
+    - `_ApprovalModal.cshtml`: `bg-light` → `bg-body-secondary` (pre с JSON
+      параметрами — теперь темизирован).
+    - `Admin.cshtml`: `tab-content bg-white` → `bg-body`; убраны 6×
+      `<thead class="table-light">` (Bootstrap 5.3 `.table-light` фиксирует
+      `#f8f9fa` / `#000` — в тёмных темах даёт светлый фон).
+    - `Status.cshtml`: убран `<thead class="table-light">`.
+    - `site.css`: новое правило `.table > thead > tr > th` →
+      `var(--bs-tertiary-bg)` / `var(--bs-emphasis-color)` /
+      `var(--bs-border-color)`.
+    - `wwwroot/css/theme-hljs.css` (новый): override ~15 ключевых классов
+      hljs для 4 тем — `dark` / `dimmed` (палитра github-dark),
+      `high-contrast` (WCAG AAA), `solarized-light` (Ethan Schoonover).
+      Подключается в `Chat/Index.cshtml` `@section Styles` после
+      `github.min.css` и `chat.css`.
 
 ---
 

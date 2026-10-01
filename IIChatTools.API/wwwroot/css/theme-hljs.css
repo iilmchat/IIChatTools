@@ -1,0 +1,261 @@
+/* ============================================================================
+ * KI-122 (B4.3): override highlight.js для тёмных тем.
+ * ----------------------------------------------------------------------------
+ * Бандл github.min.css (lib/highlight/) — светлая тема. В тёмных темах
+ * палитра токенов нечитаема (светло-серые keyword на почти чёрном фоне).
+ *
+ * Здесь переопределяем ~15 ключевых классов hljs для 4 тем:
+ *   dark            — палитра github-dark
+ *   dimmed          — палитра github-dark (близко к GitHub Dimmed)
+ *   high-contrast   — максимальный контраст (чёрный текст / яркие цвета)
+ *   solarized-light — палитра Solarized (Ethan Schoonover)
+ *
+ * Подключается в Chat/Index.cshtml @section Styles ПОСЛЕ github.min.css
+ * и после chat.css — чтобы перебить бандл.
+ *
+ * Light-тема остаётся на github.min.css — без override.
+ * ========================================================================== */
+
+/* -------- Dark + Dimmed (палитра github-dark) -------- */
+
+[data-bs-theme="dark"] .hljs,
+[data-bs-theme="dimmed"] .hljs {
+    color: #c9d1d9;
+    background: transparent;
+}
+
+[data-bs-theme="dark"] .hljs-comment,
+[data-bs-theme="dark"] .hljs-quote,
+[data-bs-theme="dimmed"] .hljs-comment,
+[data-bs-theme="dimmed"] .hljs-quote {
+    color: #8b949e;
+    font-style: italic;
+}
+
+[data-bs-theme="dark"] .hljs-keyword,
+[data-bs-theme="dark"] .hljs-selector-tag,
+[data-bs-theme="dark"] .hljs-subst,
+[data-bs-theme="dimmed"] .hljs-keyword,
+[data-bs-theme="dimmed"] .hljs-selector-tag,
+[data-bs-theme="dimmed"] .hljs-subst {
+    color: #ff7b72;
+}
+
+[data-bs-theme="dark"] .hljs-number,
+[data-bs-theme="dark"] .hljs-literal,
+[data-bs-theme="dark"] .hljs-variable,
+[data-bs-theme="dark"] .hljs-template-variable,
+[data-bs-theme="dark"] .hljs-tag .hljs-attr,
+[data-bs-theme="dimmed"] .hljs-number,
+[data-bs-theme="dimmed"] .hljs-literal,
+[data-bs-theme="dimmed"] .hljs-variable,
+[data-bs-theme="dimmed"] .hljs-template-variable,
+[data-bs-theme="dimmed"] .hljs-tag .hljs-attr {
+    color: #79c0ff;
+}
+
+[data-bs-theme="dark"] .hljs-string,
+[data-bs-theme="dark"] .hljs-doctag,
+[data-bs-theme="dimmed"] .hljs-string,
+[data-bs-theme="dimmed"] .hljs-doctag {
+    color: #a5d6ff;
+}
+
+[data-bs-theme="dark"] .hljs-title,
+[data-bs-theme="dark"] .hljs-section,
+[data-bs-theme="dark"] .hljs-selector-id,
+[data-bs-theme="dimmed"] .hljs-title,
+[data-bs-theme="dimmed"] .hljs-section,
+[data-bs-theme="dimmed"] .hljs-selector-id {
+    color: #d2a8ff;
+}
+
+[data-bs-theme="dark"] .hljs-type,
+[data-bs-theme="dark"] .hljs-class .hljs-title,
+[data-bs-theme="dimmed"] .hljs-type,
+[data-bs-theme="dimmed"] .hljs-class .hljs-title {
+    color: #ffa657;
+}
+
+[data-bs-theme="dark"] .hljs-tag,
+[data-bs-theme="dark"] .hljs-name,
+[data-bs-theme="dark"] .hljs-attribute,
+[data-bs-theme="dimmed"] .hljs-tag,
+[data-bs-theme="dimmed"] .hljs-name,
+[data-bs-theme="dimmed"] .hljs-attribute {
+    color: #7ee787;
+}
+
+[data-bs-theme="dark"] .hljs-regexp,
+[data-bs-theme="dark"] .hljs-link,
+[data-bs-theme="dark"] .hljs-symbol,
+[data-bs-theme="dark"] .hljs-bullet,
+[data-bs-theme="dark"] .hljs-built_in,
+[data-bs-theme="dark"] .hljs-builtin-name,
+[data-bs-theme="dark"] .hljs-meta,
+[data-bs-theme="dimmed"] .hljs-regexp,
+[data-bs-theme="dimmed"] .hljs-link,
+[data-bs-theme="dimmed"] .hljs-symbol,
+[data-bs-theme="dimmed"] .hljs-bullet,
+[data-bs-theme="dimmed"] .hljs-built_in,
+[data-bs-theme="dimmed"] .hljs-builtin-name,
+[data-bs-theme="dimmed"] .hljs-meta {
+    color: #79c0ff;
+}
+
+[data-bs-theme="dark"] .hljs-deletion,
+[data-bs-theme="dimmed"] .hljs-deletion {
+    color: #ffdcd7;
+    background-color: #67060c;
+}
+
+[data-bs-theme="dark"] .hljs-addition,
+[data-bs-theme="dimmed"] .hljs-addition {
+    color: #aff5b4;
+    background-color: #033a16;
+}
+
+[data-bs-theme="dark"] .hljs-emphasis,
+[data-bs-theme="dimmed"] .hljs-emphasis {
+    font-style: italic;
+}
+
+[data-bs-theme="dark"] .hljs-strong,
+[data-bs-theme="dimmed"] .hljs-strong {
+    font-weight: 600;
+}
+
+/* -------- High Contrast (WCAG AAA, чёрный на белом) -------- */
+
+[data-bs-theme="high-contrast"] .hljs {
+    color: #000000;
+    background: transparent;
+}
+
+[data-bs-theme="high-contrast"] .hljs-comment,
+[data-bs-theme="high-contrast"] .hljs-quote {
+    color: #555555;
+    font-style: italic;
+}
+
+[data-bs-theme="high-contrast"] .hljs-keyword,
+[data-bs-theme="high-contrast"] .hljs-selector-tag,
+[data-bs-theme="high-contrast"] .hljs-subst {
+    color: #b30000;
+    font-weight: 600;
+}
+
+[data-bs-theme="high-contrast"] .hljs-number,
+[data-bs-theme="high-contrast"] .hljs-literal,
+[data-bs-theme="high-contrast"] .hljs-variable,
+[data-bs-theme="high-contrast"] .hljs-template-variable,
+[data-bs-theme="high-contrast"] .hljs-tag .hljs-attr {
+    color: #0000cc;
+}
+
+[data-bs-theme="high-contrast"] .hljs-string,
+[data-bs-theme="high-contrast"] .hljs-doctag {
+    color: #006600;
+}
+
+[data-bs-theme="high-contrast"] .hljs-title,
+[data-bs-theme="high-contrast"] .hljs-section,
+[data-bs-theme="high-contrast"] .hljs-selector-id,
+[data-bs-theme="high-contrast"] .hljs-type,
+[data-bs-theme="high-contrast"] .hljs-class .hljs-title {
+    color: #990099;
+    font-weight: 600;
+}
+
+[data-bs-theme="high-contrast"] .hljs-tag,
+[data-bs-theme="high-contrast"] .hljs-name,
+[data-bs-theme="high-contrast"] .hljs-attribute {
+    color: #804000;
+}
+
+[data-bs-theme="high-contrast"] .hljs-regexp,
+[data-bs-theme="high-contrast"] .hljs-link,
+[data-bs-theme="high-contrast"] .hljs-symbol,
+[data-bs-theme="high-contrast"] .hljs-bullet,
+[data-bs-theme="high-contrast"] .hljs-built_in,
+[data-bs-theme="high-contrast"] .hljs-builtin-name,
+[data-bs-theme="high-contrast"] .hljs-meta {
+    color: #0000cc;
+}
+
+[data-bs-theme="high-contrast"] .hljs-deletion {
+    color: #ffffff;
+    background-color: #cc0000;
+}
+
+[data-bs-theme="high-contrast"] .hljs-addition {
+    color: #ffffff;
+    background-color: #006600;
+}
+
+/* -------- Solarized Light (Ethan Schoonover) -------- */
+
+[data-bs-theme="solarized-light"] .hljs {
+    color: #657b83;
+    background: transparent;
+}
+
+[data-bs-theme="solarized-light"] .hljs-comment,
+[data-bs-theme="solarized-light"] .hljs-quote {
+    color: #93a1a1;
+    font-style: italic;
+}
+
+[data-bs-theme="solarized-light"] .hljs-keyword,
+[data-bs-theme="solarized-light"] .hljs-selector-tag,
+[data-bs-theme="solarized-light"] .hljs-subst {
+    color: #859900;
+}
+
+[data-bs-theme="solarized-light"] .hljs-number,
+[data-bs-theme="solarized-light"] .hljs-literal,
+[data-bs-theme="solarized-light"] .hljs-variable,
+[data-bs-theme="solarized-light"] .hljs-template-variable,
+[data-bs-theme="solarized-light"] .hljs-tag .hljs-attr {
+    color: #d33682;
+}
+
+[data-bs-theme="solarized-light"] .hljs-string,
+[data-bs-theme="solarized-light"] .hljs-doctag {
+    color: #2aa198;
+}
+
+[data-bs-theme="solarized-light"] .hljs-title,
+[data-bs-theme="solarized-light"] .hljs-section,
+[data-bs-theme="solarized-light"] .hljs-selector-id {
+    color: #268bd2;
+}
+
+[data-bs-theme="solarized-light"] .hljs-type,
+[data-bs-theme="solarized-light"] .hljs-class .hljs-title {
+    color: #b58900;
+}
+
+[data-bs-theme="solarized-light"] .hljs-tag,
+[data-bs-theme="solarized-light"] .hljs-name,
+[data-bs-theme="solarized-light"] .hljs-attribute {
+    color: #cb4b16;
+}
+
+[data-bs-theme="solarized-light"] .hljs-regexp,
+[data-bs-theme="solarized-light"] .hljs-link,
+[data-bs-theme="solarized-light"] .hljs-symbol,
+[data-bs-theme="solarized-light"] .hljs-bullet,
+[data-bs-theme="solarized-light"] .hljs-built_in,
+[data-bs-theme="solarized-light"] .hljs-builtin-name,
+[data-bs-theme="solarized-light"] .hljs-meta {
+    color: #268bd2;
+}
+
+[data-bs-theme="solarized-light"] .hljs-emphasis {
+    font-style: italic;
+}
+
+[data-bs-theme="solarized-light"] .hljs-strong {
+    font-weight: 600;
+}

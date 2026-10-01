@@ -256,6 +256,10 @@
     <link rel="stylesheet" href="~/lib/highlight/github.min.css" asp-append-version="true" />
 
     <link rel="stylesheet" href="~/css/chat.css" asp-append-version="true" />
+
+    <!-- KI-122 (B4.3): override палитры hljs для тёмных тем.
+         Подключается ПОСЛЕ github.min.css и chat.css — чтобы перебить бандл. -->
+    <link rel="stylesheet" href="~/css/theme-hljs.css" asp-append-version="true" />
 }
 
 @section Scripts {
