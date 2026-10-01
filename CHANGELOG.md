@@ -47,6 +47,25 @@
     в DI (`RegisterSpecializedAgentTools`). Тесты: +4
     (`CodeReviewerAgentToolTests`).
 
+### Docs / rules
+- **RULES § 4.51**: `ITool`, зависящий от `IToolRegistry` / `ISubAgentService`,
+    должен инжектить `Func<T>` (ADR-002). Прецедент — `CodeAgentWithReviewTool`
+    (KI-126, Шаг 1D-fix2). Симптом «A circular dependency was detected» виден
+    только при `dotnet run` (`ValidateOnBuild`), не на build/test.
+
+### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1E-part1)**: инфраструктура SSE + Human-in-the-loop
+  для Actor-Critic. Новые DTO `ChatDebateStartedDto` / `ChatDebateRoundDto` /
+  `ChatDebateEscalatedDto` / `ChatDebateCompletedDto` + 4 factory-метода в
+  `ChatStreamEvent` (`debate_started` / `debate_round` / `debate_escalated` /
+  `debate_completed`). `ToolExecutionContext.ChatId` (nullable `int`) — для
+  привязки сессии к чату. `IAgentDebateCoordinator` + `AgentDebateCoordinator`
+  (Singleton, `ConcurrentDictionary<int, TaskCompletionSource<string>>` с
+  `RunContinuationsAsynchronously` — RULES § 4.23) — реальный
+  `InjectFeedbackAsync`. 3 новых метода в `IAgentDebateSessionService`
+  (`MarkInProgressAsync` / `AddRoundAsync` / `CompleteAsync`).
+  Тесты: +7 (`AgentDebateCoordinatorTests`). Регистрация coordinator в DI.
+
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1D)**: top-level `ITool`
     `code_agent_with_review` — оркестратор Actor-Critic. Не наследник
     `AgentToolBase` (DESIGN § 5.1, по образцу `DatabaseAgentTool`).
