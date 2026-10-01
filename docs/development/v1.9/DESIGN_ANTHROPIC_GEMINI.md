@@ -3,9 +3,9 @@
 **Версия:** 1.0
 **Дата:** 2026-09-30
 **Автор:** IIChatTools Team
-**Статус:** **Draft** (согласование до реализации)
-**Связанные KI:** KI-110a (Anthropic Claude — новый), KI-110b (Google Gemini — Planned, v1.9.x), KI-109 (External-LLM Agent — база)
-**Целевой релиз:** v1.9.0 (только Anthropic) → v1.9.x (Gemini)
+**Статус:** **Implemented (v1.9.0, 2026-10-01)**
+**Связанные KI:** KI-110a (Anthropic Claude — Fixed в v1.9.0), KI-110b (Google Gemini — Planned, v1.9.x), KI-109 (External-LLM Agent — база)
+**Целевой релиз:** v1.9.0 (только Anthropic, ✅ Done) → v1.9.x (Gemini)
 
 ---
 
@@ -429,12 +429,12 @@ httpRequest.Headers.Add("anthropic-version", "2023-06-01");
 
 | Фаза | Что | Оценка | Статус |
 |:---:|---|:---:|:---:|
-| **0** | DESIGN (этот документ) + KI-110 → разбить на 110a/110b | 1.5 ч | 🔄 **В работе** |
-| **1** | `ProviderFormat` enum + `ExternalProviderOptions.Format` + тесты | 1 ч | ⏳ |
-| **2** | `AnthropicRequestBuilder` + `AnthropicResponseParser` + тесты | 2 ч | ⏳ |
-| **3** | Рефакторинг `ExternalLlmClient` (3 метода + switch) + тесты | 2.5 ч | ⏳ |
-| **4** | `appsettings.json` / `.Development.json` (anthropic + gemini) + README | 1 ч | ⏳ |
-| **5** | Релиз v1.9.0 (CHANGELOG, KNOWN_ISSUES, RULES § 8, bump, tag) | 1.5 ч | ⏳ |
+| **0** | DESIGN (этот документ) + KI-110 → разбить на 110a/110b | 1.5 ч | ✅ Done |
+| **1** | `ProviderFormat` enum + `ExternalProviderOptions.Format` + тесты | 1 ч | ✅ Done (`f324a13`) |
+| **2** | `AnthropicRequestBuilder` + `AnthropicResponseParser` + тесты | 2 ч | ✅ Done (`06ab722`) |
+| **3** | Рефакторинг `ExternalLlmClient` (3 метода + switch) + тесты | 2.5 ч | ✅ Done (`3524b90`) |
+| **4** | `appsettings.json` / `.Development.json` (anthropic + gemini) + README | 1 ч | ✅ Done (`46487fc`) |
+| **5** | Релиз v1.9.0 (CHANGELOG, KNOWN_ISSUES, RULES § 8, bump, tag) | 1.5 ч | ✅ Done |
 
 ### § 7.1. Фаза 1 — `ProviderFormat` + тесты (1 ч)
 
@@ -491,16 +491,16 @@ httpRequest.Headers.Add("anthropic-version", "2023-06-01");
 
 ### § 8.1. Функциональные требования
 
-- [ ] `ProviderFormat` enum (OpenAI / Anthropic / Gemini).
-- [ ] `ExternalProviderOptions.Format` (default = OpenAI).
-- [ ] `AnthropicRequestBuilder` — собирает Anthropic-body.
-- [ ] `AnthropicResponseParser` — парсит `content[]` + `usage`.
-- [ ] `ExternalLlmClient.CompleteAsync` — switch по `Format`.
-- [ ] `CompleteOpenAiAsync` — существующее поведение (все 5 провайдеров работают).
-- [ ] `CompleteAnthropicAsync` — новый путь через `/messages`.
-- [ ] `CompleteGeminiAsync` — `NotSupportedException` (KI-110b).
-- [ ] `appsettings.json` + `.Development.json` — `anthropic` + `gemini`.
-- [ ] 5 существующих провайдеров работают **без изменений конфига**.
+- [x] `ProviderFormat` enum (OpenAI / Anthropic / Gemini).
+- [x] `ExternalProviderOptions.Format` (default = OpenAI).
+- [x] `AnthropicRequestBuilder` — собирает Anthropic-body.
+- [x] `AnthropicResponseParser` — парсит `content[]` + `usage`.
+- [x] `ExternalLlmClient.CompleteAsync` — switch по `Format`.
+- [x] `CompleteOpenAiAsync` — существующее поведение (все 5 провайдеров работают).
+- [x] `CompleteAnthropicAsync` — новый путь через `/messages`.
+- [x] `CompleteGeminiAsync` — `NotSupportedException` (KI-110b).
+- [x] `appsettings.json` + `.Development.json` — `anthropic` + `gemini`.
+- [x] 5 существующих провайдеров работают **без изменений конфига**.
 
 ### § 8.2. Нефункциональные
 

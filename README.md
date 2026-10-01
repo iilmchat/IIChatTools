@@ -1,10 +1,10 @@
-# IIChatTools v1.8.2
+# IIChatTools v1.9.0
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.8.2
+© 2026 RuChating (iilmchat) · IIChatTools v1.9.0
 
 ---
 
@@ -1111,9 +1111,9 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.8.2
-    docker pull ghcr.io/iilmchat/iichattools:1.8.2
-    docker pull ghcr.io/iilmchat/iichattools:1.8
+    docker pull ghcr.io/iilmchat/iichattools:v1.9.0
+    docker pull ghcr.io/iilmchat/iichattools:1.9.0
+    docker pull ghcr.io/iilmchat/iichattools:1.9
     docker pull ghcr.io/iilmchat/iichattools:1
 
 ### Развёртывание (Docker)
@@ -1220,7 +1220,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 529/529 тестов проходят (unit + integration), 3 Skip (реальные провайдеры).
+**Статус**: 559/559 тестов проходят (unit + integration), 3 Skip (реальные провайдеры).
 
 ---
 

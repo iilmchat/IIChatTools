@@ -2,8 +2,8 @@
 
 **Версия промпта:** v3.0
 **Дата:** 2026-10-01
-**Актуальный релиз проекта:** v1.8.2 (2026-10-01)
-**Статус:** v1.8.2 (Tool result cache + prefix stability) выпущен. В работе — **v1.9.0 (Anthropic Claude, KI-110a)**.
+**Актуальный релиз проекта:** v1.9.0 (2026-10-01)
+**Статус:** v1.9.0 (Anthropic Claude, KI-110a) выпущен. В работе — **v1.9.x (Google Gemini, KI-110b)**.
 
 ---
 
@@ -28,8 +28,8 @@
 
 - **GitHub:** https://github.com/iilmchat/IIChatTools
 - **Ветка по умолчанию:** `main`
-- **Текущий релиз:** v1.8.2 (2026-10-01)
-- **В работе:** v1.9.0 (Anthropic Claude, KI-110a). DESIGN готов — `docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md` (Draft Approved).
+- **Текущий релиз:** v1.9.0 (2026-10-01)
+- **В работе:** v1.9.x (Google Gemini, KI-110b). DESIGN — `docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md` (Implemented для v1.9.0).
 
 ---
 
@@ -87,7 +87,7 @@
   - ExternalLlm: `ExternalLlmClient`, `ExternalProviderRegistry`, `ExternalLlmCircuitBreaker`, `ExternalLlmBudgetTracker`.
   - Cache: `ToolResultCache`, `CanonicalJsonHelper`.
 - **IIChatTools.Data** — EF Entities + миграции (SqlServer).
-- **IIChatTools.Tests** — xUnit (**529/529**, 3 Skip).
+- **IIChatTools.Tests** — xUnit (**559/559**, 3 Skip).
 
 ### Метрики
 
@@ -176,9 +176,12 @@
 
 ## § 5. Roadmap
 
-### v1.9.0 (ТЕКУЩАЯ РАБОТА) — Anthropic Claude (KI-110a)
+### v1.9.0 (✅ Done, 2026-10-01) — Anthropic Claude (KI-110a)
 
-**DESIGN готов:** `docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md` (Draft Approved).
+**DESIGN:** `docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md` (Implemented).
+Клиент `ExternalLlmClient` — switch по `ProviderFormat` (OpenAI / Anthropic / Gemini).
+Anthropic-ветка: `POST /messages`, `x-api-key`, `anthropic-version: 2023-06-01`.
+Gemini — заглушка `NotSupportedException` (v1.9.x, KI-110b).
 
 - `ProviderFormat` enum (OpenAI / Anthropic / Gemini), default = OpenAI.
 - `ExternalProviderOptions.Format` — новое свойство.

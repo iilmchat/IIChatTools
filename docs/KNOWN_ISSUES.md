@@ -1682,20 +1682,53 @@
 
 ---
 
-### KI-110 — Anthropic Claude + Google Gemini провайдеры
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.9+
+### KI-110a — Anthropic Claude провайдер
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.9.0
+- **Обнаружено:** 2026-09-29 | **Устранено:** 2026-10-01
+- **DESIGN:** [`docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md`](development/v1.9/DESIGN_ANTHROPIC_GEMINI.md)
+- **Описание:** В v1.8.1 (KI-109) — только OpenAI-совместимые провайдеры.
+  Anthropic Messages API (`POST /v1/messages`, `x-api-key`,
+  `anthropic-version: 2023-06-01`, `system` отдельным полем, `max_tokens`
+  обязателен, ответ — `content[]`) требует отдельной ветки.
+- **Что сделано (v1.9.0, 5 фаз):**
+  - **Фаза 1** — `ProviderFormat` enum + `ExternalProviderOptions.Format`
+    (default = OpenAI, backward-compatible). +2 теста. Коммит `f324a13`.
+  - **Фаза 2** — `AnthropicRequestBuilder` + `AnthropicResponseParser`
+    (static helpers). `ExternalLlmRequest.System` (nullable).
+    +20 тестов. Коммит `06ab722`.
+  - **Фаза 3** — рефакторинг `ExternalLlmClient.CompleteAsync` → switch
+    по `Format`: `CompleteOpenAiAsync` / `CompleteAnthropicAsync` /
+    `Gemini` → `NotSupportedException`. `SendWithRetryAsync` /
+    `SendOnceAsync` параметризованы заголовками. +8 тестов. Коммит `3524b90`.
+  - **Фаза 4** — `appsettings.json` / `.Development.json` — +провайдеры
+    `anthropic` + `gemini`. README обновлён. Коммит `46487fc`.
+  - **Фаза 5** — релиз v1.9.0 (CHANGELOG, KNOWN_ISSUES, RULES, DESIGN).
+- **Тесты:** 529 → **559** (+30), 3 Skip.
+- **Отложено в v1.9.x:**
+  - **KI-124** — интеграционный `[Fact(Skip=...)]` для Claude
+    (`ExternalLlmIntegrationTests`) — не добавлен в v1.9.0.
+- **Связанные:** KI-109 (External-LLM Agent — база), KI-110b (Gemini).
+
+---
+
+### KI-110b — Google Gemini провайдер
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.9.x
 - **Обнаружено:** 2026-09-29
-- **DESIGN:** [`docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`](development/v1.8/DESIGN_EXTERNAL_LLM.md) § 1.4.
-- **Описание:** В v1.8.0 (KI-109) только OpenAI-совместимые провайдеры
-  (DeepSeek, OpenAI, Groq, Together, Ollama). Anthropic (`/v1/messages`)
-  и Google Gemini (`/v1beta/models`) используют **свои форматы** запросов.
-- **Что входит:**
-  - `IExternalLlmClient` — ветвление по `Format` (`openai` | `anthropic` | `gemini`).
-  - Anthropic: `POST /v1/messages` + `anthropic-version` header.
-  - Gemini: `POST /v1beta/models/{model}:generateContent` + API key в query.
-  - DTO-мапперы: `AnthropicRequestBuilder`, `GeminiRequestBuilder`.
-  - Расширение cost-calculator (per-provider тарифы).
-- **Связанные:** KI-109 (External-LLM Agent — база).
+- **DESIGN:** [`docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md`](development/v1.9/DESIGN_ANTHROPIC_GEMINI.md)
+- **Описание:** Google Gemini (`POST /v1beta/models/{model}:generateContent`,
+  API key в query-параметре, свой формат запроса/ответа) — зарезервировано
+  на v1.9.x (KI-110b).
+- **Что уже готово (v1.9.0):**
+  - `ProviderFormat.Gemini = 2` в enum.
+  - `appsettings.json` / `.Development.json` — секция `gemini`
+    (валидна для `ExternalProviderRegistry`).
+  - `ExternalLlmClient.CompleteAsync` — `NotSupportedException` с текстом
+    «Gemini запланирован на v1.9.x (KI-110b)».
+- **Что нужно доделать (v1.9.x):**
+  - `GeminiRequestBuilder` (свой формат `/v1beta/models`).
+  - `GeminiResponseParser` (`candidates[0].content.parts[].text`).
+  - Ветка `CompleteGeminiAsync` в `ExternalLlmClient`.
+- **Связанные:** KI-110a (Anthropic — Done), KI-109 (External-LLM Agent).
 
 ---
 
@@ -2155,6 +2188,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.8.1) | 1 | <!-- KI-109 (External-LLM Agent) -->
 | Fixed (v1.8.2) | 1 | <!-- KI-121 (external_llm_agent — галлюцинация провайдеров) -->
 | Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
+| Fixed (v1.9.0) | 1 | <!-- KI-110a (Anthropic Claude) -->
 | Deferred  | 7 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099, KI-122, KI-123 -->
 | Documented | 13 | <!-- KI-007, KI-009, KI-032, KI-070, KI-092, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
 | In Progress | 0 |                   <!-- — -->
@@ -2162,7 +2196,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Planned | 4 |                       <!-- KI-108, KI-110, KI-111, KI-113 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **81** |
+| **Всего** | **82** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

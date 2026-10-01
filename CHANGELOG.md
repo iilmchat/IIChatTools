@@ -18,7 +18,13 @@
 
 ## [Unreleased]
 
-**v1.9.0 — Anthropic Claude (KI-110a).** DESIGN согласован 2026-09-30
+_(пусто — новые изменения вносятся сюда)_
+
+---
+
+## [1.9.0] — 2026-10-01
+
+**Anthropic Claude (KI-110a).** DESIGN согласован 2026-09-30
 (`docs/development/v1.9/DESIGN_ANTHROPIC_GEMINI.md`). План: 5 фаз
 (ProviderFormat → Builders → Client → Config → Релиз). Обратная
 совместимость: 5 существующих OpenAI-совместимых провайдеров не меняются.
