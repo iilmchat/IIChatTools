@@ -2356,9 +2356,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-130 — code_agent / code_agent_with_review не могут читать вложения чата (RAG)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.11.0 (частично)
 - **Обнаружено:** 2026-10-02 (smoke Chat — «исправь файл `code-1790941591651.py`»)
-- **Исправлено:** 2026-10-02 (вариант 1 — минимальная правка конфига)
+- **Quick-fix:** 2026-10-02 (вариант 1 — правка конфига: `search_knowledge_base`
+  в `AllowedTools` `code_agent` + правило 5 в SystemPrompt)
 - **Файлы (план):**
   - `appsettings.json` / `appsettings.Development.json` — `SubAgents:code_agent:AllowedTools`.
   - `IIChatTools.Services/Implementation/Tools/CodeExecution/*` — потенциальный новый tool.
@@ -2398,8 +2399,19 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Не покрыто (возможные follow-up):** прямая передача содержимого
     вложений в `context` при первом раунде (вариант 3) — потенциально
     эффективнее, но требует изменений в `CodeAgentWithReviewTool`.
+- **⚠️ Smoke 2026-10-02 показал, что quick-fix недостаточен:**
+  - Chat LLM для задачи «Исправь код в файле `code-*.py`» выбирает
+    **`file_system_agent`**, а не `code_agent`. Правило 5 в SystemPrompt
+    `code_agent` не применяется, потому что `code_agent` **не вызывается**.
+  - LLM также вызывает `search_workspace` → «Индексация отключена»
+    (opt-in, KI-083), что вводит в заблуждение.
+  - **Это та же проблема выбора инструмента, что KI-127** —
+    описания и SystemPrompt Chat не помогают для 4B-модели.
+  - **Следующий шаг:** добавить правило 7 в `ChatStreamService.DefaultSystemPrompt`:
+    «Задача «исправить/доработать код в файле X» → `code_agent_with_review` или
+    `code_agent`, НЕ `file_system_agent`». Затем — повторный smoke.
 - **Связанные:** KI-083 (RAG / attachments), KI-126 (Actor-Critic),
-  KI-113 (галлюцинация успеха — похожее поведение).
+  KI-127 (выбор `code_agent_with_review`), KI-113 (галлюцинация успеха).
 
 ---
 
@@ -2519,9 +2531,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 1 |                   <!-- KI-126 -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Fixed (v1.11.0) | 1 |              <!-- KI-130 (quick-fix) -->
 | Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
-| Partially Fixed | 1 |               <!-- KI-057 -->
+| Partially Fixed | 2 |               <!-- KI-057, KI-130 -->
 | **Всего** | **88** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).

@@ -42,13 +42,13 @@
   1J (релиз v1.11.0).
 
 ### Fixed
-- **KI-130 — code_agent / code_agent_with_review теперь могут читать
-  вложения чата через RAG** (v1.11.0, quick-fix). В `SubAgents:code_agent:
-  AllowedTools` добавлен `search_knowledge_base`; в SystemPrompt — правило
-  «искать приложенные файлы через `search_knowledge_base`, если их нет в
-  workspace». Эффект: `code_agent` и `code_agent_with_review` (actor)
-  получают содержимое вложений. Пример: «исправь файл code-*.py» теперь
-  работает без ручной передачи содержимого.
+- **KI-130 — code_agent / code_agent_with_review частично читают вложения
+  чата через RAG** (v1.11.0, quick-fix). В `SubAgents:code_agent:AllowedTools`
+  добавлен `search_knowledge_base` + правило 5 в SystemPrompt.
+  **⚠️ Partially Fixed:** smoke 2026-10-02 показал, что Chat LLM для задачи
+  «Исправь код в файле» всё ещё выбирает `file_system_agent`, а не
+  `code_agent` — та же проблема, что KI-127. Следующий шаг: правило 7 в
+  `ChatStreamService.DefaultSystemPrompt` (связано с KI-127).
 
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1G.3)**: UI feedback между раундами
