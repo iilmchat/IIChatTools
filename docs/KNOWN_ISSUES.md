@@ -2190,7 +2190,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     persistence (сессии в БД) + `DefaultSystemPrompt` (fix KI-127).
   - ✅ **1F** — эскалация на `ask_external_llm` при `Uncertain`.
   - ✅ **1G** — UI: селектор вида, диалоговый / свёрнутый рендер,
-    feedback между раундами.
+    feedback между раундами. **Закрыт 2026-10-02** (3 подшага + fix).
   - 🟡 **Осталось:** 1H (финальная локализация), 1I (тесты), 1J (релиз v1.11.0).
   - **Известные ограничения:** KI-129 (F5 не восстанавливает блок).
 - **Описание:** Сейчас Chat-LLM вызывает суб-агентов последовательно, без
@@ -2352,6 +2352,44 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-130 — code_agent / code_agent_with_review не могут читать вложения чата (RAG)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.x / v1.12.x
+- **Обнаружено:** 2026-10-02 (smoke Chat — «исправь файл `code-1790941591651.py`»)
+- **Файлы (план):**
+  - `appsettings.json` / `appsettings.Development.json` — `SubAgents:code_agent:AllowedTools`.
+  - `IIChatTools.Services/Implementation/Tools/CodeExecution/*` — потенциальный новый tool.
+  - `IIChatTools.Services/Implementation/Tools/Debate/CodeAgentWithReviewTool.cs`.
+- **Описание:** Пользователь загружает файл через 📎 → файл попадает в RAG-индекс
+  `my_rag_docs` и физически сохраняется в `chat-attachments/{chatId}/{guid}.ext`.
+  RAG находит его (виден в «Источники»), но **ни один code-агент не может
+  получить содержимое**:
+
+  - `code_agent.AllowedTools = [run_javascript, run_python, execute_command]` —
+    нет `read_file`, нет `search_knowledge_base`.
+  - `code_agent_with_review` использует того же `code_agent` (actor).
+  - Файл физически не в `workspace/{userId}/`, а в служебной подпапке
+    `chat-attachments/{chatId}/` (GUID-имя — by design, KI-083 Шаг 6A).
+
+  **Симптом:** LLM отвечает «файл не найден, передайте содержимое» — что
+  честно, но не помогает пользователю.
+
+- **Возможные решения:**
+  1. **Добавить `search_knowledge_base` в `AllowedTools` `code_agent`** —
+     агент сам ищет содержимое через RAG. Минимальная правка конфига.
+  2. **Новый top-level tool `read_chat_attachment(fileName)`** — читает
+     содержимое из `chat-attachments/{chatId}/`. Дать его `code_agent`.
+  3. **Инжектить содержимое активных вложений в `context`** при вызове
+     `code_agent` / `code_agent_with_review` (автоматически, если
+     задача упоминает имя файла).
+  4. **Разрешить `read_file` с явным путём к `chat-attachments/{chatId}/`** —
+     минимальная правка, но даёт агенту широкий доступ к чужой папке.
+- **Оценка:** ~40-60 мин (вариант 1 самый дешёвый).
+- **Связанные:** KI-083 (RAG / attachments), KI-126 (Actor-Critic),
+  KI-113 (галлюцинация успеха — похожее поведение).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2468,9 +2506,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 1 |                   <!-- KI-126 -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
+| Planned | 6 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129, KI-130 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **87** |
+| **Всего** | **88** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
