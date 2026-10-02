@@ -2216,6 +2216,21 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-127 — Chat LLM не выбирает `code_agent_with_review` для сложных задач
+
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Обнаружено:** 2026-10-01 (smoke Шага 1E-part2)
+- **Файлы:** `SubAgents:code_agent_with_review:Description`, `SubAgents:code_agent:Description` (оба `appsettings*.json`).
+- **Описание:** Chat LLM (qwen3-4b) при запросе «Напиши функцию для проверки палиндрома с обработкой edge cases» выбирает `code_agent` напрямую, а не `code_agent_with_review`. Аналогично KI-118.
+- **Симптом:** DevTools → `Approval required: code_agent` (не `code_agent_with_review`); `AgentDebateSessions` пуста.
+- **Решение (Шаг 1E-fix3, v1.11.0):**
+  - Усилен `Description` `code_agent_with_review` — явные триггеры («алгоритм», «парсер», «валидация», «обработка ошибок», «edge cases», «безопасность», «производительность», «unicode»).
+  - Ограничен `Description` `code_agent` — «ТОЛЬКО для простых задач: rename, add import, тривиальные однострочники».
+- **Проверка:** smoke E2E — при запросе «Используй `code_agent_with_review` для следующей задачи: ...» — LLM его вызывает, session завершается `Approved` (2 раунда: Rejected → Approved).
+- **Связанные:** KI-118 (`code_agent` для простых задач), KI-126 (Шаг 1E).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1

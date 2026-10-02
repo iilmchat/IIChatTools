@@ -47,6 +47,17 @@
     в DI (`RegisterSpecializedAgentTools`). Тесты: +4
     (`CodeReviewerAgentToolTests`).
 
+### Fixed
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1E-fix3)**: митигация KI-127 — Chat LLM
+  выбирает `code_agent` вместо `code_agent_with_review` для сложных задач.
+  - Усилен `Description` `code_agent_with_review` в обоих `appsettings*.json`:
+    явные триггеры («алгоритм», «парсер», «валидация», «обработка данных»,
+    «edge cases», «обработка ошибок», «безопасность», «security»,
+    «производительность», «парсинг», «сортировка», «структуры данных», «unicode»).
+  - Ограничен `Description` `code_agent`: «ТОЛЬКО для простых задач
+    (rename, add import, тривиальные однострочники). Для сложных — `code_agent_with_review`».
+  - KI-127 → Fixed (v1.11.0).
+
 ### Docs / rules
 - **RULES § 4.51**: `ITool`, зависящий от `IToolRegistry` / `ISubAgentService`,
     должен инжектить `Func<T>` (ADR-002). Прецедент — `CodeAgentWithReviewTool`

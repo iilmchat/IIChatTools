@@ -54,7 +54,7 @@ namespace IIChatTools.Services.Implementation
 
             var baseUrl = _configuration["LmStudio:BaseUrl"] ?? "http://localhost:8034";
             var temperature = GetDouble("LmStudio:Temperature", 0.7);
-            var maxTokens = GetInt("LmStudio:MaxTokens", 8192);
+            var maxTokens = GetInt("LmStudio:MaxTokens", 16384);
             var timeoutSeconds = GetInt("LmStudio:RequestTimeoutSeconds", 300);
 
             // v1.4.0 Фаза 2 (KI-052): приоритет — переданный model,
@@ -167,7 +167,7 @@ namespace IIChatTools.Services.Implementation
             var baseUrl = _configuration["LmStudio:BaseUrl"] ?? "http://localhost:8034";
             var model = _configuration["LmStudio:Model"] ?? "local-model";
             var temperature = GetDouble("LmStudio:Temperature", 0.7);
-            var maxTokens = GetInt("LmStudio:MaxTokens", 8192);
+            var maxTokens = GetInt("LmStudio:MaxTokens", 16384);
             var timeoutSeconds = GetInt("LmStudio:RequestTimeoutSeconds", 300);
 
             var payload = new JObject

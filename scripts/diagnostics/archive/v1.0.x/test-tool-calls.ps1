@@ -41,7 +41,7 @@ $body = @{
     )
     tool_choice = "auto"
     temperature = 0.3
-    max_tokens = 8192
+    max_tokens = 16384
     stream = $false
 } | ConvertTo-Json -Depth 10 -Compress
 
