@@ -47,6 +47,15 @@
     в DI (`RegisterSpecializedAgentTools`). Тесты: +4
     (`CodeReviewerAgentToolTests`).
 
+### Changed
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1F-fix)**: `appsettings.Development.json` →
+  `SubAgents:code_agent_with_review:HumanApproval = "Never"` (было
+  `"BetweenRounds"`). **Причина:** UI для feedback между раундами
+  появится только в Шаге 1G; без него tool после каждого `Rejected`
+  блокируется на 5 минут (timeout в `AgentDebateCoordinator`), что
+  выглядит как «зависание». В prod-`appsettings.json` дефолт
+  `"BetweenRounds"` — сохраняется.
+
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1F)**: эскалация на внешнюю LLM при
   `verdict = Uncertain` (DESIGN § 3.3). `CodeAgentWithReviewTool`:
