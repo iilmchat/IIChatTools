@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Debate;
+using IIChatTools.Services.DTO.ExternalLlm;
 using IIChatTools.Services.Implementation.Tools.Debate;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -65,14 +67,24 @@ namespace IIChatTools.Tests.UnitTests.Debate
             ToolResult.Ok(new { finalAnswer, completed = true }, message: null);
 
         /// <summary>
-        /// Создаёт tool с моками <see cref="IAgentDebateSessionService"/> и
-        /// <see cref="IAgentDebateCoordinator"/>.
+        /// Создаёт tool с моками <see cref="IAgentDebateSessionService"/>,
+        /// <see cref="IAgentDebateCoordinator"/>, <see cref="IExternalLlmClient"/>
+        /// и <see cref="IExternalProviderRegistry"/>.
+        ///
+        /// <para>
+        /// По умолчанию реестр провайдеров пустой — эскалация пропускается
+        /// (Шаг 1F). Чтобы включить — передайте <paramref name="externalProviderRegistryMock"/>
+        /// с зарегистрированным провайдером.
+        /// </para>
         /// </summary>
         private static CodeAgentWithReviewTool CreateTool(
             FakeToolRegistry registry,
             int maxRounds = 3,
             Mock<IAgentDebateSessionService> sessionMock = null,
-            Mock<IAgentDebateCoordinator> coordinatorMock = null)
+            Mock<IAgentDebateCoordinator> coordinatorMock = null,
+            Mock<IExternalLlmClient> externalLlmMock = null,
+            Mock<IExternalProviderRegistry> externalProviderRegistryMock = null,
+            IConfiguration config = null)
         {
             sessionMock ??= new Mock<IAgentDebateSessionService>();
             sessionMock.Setup(s => s.StartAsync(
@@ -96,11 +108,27 @@ namespace IIChatTools.Tests.UnitTests.Debate
                     It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((string)null);   // таймаут по умолчанию
 
+            externalLlmMock ??= new Mock<IExternalLlmClient>();
+
+            // v1.11.0 (KI-126, Шаг 1F): настраиваем "пустой реестр" ТОЛЬКО если
+            // mock не был передан извне. Иначе Setup(It.IsAny<string>) → null
+            // перебьёт ранее настроенный Setup("deepseek") → options
+            // (Moq: последний matching setup wins).
+            if (externalProviderRegistryMock == null)
+            {
+                externalProviderRegistryMock = new Mock<IExternalProviderRegistry>();
+                externalProviderRegistryMock
+                    .Setup(p => p.Get(It.IsAny<string>()))
+                    .Returns((ExternalProviderOptions)null);
+            }
+
             return new CodeAgentWithReviewTool(
                 () => registry,
                 sessionMock.Object,
                 coordinatorMock.Object,
-                BuildConfig(maxRounds),
+                externalLlmMock.Object,
+                externalProviderRegistryMock.Object,
+                config ?? BuildConfig(maxRounds),
                 NullLogger<CodeAgentWithReviewTool>.Instance);
         }
 
@@ -409,10 +437,21 @@ namespace IIChatTools.Tests.UnitTests.Debate
                     It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
 
+            // v1.11.0 (KI-126, Шаг 1F): конструктор расширен —
+            // +IExternalLlmClient +IExternalProviderRegistry.
+            // Здесь используем пустой mock реестра — эскалация пропускается
+            // (этот тест про Human-in-the-loop, не про эскалацию).
+            var externalLlmMock = new Mock<IExternalLlmClient>();
+            var externalRegistryMock = new Mock<IExternalProviderRegistry>();
+            externalRegistryMock.Setup(p => p.Get(It.IsAny<string>()))
+                .Returns((ExternalProviderOptions)null);
+
             var tool = new CodeAgentWithReviewTool(
                 () => registry,
                 sessionMock.Object,
                 coordinatorMock.Object,
+                externalLlmMock.Object,
+                externalRegistryMock.Object,
                 config,
                 NullLogger<CodeAgentWithReviewTool>.Instance);
 
@@ -424,6 +463,205 @@ namespace IIChatTools.Tests.UnitTests.Debate
             coordinatorMock.Verify(c => c.WaitForFeedbackAsync(
                 It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+
+        // ============ Эскалация на внешнюю LLM (Шаг 1F) ============
+
+        /// <summary>
+        /// Фабрика: mock-реестр с зарегистрированным "deepseek".
+        /// </summary>
+        private static Mock<IExternalProviderRegistry> RegistryWithDeepSeek()
+        {
+            var mock = new Mock<IExternalProviderRegistry>();
+            mock.Setup(p => p.Get("deepseek")).Returns(new ExternalProviderOptions
+            {
+                DisplayName = "DeepSeek",
+                BaseUrl = "https://api.deepseek.com/v1",
+                Model = "deepseek-chat"
+            });
+            mock.Setup(p => p.Get(It.IsNotIn("deepseek")))
+                .Returns((ExternalProviderOptions)null);
+            mock.Setup(p => p.GetNames()).Returns(new List<string> { "deepseek" });
+            mock.Setup(p => p.DefaultProvider).Returns("deepseek");
+            return mock;
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_UncertainWithEscalation_EscalatesAndRechecks()
+        {
+            var registry = new FakeToolRegistry();
+            // Actor — 1 ответ (Uncertain после critic-1, потом escalation, потом critic-2 Approved)
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("def is_palindrome(s): return s == s[::-1]")
+            });
+            // Critic — 2 ответа: Uncertain → Approved (после эскалации).
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Uncertain\",\"issues\":[],\"summary\":\"Не уверен про Unicode\"}"),
+                AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"Внешняя модель подтвердила\"}")
+            });
+
+            var externalMock = new Mock<IExternalLlmClient>();
+            externalMock.Setup(e => e.CompleteAsync(
+                    It.IsAny<int>(), It.IsAny<ExternalLlmRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ExternalLlmResponse
+                {
+                    Provider = "deepseek",
+                    Content = "Да, критик прав — нужно учесть Unicode-нормализацию.",
+                    PromptTokens = 100,
+                    CompletionTokens = 50,
+                    CostUsd = 0.001m,
+                    DurationMs = 500
+                });
+
+            var tool = CreateTool(
+                registry,
+                externalLlmMock: externalMock,
+                externalProviderRegistryMock: RegistryWithDeepSeek());
+
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Палиндром" });
+
+            Assert.True(result.Success);
+            var data = JObject.FromObject(result.Data);
+            Assert.Equal("Approved", data["verdict"]?.ToString());
+            Assert.Equal(1, data["totalRounds"]?.Value<int>());
+
+            // Внешняя LLM вызвана ровно 1 раз.
+            externalMock.Verify(e => e.CompleteAsync(
+                It.IsAny<int>(), It.IsAny<ExternalLlmRequest>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            // Critic вызван 2 раза (round 1 + second round после эскалации).
+            var criticCalls = registry.CalledTools.Where(t => t == "code_reviewer_agent").Count();
+            Assert.Equal(2, criticCalls);
+
+            // round в ответе: был Escalated.
+            var rounds = data["rounds"] as JArray;
+            Assert.NotNull(rounds);
+            Assert.Single(rounds);
+            Assert.True(rounds[0]["wasEscalated"]?.Value<bool>());
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_UncertainWithoutEscalation_Skips()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("def foo(): pass")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Uncertain\",\"issues\":[],\"summary\":\"n/a\"}")
+            });
+
+            var externalMock = new Mock<IExternalLlmClient>();
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    ["SubAgents:code_agent_with_review:MaxRounds"] = "3",
+                    ["SubAgents:code_agent_with_review:AllowEscalation"] = "false",
+                    ["SubAgents:code_agent_with_review:HumanApproval"] = "Never"
+                })
+                .Build();
+
+            var tool = CreateTool(
+                registry,
+                externalLlmMock: externalMock,
+                externalProviderRegistryMock: RegistryWithDeepSeek(),
+                config: config);
+
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Test" });
+
+            Assert.True(result.Success);
+            var data = JObject.FromObject(result.Data);
+            Assert.Equal("Uncertain", data["verdict"]?.ToString());
+
+            // Внешняя LLM НЕ вызвана (AllowEscalation=false).
+            externalMock.Verify(e => e.CompleteAsync(
+                It.IsAny<int>(), It.IsAny<ExternalLlmRequest>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_EscalationHttpFails_KeepsUncertain()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("code v1")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Uncertain\",\"issues\":[],\"summary\":\"n/a\"}")
+            });
+
+            var externalMock = new Mock<IExternalLlmClient>();
+            externalMock.Setup(e => e.CompleteAsync(
+                    It.IsAny<int>(), It.IsAny<ExternalLlmRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("Daily budget exceeded"));
+
+            var tool = CreateTool(
+                registry,
+                externalLlmMock: externalMock,
+                externalProviderRegistryMock: RegistryWithDeepSeek());
+
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Test" });
+
+            Assert.True(result.Success);
+            var data = JObject.FromObject(result.Data);
+            Assert.Equal("Uncertain", data["verdict"]?.ToString());
+
+            // Второй раунд критика НЕ вызывался (эскалация упала).
+            var criticCalls = registry.CalledTools.Where(t => t == "code_reviewer_agent").Count();
+            Assert.Equal(1, criticCalls);
+
+            // round.wasEscalated == false (эскалация не удалась).
+            var rounds = data["rounds"] as JArray;
+            Assert.False(rounds[0]["wasEscalated"]?.Value<bool>());
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_EscalationProviderNotRegistered_Skips()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("code v1")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Uncertain\",\"issues\":[],\"summary\":\"n/a\"}")
+            });
+
+            var externalMock = new Mock<IExternalLlmClient>();
+            // Пустой реестр — провайдер не зарегистрирован.
+            var emptyRegistry = new Mock<IExternalProviderRegistry>();
+            emptyRegistry.Setup(p => p.Get(It.IsAny<string>()))
+                .Returns((ExternalProviderOptions)null);
+
+            var tool = CreateTool(
+                registry,
+                externalLlmMock: externalMock,
+                externalProviderRegistryMock: emptyRegistry);
+
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Test" });
+
+            Assert.True(result.Success);
+            var data = JObject.FromObject(result.Data);
+            Assert.Equal("Uncertain", data["verdict"]?.ToString());
+
+            // Внешняя LLM НЕ вызвана (провайдер не зарегистрирован).
+            externalMock.Verify(e => e.CompleteAsync(
+                It.IsAny<int>(), It.IsAny<ExternalLlmRequest>(),
+                It.IsAny<CancellationToken>()), Times.Never);
         }
     }
 }

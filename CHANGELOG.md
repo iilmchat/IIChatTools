@@ -47,6 +47,26 @@
     в DI (`RegisterSpecializedAgentTools`). Тесты: +4
     (`CodeReviewerAgentToolTests`).
 
+### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1F)**: эскалация на внешнюю LLM при
+  `verdict = Uncertain` (DESIGN § 3.3). `CodeAgentWithReviewTool`:
+  - при `Uncertain` + `AllowEscalation = true` + зарегистрированном
+    `EscalationProvider` — вызов `IExternalLlmClient.CompleteAsync` с
+    вопросом критика + задачей + кодом actor'а;
+  - SSE-событие `debate_escalated` (success / failure);
+  - **второй раунд критика** с ответом внешней LLM как доп. контекстом
+    (`BuildCriticTaskWithExternalContext`);
+  - финальный verdict — из второго раунда; записывается в `AgentDebateRound`
+    с `WasEscalated = true`, `EscalationProvider`, `TokensIn/Out`, `CostUsd`;
+  - при неудаче (провайдер не зарегистрирован / budget exceeded / HTTP error
+    / второй раунд упал) — оставляем `Uncertain`, `WasEscalated = false`.
+  - DI: `+IExternalLlmClient`, `+IExternalProviderRegistry` (оба Singleton).
+  - Тесты: +4 (`ExecuteAsync_UncertainWithEscalation_EscalatesAndRechecks`,
+    `..._UncertainWithoutEscalation_Skips`, `..._EscalationHttpFails_KeepsUncertain`,
+    `..._EscalationProviderNotRegistered_Skips`).
+  - **Budget guardrail** — внутри `ExternalLlmClient` (DESIGN_EXTERNAL_LLM § 4.1),
+    tool его не дублирует.
+
 ### Fixed
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1E-fix4)**: `DefaultSystemPrompt` в
   `ChatStreamService` — базовый system-prompt с явными правилами выбора

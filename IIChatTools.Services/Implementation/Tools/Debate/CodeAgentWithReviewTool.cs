@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Debate;
+using IIChatTools.Services.DTO.ExternalLlm;
 using IIChatTools.Services.Extensions;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -72,6 +73,17 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         /// Ленивая фабрика реестра инструментов — разрывает DI-цикл
         /// (RULES § 4.51, ADR-002).
         /// </summary>
+        /// <summary>
+        /// Провайдер эскалации по умолчанию (v1.11.0, KI-126, Шаг 1F).
+        /// </summary>
+        private const string DefaultEscalationProvider = "deepseek";
+
+        /// <summary>
+        /// Максимум токенов для запроса к внешней LLM при эскалации.
+        /// Достаточно для короткого ответа (не пишем код — только мнение).
+        /// </summary>
+        private const int EscalationMaxTokens = 1024;
+
         private readonly Func<IToolRegistry> _toolRegistryFactory;
 
         /// <summary>
@@ -84,6 +96,18 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         /// </summary>
         private readonly IAgentDebateCoordinator _coordinator;
 
+        /// <summary>
+        /// Клиент внешних LLM (Singleton) — для эскалации при Uncertain
+        /// (v1.11.0, KI-126, Шаг 1F).
+        /// </summary>
+        private readonly IExternalLlmClient _externalLlm;
+
+        /// <summary>
+        /// Реестр провайдеров (Singleton) — для проверки, что
+        /// <c>EscalationProvider</c> зарегистрирован (v1.11.0, Шаг 1F).
+        /// </summary>
+        private readonly IExternalProviderRegistry _externalProviderRegistry;
+
         private readonly IConfiguration _configuration;
         private readonly ILogger<CodeAgentWithReviewTool> _logger;
 
@@ -93,6 +117,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         /// <param name="toolRegistryFactory">Ленивая фабрика реестра (RULES § 4.51).</param>
         /// <param name="sessionService">Сервис управления сессиями.</param>
         /// <param name="coordinator">Координатор Human-in-the-loop.</param>
+        /// <param name="externalLlm">Клиент внешних LLM (для эскалации).</param>
+        /// <param name="externalProviderRegistry">Реестр провайдеров External-LLM.</param>
         /// <param name="configuration">Конфигурация.</param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если параметр равен null.</exception>
@@ -100,6 +126,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             Func<IToolRegistry> toolRegistryFactory,
             IAgentDebateSessionService sessionService,
             IAgentDebateCoordinator coordinator,
+            IExternalLlmClient externalLlm,
+            IExternalProviderRegistry externalProviderRegistry,
             IConfiguration configuration,
             ILogger<CodeAgentWithReviewTool> logger)
         {
@@ -109,6 +137,10 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 ?? throw new ArgumentNullException(nameof(sessionService));
             _coordinator = coordinator
                 ?? throw new ArgumentNullException(nameof(coordinator));
+            _externalLlm = externalLlm
+                ?? throw new ArgumentNullException(nameof(externalLlm));
+            _externalProviderRegistry = externalProviderRegistry
+                ?? throw new ArgumentNullException(nameof(externalProviderRegistry));
             _configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger
@@ -329,7 +361,45 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     "Actor-Critic round {Round}/{MaxRounds}: verdict = {Verdict}",
                     round, maxRounds, verdict);
 
-                // 3c. Persist round.
+                // 3c. Эскалация на внешнюю LLM при Uncertain (v1.11.0, KI-126, Шаг 1F).
+                var wasEscalated = false;
+                string escalationProvider = null;
+                var escalationCost = 0m;
+                var escalationTokensIn = 0;
+                var escalationTokensOut = 0;
+
+                if (verdict == "Uncertain"
+                    && configSnapshot != null
+                    && configSnapshot.AllowEscalation)
+                {
+                    var critReason = feedbackJson ?? summary
+                        ?? "Критик не уверен в корректности кода.";
+
+                    var escResult = await TryEscalateAsync(
+                        context,
+                        sessionId,
+                        task,
+                        actorOutput,
+                        critReason,
+                        context.CancellationToken);
+
+                    if (escResult.Escalated)
+                    {
+                        verdict = escResult.Verdict;
+                        feedbackJson = escResult.Feedback;
+                        summary = escResult.Summary;
+                        wasEscalated = true;
+                        escalationProvider = escResult.Provider;
+                        escalationCost = escResult.Cost;
+                        escalationTokensIn = escResult.TokensIn;
+                        escalationTokensOut = escResult.TokensOut;
+
+                        _logger.LogInformation(
+                            "Actor-Critic: после эскалации verdict = {Verdict}", verdict);
+                    }
+                }
+
+                // 3d. Persist round (после эскалации — финальный verdict).
                 var roundDto = new AgentDebateRoundDto
                 {
                     RoundNumber = round,
@@ -338,10 +408,11 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     CriticFeedbackJson = feedbackJson,
                     ActorModel = configSnapshot?.ActorModel,
                     CriticModel = configSnapshot?.CriticModel,
-                    WasEscalated = false,
-                    TokensIn = 0,
-                    TokensOut = 0,
-                    CostUsd = 0m,
+                    WasEscalated = wasEscalated,
+                    EscalationProvider = escalationProvider,
+                    TokensIn = escalationTokensIn,
+                    TokensOut = escalationTokensOut,
+                    CostUsd = escalationCost,
                     DurationMs = (int)sw.ElapsedMilliseconds
                 };
 
@@ -363,10 +434,10 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     ActorOutput = actorOutput,
                     CriticVerdict = verdict,
                     CriticFeedback = feedbackJson ?? summary,
-                    WasEscalated = false
+                    WasEscalated = wasEscalated
                 }));
 
-                // 3d. Условия выхода.
+                // 3e. Условия выхода.
                 if (verdict == "Approved")
                 {
                     _logger.LogInformation(
@@ -377,8 +448,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 if (verdict == "Uncertain")
                 {
                     _logger.LogInformation(
-                        "Actor-Critic: Uncertain в раунде {Round} — эскалация отложена (1F).",
-                        round);
+                        "Actor-Critic: Uncertain в раунде {Round} — " +
+                        "эскалация не помогла, завершаем.", round);
                     break;
                 }
 
@@ -557,6 +628,154 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 $"ЗАДАЧА:\n{originalTask}\n\n" +
                 $"КОД:\n{code}\n\n" +
                 "Верни СТРОГО JSON: {verdict, issues, summary}.";
+        }
+
+        /// <summary>
+        /// Второй раунд критика с ответом внешней LLM как доп. контекстом
+        /// (v1.11.0, KI-126, Шаг 1F).
+        /// </summary>
+        private static string BuildCriticTaskWithExternalContext(
+            string originalTask, string code, string externalProvider, string externalAnswer)
+        {
+            return
+                "Проверь код, написанный для следующей задачи (повторное ревью " +
+                "после консультации с внешней моделью):\n\n" +
+                $"ЗАДАЧА:\n{originalTask}\n\n" +
+                $"КОД:\n{code}\n\n" +
+                $"ВНЕШНЯЯ МОДЕЛЬ ({externalProvider}) ДАЛА СЛЕДУЮЩИЙ ОТВЕТ " +
+                "НА ТВОЙ ВОПРОС:\n" +
+                $"{externalAnswer}\n\n" +
+                "Учти это мнение. Верни СТРОГО JSON: {verdict, issues, summary}.";
+        }
+
+        /// <summary>
+        /// Эскалация на внешнюю LLM при Uncertain + повторное ревью
+        /// (v1.11.0, KI-126, Шаг 1F, DESIGN § 3.3).
+        ///
+        /// <para>
+        /// Возвращает <c>Escalated = false</c> (без изменений verdict), если:
+        /// провайдер не зарегистрирован, HTTP-запрос упал, второй раунд
+        /// критика упал. <c>Escalated = true</c> + финальный verdict —
+        /// при успехе.
+        /// </para>
+        /// </summary>
+        private async Task<(bool Escalated, string Verdict, string Feedback,
+            string Summary, string Provider, decimal Cost, int TokensIn, int TokensOut)>
+            TryEscalateAsync(
+                ToolExecutionContext context,
+                int? sessionId,
+                string originalTask,
+                string actorOutput,
+                string criticReason,
+                CancellationToken cancellationToken)
+        {
+            var providerName = GetStringConfig(
+                "SubAgents:code_agent_with_review:EscalationProvider",
+                DefaultEscalationProvider);
+
+            if (_externalProviderRegistry.Get(providerName) == null)
+            {
+                _logger.LogWarning(
+                    "Escalation: провайдер '{Provider}' не зарегистрирован " +
+                    "(ExternalLlm:Enabled=false или опечатка) — пропускаем эскалацию.",
+                    providerName);
+                return (false, null, null, null, null, 0m, 0, 0);
+            }
+
+            // 1. Формируем prompt для внешней LLM.
+            var escalationPrompt =
+                "Ты — эксперт-консультант. Другой критик проверял код и " +
+                "не смог дать однозначный вердикт. Помоги разобраться.\n\n" +
+                "ВОПРОС КРИТИКА:\n" +
+                $"{criticReason}\n\n" +
+                "ИСХОДНАЯ ЗАДАЧА:\n" +
+                $"{originalTask}\n\n" +
+                "ПРОВЕРЯЕМЫЙ КОД:\n" +
+                $"{actorOutput}\n\n" +
+                "Ответь КРАТКО (1 абзац, без кода): прав ли критик? Есть ли " +
+                "РЕАЛЬНЫЕ проблемы (edge cases, безопасность, обработка ошибок)?";
+
+            ExternalLlmResponse response = null;
+            string failureReason = null;
+
+            try
+            {
+                var request = new ExternalLlmRequest
+                {
+                    Provider = providerName,
+                    Prompt = escalationPrompt,
+                    IncludeContext = false,
+                    MaxTokens = EscalationMaxTokens,
+                    Temperature = 0.3
+                };
+
+                response = await _externalLlm.CompleteAsync(
+                    context.UserId, request, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;   // Пробрасываем — вызывающий код обработает.
+            }
+            catch (Exception ex)
+            {
+                // Budget exceeded / circuit breaker / HTTP error.
+                _logger.LogWarning(ex,
+                    "Escalation: вызов '{Provider}' упал — оставляем Uncertain.",
+                    providerName);
+                failureReason = ex.Message;
+            }
+
+            // 2. SSE: debate_escalated (success или failure).
+            var escalatedDto = new ChatDebateEscalatedDto
+            {
+                SessionId = sessionId ?? 0,
+                Reason = response != null
+                    ? criticReason
+                    : $"Escalation failed: {failureReason}",
+                ExternalProvider = providerName,
+                CostUsd = response?.CostUsd ?? 0m
+            };
+            TryEmit(context, ChatStreamEvent.DebateEscalated(escalatedDto));
+
+            if (response == null)
+            {
+                return (false, null, null, null, null, 0m, 0, 0);
+            }
+
+            // 3. Второй раунд критика с ответом внешней LLM.
+            var secondCriticTask = BuildCriticTaskWithExternalContext(
+                originalTask, actorOutput, providerName, response.Content ?? "(пусто)");
+
+            var registry = _toolRegistryFactory();
+            var secondCriticResult = await registry.ExecuteAsync(
+                ReviewerToolName, context,
+                new JObject { ["task"] = secondCriticTask });
+
+            if (!secondCriticResult.Success)
+            {
+                _logger.LogWarning(
+                    "Escalation: второй раунд критика упал ({Message}) — " +
+                    "оставляем Uncertain.",
+                    secondCriticResult.Message);
+                return (false, null, null, null, null, 0m, 0, 0);
+            }
+
+            var secondAnswer = ExtractFinalAnswer(secondCriticResult.Data);
+            var (secondVerdict, secondFeedback, secondSummary) =
+                ParseCriticVerdict(secondAnswer);
+
+            _logger.LogInformation(
+                "Escalation: второй раунд критика → verdict = {Verdict}",
+                secondVerdict);
+
+            return (true,
+                    secondVerdict,
+                    secondFeedback,
+                    secondSummary,
+                    providerName,
+                    response.CostUsd,
+                    response.PromptTokens,
+                    response.CompletionTokens);
         }
 
         private static string ExtractFinalAnswer(object data)
