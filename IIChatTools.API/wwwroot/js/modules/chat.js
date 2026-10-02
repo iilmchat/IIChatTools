@@ -49,6 +49,11 @@ const state = {
 
     // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
     debateView: 'collapsed',
+
+    // v1.11.0 (KI-126, Шаг 1G.2): кэш данных дебатов по sessionId.
+    // Нужен для перерендера блока при смене вида (dialog ⇄ collapsed).
+    // Формат: { [sessionId]: { started, rounds: [], completed } }
+    debates: {},
 };
 
 // ============ Инициализация ============
@@ -1082,6 +1087,10 @@ async function selectChat(chatId) {
     state.activeChatMessageCount = (res.data.messages || []).length;
     state.autoScroll = true;   // при переключении чата — прилипаем к низу
 
+    // v1.11.0 (KI-126, Шаг 1G.2): сброс кэша дебатов при переключении чата —
+    // DOM будет перерисован, старые sessionId неактуальны.
+    state.debates = {};
+
     // KI-078A: при переключении чата — закрыть панель поиска (marks устарели).
     closeChatSearch();
 
@@ -1830,17 +1839,24 @@ function handleApprovalResolved(data) {
     console.log(`[chat] Approval resolved event: ${data.id} → ${data.decision}`);
 }
 
-// ============ v1.11.0 (KI-126, Шаг 1G.1): Рендер дебатов ============
+// ============ v1.11.0 (KI-126): Рендер дебатов (Actor-Critic) ============
 
 /**
  * Обрабатывает SSE-событие `debate_started`.
- * Создаёт контейнер для раундов Actor-Critic внутри текущего assistant-пузыря.
+ * Сохраняет данные в кэш и создаёт контейнер в DOM.
  *
  * @param {HTMLElement} bubble — текущий assistant-пузырь
  * @param {object} data — ChatDebateStartedDto
  */
 function handleDebateStarted(bubble, data) {
-    if (!bubble) return;
+    if (!bubble || !data?.sessionId) return;
+
+    // Сохраняем данные в кэш для перерендера при смене вида.
+    state.debates[data.sessionId] = {
+        started: data,
+        rounds: [],
+        completed: null
+    };
 
     const bodyEl = bubble.querySelector('.chat-message-body');
     if (!bodyEl) return;
@@ -1852,21 +1868,10 @@ function handleDebateStarted(bubble, data) {
     const container = document.createElement('div');
     container.className = `chat-debate-block chat-debate-${state.debateView}`;
     container.dataset.debateSessionId = data.sessionId;
-
-    // Заголовок блока
-    container.innerHTML = `
-        <div class="chat-debate-header">
-            <span class="chat-debate-icon">⚔️</span>
-            <span class="chat-debate-title">Actor-Critic</span>
-            <span class="chat-debate-task" title="${escapeAttr(data.task)}">${escapeHtml(truncateText(data.task, 80))}</span>
-            <span class="chat-debate-meta">Max ${data.maxRounds} rounds</span>
-        </div>
-        <div class="chat-debate-rounds" data-debate-rounds></div>
-    `;
+    container.innerHTML = renderDebateContainerInner(data.sessionId);
 
     // v1.11.0 (KI-126, Шаг 1G.1-fix): вставляем в .chat-message-tools,
     // чтобы блок дебатов логически предшествовал финальному тексту ответа.
-    // Иначе финальный текст (в .chat-message-content) оказывается ВЫШЕ блока.
     const toolsEl = bodyEl.querySelector('.chat-message-tools');
     if (toolsEl) {
         toolsEl.appendChild(container);
@@ -1886,35 +1891,28 @@ function handleDebateStarted(bubble, data) {
 
 /**
  * Обрабатывает SSE-событие `debate_round`.
- * Добавляет один раунд (Actor + Critic) в контейнер.
+ * Сохраняет раунд в кэш и перерендеривает контейнер.
  *
  * @param {HTMLElement} bubble — текущий assistant-пузырь
  * @param {object} data — ChatDebateRoundDto
  */
 function handleDebateRound(bubble, data) {
-    if (!bubble) return;
+    if (!bubble || !data?.sessionId) return;
 
-    const roundsEl = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"] [data-debate-rounds]`);
-    if (!roundsEl) return;
+    const entry = state.debates[data.sessionId];
+    if (!entry) {
+        // Если по какой-то причине не было debate_started — создаём entry.
+        // Восстанавливаем sessionId и пустой started (пригодится для рендера).
+        console.warn(`[chat] debate_round без debate_started: sessionId=${data.sessionId}`);
+        return;
+    }
 
-    const isDialog = state.debateView === 'dialog';
-    const roundHtml = renderDebateRound(data, isDialog);
+    entry.rounds.push(data);
 
-    roundsEl.insertAdjacentHTML('beforeend', roundHtml);
-
-    // Обновляем заголовок с количеством раундов
+    // Полный перерендер контейнера.
     const container = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"]`);
     if (container) {
-        const header = container.querySelector('.chat-debate-header');
-        if (header) {
-            let roundsBadge = header.querySelector('.chat-debate-rounds-count');
-            if (!roundsBadge) {
-                roundsBadge = document.createElement('span');
-                roundsBadge.className = 'chat-debate-rounds-count';
-                header.appendChild(roundsBadge);
-            }
-            roundsBadge.textContent = `${data.roundNumber} rounds`;
-        }
+        container.innerHTML = renderDebateContainerInner(data.sessionId);
     }
 
     scrollToBottom();
@@ -1922,22 +1920,27 @@ function handleDebateRound(bubble, data) {
 
 /**
  * Обрабатывает SSE-событие `debate_completed`.
- * Добавляет финальный блок с вердиктом.
+ * Сохраняет финал в кэш и перерендеривает контейнер.
  *
  * @param {HTMLElement} bubble — текущий assistant-пузырь
  * @param {object} data — ChatDebateCompletedDto
  */
 function handleDebateCompleted(bubble, data) {
-    if (!bubble) return;
+    if (!bubble || !data?.sessionId) return;
 
+    const entry = state.debates[data.sessionId];
+    if (!entry) {
+        console.warn(`[chat] debate_completed без debate_started: sessionId=${data.sessionId}`);
+        return;
+    }
+
+    entry.completed = data;
+
+    // Полный перерендер контейнера.
     const container = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"]`);
-    if (!container) return;
-
-    const isDialog = state.debateView === 'dialog';
-    const completedHtml = renderDebateCompleted(data, isDialog);
-
-    // Вставляем финальный блок в конец контейнера
-    container.insertAdjacentHTML('beforeend', completedHtml);
+    if (container) {
+        container.innerHTML = renderDebateContainerInner(data.sessionId);
+    }
 
     // Скрываем индикатор «Печатает…», если он ещё виден
     showTypingIndicator(bubble, false);
@@ -1946,13 +1949,127 @@ function handleDebateCompleted(bubble, data) {
 }
 
 /**
- * Рендерит один раунд дебатов.
+ * Перерисовывает ВСЕ отображённые блоки дебатов в соответствии с текущим
+ * значением `state.debateView`. Вызывается при переключении вида.
+ */
+function refreshDebateViews() {
+    const containers = document.querySelectorAll('[data-debate-session-id]');
+    containers.forEach(container => {
+        const sessionId = parseInt(container.dataset.debateSessionId, 10);
+        if (!Number.isFinite(sessionId)) return;
+
+        // Обновляем класс и полностью перерендериваем содержимое.
+        container.classList.toggle('chat-debate-dialog', state.debateView === 'dialog');
+        container.classList.toggle('chat-debate-collapsed', state.debateView === 'collapsed');
+        container.innerHTML = renderDebateContainerInner(sessionId);
+    });
+}
+
+/**
+ * Возвращает HTML-содержимое блока дебатов (без внешнего div-обёртки).
+ * В зависимости от `state.debateView` рендерит в режиме «диалог» или «свёрнутый».
  *
- * @param {object} data — ChatDebateRoundDto
- * @param {boolean} isDialog — true, если отображать в режиме «диалог»
+ * @param {number} sessionId
  * @returns {string} HTML
  */
-function renderDebateRound(data, isDialog) {
+function renderDebateContainerInner(sessionId) {
+    const entry = state.debates[sessionId];
+    if (!entry || !entry.started) return '';
+
+    const started = entry.started;
+    const isDialog = state.debateView === 'dialog';
+
+    // --- Заголовок ---
+    const headerHtml = `
+        <div class="chat-debate-header">
+            <span class="chat-debate-icon">⚔️</span>
+            <span class="chat-debate-title">Actor-Critic</span>
+            <span class="chat-debate-task" title="${escapeAttr(started.task)}">${escapeHtml(truncateText(started.task, 80))}</span>
+            <span class="chat-debate-meta">Max ${started.maxRounds} rounds</span>
+            ${entry.rounds.length > 0 ? `<span class="chat-debate-rounds-count">${entry.rounds.length} rounds</span>` : ''}
+        </div>
+    `;
+
+    if (isDialog) {
+        // --- Диалоговый режим: все раунды + финал ---
+        const roundsHtml = entry.rounds.map(r => renderDebateRoundDialog(r)).join('');
+        const completedHtml = entry.completed
+            ? renderDebateCompletedDialog(entry.completed)
+            : '';
+
+        return `
+            ${headerHtml}
+            <div class="chat-debate-rounds">${roundsHtml}</div>
+            ${completedHtml}
+        `;
+    } else {
+        // --- Свёрнутый режим: финал + <details> со всеми раундами ---
+        const completed = entry.completed;
+        const verdict = completed?.verdict || 'InProgress';
+        const verdictClass = verdict.toLowerCase();
+        const verdictLabel = completed ? getVerdictLabel(verdict) : '⏳ In progress…';
+
+        let costHtml = '';
+        if (completed && completed.totalCostUsd > 0) {
+            costHtml = `<span class="chat-debate-cost">$${completed.totalCostUsd.toFixed(4)}</span>`;
+        }
+
+        const finalArtifactHtml = completed?.finalArtifact
+            ? `<pre class="chat-debate-final-artifact">${escapeHtml(completed.finalArtifact)}</pre>`
+            : '';
+
+        const roundsHtml = entry.rounds.map(r => renderDebateRoundDialog(r)).join('');
+        const detailsOpenAttr = completed ? '' : ' open';   // пока сессия не завершена — держим открытым
+        const detailsHtml = entry.rounds.length > 0
+            ? `
+                <details class="chat-debate-details"${detailsOpenAttr}>
+                    <summary class="chat-debate-details-summary">
+                        ${escapeHtml(renderDetailsLabel(entry.rounds.length, completed))}
+                    </summary>
+                    <div class="chat-debate-rounds">${roundsHtml}</div>
+                </details>
+            `
+            : '';
+
+        return `
+            ${headerHtml}
+            <div class="chat-debate-completed chat-debate-completed-${verdictClass}">
+                <div class="chat-debate-completed-header">
+                    <span class="chat-debate-icon">${verdict === 'Approved' ? '✅' : (verdict === 'InProgress' ? '⏳' : '⚠️')}</span>
+                    <span class="chat-debate-completed-title">${verdictLabel}</span>
+                    ${completed ? `<span class="chat-debate-completed-meta">${completed.totalRounds} rounds</span>` : ''}
+                    ${costHtml}
+                </div>
+                ${finalArtifactHtml}
+                ${detailsHtml}
+            </div>
+        `;
+    }
+}
+
+/**
+ * Формирует текст для `<summary>` в свёрнутом режиме.
+ * @param {number} roundCount
+ * @param {object|null} completed
+ * @returns {string}
+ */
+function renderDetailsLabel(roundCount, completed) {
+    const word = roundCount === 1 ? 'round' : 'rounds';
+    if (completed) {
+        return `▼ Показать детали (${roundCount} ${word})`;
+    }
+    return `▲ Раунды (${roundCount} ${word})`;
+}
+
+/**
+ * Рендерит один раунд в диалоговом стиле (Actor + Critic отдельными блоками).
+ * Используется и в `dialog`, и в `collapsed` (внутри <details>) — визуально
+ * один и тот же раунд.
+ *
+ * @param {object} data — ChatDebateRoundDto
+ * @returns {string} HTML
+ */
+function renderDebateRoundDialog(data) {
     const roundNum = data.roundNumber;
     const verdict = data.criticVerdict || 'Unknown';
     const verdictClass = verdict.toLowerCase();
@@ -1982,37 +2099,22 @@ function renderDebateRound(data, isDialog) {
         </div>
     `;
 
-    if (isDialog) {
-        return `<div class="chat-debate-round">${actorHtml}${criticHtml}</div>`;
-    } else {
-        // В свернутом режиме раунд всё равно рендерится, но обёртывается в <details>
-        // Логика сворачивания будет добавлена в Шаге 1G.2
-        return `<div class="chat-debate-round">${actorHtml}${criticHtml}</div>`;
-    }
+    return `<div class="chat-debate-round">${actorHtml}${criticHtml}</div>`;
 }
 
 /**
- * Рендерит финальный блок завершения дебатов.
+ * Рендерит финальный блок дебатов в диалоговом режиме.
  *
  * @param {object} data — ChatDebateCompletedDto
- * @param {boolean} isDialog
  * @returns {string} HTML
  */
-function renderDebateCompleted(data, isDialog) {
+function renderDebateCompletedDialog(data) {
     const verdict = data.verdict || 'Unknown';
-    const verdictClass = verdict.toLowerCase();
     const verdictLabel = getVerdictLabel(verdict);
 
     let costHtml = '';
     if (data.totalCostUsd > 0) {
         costHtml = `<span class="chat-debate-cost">Total cost: $${data.totalCostUsd.toFixed(4)}</span>`;
-    }
-
-    let detailsHtml = '';
-    if (!isDialog) {
-        // В свернутом режиме показываем <details> с раундами
-        // (сами раунды уже отрендерены выше, просто оборачиваем их)
-        // Это будет доработано в Шаге 1G.2
     }
 
     return `
@@ -2640,6 +2742,9 @@ function showEmptyState() {
     state.attachments = [];
     state.ragChunkCount = 0;
     renderAttachmentsBar();
+
+    // v1.11.0 (KI-126, Шаг 1G.2): сброс кэша дебатов.
+    state.debates = {};
 
     // Фаза 2.2.4: очистить селект модели (нет активного чата)
     const selectEl = document.getElementById('chat-model-select');

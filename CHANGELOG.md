@@ -19,6 +19,16 @@
 ## [Unreleased]
 
 ### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1G.2)**: рендеринг блоков дебатов в
+  «свёрнутом» режиме. Кэш `state.debates[sessionId]` для перерендера при
+  смене вида. Функции `renderDebateContainerInner` / `renderDebateRoundDialog` /
+  `renderDebateCompletedDialog` / `refreshDebateViews` — единая точка
+  рендера, поддерживающая оба вида. Свёрнутый режим: финальный вердикт
+  (✅ Approved / ⚠️ Rejected / ⏳ In progress) + `finalArtifact` +
+  `<details>` со всеми раундами (свёрнут по умолчанию после завершения;
+  раскрыт во время сессии). CSS для `<details>` / `summary`. Кэш `state.debates`
+  сбрасывается при `selectChat` и `showEmptyState`.
+
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1G.1)**: UI-селектор вида отображения
   раундов Actor-Critic («диалог» / «свёрнутый»). Кнопка-переключатель в
   `#chat-header` (SVG-иконка, локализация через `data-*`). Состояние —

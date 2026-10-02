@@ -1723,9 +1723,49 @@ body.chat-global-search-open {
     margin-left: auto;
 }
 
-/* Свернутый режим */
-.chat-debate-block.chat-debate-collapsed .chat-debate-rounds {
-    display: none; /* Будет доработано в Шаге 1G.2 */
+/* ============ v1.11.0 (KI-126, Шаг 1G.2): Свёрнутый режим (<details>) ============ */
+
+/* Убираем старую логику display:none для .chat-debate-rounds — в collapsed
+   раунды теперь внутри <details>, а не снаружи. */
+
+.chat-debate-details {
+    margin-top: .5rem;
+    border-top: 1px dashed var(--bs-border-color);
+    padding-top: .5rem;
+}
+
+.chat-debate-details-summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: .8rem;
+    color: var(--bs-primary);
+    user-select: none;
+    padding: .15rem 0;
+    transition: color .15s;
+}
+
+.chat-debate-details-summary::-webkit-details-marker {
+    display: none;
+}
+
+.chat-debate-details-summary:hover {
+    color: var(--bs-link-hover-color);
+    text-decoration: underline;
+}
+
+.chat-debate-details[open] > .chat-debate-details-summary {
+    margin-bottom: .5rem;
+}
+
+/* Внутри details раунды уже не нуждаются в отступе от border-top (он у details). */
+.chat-debate-details .chat-debate-rounds {
+    padding: .25rem 0 0 0;
+}
+
+/* Заголовок completed-блока в свёрнутом режиме становится акцентным. */
+.chat-debate-completed-inprogress .chat-debate-completed-title {
+    color: var(--bs-secondary-color);
+    font-style: italic;
 }
 
 /* ============ KI-081: логотип в empty state чата ============ */
