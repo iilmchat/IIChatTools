@@ -54,6 +54,11 @@ const state = {
     // Нужен для перерендера блока при смене вида (dialog ⇄ collapsed).
     // Формат: { [sessionId]: { started, rounds: [], completed } }
     debates: {},
+
+    // v1.11.0 (KI-126, Шаг 1G.3): черновики feedback между раундами.
+    // Формат: { [sessionId]: { status, expiresAt, text } }
+    //   status: 'pending' | 'sending' | 'sent' | 'skipped' | 'timeout'
+    feedbackDrafts: {},
 };
 
 // ============ Инициализация ============
@@ -82,6 +87,10 @@ export async function initChatPage() {
 
     bindEvents();
     applyDebateViewUI();
+
+    // v1.11.0 (KI-126, Шаг 1G.3): глобальный интервал для countdown
+    // в feedback-блоках (1 сек). Ничего не делает, если активных нет.
+    setInterval(updateAllFeedbackCountdowns, 1000);
 
     await loadModels();
     await loadChats();
@@ -309,6 +318,18 @@ function bindEvents() {
         messagesEl.addEventListener('scroll', onMessagesScroll);
         // Делегированный обработчик кнопок действий с сообщением (Copy)
         messagesEl.addEventListener('click', onMessageActionClick);
+
+        // v1.11.0 (KI-126, Шаг 1G.3): сохранение ввода feedback-поля —
+        // при перерендере контейнера (смена вида) текст не теряется.
+        messagesEl.addEventListener('input', (e) => {
+            if (!e.target.matches('.chat-debate-feedback textarea')) return;
+            const container = e.target.closest('[data-debate-session-id]');
+            if (!container) return;
+            const sid = parseInt(container.dataset.debateSessionId, 10);
+            if (!Number.isFinite(sid)) return;
+            const draft = state.feedbackDrafts[sid];
+            if (draft) draft.text = e.target.value;
+        });
     }
 
     // Динамически создаём кнопку «↓ Вниз» (не трогаем Razor)
@@ -1083,6 +1104,7 @@ async function selectChat(chatId) {
     // v1.11.0 (KI-126, Шаг 1G.2): сброс кэша дебатов при переключении чата —
     // DOM будет перерисован, старые sessionId неактуальны.
     state.debates = {};
+    state.feedbackDrafts = {};
 
     // KI-078A: при переключении чата — закрыть панель поиска (marks устарели).
     closeChatSearch();
@@ -1902,6 +1924,24 @@ function handleDebateRound(bubble, data) {
 
     entry.rounds.push(data);
 
+    // v1.11.0 (KI-126, Шаг 1G.3): после Rejected-раунда — показать inline-блок
+    // feedback, если включён HumanApproval = "BetweenRounds".
+    // Блок показываем только один раз на сессию (последний Rejected раунд),
+    // старые черновики сбрасываем.
+    const humanApproval = entry.started?.humanApproval;
+    const isRejected = data.criticVerdict === 'Rejected';
+
+    if (isRejected && humanApproval === 'BetweenRounds') {
+        state.feedbackDrafts[data.sessionId] = {
+            status: 'pending',
+            expiresAt: Date.now() + 5 * 60 * 1000,  // 5 минут
+            text: ''
+        };
+    } else if (data.criticVerdict === 'Approved') {
+        // Раунд Approved — feedback больше не нужен.
+        delete state.feedbackDrafts[data.sessionId];
+    }
+
     // Полный перерендер контейнера.
     const container = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"]`);
     if (container) {
@@ -1928,6 +1968,9 @@ function handleDebateCompleted(bubble, data) {
     }
 
     entry.completed = data;
+
+    // v1.11.0 (KI-126, Шаг 1G.3): feedback больше не нужен — сессия завершена.
+    delete state.feedbackDrafts[data.sessionId];
 
     // Полный перерендер контейнера.
     const container = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"]`);
@@ -1983,8 +2026,11 @@ function renderDebateContainerInner(sessionId) {
         </div>
     `;
 
+    // v1.11.0 (KI-126, Шаг 1G.3): feedback-блок между раундами.
+    const feedbackHtml = renderFeedbackBlock(sessionId);
+
     if (isDialog) {
-        // --- Диалоговый режим: все раунды + финал ---
+        // --- Диалоговый режим: все раунды + feedback + финал ---
         const roundsHtml = entry.rounds.map(r => renderDebateRoundDialog(r)).join('');
         const completedHtml = entry.completed
             ? renderDebateCompletedDialog(entry.completed)
@@ -1993,6 +2039,7 @@ function renderDebateContainerInner(sessionId) {
         return `
             ${headerHtml}
             <div class="chat-debate-rounds">${roundsHtml}</div>
+            ${feedbackHtml}
             ${completedHtml}
         `;
     } else {
@@ -2034,6 +2081,7 @@ function renderDebateContainerInner(sessionId) {
                     ${costHtml}
                 </div>
                 ${finalArtifactHtml}
+                ${feedbackHtml}
                 ${detailsHtml}
             </div>
         `;
@@ -2179,6 +2227,182 @@ function truncateText(text, maxLen) {
     if (!text) return '';
     if (text.length <= maxLen) return text;
     return text.substring(0, maxLen) + '…';
+}
+
+// ============ v1.11.0 (KI-126, Шаг 1G.3): Feedback между раундами ============
+
+/**
+ * Рендерит блок feedback для указанной сессии.
+ * Возвращает '' — если блока нет (нет draft, или он уже отправлен/пропущен).
+ *
+ * @param {number} sessionId
+ * @returns {string} HTML
+ */
+function renderFeedbackBlock(sessionId) {
+    const draft = state.feedbackDrafts[sessionId];
+    if (!draft) return '';
+
+    const container = document.getElementById('chat-messages');
+
+    if (draft.status === 'sending') {
+        const sending = container?.dataset.labelDebateFeedbackSending || 'Sending…';
+        return `
+            <div class="chat-debate-feedback chat-debate-feedback-sending">
+                <span class="chat-debate-feedback-icon">⏳</span>
+                <span>${escapeHtml(sending)}</span>
+            </div>`;
+    }
+
+    if (draft.status === 'timeout') {
+        const timeout = container?.dataset.labelDebateFeedbackTimeout
+            || 'Continuing with critic feedback';
+        return `
+            <div class="chat-debate-feedback chat-debate-feedback-timeout">
+                <span class="chat-debate-feedback-icon">⏰</span>
+                <span>${escapeHtml(timeout)}</span>
+            </div>`;
+    }
+
+    if (draft.status === 'sent' || draft.status === 'skipped') {
+        return '';   // ничего не показываем
+    }
+
+    // status === 'pending'
+    const title = container?.dataset.labelDebateFeedbackTitle || 'Feedback';
+    const placeholder = container?.dataset.labelDebateFeedbackPlaceholder || 'Describe what to fix…';
+    const sendLabel = container?.dataset.labelDebateFeedbackSend || 'Send';
+    const skipLabel = container?.dataset.labelDebateFeedbackSkip || 'Skip';
+
+    const remainSec = Math.max(0, Math.floor((draft.expiresAt - Date.now()) / 1000));
+    const mm = Math.floor(remainSec / 60);
+    const ss = String(remainSec % 60).padStart(2, '0');
+
+    // Восстанавливаем сохранённый текст (при перерендере).
+    const textValue = draft.text ? escapeHtml(draft.text) : '';
+
+    return `
+        <div class="chat-debate-feedback" data-session-id="${sessionId}">
+            <div class="chat-debate-feedback-header">
+                <span class="chat-debate-feedback-icon">💬</span>
+                <span class="chat-debate-feedback-title">${escapeHtml(title)}</span>
+                <span class="chat-debate-feedback-timer" data-feedback-timer>⏱ ${mm}:${ss}</span>
+            </div>
+            <textarea class="chat-debate-feedback-textarea"
+                      placeholder="${escapeAttr(placeholder)}"
+                      rows="2">${textValue}</textarea>
+            <div class="chat-debate-feedback-actions">
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        data-action="feedback-skip"
+                        data-session-id="${sessionId}">${escapeHtml(skipLabel)}</button>
+                <button type="button"
+                        class="btn btn-sm btn-primary"
+                        data-action="feedback-send"
+                        data-session-id="${sessionId}">${escapeHtml(sendLabel)}</button>
+            </div>
+        </div>`;
+}
+
+/**
+ * Обновляет таймер в конкретном feedback-блоке.
+ * @param {number} sessionId
+ */
+function refreshFeedbackBlock(sessionId) {
+    const container = document.querySelector(`[data-debate-session-id="${sessionId}"]`);
+    if (!container) return;
+
+    const old = container.querySelector('.chat-debate-feedback');
+    if (old) old.remove();
+
+    const html = renderFeedbackBlock(sessionId);
+    if (html) {
+        container.insertAdjacentHTML('beforeend', html);
+        // Восстанавливаем текст из draft (при перерисовке).
+        const draft = state.feedbackDrafts[sessionId];
+        if (draft?.text) {
+            const ta = container.querySelector('.chat-debate-feedback textarea');
+            if (ta) ta.value = draft.text;
+        }
+    }
+}
+
+/**
+ * Глобальный tick: обновляет все countdown-таймеры + помечает истёкшие.
+ * Вызывается раз в секунду через setInterval.
+ */
+function updateAllFeedbackCountdowns() {
+    const now = Date.now();
+
+    for (const [sid, draft] of Object.entries(state.feedbackDrafts)) {
+        if (draft.status !== 'pending') continue;
+
+        const remaining = draft.expiresAt - now;
+
+        if (remaining <= 0) {
+            draft.status = 'timeout';
+            refreshFeedbackBlock(parseInt(sid, 10));
+            continue;
+        }
+
+        // Обновляем только текст таймера (без перерендера всего блока).
+        const container = document.querySelector(`[data-debate-session-id="${sid}"]`);
+        const timerEl = container?.querySelector('[data-feedback-timer]');
+        if (timerEl) {
+            const sec = Math.floor(remaining / 1000);
+            const mm = Math.floor(sec / 60);
+            const ss = String(sec % 60).padStart(2, '0');
+            timerEl.textContent = `⏱ ${mm}:${ss}`;
+        }
+    }
+}
+
+/**
+ * Отправляет feedback пользователя через POST /api/chat/debate/{sessionId}/inject.
+ * @param {number} sessionId
+ */
+async function submitFeedback(sessionId) {
+    const draft = state.feedbackDrafts[sessionId];
+    if (!draft || draft.status !== 'pending') return;
+
+    const container = document.querySelector(`[data-debate-session-id="${sessionId}"]`);
+    const textarea = container?.querySelector('.chat-debate-feedback textarea');
+    const text = (textarea?.value || draft.text || '').trim();
+
+    if (!text) {
+        toast('Введите feedback или нажмите «Пропустить»', 'warning');
+        return;
+    }
+
+    draft.text = text;
+    draft.status = 'sending';
+    refreshFeedbackBlock(sessionId);
+
+    try {
+        const res = await apiPost(`/api/chat/debate/${sessionId}/inject`, { feedback: text });
+        if (res.success) {
+            draft.status = 'sent';
+        } else {
+            toast(res.message || 'Ошибка отправки feedback', 'error');
+            draft.status = 'pending';
+        }
+    } catch (ex) {
+        toast(ex.message || 'Ошибка отправки feedback', 'error');
+        draft.status = 'pending';
+    }
+
+    refreshFeedbackBlock(sessionId);
+}
+
+/**
+ * Пропускает feedback: локально помечает, ничего не отправляет.
+ * Сервер сам разблокируется через timeout (5 мин) и продолжит с feedback критика.
+ * @param {number} sessionId
+ */
+function skipFeedback(sessionId) {
+    const draft = state.feedbackDrafts[sessionId];
+    if (!draft || draft.status !== 'pending') return;
+    draft.status = 'skipped';
+    refreshFeedbackBlock(sessionId);
 }
 
 // ============ Рендер сообщений ============
@@ -2738,6 +2962,7 @@ function showEmptyState() {
 
     // v1.11.0 (KI-126, Шаг 1G.2): сброс кэша дебатов.
     state.debates = {};
+    state.feedbackDrafts = {};
 
     // Фаза 2.2.4: очистить селект модели (нет активного чата)
     const selectEl = document.getElementById('chat-model-select');
@@ -3085,6 +3310,24 @@ function renderMessageActions(text, opts = {}) {
  * @param {MouseEvent} e
  */
 async function onMessageActionClick(e) {
+    // v1.11.0 (KI-126, Шаг 1G.3): Send / Skip feedback между раундами.
+    const feedbackSend = e.target.closest('[data-action="feedback-send"]');
+    if (feedbackSend) {
+        e.preventDefault();
+        e.stopPropagation();
+        const sid = parseInt(feedbackSend.dataset.sessionId, 10);
+        if (Number.isFinite(sid)) submitFeedback(sid);
+        return;
+    }
+    const feedbackSkip = e.target.closest('[data-action="feedback-skip"]');
+    if (feedbackSkip) {
+        e.preventDefault();
+        e.stopPropagation();
+        const sid = parseInt(feedbackSkip.dataset.sessionId, 10);
+        if (Number.isFinite(sid)) skipFeedback(sid);
+        return;
+    }
+
     // Edit user-message (Фаза 2.2.6b)
     const editBtn = e.target.closest('[data-action="edit"]');
     if (editBtn) {

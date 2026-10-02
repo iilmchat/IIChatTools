@@ -1768,6 +1768,96 @@ body.chat-global-search-open {
     font-style: italic;
 }
 
+/* ============ v1.11.0 (KI-126, Шаг 1G.3): Feedback между раундами ============ */
+
+.chat-debate-feedback {
+    margin-top: .5rem;
+    padding: .5rem .75rem;
+    background: var(--bs-primary-bg-subtle);
+    border: 1px solid var(--bs-primary-border-subtle);
+    border-radius: .375rem;
+}
+
+.chat-debate-feedback-header {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin-bottom: .35rem;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+}
+
+.chat-debate-feedback-icon {
+    font-size: .95rem;
+    flex-shrink: 0;
+}
+
+.chat-debate-feedback-title {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.chat-debate-feedback-timer {
+    font-family: var(--bs-font-monospace);
+    font-size: .72rem;
+    color: var(--bs-warning-text-emphasis);
+    background: var(--bs-warning-bg-subtle);
+    padding: .05rem .35rem;
+    border-radius: .2rem;
+    flex-shrink: 0;
+}
+
+.chat-debate-feedback-textarea {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    max-height: 200px;
+    padding: .35rem .5rem;
+    font-size: .82rem;
+    font-family: inherit;
+    line-height: 1.4;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    resize: vertical;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    box-sizing: border-box;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.chat-debate-feedback-textarea:focus {
+    outline: none;
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .15);
+}
+
+.chat-debate-feedback-actions {
+    display: flex;
+    gap: .35rem;
+    margin-top: .35rem;
+    justify-content: flex-end;
+}
+
+/* Состояние «отправка» */
+.chat-debate-feedback-sending,
+.chat-debate-feedback-timeout {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .82rem;
+    color: var(--bs-secondary-color);
+    font-style: italic;
+    background: var(--bs-secondary-bg);
+    border-color: var(--bs-border-color);
+}
+
+.chat-debate-feedback-timeout {
+    color: var(--bs-warning-text-emphasis);
+    background: var(--bs-warning-bg-subtle);
+    border-color: var(--bs-warning-border-subtle);
+}
+
 /* ============ KI-081: логотип в empty state чата ============ */
 
 .chat-empty-logo {

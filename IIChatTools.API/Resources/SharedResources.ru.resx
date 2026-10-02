@@ -734,4 +734,24 @@
     <data name="ChatDebateViewSwitch" xml:space="preserve">
       <value>Переключить вид дебатов</value>
     </data>
+
+    <!-- ===== v1.11.0 (KI-126, Шаг 1G.3): Debate feedback между раундами ===== -->
+    <data name="DebateFeedbackTitle" xml:space="preserve">
+      <value>Feedback между раундами</value>
+    </data>
+    <data name="DebateFeedbackPlaceholder" xml:space="preserve">
+      <value>Опишите, что нужно исправить (или нажмите «Пропустить»)…</value>
+    </data>
+    <data name="DebateFeedbackSend" xml:space="preserve">
+      <value>Отправить</value>
+    </data>
+    <data name="DebateFeedbackSkip" xml:space="preserve">
+      <value>Пропустить</value>
+    </data>
+    <data name="DebateFeedbackSending" xml:space="preserve">
+      <value>Отправка…</value>
+    </data>
+    <data name="DebateFeedbackTimeout" xml:space="preserve">
+      <value>Продолжаем с feedback критика</value>
+    </data>
 </root>

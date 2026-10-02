@@ -18,6 +18,24 @@
 
 ## [Unreleased]
 
+### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1G.3)**: UI feedback между раундами
+  Actor-Critic + возврат `HumanApproval = "BetweenRounds"` в dev.
+  - `ChatDebateStartedDto.HumanApproval` (string) — UI понимает, ждёт ли
+    сервер feedback (без этого не показать inline-блок).
+  - `CodeAgentWithReviewTool` — передаёт `configSnapshot.HumanApproval`
+    при эмите `debate_started`.
+  - `appsettings.Development.json`: `HumanApproval` → `BetweenRounds`
+    (было `Never` — временная мера Шага 1F-fix).
+  - `chat.js`: `state.feedbackDrafts` (по sessionId); inline-блок с
+    `<textarea>` + Send / Skip + countdown 5 мин; делегированный `input`
+    для сохранения текста при перерендере; глобальный `setInterval(1 s)`
+    для countdown. `submitFeedback` → `POST /api/chat/debate/{id}/inject`.
+    `skipFeedback` — локальная пометка (сервер сам разблокируется через timeout).
+    Состояния: `pending` / `sending` / `sent` / `skipped` / `timeout`.
+  - CSS `.chat-debate-feedback*`.
+  - Локализация RU + EN: 6 ключей (`DebateFeedback*`).
+
 ### Documented
 - **KI-128** — Browser workflow недоступен через Chat (`browser_agent` +
   `save_screenshot_to_file`). Planned, v1.11.x. Пример: «Открой rzd.ru и

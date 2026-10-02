@@ -20,6 +20,17 @@ namespace IIChatTools.Services.DTO.Chat
 
         /// <summary>Максимум раундов (из снимка конфига).</summary>
         public int MaxRounds { get; set; }
+
+        /// <summary>
+        /// Политика Human-in-the-loop: <c>BetweenRounds</c> | <c>AtEnd</c> | <c>Never</c>
+        /// (v1.11.0, KI-126, Шаг 1G.3).
+        ///
+        /// <para>
+        /// UI использует это поле, чтобы решить, показывать ли inline-блок feedback
+        /// после <c>debate_round</c> с <c>criticVerdict = "Rejected"</c>.
+        /// </para>
+        /// </summary>
+        public string HumanApproval { get; set; }
     }
 
     /// <summary>

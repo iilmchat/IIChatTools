@@ -251,13 +251,16 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                         sessionId.Value, context.CancellationToken);
 
                     // SSE: debate_started
+                    // v1.11.0 (KI-126, Шаг 1G.3): передаём HumanApproval —
+                    // UI решает, показывать ли feedback-блок после Rejected.
                     TryEmit(context, ChatStreamEvent.DebateStarted(new ChatDebateStartedDto
                     {
                         SessionId = sessionId.Value,
                         Task = task,
                         ActorAgent = CodeAgentToolName,
                         CriticAgent = ReviewerToolName,
-                        MaxRounds = maxRounds
+                        MaxRounds = maxRounds,
+                        HumanApproval = configSnapshot?.HumanApproval
                     }));
 
                     _logger.LogInformation(
