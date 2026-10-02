@@ -27,14 +27,14 @@
   восстанавливает блок). Осталось в Ф1: 1H (финальная локализация), 1I (тесты),
   1J (релиз v1.11.0).
 
-### Documented
-- **KI-130** — `code_agent` / `code_agent_with_review` не могут читать
-  вложения чата (RAG). Planned, v1.11.x / v1.12.x. Пример: пользователь
-  загружает `.py` через 📎, RAG находит файл, но `code_agent` не имеет
-  `read_file` / `search_knowledge_base` в `AllowedTools` — LLM отвечает
-  «файл не найден, передайте содержимое». 4 возможных решения (от
-  добавления `search_knowledge_base` до нового `read_chat_attachment`).
-  Связанные: KI-083 (RAG / attachments), KI-126, KI-113.
+### Fixed
+- **KI-130 — code_agent / code_agent_with_review теперь могут читать
+  вложения чата через RAG** (v1.11.0, quick-fix). В `SubAgents:code_agent:
+  AllowedTools` добавлен `search_knowledge_base`; в SystemPrompt — правило
+  «искать приложенные файлы через `search_knowledge_base`, если их нет в
+  workspace». Эффект: `code_agent` и `code_agent_with_review` (actor)
+  получают содержимое вложений. Пример: «исправь файл code-*.py» теперь
+  работает без ручной передачи содержимого.
 
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1G.3)**: UI feedback между раундами

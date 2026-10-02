@@ -2354,8 +2354,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-130 — code_agent / code_agent_with_review не могут читать вложения чата (RAG)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.x / v1.12.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-02 (smoke Chat — «исправь файл `code-1790941591651.py`»)
+- **Исправлено:** 2026-10-02 (вариант 1 — минимальная правка конфига)
 - **Файлы (план):**
   - `appsettings.json` / `appsettings.Development.json` — `SubAgents:code_agent:AllowedTools`.
   - `IIChatTools.Services/Implementation/Tools/CodeExecution/*` — потенциальный новый tool.
@@ -2384,7 +2385,17 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      задача упоминает имя файла).
   4. **Разрешить `read_file` с явным путём к `chat-attachments/{chatId}/`** —
      минимальная правка, но даёт агенту широкий доступ к чужой папке.
-- **Оценка:** ~40-60 мин (вариант 1 самый дешёвый).
+- **Решение (2026-10-02, v1.11.0, вариант 1):**
+  - В `appsettings.json` + `appsettings.Development.json` добавлен
+    `search_knowledge_base` в `SubAgents:code_agent:AllowedTools`.
+  - В SystemPrompt добавлено правило 5: если пользователь упоминает
+    приложенный файл (например, `code-*.py`) и его нет в workspace —
+    использовать `search_knowledge_base` для получения содержимого.
+  - Эффект: `code_agent` и `code_agent_with_review` (actor) теперь могут
+    читать содержимое вложений через RAG-индекс `my_rag_docs`.
+  - **Не покрыто (возможные follow-up):** прямая передача содержимого
+    вложений в `context` при первом раунде (вариант 3) — потенциально
+    эффективнее, но требует изменений в `CodeAgentWithReviewTool`.
 - **Связанные:** KI-083 (RAG / attachments), KI-126 (Actor-Critic),
   KI-113 (галлюцинация успеха — похожее поведение).
 
@@ -2506,7 +2517,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 1 |                   <!-- KI-126 -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 6 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129, KI-130 -->
+| Fixed (v1.11.0) | 1 |              <!-- KI-130 (quick-fix) -->
+| Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **88** |
 
