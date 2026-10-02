@@ -132,8 +132,13 @@ namespace IIChatTools.Tests.UnitTests.Debate
             Assert.NotNull(status);
             Assert.Equal(sessionId, status.SessionId);
             Assert.Equal(chat.Id, status.ChatId);
+            Assert.Equal("task", status.Task);                       // v1.11.0 (KI-129)
             Assert.Equal("Pending", status.Status);
             Assert.Equal(1, status.TotalRounds);
+            Assert.Equal(3, status.MaxRounds);                        // default из snapshot
+            Assert.Equal("BetweenRounds", status.HumanApproval);      // default из snapshot
+            Assert.Equal("code_agent", status.ActorAgent);            // v1.11.0 (KI-129)
+            Assert.Equal("code_reviewer_agent", status.CriticAgent);  // v1.11.0 (KI-129)
             Assert.Single(status.Rounds);
             Assert.Equal("Rejected", status.Rounds[0].CriticVerdict);
             Assert.Equal(100, status.Rounds[0].TokensIn);
@@ -409,6 +414,89 @@ namespace IIChatTools.Tests.UnitTests.Debate
             var ok = await service.InjectFeedbackAsync(sessionId, TestUserId, "   ");
 
             Assert.False(ok);
+        }
+
+        // ============================================================
+        // v1.11.0 (KI-129): GetSessionsByChatAsync — восстановление
+        // блоков Actor-Critic при F5.
+        // ============================================================
+
+        [Fact]
+        public async Task GetSessionsByChatAsync_MultipleSessions_ReturnsSortedByStartedAtAsc()
+        {
+            var (service, db, chat) = CreateServiceWithChat();
+
+            // Создаём 3 сессии с разными StartedAt (в БД через сервис, StartedAt = UtcNow).
+            // Чтобы детерминировать порядок — правим StartedAt после создания.
+            var sid1 = await service.StartAsync(chat.Id, TestUserId, "task 1", null);
+            var sid2 = await service.StartAsync(chat.Id, TestUserId, "task 2", null);
+            var sid3 = await service.StartAsync(chat.Id, TestUserId, "task 3", null);
+
+            var now = DateTime.UtcNow;
+            (await db.AgentDebateSessions.FindAsync(sid1)).StartedAt = now.AddMinutes(-3);
+            (await db.AgentDebateSessions.FindAsync(sid2)).StartedAt = now.AddMinutes(-2);
+            (await db.AgentDebateSessions.FindAsync(sid3)).StartedAt = now.AddMinutes(-1);
+            await db.SaveChangesAsync();
+
+            var sessions = await service.GetSessionsByChatAsync(chat.Id, TestUserId);
+
+            Assert.Equal(3, sessions.Count);
+            Assert.Equal(sid1, sessions[0].SessionId);   // самая старая
+            Assert.Equal(sid2, sessions[1].SessionId);
+            Assert.Equal(sid3, sessions[2].SessionId);   // самая новая
+        }
+
+        [Fact]
+        public async Task GetSessionsByChatAsync_EagerLoadsRounds()
+        {
+            var (service, db, chat) = CreateServiceWithChat();
+
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+
+            // Добавляем 2 раунда через сервис (обновляет total counters).
+            await service.AddRoundAsync(sessionId, new AgentDebateRoundDto
+            {
+                RoundNumber = 1, ActorOutput = "v1", CriticVerdict = "Rejected",
+                TokensIn = 100, TokensOut = 50
+            });
+            await service.AddRoundAsync(sessionId, new AgentDebateRoundDto
+            {
+                RoundNumber = 2, ActorOutput = "v2", CriticVerdict = "Approved",
+                TokensIn = 200, TokensOut = 80
+            });
+
+            var sessions = await service.GetSessionsByChatAsync(chat.Id, TestUserId);
+
+            Assert.Single(sessions);
+            Assert.Equal(2, sessions[0].Rounds.Count);
+            Assert.Equal(1, sessions[0].Rounds[0].RoundNumber);
+            Assert.Equal(2, sessions[0].Rounds[1].RoundNumber);
+        }
+
+        [Fact]
+        public async Task GetSessionsByChatAsync_WrongUser_ReturnsEmptyList()
+        {
+            var (service, _, chat) = CreateServiceWithChat();
+
+            await service.StartAsync(chat.Id, TestUserId, "task", null);
+
+            // Чужой пользователь (Id=999) — не должен видеть чат.
+            var sessions = await service.GetSessionsByChatAsync(chat.Id, userId: 999);
+
+            Assert.NotNull(sessions);
+            Assert.Empty(sessions);
+        }
+
+        [Fact]
+        public async Task GetSessionsByChatAsync_UnknownChat_ReturnsEmptyList()
+        {
+            var (service, _, _) = CreateServiceWithChat();
+
+            var sessions = await service.GetSessionsByChatAsync(
+                chatId: 999_999, userId: TestUserId);
+
+            Assert.NotNull(sessions);
+            Assert.Empty(sessions);
         }
     }
 }

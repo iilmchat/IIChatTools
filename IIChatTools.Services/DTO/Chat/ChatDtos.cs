@@ -72,6 +72,14 @@ namespace IIChatTools.Services.DTO.Chat
 
         /// <summary>История сообщений (сортировка по CreatedAt asc).</summary>
         public List<ChatMessageDto> Messages { get; set; } = new List<ChatMessageDto>();
+
+        /// <summary>
+        /// v1.11.0 (KI-129): все сессии Actor-Critic этого чата —
+        /// для восстановления блоков дебатов при F5. Сортировка
+        /// <c>StartedAt asc</c>. Пустой список, если дебатов не было.
+        /// </summary>
+        public IReadOnlyList<DTO.Debate.AgentDebateStatusDto> DebateSessions { get; set; }
+            = new List<DTO.Debate.AgentDebateStatusDto>();
     }
 
     /// <summary>
@@ -144,6 +152,16 @@ namespace IIChatTools.Services.DTO.Chat
         /// <c>null</c> — метаданных нет.
         /// </summary>
         public string MetadataJson { get; set; }
+
+        /// <summary>
+        /// v1.11.0 (KI-129): для tool-сообщений с
+        /// <c>toolName == "code_agent_with_review"</c> — идентификатор
+        /// соответствующей debate-сессии (парсится из <c>MetadataJson</c>).
+        /// UI использует для маппинга <c>toolCallId → sessionId</c>
+        /// при восстановлении блоков дебатов после F5.
+        /// <c>null</c> для остальных сообщений.
+        /// </summary>
+        public int? DebateSessionId { get; set; }
     }
 
     /// <summary>

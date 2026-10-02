@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.Debate;
@@ -64,6 +65,32 @@ namespace IIChatTools.Services.Interfaces
         /// </returns>
         Task<AgentDebateStatusDto> GetStatusAsync(
             int sessionId,
+            int userId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Возвращает все сессии Actor-Critic указанного чата
+        /// (v1.11.0, KI-129 — восстановление блоков дебатов при F5).
+        ///
+        /// <para>
+        /// Раунды eager-load через <c>Include(s =&gt; s.Rounds)</c> — избегаем N+1.
+        /// Сортировка <c>StartedAt asc</c> (порядок появления в чате).
+        /// </para>
+        ///
+        /// <para>
+        /// Проверка владения чатом — по образцу <see cref="StartAsync"/>:
+        /// если чат не найден / не принадлежит пользователю, возвращается
+        /// пустой список (не палим существование чужих чатов).
+        /// </para>
+        /// </summary>
+        /// <param name="chatId">Идентификатор чата.</param>
+        /// <param name="userId">Идентификатор пользователя-владельца.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// Список сессий (возможно пустой). <c>null</c> не возвращается.
+        /// </returns>
+        Task<IReadOnlyList<AgentDebateStatusDto>> GetSessionsByChatAsync(
+            int chatId,
             int userId,
             CancellationToken cancellationToken = default);
 

@@ -738,6 +738,45 @@ namespace IIChatTools.Services.Implementation
                     // Дедупликация — в AddSourcesToAccumulator.
                     AddSourcesToAccumulator(accumulatedSources, seenSourceKeys, toolResult.Sources);
 
+                    // v1.11.0 (KI-129): для code_agent_with_review сохраняем
+                    // sessionId в MetadataJson tool-сообщения. Это позволит
+                    // ChatController при F5 связать toolCallId → debate-сессия
+                    // и восстановить блок дебатов в UI.
+                    //
+                    // Данные приходят в ToolResult.Data.sessionId (возвращается
+                    // CodeAgentWithReviewTool при успехе).
+                    string toolMetadataJson = null;
+                    if (string.Equals(
+                            functionName,
+                            CodeAgentWithReviewToolName,
+                            StringComparison.Ordinal)
+                        && toolResult.Success
+                        && toolResult.Data != null)
+                    {
+                        try
+                        {
+                            var dataJson = toolResult.Data is JObject jObj
+                                ? jObj
+                                : JObject.FromObject(toolResult.Data);
+
+                            var sid = dataJson["sessionId"]?.Value<int?>();
+                            if (sid.HasValue && sid.Value > 0)
+                            {
+                                toolMetadataJson = JsonConvert.SerializeObject(
+                                    new { debateSessionId = sid.Value });
+                            }
+                        }
+                        catch (Exception metaEx)
+                        {
+                            // Не критично — при F5 блок дебатов не восстановится,
+                            // но сам tool-result сохранится.
+                            _logger.LogWarning(metaEx,
+                                "Не удалось извлечь sessionId из tool_result " +
+                                "code_agent_with_review (callId={CallId})",
+                                callId);
+                        }
+                    }
+
                     // Сохраняем tool message в БД
                     try
                     {
@@ -753,7 +792,9 @@ namespace IIChatTools.Services.Implementation
                                     message = toolResult.Message
                                 }),
                                 ToolCallId = callId,
-                                ToolName = functionName
+                                ToolName = functionName,
+                                // v1.11.0 (KI-129): debateSessionId для F5.
+                                MetadataJson = toolMetadataJson
                             },
                             cancellationToken);
                     }

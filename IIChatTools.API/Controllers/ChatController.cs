@@ -25,6 +25,7 @@ namespace IIChatTools.API.Controllers
     {
         private readonly IChatService _chatService;
         private readonly IChatTitleService _chatTitleService;
+        private readonly IAgentDebateSessionService _debateSessionService;
         private readonly ILogger<ChatController> _logger;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
@@ -33,17 +34,23 @@ namespace IIChatTools.API.Controllers
         /// </summary>
         /// <param name="chatService">Сервис чатов</param>
         /// <param name="chatTitleService">Сервис AI-генерации названий</param>
+        /// <param name="debateSessionService">
+        /// Сервис Actor-Critic сессий (v1.11.0, KI-129) — для восстановления
+        /// блоков дебатов при F5.
+        /// </param>
         /// <param name="logger">Логгер</param>
         /// <param name="localizer">Локализатор</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatController(
             IChatService chatService,
             IChatTitleService chatTitleService,
+            IAgentDebateSessionService debateSessionService,
             ILogger<ChatController> logger,
             IStringLocalizer<SharedResources> localizer)
         {
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _chatTitleService = chatTitleService ?? throw new ArgumentNullException(nameof(chatTitleService));
+            _debateSessionService = debateSessionService ?? throw new ArgumentNullException(nameof(debateSessionService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         }
@@ -111,21 +118,31 @@ namespace IIChatTools.API.Controllers
         /// </summary>
         /// <param name="id">Идентификатор чата</param>
         /// <param name="limit">Максимум сообщений (по умолчанию 50)</param>
+        /// <param name="cancellationToken">Токен отмены (привязывается к HttpContext.RequestAborted).</param>
         /// <returns>JSON { success, data: ChatDetailDto }</returns>
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetChatAsync(int id, [FromQuery] int limit = 50)
+        public async Task<IActionResult> GetChatAsync(
+            int id,
+            [FromQuery] int limit = 50,
+            CancellationToken cancellationToken = default)
         {
             try
             {
                 var userId = GetCurrentUserId();
 
-                var chat = await _chatService.GetChatAsync(id, userId);
+                var chat = await _chatService.GetChatAsync(id, userId, cancellationToken);
                 if (chat == null)
                 {
                     return Ok(new { success = false, message = _localizer["Ресурс не найден."].Value });
                 }
 
-                var messages = await _chatService.GetMessagesAsync(id, userId, limit);
+                var messages = await _chatService.GetMessagesAsync(
+                    id, userId, limit, cancellationToken);
+
+                // v1.11.0 (KI-129): сессии Actor-Critic этого чата —
+                // для восстановления блоков дебатов при F5.
+                var debateSessions = await _debateSessionService.GetSessionsByChatAsync(
+                    id, userId, cancellationToken);
 
                 var data = new ChatDetailDto
                 {
@@ -134,6 +151,7 @@ namespace IIChatTools.API.Controllers
                     Model = chat.Model,
                     SystemPrompt = chat.SystemPrompt,
                     UpdatedAt = chat.UpdatedAt,
+                    DebateSessions = debateSessions,
                     Messages = messages.Select(m => new ChatMessageDto
                     {
                         Id = m.Id,
@@ -154,6 +172,8 @@ namespace IIChatTools.API.Controllers
                         // (парсится из MetadataJson на бэкенде), канонический camelCase
                         // от MVC. Не зависит от того, как записан JSON в БД.
                         Sources = ParseSources(m.MetadataJson),
+                        // v1.11.0 (KI-129): sessionId для маппинга toolCallId → сессия.
+                        DebateSessionId = ParseDebateSessionId(m.MetadataJson),
                         // Сырой JSON — оставляем для отладки / API-совместимости.
                         MetadataJson = m.MetadataJson
                     }).ToList()
@@ -361,6 +381,40 @@ namespace IIChatTools.API.Controllers
             catch
             {
                 // Битый JSON — не падаем, просто возвращаем null.
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// v1.11.0 (KI-129): парсит <c>MetadataJson</c> tool-сообщения и
+        /// возвращает <c>debateSessionId</c> (для восстановления блоков
+        /// дебатов при F5).
+        ///
+        /// <para>
+        /// Ожидаемый формат: <c>{ "debateSessionId": 42 }</c>.
+        /// Возвращает <c>null</c>, если поля нет / JSON битый / значение ≤ 0.
+        /// </para>
+        /// </summary>
+        /// <param name="metadataJson">Сырой JSON из <c>ChatMessage.MetadataJson</c>.</param>
+        /// <returns>ID сессии или <c>null</c>.</returns>
+        private static int? ParseDebateSessionId(string metadataJson)
+        {
+            if (string.IsNullOrWhiteSpace(metadataJson))
+                return null;
+
+            try
+            {
+                var root = JObject.Parse(metadataJson);
+                var token = root["debateSessionId"];
+                if (token == null || token.Type == JTokenType.Null)
+                    return null;
+
+                var id = token.Value<int?>();
+                return id.HasValue && id.Value > 0 ? id : null;
+            }
+            catch
+            {
+                // Битый JSON — не падаем, возвращаем null.
                 return null;
             }
         }

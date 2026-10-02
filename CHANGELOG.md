@@ -18,7 +18,29 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **v1.11.0 (KI-129, Шаг 1 — backend)**: подготовка к восстановлению
+  блоков Actor-Critic при F5.
+  - `IAgentDebateSessionService.GetSessionsByChatAsync(chatId, userId)` —
+    возвращает все сессии чата с eager-load раундов (`Include(Rounds)`),
+    сортировка `StartedAt asc`. Проверка владения чатом — по образцу
+    `StartAsync`. Публичный API для `ChatController`.
+  - `AgentDebateStatusDto` расширен 6 полями: `Task`, `FinalArtifactJson`,
+    `MaxRounds`, `HumanApproval`, `ActorAgent`, `CriticAgent`. Парсинг
+    `ConfigSnapshotJson` — через общий private helper `BuildStatusDto`
+    (переиспользуется в `GetStatusAsync` и `GetSessionsByChatAsync`).
+  - `ChatDetailDto.DebateSessions` — новое свойство
+    (`IReadOnlyList<AgentDebateStatusDto>`).
+  - `ChatMessageDto.DebateSessionId` (`int?`) — для tool-сообщений
+    `code_agent_with_review` содержит ID соответствующей сессии.
+  - `ChatStreamService` сохраняет `MetadataJson = { debateSessionId }`
+    в tool-сообщение `code_agent_with_review` (из `ToolResult.Data.sessionId`).
+  - `ChatController.GetChatAsync` заполняет `DebateSessions` + парсит
+    `DebateSessionId` через новый helper `ParseDebateSessionId`.
+  - Тесты: +4 unit (`GetSessionsByChatAsync_*`) + расширение
+    `GetStatusAsync_ReturnsDto_WithRounds` (проверка `MaxRounds` /
+    `HumanApproval` / `Task` / `ActorAgent` / `CriticAgent`).
+  - Frontend (рендер блоков при F5) — **следующий коммит** (Шаг 2).
 
 ---
 

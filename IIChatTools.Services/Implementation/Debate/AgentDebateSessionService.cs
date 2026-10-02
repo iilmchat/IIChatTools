@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -63,6 +64,18 @@ namespace IIChatTools.Services.Implementation.Debate
 
         /// <summary>Тип паттерна — Actor-Critic (единственный в Фазе 1).</summary>
         private const string PatternActorCritic = "ActorCritic";
+
+        /// <summary>
+        /// Имя actor-агента для Ф1 (Actor-Critic).
+        /// Хардкод, т.к. в Ф1 паттерн только один (v1.11.0, KI-129).
+        /// </summary>
+        private const string ActorAgentName = "code_agent";
+
+        /// <summary>
+        /// Имя critic-агента для Ф1 (Actor-Critic).
+        /// Хардкод, т.к. в Ф1 паттерн только один (v1.11.0, KI-129).
+        /// </summary>
+        private const string CriticAgentName = "code_reviewer_agent";
 
         private readonly AppDbContext _db;
         private readonly IChatService _chatService;
@@ -182,16 +195,102 @@ namespace IIChatTools.Services.Implementation.Debate
                 .OrderBy(r => r.RoundNumber)
                 .ToListAsync(cancellationToken);
 
+            return BuildStatusDto(session, rounds);
+        }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyList<AgentDebateStatusDto>> GetSessionsByChatAsync(
+            int chatId,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Проверка владения чатом (по образцу StartAsync).
+            var chat = await _chatService.GetChatAsync(chatId, userId, cancellationToken);
+            if (chat == null)
+            {
+                // Обобщённый ответ — не палим существование чужих чатов.
+                return Array.Empty<AgentDebateStatusDto>();
+            }
+
+            // 2. Eager-load раундов через Include — избегаем N+1.
+            //    Сортировка: StartedAt asc (порядок появления в чате),
+            //    затем Id asc для детерминизма при равных StartedAt.
+            var sessions = await _db.AgentDebateSessions
+                .AsNoTracking()
+                .Where(s => s.ChatId == chatId
+                            && s.InitiatedByUserId == userId)
+                .Include(s => s.Rounds)
+                .OrderBy(s => s.StartedAt)
+                .ThenBy(s => s.Id)
+                .ToListAsync(cancellationToken);
+
+            if (sessions.Count == 0)
+            {
+                return Array.Empty<AgentDebateStatusDto>();
+            }
+
+            // 3. Проекция. Раунды уже загружены — сортируем в памяти
+            //    (Include не гарантирует порядок коллекции).
+            return sessions
+                .Select(s => BuildStatusDto(
+                    s,
+                    s.Rounds.OrderBy(r => r.RoundNumber).ToList()))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Общая проекция <see cref="AgentDebateSession"/> + раунды → DTO
+        /// (v1.11.0, KI-129). Используется в <see cref="GetStatusAsync"/>
+        /// и <see cref="GetSessionsByChatAsync"/>.
+        ///
+        /// <para>
+        /// Парсит <c>ConfigSnapshotJson</c> для <c>MaxRounds</c> и
+        /// <c>HumanApproval</c>. При битом / отсутствующем snapshot —
+        /// безопасные дефолты (MaxRounds=0, HumanApproval=null).
+        /// </para>
+        /// </summary>
+        private static AgentDebateStatusDto BuildStatusDto(
+            AgentDebateSession session,
+            IReadOnlyList<AgentDebateRound> rounds)
+        {
+            // Парсим snapshot (для MaxRounds / HumanApproval).
+            int maxRounds = 0;
+            string humanApproval = null;
+
+            if (!string.IsNullOrWhiteSpace(session.ConfigSnapshotJson))
+            {
+                try
+                {
+                    var snapshot = JsonConvert.DeserializeObject<AgentDebateConfigSnapshot>(
+                        session.ConfigSnapshotJson);
+                    if (snapshot != null)
+                    {
+                        maxRounds = snapshot.MaxRounds;
+                        humanApproval = snapshot.HumanApproval;
+                    }
+                }
+                catch
+                {
+                    // Битый JSON — безопасные дефолты.
+                }
+            }
+
             return new AgentDebateStatusDto
             {
                 SessionId = session.Id,
                 ChatId = session.ChatId,
+                Task = session.Task,
                 Status = session.Status,
                 FinalVerdict = session.FinalVerdict,
+                FinalArtifactJson = session.FinalArtifactJson,
                 TotalRounds = rounds.Count,
                 TotalCostUsd = session.TotalCostUsd,
                 StartedAt = session.StartedAt,
                 CompletedAt = session.CompletedAt,
+                MaxRounds = maxRounds,
+                HumanApproval = humanApproval,
+                ActorAgent = ActorAgentName,
+                CriticAgent = CriticAgentName,
                 Rounds = rounds.Select(ToRoundDto).ToList()
             };
         }
