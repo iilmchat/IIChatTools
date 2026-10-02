@@ -25,7 +25,12 @@
   `localStorage["chat.debateView"]` (по умолчанию `collapsed`).
   Рендеринг SSE-событий `debate_started` / `debate_round` / `debate_completed`
   в режиме «диалог» (раунды как отдельные блоки: Actor + Critic + вердикт).
-  CSS-стили `.chat-debate-*` (Bootstrap-переменные). Локализация RU + EN.
+  Блок дебатов размещается в `.chat-message-tools` (перед финальным текстом
+  ответа LLM). CSS-стили `.chat-debate-*` (Bootstrap-переменные).
+  Локализация RU + EN.
+  **Известное ограничение:** блок отображается только в live-режиме (SSE).
+  При перезагрузке страницы (F5) история дебатов не восстанавливается,
+  так как события не сохраняются в БД (persistence — отложен).
 
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1A)**: сущности `AgentDebateSession` +
     `AgentDebateRound` для Actor-Critic мультиагентов. 2 DbSet + конфигурация

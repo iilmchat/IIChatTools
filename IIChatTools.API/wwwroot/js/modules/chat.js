@@ -1864,12 +1864,21 @@ function handleDebateStarted(bubble, data) {
         <div class="chat-debate-rounds" data-debate-rounds></div>
     `;
 
-    // Вставляем перед actions, если они есть, иначе в конец body
-    const actionsEl = bodyEl.querySelector('.chat-message-actions');
-    if (actionsEl) {
-        bodyEl.insertBefore(container, actionsEl);
+    // v1.11.0 (KI-126, Шаг 1G.1-fix): вставляем в .chat-message-tools,
+    // чтобы блок дебатов логически предшествовал финальному тексту ответа.
+    // Иначе финальный текст (в .chat-message-content) оказывается ВЫШЕ блока.
+    const toolsEl = bodyEl.querySelector('.chat-message-tools');
+    if (toolsEl) {
+        toolsEl.appendChild(container);
     } else {
-        bodyEl.appendChild(container);
+        // Fallback: если .chat-message-tools нет (не должно случаться),
+        // вставляем перед actions или в конец body.
+        const actionsEl = bodyEl.querySelector('.chat-message-actions');
+        if (actionsEl) {
+            bodyEl.insertBefore(container, actionsEl);
+        } else {
+            bodyEl.appendChild(container);
+        }
     }
 
     scrollToBottom();
