@@ -1,9 +1,9 @@
 # PROMPT_V3.md — Стартовый промпт для нового чата
 
-**Версия промпта:** v3.1
-**Дата:** 2026-10-01
+**Версия промпта:** v3.2
+**Дата:** 2026-10-02
 **Актуальный релиз проекта:** v1.10.1 (2026-10-01)
-**Статус:** v1.10.1 (темы оформления UI, KI-122 + KI-092) выпущен. В работе — **KI-126 (Actor-Critic мультиагенты) / KI-108 (per-user mail) / KI-091 (SqlServer миграции)**.
+**Статус:** v1.10.1 выпущен. В работе — **KI-126 (Actor-Critic мультиагенты, Ф1: Шаги 1A-1G Done, осталось 1H-1J)** / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
 
 ---
 
@@ -29,7 +29,7 @@
 - **GitHub:** https://github.com/iilmchat/IIChatTools
 - **Ветка по умолчанию:** `main`
 - **Текущий релиз:** v1.10.1 (2026-10-01)
-- **В работе:** KI-126 (Actor-Critic мультиагенты, DESIGN — `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`) / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
+- **В работе:** KI-126 (Actor-Critic мультиагенты, Ф1 Шаги 1A-1G Done — DESIGN: `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`) / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
 
 ---
 
@@ -98,9 +98,9 @@
   - +1 `database_agent`.
   - +7 mail-tools.
   - +3 external-llm-tools.
-- **Chat видит 13 инструментов**: 8 агентов + `consult_secondary_agent` + 3 RAG + `database_agent`.
-- **Тесты:** 592/592 (5 Skip — реальные внешние провайдеры).
-- **KI:** 85 в реестре; Fixed ≈ 71; Deferred = 5; Documented = 12; Planned = 4 (KI-108, KI-111, KI-113, KI-126); Partially Fixed = 1; Implemented = 3.
+- **Chat видит 15 инструментов** (после KI-126 Шаг 1C+1D): 9 агентов + `consult_secondary_agent` + 3 RAG + `database_agent` + `code_agent_with_review`.
+- **Тесты:** 629/629 (624 pass, 5 Skip — реальные внешние провайдеры).
+- **KI:** 87 в реестре; Fixed ≈ 82 (включая v1.11.0 Unreleased); Deferred = 5; Documented = 12; In Progress = 1 (KI-126); Planned = 5 (KI-108, KI-111, KI-113, KI-128, KI-129); Partially Fixed = 1; Implemented = 3.
 - **Релизы после v1.8.2:** v1.9.0 (Anthropic, KI-110a) · v1.10.0 (Gemini, KI-110b) · v1.10.1 (темы UI, KI-122 + KI-092). Детали — `CHANGELOG.md`.
 
 ---
@@ -181,6 +181,19 @@
 ### v1.11.0 (🚧 В работе) — Actor-Critic мультиагенты (KI-126, Фаза 1)
 
 **DESIGN:** `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md` (Draft).
+
+**Прогресс Ф1 (2026-10-02):**
+- ✅ **1A** — Entities `AgentDebateSession` + `AgentDebateRound` + миграция.
+- ✅ **1B** — `IAgentDebateSessionService` + state machine.
+- ✅ **1C** — агент `code_reviewer_agent` (Critic).
+- ✅ **1D** — top-level `ITool` `code_agent_with_review`.
+- ✅ **1E** — SSE + persistence (сессии в БД) + `DefaultSystemPrompt` (fix KI-127).
+- ✅ **1F** — эскалация на `ask_external_llm` при `Uncertain`.
+- ✅ **1G** — UI: селектор вида, диалоговый / свёрнутый рендер, feedback между раундами.
+- 🟡 **Осталось:** 1H (финальная локализация), 1I (тесты), 1J (релиз v1.11.0).
+
+**Известные ограничения (v1.11.0):** KI-129 (F5 не восстанавливает блок дебатов — Planned, v1.11.x).
+
 Автономное взаимодействие суб-агентов с ролями «Исполнитель» (Actor)
 и «Критик» (Critic). Actor-Critic для `code_agent` — новый агент
 `code_reviewer_agent` + top-level tool `code_agent_with_review`.

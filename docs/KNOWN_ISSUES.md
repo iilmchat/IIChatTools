@@ -2178,9 +2178,21 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.0
+- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.11.0
 - **Обнаружено:** 2026-10-01 (обсуждение с пользователем)
 - **DESIGN:** [`docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`](development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md)
+- **Прогресс Ф1 (v1.11.0, шаги 1A-1G):**
+  - ✅ **1A** — Entities `AgentDebateSession` + `AgentDebateRound` + миграция.
+  - ✅ **1B** — `IAgentDebateSessionService` + state machine.
+  - ✅ **1C** — агент `code_reviewer_agent` (Critic).
+  - ✅ **1D** — top-level `ITool` `code_agent_with_review`.
+  - ✅ **1E** — SSE-события (`debate_*`) + `ChatDebateCoordinator` +
+    persistence (сессии в БД) + `DefaultSystemPrompt` (fix KI-127).
+  - ✅ **1F** — эскалация на `ask_external_llm` при `Uncertain`.
+  - ✅ **1G** — UI: селектор вида, диалоговый / свёрнутый рендер,
+    feedback между раундами.
+  - 🟡 **Осталось:** 1H (финальная локализация), 1I (тесты), 1J (релиз v1.11.0).
+  - **Известные ограничения:** KI-129 (F5 не восстанавливает блок).
 - **Описание:** Сейчас Chat-LLM вызывает суб-агентов последовательно, без
   внутренней критики. Ошибки (`code_agent` пишет рабочий, но неоптимальный
   код; `planner_agent` пропускает edge cases) ловит пользователь. Идея —
@@ -2299,6 +2311,47 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-129 — Debate blocks not restored on F5 (session/rounds in DB, UI ignores them)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.x
+- **Обнаружено:** 2026-10-02 (smoke Шага 1G.1)
+- **Файлы (план):**
+  - `IIChatTools.API/Controllers/ChatController.cs` — `GetChatAsync`.
+  - `IIChatTools.Services/DTO/Chat/ChatDtos.cs` — `ChatDetailDto`.
+  - `IIChatTools.Services/Interfaces/IAgentDebateSessionService.cs` — новый метод.
+  - `IIChatTools.Services/Implementation/Debate/AgentDebateSessionService.cs` — реализация.
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` — `renderMessages`.
+- **Описание:** Блок Actor-Critic отображается только в live-режиме (SSE).
+  При F5 история сообщений загружается из БД, но данные debate-сессий
+  **не восстанавливаются** в UI — блок исчезает.
+
+  **При этом сами сессии УЖЕ сохраняются в БД** (Шаг 1E-part2):
+  - `AgentDebateSession` — сессии (ChatId, UserId, Task, Status,
+    FinalVerdict, StartedAt, CompletedAt).
+  - `AgentDebateRound` — раунды (SessionId, RoundNumber, ActorOutput,
+    CriticVerdict, CriticFeedbackJson, WasEscalated).
+  - Persistence реализован через `IAgentDebateSessionService`
+    (`StartAsync` / `MarkInProgressAsync` / `AddRoundAsync` / `CompleteAsync`).
+
+  **Корень проблемы:** `ChatController.GetChatAsync` возвращает только
+  `ChatMessageDto[]` — данных дебатов там нет. UI не знает о сессиях.
+
+- **Решение (план):**
+  1. `IAgentDebateSessionService.GetSessionsByChatAsync(chatId, userId)` —
+     новый метод (с eager-load раундов через `Include`).
+  2. `ChatDetailDto.DebateSessions` — новое свойство
+     (`IReadOnlyList<ChatDebateSessionDto>` с сессией + раундами).
+  3. `ChatController.GetChatAsync` — заполнять `DebateSessions`.
+  4. `chat.js` — в `renderMessages` находить assistant-сообщения с
+     `toolCallsJson`, содержащим `code_agent_with_review`, и вставлять
+     восстановленный блок в `.chat-message-tools` (по аналогии с live-рендером).
+     Данные предзаполнять в `state.debates[sessionId]` из
+     `chatDetail.debateSessions` до `renderMessages`.
+- **Оценка:** ~1-1.5 ч.
+- **Связанные:** KI-126 (Шаг 1E-part2 — persistence), Шаг 1G.1 (UI rendering).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2412,12 +2465,12 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.10.1) | 2 | <!-- KI-122 (темы UI), KI-092 (Bootstrap aria-hidden warning — попутно) -->
 | Deferred  | 5 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 12 | <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
-| In Progress | 0 |                   <!-- — -->
+| In Progress | 1 |                   <!-- KI-126 -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-126, KI-128 -->
+| Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **86** |
+| **Всего** | **87** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

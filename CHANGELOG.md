@@ -37,6 +37,14 @@
   - Локализация RU + EN: 6 ключей (`DebateFeedback*`).
 
 ### Documented
+- **KI-129** — Debate blocks not restored on F5 (session/rounds in DB,
+  UI ignores them). Planned, v1.11.x. Блок Actor-Critic отображается только
+  в live-режиме (SSE). При F5 история сообщений загружается из БД, но
+  данные debate-сессий не восстанавливаются в UI. При этом сами сессии
+  УЖЕ сохраняются в `AgentDebateSession` / `AgentDebateRound` (Шаг 1E-part2).
+  Проблема в UI-слое: `ChatController.GetChatAsync` не отдаёт debate-данные.
+  Связанные: KI-126 (Шаг 1E-part2).
+
 - **KI-128** — Browser workflow недоступен через Chat (`browser_agent` +
   `save_screenshot_to_file`). Planned, v1.11.x. Пример: «Открой rzd.ru и
   сделай скриншот в minsk.png» → Chat отвечает отказом. Технически capability
