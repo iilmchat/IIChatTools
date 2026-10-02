@@ -48,6 +48,19 @@
     (`CodeReviewerAgentToolTests`).
 
 ### Fixed
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1E-fix4)**: `DefaultSystemPrompt` в
+  `ChatStreamService` — базовый system-prompt с явными правилами выбора
+  инструментов (6 правил + 1 пример). Добавляется к КАЖДОМУ чату **первым**
+  system-сообщением (стабильный префикс для KV-cache).
+  **Обновлены 3 теста** в `ChatStreamServiceTests`: `RagContextInSystemPrompt`
+  (теперь проверяет 2 system-сообщения: Default + RAG),
+  `NoRagChunks_NoInjection` и `LowScoreFiltered` (оба теперь проверяют
+  наличие **одного** DefaultSystemPrompt вместо отсутствия system-сообщения).
+  **Причина Шага 1E-fix4:** Шаг 1E-fix3 (усиление только `Description`'ов)
+  **не сработал** — qwen3-4b игнорирует описания tools (position-bias:
+  `code_agent` идёт первым в алфавитном списке). System-prompt имеет
+  высокий приоритет в 4B-модели.
+
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1E-fix3)**: митигация KI-127 — Chat LLM
   выбирает `code_agent` вместо `code_agent_with_review` для сложных задач.
   - Усилен `Description` `code_agent_with_review` в обоих `appsettings*.json`:

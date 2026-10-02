@@ -2223,10 +2223,20 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Файлы:** `SubAgents:code_agent_with_review:Description`, `SubAgents:code_agent:Description` (оба `appsettings*.json`).
 - **Описание:** Chat LLM (qwen3-4b) при запросе «Напиши функцию для проверки палиндрома с обработкой edge cases» выбирает `code_agent` напрямую, а не `code_agent_with_review`. Аналогично KI-118.
 - **Симптом:** DevTools → `Approval required: code_agent` (не `code_agent_with_review`); `AgentDebateSessions` пуста.
-- **Решение (Шаг 1E-fix3, v1.11.0):**
-  - Усилен `Description` `code_agent_with_review` — явные триггеры («алгоритм», «парсер», «валидация», «обработка ошибок», «edge cases», «безопасность», «производительность», «unicode»).
-  - Ограничен `Description` `code_agent` — «ТОЛЬКО для простых задач: rename, add import, тривиальные однострочники».
-- **Проверка:** smoke E2E — при запросе «Используй `code_agent_with_review` для следующей задачи: ...» — LLM его вызывает, session завершается `Approved` (2 раунда: Rejected → Approved).
+- **Решение (Шаг 1E-fix3 + 1E-fix4, v1.11.0):**
+  - **Шаг 1E-fix3** (не сработал): усилен `Description` `code_agent_with_review`
+    (триггеры) + ограничен `Description` `code_agent`. **Не помогло** —
+    qwen3-4b игнорирует описания tools (position-bias: `code_agent` первый
+    в алфавитном списке).
+  - **Шаг 1E-fix4** (рабочий): `ChatStreamService.DefaultSystemPrompt` —
+    базовый system-prompt с 6 явными правилами выбора инструментов +
+    1 пример. Добавляется к каждому чату **первым** system-сообщением
+    (стабильный префикс для KV-cache).
+- **Проверка:**
+  - **Явный вызов** (`Используй code_agent_with_review ...`): session
+    завершается `Approved` (2 раунда: Rejected → Approved).
+  - **Без явного указания** (обычный вопрос про палиндром с edge cases):
+    system-prompt направляет LLM на `code_agent_with_review`.
 - **Связанные:** KI-118 (`code_agent` для простых задач), KI-126 (Шаг 1E).
 
 ---

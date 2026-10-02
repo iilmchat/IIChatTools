@@ -97,6 +97,46 @@ namespace IIChatTools.Services.Implementation
         /// <summary>Минимальный score для вставки в system prompt (по умолчанию).</summary>
         private const float DefaultAutoInjectMinScore = 0.35f;
 
+        /// <summary>
+        /// Базовый system prompt, добавляемый к КАЖДОМУ чату.
+        /// Даёт LLM явные правила выбора инструментов (в дополнение к
+        /// Description'ам, которые 4B-модели часто игнорируют).
+        ///
+        /// <para>
+        /// v1.11.0 (KI-126, Шаг 1E-fix4): после неудачной попытки усилить
+        /// только <c>Description</c> у <c>code_agent_with_review</c> (Шаг 1E-fix3) —
+        /// qwen3-4b всё равно выбирала <c>code_agent</c> (position-bias:
+        /// алфавитный порядок tools + игнор описаний). System-prompt имеет
+        /// более высокий приоритет в малых моделях.
+        /// </para>
+        /// </summary>
+        private const string DefaultSystemPrompt =
+            "Ты — ассистент IIChatTools с доступом к инструментам.\n" +
+            "\n" +
+            "ПРАВИЛА ВЫБОРА ИНСТРУМЕНТА (соблюдай строго):\n" +
+            "\n" +
+            "1. Задачи кодинга со словами/смыслом: алгоритм, парсер, валидация, " +
+            "безопасность, security, производительность, edge cases, обработка " +
+            "ошибок/исключений, unicode, сортировка, структуры данных, regex, " +
+            "кодирование/декодирование, палиндром, работа с текстом — ВСЕГДА " +
+            "используй инструмент `code_agent_with_review` (он делает ревью " +
+            "через критика).\n" +
+            "\n" +
+            "2. Простые операции кодинга: rename, add import, исправление опечатки, " +
+            "тривиальный однострочник, быстрая проверка — используй `code_agent`.\n" +
+            "\n" +
+            "3. Документация проекта (README.md, RULES.md, CHANGELOG.md, " +
+            "KNOWN_ISSUES.md, ARCHITECTURE.md) — используй `search_knowledge_base`.\n" +
+            "\n" +
+            "4. Файлы пользователя в workspace — `file_system_agent`.\n" +
+            "\n" +
+            "5. Поиск в интернете / Wikipedia — `web_agent`.\n" +
+            "\n" +
+            "6. Вопросы про БД приложения (чаты, сообщения, аудит) — `database_agent`.\n" +
+            "\n" +
+            "ПРИМЕР: «Напиши функцию для проверки палиндрома с обработкой edge cases» " +
+            "→ вызови `code_agent_with_review`.";
+
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;
         private readonly IToolRegistry _toolRegistry;
@@ -910,6 +950,16 @@ namespace IIChatTools.Services.Implementation
             CancellationToken cancellationToken)
         {
             var messages = new JArray();
+
+            // v1.11.0 (KI-126, Шаг 1E-fix4): базовый system prompt с правилами
+            // выбора инструментов. Идёт ПЕРВЫМ — стабильный префикс для KV-cache.
+            // 4B-модель (qwen3-4b) часто игнорирует Description'ы tools, но
+            // system-prompt имеет высокий приоритет.
+            messages.Add(new JObject
+            {
+                ["role"] = RoleSystem,
+                ["content"] = DefaultSystemPrompt
+            });
 
             // Auto-inject RAG-контекста (KI-083, Шаг 6C).
             // v1.6.0 (KI-086): метод также возвращает sources — для UI-блока.

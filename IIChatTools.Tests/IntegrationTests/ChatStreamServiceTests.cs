@@ -714,14 +714,24 @@ namespace IIChatTools.Tests.IntegrationTests
             Assert.Equal(userId, call.UserId);
             Assert.Equal("Расскажи про yield return", call.Query);
 
-            // Assert: system prompt содержит RAG-блок.
+            // Assert: ровно 2 system-сообщения:
+            //   [0] — DefaultSystemPrompt (v1.11.0, KI-126, Шаг 1E-fix4);
+            //   [1] — RAG-блок (auto-inject, Шаг 6C).
             Assert.Single(fakeLm.CapturedMessages);
-            var systemMsg = fakeLm.CapturedMessages[0]
-                .FirstOrDefault(m => m["role"]?.ToString() == "system")?["content"]?.ToString();
-            Assert.NotNull(systemMsg);
-            Assert.Contains("релевантные фрагменты", systemMsg);
-            Assert.Contains("RAG fragment text about yield return", systemMsg);
-            Assert.Contains("test-attachment.txt", systemMsg);
+            var systemMsgs = fakeLm.CapturedMessages[0]
+                .Where(m => m["role"]?.ToString() == "system")
+                .ToList();
+            Assert.Equal(2, systemMsgs.Count);
+
+            // [0] — базовый system-prompt (всегда присутствует).
+            Assert.Contains("ассистент IIChatTools", systemMsgs[0]["content"]?.ToString());
+
+            // [1] — RAG-блок.
+            var ragMsg = systemMsgs[1]["content"]?.ToString();
+            Assert.NotNull(ragMsg);
+            Assert.Contains("релевантные фрагменты", ragMsg);
+            Assert.Contains("RAG fragment text about yield return", ragMsg);
+            Assert.Contains("test-attachment.txt", ragMsg);
         }
 
         /// <summary>
@@ -750,11 +760,15 @@ namespace IIChatTools.Tests.IntegrationTests
             // Retrieval не вызывался (нет чанков).
             Assert.Empty(fakeRetrieval.Calls);
 
-            // В messages нет system-сообщения (у чата пустой SystemPrompt).
+            // v1.11.0 (KI-126, Шаг 1E-fix4): только DefaultSystemPrompt,
+            // без RAG-блока (нет чанков в my_rag_docs).
             Assert.Single(fakeLm.CapturedMessages);
-            var systemMsg = fakeLm.CapturedMessages[0]
-                .FirstOrDefault(m => m["role"]?.ToString() == "system");
-            Assert.Null(systemMsg);
+            var systemMsgs = fakeLm.CapturedMessages[0]
+                .Where(m => m["role"]?.ToString() == "system")
+                .ToList();
+            Assert.Single(systemMsgs);
+            Assert.Contains("ассистент IIChatTools", systemMsgs[0]["content"]?.ToString());
+            Assert.DoesNotContain("релевантные фрагменты", systemMsgs[0]["content"]?.ToString());
         }
 
         /// <summary>
@@ -808,11 +822,15 @@ namespace IIChatTools.Tests.IntegrationTests
             // Retrieval был вызван (есть чанки), но после фильтра — пусто.
             Assert.Single(fakeRetrieval.Calls);
 
-            // System-сообщения нет (фильтр отсёк низкий score).
+            // v1.11.0 (KI-126, Шаг 1E-fix4): только DefaultSystemPrompt,
+            // без RAG-блока (score < MinScore).
             Assert.Single(fakeLm.CapturedMessages);
-            var systemMsg = fakeLm.CapturedMessages[0]
-                .FirstOrDefault(m => m["role"]?.ToString() == "system");
-            Assert.Null(systemMsg);
+            var systemMsgs = fakeLm.CapturedMessages[0]
+                .Where(m => m["role"]?.ToString() == "system")
+                .ToList();
+            Assert.Single(systemMsgs);
+            Assert.Contains("ассистент IIChatTools", systemMsgs[0]["content"]?.ToString());
+            Assert.DoesNotContain("релевантные фрагменты", systemMsgs[0]["content"]?.ToString());
         }
     }
 }
