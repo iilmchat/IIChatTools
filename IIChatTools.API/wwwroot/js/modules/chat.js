@@ -460,17 +460,10 @@ function applyDebateViewUI() {
     }
 }
 
-/**
- * Перерисовывает все отображённые блоки дебатов в соответствии с текущим видом.
- * Ищет все контейнеры `[data-debate-session-id]` и применяет к ним класс вида.
- */
-function refreshDebateViews() {
-    const containers = document.querySelectorAll('[data-debate-session-id]');
-    containers.forEach(container => {
-        container.classList.toggle('chat-debate-dialog', state.debateView === 'dialog');
-        container.classList.toggle('chat-debate-collapsed', state.debateView === 'collapsed');
-    });
-}
+// refreshDebateViews() — см. секцию «Рендер дебатов (Actor-Critic)» ниже.
+// В Шаге 1G.2 она была переписана (полный перерендер через
+// renderDebateContainerInner), а старая версия в этой секции — удалена.
+// Дублирование вызывало SyntaxError в браузере.
 
 // ============ KI-078A: Внутричатовый поиск (Ctrl+F) ============
 
