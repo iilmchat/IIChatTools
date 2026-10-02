@@ -17,6 +17,8 @@ import { requestChatApproval } from './approvals.js';
  * KI-079: ключ localStorage для состояния sidebar.
  */
 const LS_KEY_SIDEBAR = 'chat.sidebarCollapsed';
+// v1.11.0 (KI-126, Шаг 1G.1): ключ localStorage для вида отображения дебатов.
+const LS_KEY_DEBATE_VIEW = 'chat.debateView';
 
 const state = {
     chats: [],
@@ -44,6 +46,9 @@ const state = {
     // KI-083 (Шаг 6D): вложения чата (RAG)
     attachments: [],             // ChatAttachmentDto[]
     ragChunkCount: 0,            // суммарное количество чанков в my_rag_docs для активного чата
+
+    // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
+    debateView: 'collapsed',
 };
 
 // ============ Инициализация ============
@@ -61,7 +66,17 @@ export async function initChatPage() {
     }
     if (savedCollapsed === 'true') applySidebarCollapsed(true);
 
+    // v1.11.0 (KI-126, Шаг 1G.1): восстановить вид отображения дебатов.
+    let savedDebateView = null;
+    try {
+        savedDebateView = localStorage.getItem(LS_KEY_DEBATE_VIEW);
+    } catch {
+        // Приватный режим / запрет localStorage — игнорируем.
+    }
+    state.debateView = savedDebateView === 'dialog' ? 'dialog' : 'collapsed';
+
     bindEvents();
+    applyDebateViewUI();
 
     await loadModels();
     await loadChats();
@@ -119,6 +134,10 @@ function bindEvents() {
     if (modelSelect) {
         modelSelect.addEventListener('change', onChatModelChanged);
     }
+
+    // v1.11.0 (KI-126, Шаг 1G.1): переключатель вида отображения дебатов.
+    document.getElementById('btn-debate-view')
+        ?.addEventListener('click', toggleDebateView);
 
     // KI-079: кнопка toggle (одна, работает в обоих состояниях)
     document.getElementById('btn-collapse-sidebar')
@@ -391,6 +410,61 @@ function applySidebarCollapsed(collapsed) {
  */
 function toggleSidebar() {
     applySidebarCollapsed(!state.sidebarCollapsed);
+}
+
+// ============ v1.11.0 (KI-126, Шаг 1G.1): Вид отображения дебатов ============
+
+/**
+ * Переключает вид отображения раундов Actor-Critic.
+ * Сохраняет выбор в localStorage и перерисовывает уже отображённые раунды.
+ */
+function toggleDebateView() {
+    state.debateView = state.debateView === 'dialog' ? 'collapsed' : 'dialog';
+    try {
+        localStorage.setItem(LS_KEY_DEBATE_VIEW, state.debateView);
+    } catch {
+        // Приватный режим — игнорируем.
+    }
+    applyDebateViewUI();
+    refreshDebateViews();
+}
+
+/**
+ * Обновляет иконку и title кнопки-селектора в зависимости от текущего вида.
+ */
+function applyDebateViewUI() {
+    const btn = document.getElementById('btn-debate-view');
+    if (!btn) return;
+
+    const isDialog = state.debateView === 'dialog';
+    const label = isDialog
+        ? (btn.dataset.labelCollapsed || 'Collapsed')
+        : (btn.dataset.labelDialog || 'Dialog');
+
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+
+    // Смена SVG: в диалоговом режиме — иконка списка, в свернутом — иконка диалога.
+    // Используем inline SVG для избежания внешних зависимостей.
+    if (isDialog) {
+        // Иконка «свернуть» (список)
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>`;
+    } else {
+        // Иконка «развернуть» (диалог)
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2zm0 1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm0 5a1 1 0 0 1 1-1h8a1 1 0 0 1 0 2H3a1 1 0 0 1-1-1z"/></svg>`;
+    }
+}
+
+/**
+ * Перерисовывает все отображённые блоки дебатов в соответствии с текущим видом.
+ * Ищет все контейнеры `[data-debate-session-id]` и применяет к ним класс вида.
+ */
+function refreshDebateViews() {
+    const containers = document.querySelectorAll('[data-debate-session-id]');
+    containers.forEach(container => {
+        container.classList.toggle('chat-debate-dialog', state.debateView === 'dialog');
+        container.classList.toggle('chat-debate-collapsed', state.debateView === 'collapsed');
+    });
 }
 
 // ============ KI-078A: Внутричатовый поиск (Ctrl+F) ============
@@ -1559,6 +1633,17 @@ function handleSseEvent(name, data, assistantBubble) {
             handleApprovalResolved(data);
             break;
 
+        // v1.11.0 (KI-126, Шаг 1G.1): события Actor-Critic.
+        case 'debate_started':
+            handleDebateStarted(assistantBubble, data);
+            break;
+        case 'debate_round':
+            handleDebateRound(assistantBubble, data);
+            break;
+        case 'debate_completed':
+            handleDebateCompleted(assistantBubble, data);
+            break;
+
         case 'done':
             showTypingIndicator(assistantBubble, false);
             finalizeAssistantBubble(assistantBubble, data);
@@ -1743,6 +1828,253 @@ function handleApprovalRequired(data) {
  */
 function handleApprovalResolved(data) {
     console.log(`[chat] Approval resolved event: ${data.id} → ${data.decision}`);
+}
+
+// ============ v1.11.0 (KI-126, Шаг 1G.1): Рендер дебатов ============
+
+/**
+ * Обрабатывает SSE-событие `debate_started`.
+ * Создаёт контейнер для раундов Actor-Critic внутри текущего assistant-пузыря.
+ *
+ * @param {HTMLElement} bubble — текущий assistant-пузырь
+ * @param {object} data — ChatDebateStartedDto
+ */
+function handleDebateStarted(bubble, data) {
+    if (!bubble) return;
+
+    const bodyEl = bubble.querySelector('.chat-message-body');
+    if (!bodyEl) return;
+
+    // Проверяем, нет ли уже контейнера для этой сессии
+    const existing = bodyEl.querySelector(`[data-debate-session-id="${data.sessionId}"]`);
+    if (existing) return;
+
+    const container = document.createElement('div');
+    container.className = `chat-debate-block chat-debate-${state.debateView}`;
+    container.dataset.debateSessionId = data.sessionId;
+
+    // Заголовок блока
+    container.innerHTML = `
+        <div class="chat-debate-header">
+            <span class="chat-debate-icon">⚔️</span>
+            <span class="chat-debate-title">Actor-Critic</span>
+            <span class="chat-debate-task" title="${escapeAttr(data.task)}">${escapeHtml(truncateText(data.task, 80))}</span>
+            <span class="chat-debate-meta">Max ${data.maxRounds} rounds</span>
+        </div>
+        <div class="chat-debate-rounds" data-debate-rounds></div>
+    `;
+
+    // Вставляем перед actions, если они есть, иначе в конец body
+    const actionsEl = bodyEl.querySelector('.chat-message-actions');
+    if (actionsEl) {
+        bodyEl.insertBefore(container, actionsEl);
+    } else {
+        bodyEl.appendChild(container);
+    }
+
+    scrollToBottom();
+}
+
+/**
+ * Обрабатывает SSE-событие `debate_round`.
+ * Добавляет один раунд (Actor + Critic) в контейнер.
+ *
+ * @param {HTMLElement} bubble — текущий assistant-пузырь
+ * @param {object} data — ChatDebateRoundDto
+ */
+function handleDebateRound(bubble, data) {
+    if (!bubble) return;
+
+    const roundsEl = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"] [data-debate-rounds]`);
+    if (!roundsEl) return;
+
+    const isDialog = state.debateView === 'dialog';
+    const roundHtml = renderDebateRound(data, isDialog);
+
+    roundsEl.insertAdjacentHTML('beforeend', roundHtml);
+
+    // Обновляем заголовок с количеством раундов
+    const container = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"]`);
+    if (container) {
+        const header = container.querySelector('.chat-debate-header');
+        if (header) {
+            let roundsBadge = header.querySelector('.chat-debate-rounds-count');
+            if (!roundsBadge) {
+                roundsBadge = document.createElement('span');
+                roundsBadge.className = 'chat-debate-rounds-count';
+                header.appendChild(roundsBadge);
+            }
+            roundsBadge.textContent = `${data.roundNumber} rounds`;
+        }
+    }
+
+    scrollToBottom();
+}
+
+/**
+ * Обрабатывает SSE-событие `debate_completed`.
+ * Добавляет финальный блок с вердиктом.
+ *
+ * @param {HTMLElement} bubble — текущий assistant-пузырь
+ * @param {object} data — ChatDebateCompletedDto
+ */
+function handleDebateCompleted(bubble, data) {
+    if (!bubble) return;
+
+    const container = bubble.querySelector(`[data-debate-session-id="${data.sessionId}"]`);
+    if (!container) return;
+
+    const isDialog = state.debateView === 'dialog';
+    const completedHtml = renderDebateCompleted(data, isDialog);
+
+    // Вставляем финальный блок в конец контейнера
+    container.insertAdjacentHTML('beforeend', completedHtml);
+
+    // Скрываем индикатор «Печатает…», если он ещё виден
+    showTypingIndicator(bubble, false);
+
+    scrollToBottom();
+}
+
+/**
+ * Рендерит один раунд дебатов.
+ *
+ * @param {object} data — ChatDebateRoundDto
+ * @param {boolean} isDialog — true, если отображать в режиме «диалог»
+ * @returns {string} HTML
+ */
+function renderDebateRound(data, isDialog) {
+    const roundNum = data.roundNumber;
+    const verdict = data.criticVerdict || 'Unknown';
+    const verdictClass = verdict.toLowerCase();
+    const verdictLabel = getVerdictLabel(verdict);
+
+    const actorHtml = `
+        <div class="chat-debate-actor">
+            <div class="chat-debate-round-title">
+                <span class="chat-debate-role-icon">🤖</span>
+                <span class="chat-debate-role-name">Actor</span>
+                <span class="chat-debate-round-num">Round ${roundNum}</span>
+            </div>
+            <pre class="chat-debate-actor-output">${escapeHtml(data.actorOutput || '')}</pre>
+        </div>
+    `;
+
+    const criticHtml = `
+        <div class="chat-debate-critic">
+            <div class="chat-debate-round-title">
+                <span class="chat-debate-role-icon">🧐</span>
+                <span class="chat-debate-role-name">Critic</span>
+                <span class="chat-debate-round-num">Round ${roundNum}</span>
+                <span class="chat-debate-verdict chat-debate-verdict-${verdictClass}">${verdictLabel}</span>
+                ${data.wasEscalated ? '<span class="chat-debate-escalation-badge">🌐 escalated</span>' : ''}
+            </div>
+            <div class="chat-debate-critic-feedback">${renderCriticFeedback(data.criticFeedback)}</div>
+        </div>
+    `;
+
+    if (isDialog) {
+        return `<div class="chat-debate-round">${actorHtml}${criticHtml}</div>`;
+    } else {
+        // В свернутом режиме раунд всё равно рендерится, но обёртывается в <details>
+        // Логика сворачивания будет добавлена в Шаге 1G.2
+        return `<div class="chat-debate-round">${actorHtml}${criticHtml}</div>`;
+    }
+}
+
+/**
+ * Рендерит финальный блок завершения дебатов.
+ *
+ * @param {object} data — ChatDebateCompletedDto
+ * @param {boolean} isDialog
+ * @returns {string} HTML
+ */
+function renderDebateCompleted(data, isDialog) {
+    const verdict = data.verdict || 'Unknown';
+    const verdictClass = verdict.toLowerCase();
+    const verdictLabel = getVerdictLabel(verdict);
+
+    let costHtml = '';
+    if (data.totalCostUsd > 0) {
+        costHtml = `<span class="chat-debate-cost">Total cost: $${data.totalCostUsd.toFixed(4)}</span>`;
+    }
+
+    let detailsHtml = '';
+    if (!isDialog) {
+        // В свернутом режиме показываем <details> с раундами
+        // (сами раунды уже отрендерены выше, просто оборачиваем их)
+        // Это будет доработано в Шаге 1G.2
+    }
+
+    return `
+        <div class="chat-debate-completed">
+            <div class="chat-debate-completed-header">
+                <span class="chat-debate-icon">${verdict === 'Approved' ? '✅' : '⚠️'}</span>
+                <span class="chat-debate-completed-title">${verdictLabel}</span>
+                <span class="chat-debate-completed-meta">${data.totalRounds} rounds</span>
+                ${costHtml}
+            </div>
+            <pre class="chat-debate-final-artifact">${escapeHtml(data.finalArtifact || '')}</pre>
+        </div>
+    `;
+}
+
+/**
+ * Возвращает локализованную метку для вердикта.
+ * @param {string} verdict
+ * @returns {string}
+ */
+function getVerdictLabel(verdict) {
+    const labels = {
+        'Approved': '✅ Approved',
+        'Rejected': '❌ Rejected',
+        'Uncertain': '❓ Uncertain',
+        'MaxRoundsReached': '⏹ Max Rounds',
+        'Cancelled': '🚫 Cancelled'
+    };
+    return labels[verdict] || verdict;
+}
+
+/**
+ * Рендерит feedback критика (JSON или текст).
+ * @param {string} feedback
+ * @returns {string} HTML
+ */
+function renderCriticFeedback(feedback) {
+    if (!feedback) return '<span class="text-muted">No feedback</span>';
+
+    try {
+        const parsed = JSON.parse(feedback);
+        if (parsed.issues && Array.isArray(parsed.issues)) {
+            const issuesHtml = parsed.issues.map(issue => {
+                const severity = (issue.severity || 'Minor').toLowerCase();
+                const severityClass = `chat-debate-issue-${severity}`;
+                return `
+                    <div class="chat-debate-issue ${severityClass}">
+                        <span class="chat-debate-issue-severity">${escapeHtml(issue.severity || 'Minor')}</span>
+                        <span class="chat-debate-issue-desc">${escapeHtml(issue.description || '')}</span>
+                        ${issue.suggestion ? `<span class="chat-debate-issue-suggestion">💡 ${escapeHtml(issue.suggestion)}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+            return issuesHtml || '<span class="text-muted">No issues</span>';
+        }
+        return `<pre>${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
+    } catch {
+        return `<pre>${escapeHtml(feedback)}</pre>`;
+    }
+}
+
+/**
+ * Обрезает текст до указанной длины, добавляя многоточие.
+ * @param {string} text
+ * @param {number} maxLen
+ * @returns {string}
+ */
+function truncateText(text, maxLen) {
+    if (!text) return '';
+    if (text.length <= maxLen) return text;
+    return text.substring(0, maxLen) + '…';
 }
 
 // ============ Рендер сообщений ============

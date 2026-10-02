@@ -723,4 +723,15 @@
   <data name="ThemeHighContrast" xml:space="preserve">
       <value>High Contrast</value>
   </data>
+
+  <!-- ===== v1.11.0 (KI-126): Actor-Critic Debate UI ===== -->
+  <data name="ChatDebateViewDialog" xml:space="preserve">
+      <value>Switch to dialog view</value>
+  </data>
+  <data name="ChatDebateViewCollapsed" xml:space="preserve">
+      <value>Switch to collapsed view</value>
+  </data>
+  <data name="ChatDebateViewSwitch" xml:space="preserve">
+      <value>Toggle debate view</value>
+  </data>
 </root>

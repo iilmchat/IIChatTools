@@ -19,6 +19,14 @@
 ## [Unreleased]
 
 ### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1G.1)**: UI-селектор вида отображения
+  раундов Actor-Critic («диалог» / «свёрнутый»). Кнопка-переключатель в
+  `#chat-header` (SVG-иконка, локализация через `data-*`). Состояние —
+  `localStorage["chat.debateView"]` (по умолчанию `collapsed`).
+  Рендеринг SSE-событий `debate_started` / `debate_round` / `debate_completed`
+  в режиме «диалог» (раунды как отдельные блоки: Actor + Critic + вердикт).
+  CSS-стили `.chat-debate-*` (Bootstrap-переменные). Локализация RU + EN.
+
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1A)**: сущности `AgentDebateSession` +
     `AgentDebateRound` для Actor-Critic мультиагентов. 2 DbSet + конфигурация
     в `AppDbContext` (FK `Chat` Cascade + FK `Session` Cascade, 3 индекса:

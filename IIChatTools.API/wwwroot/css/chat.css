@@ -1492,6 +1492,242 @@ body.chat-global-search-open {
     }
 }
 
+/* ============ v1.11.0 (KI-126): Actor-Critic Debate UI ============ */
+
+.chat-debate-block {
+    margin: .5rem 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+
+.chat-debate-header {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .4rem .75rem;
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: .82rem;
+    color: var(--bs-secondary-color);
+}
+
+.chat-debate-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.chat-debate-title {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    flex-shrink: 0;
+}
+
+.chat-debate-task {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
+
+.chat-debate-meta,
+.chat-debate-rounds-count {
+    flex-shrink: 0;
+    font-size: .72rem;
+    font-family: var(--bs-font-monospace);
+    color: var(--bs-secondary-color);
+    padding: 0 .3rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .2rem;
+}
+
+.chat-debate-rounds {
+    padding: .5rem .75rem;
+}
+
+.chat-debate-round {
+    margin-bottom: .75rem;
+    border-left: 3px solid var(--bs-border-color);
+    padding-left: .75rem;
+}
+
+.chat-debate-round:last-child {
+    margin-bottom: 0;
+}
+
+/* Actor */
+.chat-debate-actor {
+    margin-bottom: .5rem;
+}
+
+/* Critic */
+.chat-debate-critic {
+    margin-bottom: .25rem;
+}
+
+.chat-debate-round-title {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin-bottom: .25rem;
+    font-size: .8rem;
+}
+
+.chat-debate-role-icon {
+    font-size: .95rem;
+}
+
+.chat-debate-role-name {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+}
+
+.chat-debate-round-num {
+    font-size: .72rem;
+    color: var(--bs-secondary-color);
+    font-family: var(--bs-font-monospace);
+}
+
+.chat-debate-verdict {
+    font-size: .72rem;
+    font-weight: 600;
+    padding: .05rem .4rem;
+    border-radius: .25rem;
+    margin-left: auto;
+}
+
+.chat-debate-verdict-approved {
+    background: var(--bs-success-bg-subtle);
+    color: var(--bs-success-text-emphasis);
+}
+
+.chat-debate-verdict-rejected {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+}
+
+.chat-debate-verdict-uncertain {
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+}
+
+.chat-debate-escalation-badge {
+    font-size: .7rem;
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    padding: .05rem .35rem;
+    border-radius: .25rem;
+}
+
+.chat-debate-actor-output,
+.chat-debate-final-artifact {
+    margin: 0;
+    padding: .5rem .65rem;
+    background: var(--bs-tertiary-bg);
+    border-radius: .375rem;
+    font-family: var(--bs-font-monospace);
+    font-size: .82rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.chat-debate-critic-feedback {
+    font-size: .82rem;
+    line-height: 1.45;
+}
+
+.chat-debate-critic-feedback pre {
+    margin: 0;
+    padding: .4rem .5rem;
+    background: var(--bs-tertiary-bg);
+    border-radius: .25rem;
+    font-size: .78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Issues */
+.chat-debate-issue {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .5rem;
+    padding: .25rem .4rem;
+    margin-bottom: .25rem;
+    border-radius: .25rem;
+    font-size: .8rem;
+    background: var(--bs-secondary-bg);
+}
+
+.chat-debate-issue-severity {
+    font-weight: 600;
+    font-size: .7rem;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.chat-debate-issue-critical .chat-debate-issue-severity { color: var(--bs-danger); }
+.chat-debate-issue-major .chat-debate-issue-severity { color: var(--bs-warning); }
+.chat-debate-issue-minor .chat-debate-issue-severity { color: var(--bs-secondary-color); }
+
+.chat-debate-issue-desc {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--bs-body-color);
+}
+
+.chat-debate-issue-suggestion {
+    width: 100%;
+    font-size: .75rem;
+    color: var(--bs-success-text-emphasis);
+    font-style: italic;
+}
+
+/* Completed */
+.chat-debate-completed {
+    padding: .5rem .75rem;
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+
+.chat-debate-completed-header {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .35rem;
+    font-size: .85rem;
+}
+
+.chat-debate-completed-title {
+    font-weight: 600;
+}
+
+.chat-debate-completed-meta {
+    font-size: .72rem;
+    font-family: var(--bs-font-monospace);
+    color: var(--bs-secondary-color);
+}
+
+.chat-debate-cost {
+    font-size: .72rem;
+    font-family: var(--bs-font-monospace);
+    color: var(--bs-secondary-color);
+    margin-left: auto;
+}
+
+/* Свернутый режим */
+.chat-debate-block.chat-debate-collapsed .chat-debate-rounds {
+    display: none; /* Будет доработано в Шаге 1G.2 */
+}
+
 /* ============ KI-081: логотип в empty state чата ============ */
 
 .chat-empty-logo {
