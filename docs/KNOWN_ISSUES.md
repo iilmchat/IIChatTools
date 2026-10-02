@@ -2399,17 +2399,52 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Не покрыто (возможные follow-up):** прямая передача содержимого
     вложений в `context` при первом раунде (вариант 3) — потенциально
     эффективнее, но требует изменений в `CodeAgentWithReviewTool`.
-- **⚠️ Smoke 2026-10-02 показал, что quick-fix недостаточен:**
-  - Chat LLM для задачи «Исправь код в файле `code-*.py`» выбирает
-    **`file_system_agent`**, а не `code_agent`. Правило 5 в SystemPrompt
-    `code_agent` не применяется, потому что `code_agent` **не вызывается**.
-  - LLM также вызывает `search_workspace` → «Индексация отключена»
-    (opt-in, KI-083), что вводит в заблуждение.
-  - **Это та же проблема выбора инструмента, что KI-127** —
-    описания и SystemPrompt Chat не помогают для 4B-модели.
-  - **Следующий шаг:** добавить правило 7 в `ChatStreamService.DefaultSystemPrompt`:
-    «Задача «исправить/доработать код в файле X» → `code_agent_with_review` или
-    `code_agent`, НЕ `file_system_agent`». Затем — повторный smoke.
+- **⚠️ Smoke 2026-10-02 #1** (после quick-fix): Chat LLM выбрал
+  `file_system_agent`, а не `code_agent`. Правило 5 в SystemPrompt
+  `code_agent` не сработало, т.к. сам агент не был вызван.
+  → Добавлено правило 7 в `ChatStreamService.DefaultSystemPrompt`.
+
+- **⚠️ Smoke 2026-10-02 #2** (после правила 7): Chat **теперь правильно
+  выбирает `code_agent_with_review`** ✅. Но actor (`code_agent`) внутри
+  всё равно не может получить содержимое файла:
+
+  **Реальные архитектурные gap'ы (3 связанных):**
+
+  1. **`search_knowledge_base` ищет НЕ там.** Добавлен в `AllowedTools`
+     `code_agent` (мой первый quick-fix), но он ищет в `project_docs`
+     (документация проекта). Вложения чата лежат в `my_rag_docs` —
+     **tool'а для этого индекса вообще не существует**.
+
+  2. **Auto-inject RAG работает только для Chat, не для SubAgent.**
+     `ChatStreamService.BuildMessagesAsync` вставляет top-K из
+     `my_rag_docs` в system prompt **Chat**. Когда Chat вызывает
+     `code_agent`, subagent стартует с нуля — БЕЗ RAG-контекста и
+     БЕЗ знания о вложениях.
+
+  3. **Chat не пробрасывает содержимое вложения в `context` агента.**
+     LLM qwen3-4b не догадывается: «я уже видел содержимое через
+     auto-inject, надо передать его в `context` аргумента `code_agent`».
+
+  **Симптом:** actor отвечает «файл не найден, предоставьте содержимое» —
+  что честно (см. KI-113), но не помогает пользователю.
+
+- **Правильное решение (план v1.11.x / v1.12.x):**
+  1. **Новый tool `search_chat_attachments`** — ищет в `my_rag_docs`
+     с `chatId` из контекста. Добавить в `AllowedTools` `code_agent`.
+     **ИЛИ** расширить `search_knowledge_base` параметром `indexName`.
+  2. **Проброс RAG-контекста в SubAgent** — добавить
+     `SubAgentTaskRequest.RagContext`; в `AgentToolBase` заполнять из
+     `ToolExecutionContext` или из auto-inject Chat.
+  3. **Проброс содержимого вложения в `context`** — если Chat уже
+     сделал auto-inject, добавить чанки в `context` при вызове `code_agent`
+     (в `CodeAgentWithReviewTool`).
+  4. **Или (самое простое, но не идеальное):** инжектить auto-inject
+     RAG в system prompt **всех агентов**, если chatId задан.
+- **Что уже сделано (правильные шаги):**
+  - ✅ Rule 7 в `DefaultSystemPrompt` — Chat выбирает правильный агент.
+  - ✅ `search_knowledge_base` добавлен в `AllowedTools` `code_agent`
+    (пригодится для будущей интеграции).
+  - ❌ Моя первая правка была архитектурно неверной — искала в неправильном индексе.
 - **Связанные:** KI-083 (RAG / attachments), KI-126 (Actor-Critic),
   KI-127 (выбор `code_agent_with_review`), KI-113 (галлюцинация успеха).
 

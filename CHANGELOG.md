@@ -41,14 +41,24 @@
   восстанавливает блок). Осталось в Ф1: 1H (финальная локализация), 1I (тесты),
   1J (релиз v1.11.0).
 
-### Fixed
-- **KI-130 — code_agent / code_agent_with_review частично читают вложения
-  чата через RAG** (v1.11.0, quick-fix). В `SubAgents:code_agent:AllowedTools`
-  добавлен `search_knowledge_base` + правило 5 в SystemPrompt.
-  **⚠️ Partially Fixed:** smoke 2026-10-02 показал, что Chat LLM для задачи
-  «Исправь код в файле» всё ещё выбирает `file_system_agent`, а не
-  `code_agent` — та же проблема, что KI-127. Следующий шаг: правило 7 в
-  `ChatStreamService.DefaultSystemPrompt` (связано с KI-127).
+### Fixed (partially)
+- **KI-130 — code_agent не может читать вложения чата через RAG**
+  (v1.11.0, **Partially Fixed**).
+
+  **Что уже работает:**
+  - ✅ Rule 7 в `ChatStreamService.DefaultSystemPrompt` — Chat правильно
+    выбирает `code_agent_with_review` / `code_agent` для задач
+    «исправь код в файле X» (не `file_system_agent`).
+  - ✅ `search_knowledge_base` в `AllowedTools` `code_agent`.
+
+  **Что НЕ работает (архитектурные gap'ы, план v1.11.x):**
+  1. `search_knowledge_base` ищет в `project_docs`, а вложения чата —
+     в `my_rag_docs`. Tool'а для `my_rag_docs` не существует.
+  2. Auto-inject RAG работает только для Chat, не для SubAgent.
+  3. Chat не пробрасывает содержимое вложения в `context` агента.
+
+  **План:** новый tool `search_chat_attachments` (или параметр `indexName`
+  в `search_knowledge_base`); проброс RAG-контекста в `SubAgentTaskRequest`.
 
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1G.3)**: UI feedback между раундами
