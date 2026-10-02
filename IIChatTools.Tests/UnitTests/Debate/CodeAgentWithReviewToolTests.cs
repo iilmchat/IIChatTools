@@ -663,5 +663,143 @@ namespace IIChatTools.Tests.UnitTests.Debate
                 It.IsAny<int>(), It.IsAny<ExternalLlmRequest>(),
                 It.IsAny<CancellationToken>()), Times.Never);
         }
+
+        // ============ v1.11.0 (KI-126, Шаг 1I): failure-сценарии ============
+
+        [Fact]
+        public async Task ExecuteAsync_ActorFails_ReturnsFail()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                ToolResult.Fail("code_agent: не удалось запустить Python")
+            });
+
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
+
+            Assert.False(result.Success);
+            Assert.Contains("actor", result.Message, StringComparison.OrdinalIgnoreCase);
+
+            // Critic не вызывался (actor упал на первом раунде).
+            Assert.DoesNotContain("code_reviewer_agent", registry.CalledTools);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_CriticFails_ReturnsUncertain()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("code v1")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                ToolResult.Fail("critic: timeout")
+            });
+
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
+
+            // Actor отработал, но critic упал → verdict=Uncertain.
+            Assert.True(result.Success);
+            var data = JObject.FromObject(result.Data);
+            Assert.Equal("Uncertain", data["verdict"]?.ToString());
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_RoundsHaveSequentialNumbers()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("v1"), AgentOk("v2"), AgentOk("v3")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Rejected\",\"issues\":[],\"summary\":\"no\"}"),
+                AgentOk("{\"verdict\":\"Rejected\",\"issues\":[],\"summary\":\"no\"}"),
+                AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
+            });
+
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Задача" });
+
+            Assert.True(result.Success);
+            var data = JObject.FromObject(result.Data);
+            var rounds = data["rounds"] as JArray;
+            Assert.NotNull(rounds);
+            Assert.Equal(3, rounds.Count);
+
+            Assert.Equal(1, rounds[0]["roundNumber"]?.Value<int>());
+            Assert.Equal(2, rounds[1]["roundNumber"]?.Value<int>());
+            Assert.Equal(3, rounds[2]["roundNumber"]?.Value<int>());
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithChatId_PersistsSessionAndRounds()
+        {
+            // v1.11.0 (KI-126, Шаг 1I): sessionId=999 — дефолт из фабрики
+            // CreateTool. Moq: последний matching Setup wins — если в тесте
+            // переопределить ReturnsAsync(777) до вызова CreateTool, то
+            // фабричный Setup(→999) перебьёт пользовательский.
+            const int SessionId = 999;
+
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("code v1")
+            });
+            registry.ResponsesByTool["code_reviewer_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
+            });
+
+            // Используем mock из CreateTool (sessionId=999), но переопределим
+            // StartAsync только чтобы проверить chatId в аргументе.
+            var sessionMock = new Mock<IAgentDebateSessionService>();
+            sessionMock.Setup(s => s.StartAsync(
+                    It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
+                    It.IsAny<AgentDebateConfigSnapshot>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(SessionId);
+            sessionMock.Setup(s => s.MarkInProgressAsync(
+                    It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            sessionMock.Setup(s => s.AddRoundAsync(
+                    It.IsAny<int>(), It.IsAny<AgentDebateRoundDto>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            sessionMock.Setup(s => s.CompleteAsync(
+                    It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            var tool = CreateTool(registry, sessionMock: sessionMock);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(chatId: 42), new JObject { ["task"] = "Test" });
+
+            Assert.True(result.Success);
+
+            // StartAsync вызван с chatId=42.
+            sessionMock.Verify(s => s.StartAsync(
+                It.Is<int>(id => id == 42),
+                It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<AgentDebateConfigSnapshot>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            // MarkInProgress + AddRound + Complete вызваны с тем же sessionId,
+            // что вернул StartAsync (999).
+            sessionMock.Verify(s => s.MarkInProgressAsync(
+                SessionId, It.IsAny<CancellationToken>()), Times.Once);
+            sessionMock.Verify(s => s.AddRoundAsync(
+                SessionId, It.IsAny<AgentDebateRoundDto>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            sessionMock.Verify(s => s.CompleteAsync(
+                SessionId, "Approved", It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
     }
 }

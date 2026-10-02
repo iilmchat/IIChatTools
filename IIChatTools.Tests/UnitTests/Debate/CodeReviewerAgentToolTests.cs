@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using IIChatTools.Services.Implementation.Agents;
 using IIChatTools.Services.Implementation.Tools.SubAgent;
 using IIChatTools.Services.Interfaces;
@@ -90,6 +91,36 @@ namespace IIChatTools.Tests.UnitTests.Debate
             Assert.Contains("ревьюер", description, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("verdict", description, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("approval", description, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ============================================================
+        // v1.11.0 (KI-126, Шаг 1I): disabled-агент
+        // ============================================================
+
+        [Fact]
+        public async Task ExecuteAsync_DisabledAgent_ReturnsFail()
+        {
+            var tool = CreateTool(enabled: false);
+
+            var result = await tool.ExecuteAsync(
+                new IIChatTools.Services.DTO.ToolExecutionContext { UserId = 1 },
+                new Newtonsoft.Json.Linq.JObject { ["task"] = "Проверь код" });
+
+            Assert.False(result.Success);
+            Assert.Contains("отключён", result.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_EmptyTask_ReturnsFail()
+        {
+            var tool = CreateTool(enabled: true);
+
+            var result = await tool.ExecuteAsync(
+                new IIChatTools.Services.DTO.ToolExecutionContext { UserId = 1 },
+                new Newtonsoft.Json.Linq.JObject { ["task"] = "   " });
+
+            Assert.False(result.Success);
+            Assert.Contains("задача", result.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

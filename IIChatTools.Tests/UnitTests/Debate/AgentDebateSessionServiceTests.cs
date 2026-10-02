@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.Data;
 using IIChatTools.Data.Entities;
@@ -210,6 +211,202 @@ namespace IIChatTools.Tests.UnitTests.Debate
             // Шаг 1E: InjectFeedbackAsync — реальный. Но фоновый цикл не запущен,
             // ожидающего в coordinator нет → возвращает false.
             var ok = await service.InjectFeedbackAsync(sessionId, TestUserId, "Учти edge case");
+
+            Assert.False(ok);
+        }
+
+        // ============================================================
+        // v1.11.0 (KI-126, Шаг 1I): методы Шага 1E — MarkInProgress /
+        // AddRound / Complete / InjectFeedback (positive cases).
+        // ============================================================
+
+        [Fact]
+        public async Task MarkInProgressAsync_PendingSession_Succeeds()
+        {
+            var (service, db, chat) = CreateServiceWithChat();
+
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+
+            var ok = await service.MarkInProgressAsync(sessionId);
+
+            Assert.True(ok);
+            var session = await db.AgentDebateSessions.FindAsync(sessionId);
+            Assert.Equal("InProgress", session.Status);
+        }
+
+        [Fact]
+        public async Task MarkInProgressAsync_AlreadyInProgress_ReturnsFalse()
+        {
+            var (service, _, chat) = CreateServiceWithChat();
+
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+            await service.MarkInProgressAsync(sessionId);
+
+            // Повторный вызов — статус уже не Pending.
+            var second = await service.MarkInProgressAsync(sessionId);
+
+            Assert.False(second);
+        }
+
+        [Fact]
+        public async Task MarkInProgressAsync_UnknownSession_ReturnsFalse()
+        {
+            var (service, _, _) = CreateServiceWithChat();
+
+            var ok = await service.MarkInProgressAsync(sessionId: 999_999);
+
+            Assert.False(ok);
+        }
+
+        [Fact]
+        public async Task AddRoundAsync_ValidRound_AddsToDbAndUpdatesTotals()
+        {
+            var (service, db, chat) = CreateServiceWithChat();
+
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+
+            var round = new AgentDebateRoundDto
+            {
+                RoundNumber = 1,
+                ActorOutput = "def foo(): pass",
+                CriticVerdict = "Rejected",
+                CriticFeedbackJson = "[{\"severity\":\"Major\"}]",
+                ActorModel = TestModel,
+                CriticModel = TestModel,
+                WasEscalated = true,
+                EscalationProvider = "deepseek",
+                TokensIn = 100,
+                TokensOut = 50,
+                CostUsd = 0.0025m,
+                DurationMs = 1234
+            };
+
+            var ok = await service.AddRoundAsync(sessionId, round);
+
+            Assert.True(ok);
+
+            var session = await db.AgentDebateSessions.FindAsync(sessionId);
+            Assert.Equal(0.0025m, session.TotalCostUsd);
+            Assert.Equal(100, session.TotalTokensIn);
+            Assert.Equal(50, session.TotalTokensOut);
+
+            var stored = db.AgentDebateRounds
+                .Single(r => r.SessionId == sessionId && r.RoundNumber == 1);
+            Assert.Equal("Rejected", stored.CriticVerdict);
+            Assert.True(stored.WasEscalated);
+            Assert.Equal("deepseek", stored.EscalationProvider);
+        }
+
+        [Fact]
+        public async Task AddRoundAsync_TwoRounds_AccumulatesTotals()
+        {
+            var (service, db, chat) = CreateServiceWithChat();
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+
+            await service.AddRoundAsync(sessionId, new AgentDebateRoundDto
+            {
+                RoundNumber = 1, ActorOutput = "v1", CriticVerdict = "Rejected",
+                TokensIn = 100, TokensOut = 50, CostUsd = 0.001m, DurationMs = 100
+            });
+            await service.AddRoundAsync(sessionId, new AgentDebateRoundDto
+            {
+                RoundNumber = 2, ActorOutput = "v2", CriticVerdict = "Approved",
+                TokensIn = 200, TokensOut = 80, CostUsd = 0.003m, DurationMs = 200
+            });
+
+            var session = await db.AgentDebateSessions.FindAsync(sessionId);
+            Assert.Equal(0.004m, session.TotalCostUsd);
+            Assert.Equal(300, session.TotalTokensIn);
+            Assert.Equal(130, session.TotalTokensOut);
+        }
+
+        [Fact]
+        public async Task AddRoundAsync_UnknownSession_ReturnsFalse()
+        {
+            var (service, _, _) = CreateServiceWithChat();
+
+            var ok = await service.AddRoundAsync(999_999, new AgentDebateRoundDto
+            {
+                RoundNumber = 1, ActorOutput = "x", CriticVerdict = "Rejected"
+            });
+
+            Assert.False(ok);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ValidVerdict_SetsStatusAndArtifact()
+        {
+            var (service, db, chat) = CreateServiceWithChat();
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+            await service.MarkInProgressAsync(sessionId);
+
+            var ok = await service.CompleteAsync(
+                sessionId,
+                finalVerdict: "Approved",
+                finalArtifactJson: "{\"finalArtifact\":\"def foo(): pass\"}");
+
+            Assert.True(ok);
+            var session = await db.AgentDebateSessions.FindAsync(sessionId);
+            Assert.Equal("Completed", session.Status);
+            Assert.Equal("Approved", session.FinalVerdict);
+            Assert.NotNull(session.FinalArtifactJson);
+            Assert.NotNull(session.CompletedAt);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_AlreadyCompleted_ReturnsFalse()
+        {
+            var (service, _, chat) = CreateServiceWithChat();
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+            await service.MarkInProgressAsync(sessionId);
+            await service.CompleteAsync(sessionId, "Approved", null);
+
+            var second = await service.CompleteAsync(sessionId, "Rejected", null);
+
+            Assert.False(second);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_CancelledSession_ReturnsFalse()
+        {
+            var (service, _, chat) = CreateServiceWithChat();
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+            await service.CancelAsync(sessionId, TestUserId);
+
+            var ok = await service.CompleteAsync(sessionId, "Approved", null);
+
+            Assert.False(ok);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_UnknownSession_ReturnsFalse()
+        {
+            var (service, _, _) = CreateServiceWithChat();
+
+            var ok = await service.CompleteAsync(999_999, "Approved", null);
+
+            Assert.False(ok);
+        }
+
+        [Fact]
+        public async Task InjectFeedbackAsync_CompletedSession_ReturnsFalse()
+        {
+            var (service, _, chat) = CreateServiceWithChat();
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+            await service.CompleteAsync(sessionId, "Approved", null);
+
+            var ok = await service.InjectFeedbackAsync(sessionId, TestUserId, "late feedback");
+
+            Assert.False(ok);
+        }
+
+        [Fact]
+        public async Task InjectFeedbackAsync_EmptyFeedback_ReturnsFalse()
+        {
+            var (service, _, chat) = CreateServiceWithChat();
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+
+            var ok = await service.InjectFeedbackAsync(sessionId, TestUserId, "   ");
 
             Assert.False(ok);
         }
