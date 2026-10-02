@@ -1,10 +1,10 @@
-# IIChatTools v1.10.1
+# IIChatTools v1.11.0
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.10.1
+© 2026 RuChating (iilmchat) · IIChatTools v1.11.0
 
 ---
 
@@ -21,6 +21,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 
 - **💬 Chat UI** — полноценный чат с LLM (как ChatGPT): sidebar с историей диалогов, стриминг SSE, переименование/удаление чатов, автоскролл, копирование, approvals прямо из чата.
 - **🤖 Multi-Agent (v1.4.0)** — Chat общается с **7 верхнеуровневыми инструментами** (6 специализированных агентов + `consult_secondary_agent`). Каждый агент — со своим system prompt, моделью и белым списком инструментов. Управление через админку `/admin → Агенты`.
+- **⚔️ Actor-Critic Debate (v1.11.0, KI-126)** — автономное взаимодействие Actor (`code_agent`) и Critic (`code_reviewer_agent`) через top-level tool `code_agent_with_review`. До 3 раундов, эскалация на внешнюю LLM при `Uncertain`. UI: селектор «диалог / сворачиваемый», feedback между раундами. SSE-события `debate_started` / `debate_round` / `debate_escalated` / `debate_completed`.
 - **40 инструментов** для LLM (файловая система, код, веб, Git/GitHub, браузер, суб-агенты, утилиты).
 - **Tool calling в чате** — LLM сама вызывает инструменты в multi-turn loop (до 5 итераций).
 - **Approvals в чате** — mutating-инструменты требуют подтверждения через модалку (drag-and-drop, countdown, approve/reject).
@@ -1117,9 +1118,9 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.10.1
-    docker pull ghcr.io/iilmchat/iichattools:1.10.1
-    docker pull ghcr.io/iilmchat/iichattools:1.10
+    docker pull ghcr.io/iilmchat/iichattools:v1.11.0
+    docker pull ghcr.io/iilmchat/iichattools:1.11.0
+    docker pull ghcr.io/iilmchat/iichattools:1.11
     docker pull ghcr.io/iilmchat/iichattools:1
 
 ### Развёртывание (Docker)
@@ -1226,7 +1227,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 592/592 тестов проходят (unit + integration), 5 Skip (реальные провайдеры).
+**Статус**: 654/654 тестов проходят (unit + integration), 5 Skip (реальные провайдеры).
 
 ---
 

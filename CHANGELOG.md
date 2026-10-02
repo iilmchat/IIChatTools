@@ -18,7 +18,42 @@
 
 ## [Unreleased]
 
-### Changed
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.11.0] — 2026-10-02
+
+**Actor-Critic мультиагенты (KI-126, Фаза 1).** Автономное взаимодействие
+Actor (`code_agent`) и Critic (`code_reviewer_agent`) через top-level tool
+`code_agent_with_review`. Цикл до 3 раундов, эскалация на внешнюю LLM при
+`Uncertain`, Human-in-the-loop между раундами, UI селектор
+«диалог / сворачиваемый». Плюс fix KI-127 (`code_agent_with_review` выбор)
+и полный фикс KI-130 (code_agent и вложения чата через RAG).
+
+Тесты: **592 → 654** (+62, 5 Skip).
+
+### Added
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1A)**: сущности `AgentDebateSession` + `AgentDebateRound`.
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1B)**: `IAgentDebateSessionService` + state machine.
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1C)**: агент `code_reviewer_agent` (Critic).
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1D)**: top-level `ITool` `code_agent_with_review`.
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1E)**: SSE-события (`debate_*`) + persistence + Human-in-the-loop.
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1F)**: эскалация на `ask_external_llm` при `Uncertain`.
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1G)**: UI селектор вида + диалоговый / свёрнутый рендер + feedback.
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1H)**: финальная локализация дебатов (+22 ключа RU + EN).
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1I)**: unit-тесты (+18 тестов).
+
+### Fixed
+- **v1.11.0 (KI-127)**: Chat LLM выбирает `code_agent_with_review` для сложных задач.
+- **v1.11.0 (KI-130)**: code_agent может читать вложения чата через RAG
+  (`search_knowledge_base` с параметром `indexName='my_rag_docs'`).
+
+### Documented
+- **KI-128** — Browser workflow недоступен через Chat (Planned, v1.11.x).
+- **KI-129** — Debate blocks not restored on F5 (Planned, v1.11.x).
+
+### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1H) — закрыт**: финальная локализация
   дебатов. Все ранее хардкодные строки (Actor / Critic / Round N / вердикты /
   «Max N rounds» / «No feedback» / «No issues» / severity / «Total cost» /

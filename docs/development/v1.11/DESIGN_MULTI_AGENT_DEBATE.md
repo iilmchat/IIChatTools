@@ -1,8 +1,10 @@
 # DESIGN — Мультиагентные паттерны (Actor-Critic / Debate)
 
-**Версия:** v1.11.0 (Draft)
-**Дата:** 2026-10-01
-**Статус:** Draft
+**Версия:** v1.11.0 (Implemented)
+**Дата:** 2026-10-02
+**Статус:** Фаза 1 (Actor-Critic) — Implemented (v1.11.0).
+Фазы 2-3 (Debate для `planner_agent`, Orchestrator-Worker + Blackboard) —
+Planned.
 **Связанные документы:** [RULES.md](../RULES.md) · [DESIGN v1.4 (Multi-Agent)](../v1.4/DESIGN.md) · [DESIGN v1.8 External-LLM](../v1.8/DESIGN_EXTERNAL_LLM.md) · [ARCHITECTURE.md](../ARCHITECTURE.md) · KI-126
 
 ---
@@ -524,4 +526,4 @@ Top-level `ITool` в Chat (не наследник `AgentToolBase` — по об
 
 ---
 
-**© 2026 RuChating (iilmchat) · IIChatTools v1.10.1**
+**© 2026 RuChating (iilmchat) · IIChatTools v1.11.0**

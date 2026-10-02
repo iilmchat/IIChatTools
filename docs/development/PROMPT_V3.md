@@ -1,9 +1,9 @@
 # PROMPT_V3.md — Стартовый промпт для нового чата
 
-**Версия промпта:** v3.2
+**Версия промпта:** v3.3
 **Дата:** 2026-10-02
-**Актуальный релиз проекта:** v1.10.1 (2026-10-01)
-**Статус:** v1.10.1 выпущен. В работе — **KI-126 (Actor-Critic мультиагенты, Ф1: Шаги 1A-1G Done, осталось 1H-1J)** / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
+**Актуальный релиз проекта:** v1.11.0 (2026-10-02)
+**Статус:** v1.11.0 выпущен (Actor-Critic Ф1 закрыт, KI-126 Fixed). В работе — KI-108 (per-user mail) / KI-091 (SqlServer миграции) / KI-126 Ф2 (Debate для planner_agent, v1.11.x).
 
 ---
 
@@ -28,8 +28,8 @@
 
 - **GitHub:** https://github.com/iilmchat/IIChatTools
 - **Ветка по умолчанию:** `main`
-- **Текущий релиз:** v1.10.1 (2026-10-01)
-- **В работе:** KI-126 (Actor-Critic мультиагенты, Ф1 Шаги 1A-1G Done — DESIGN: `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`) / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
+- **Текущий релиз:** v1.11.0 (2026-10-02)
+- **В работе:** KI-126 Ф2 (Debate для `planner_agent`, v1.11.x) / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
 
 ---
 
@@ -98,10 +98,10 @@
   - +1 `database_agent`.
   - +7 mail-tools.
   - +3 external-llm-tools.
-- **Chat видит 15 инструментов** (после KI-126 Шаг 1C+1D): 9 агентов + `consult_secondary_agent` + 3 RAG + `database_agent` + `code_agent_with_review`.
-- **Тесты:** 629/629 (624 pass, 5 Skip — реальные внешние провайдеры).
-- **KI:** 87 в реестре; Fixed ≈ 82 (включая v1.11.0 Unreleased); Deferred = 5; Documented = 12; In Progress = 1 (KI-126); Planned = 5 (KI-108, KI-111, KI-113, KI-128, KI-129); Partially Fixed = 1; Implemented = 3.
-- **Релизы после v1.8.2:** v1.9.0 (Anthropic, KI-110a) · v1.10.0 (Gemini, KI-110b) · v1.10.1 (темы UI, KI-122 + KI-092). Детали — `CHANGELOG.md`.
+- **Chat видит 16 инструментов** (после KI-126): 9 агентов + `consult_secondary_agent` + 3 RAG + `database_agent` + `code_agent_with_review`.
+- **Тесты:** 654/654 (649 pass, 5 Skip — реальные внешние провайдеры).
+- **KI:** 88 в реестре; Fixed ≈ 84; Deferred = 5; Documented = 12; In Progress = 0; Planned = 5 (KI-108, KI-111, KI-113, KI-128, KI-129); Partially Fixed = 1; Implemented = 3.
+- **Релизы после v1.8.2:** v1.9.0 (Anthropic) · v1.10.0 (Gemini) · v1.10.1 (темы UI) · **v1.11.0 (Actor-Critic, KI-126)**. Детали — `CHANGELOG.md`.
 
 ---
 
@@ -178,37 +178,29 @@
 
 ## § 5. Roadmap
 
-### v1.11.0 (🚧 В работе) — Actor-Critic мультиагенты (KI-126, Фаза 1)
+### v1.11.0 (✅ Done, 2026-10-02) — Actor-Critic мультиагенты (KI-126, Фаза 1)
 
-**DESIGN:** `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md` (Draft).
+**DESIGN:** `docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md` (Implemented).
 
-**Прогресс Ф1 (2026-10-02):**
-- ✅ **1A** — Entities `AgentDebateSession` + `AgentDebateRound` + миграция.
-- ✅ **1B** — `IAgentDebateSessionService` + state machine.
-- ✅ **1C** — агент `code_reviewer_agent` (Critic).
-- ✅ **1D** — top-level `ITool` `code_agent_with_review`.
-- ✅ **1E** — SSE + persistence (сессии в БД) + `DefaultSystemPrompt` (fix KI-127).
-- ✅ **1F** — эскалация на `ask_external_llm` при `Uncertain`.
-- ✅ **1G** — UI: селектор вида, диалоговый / свёрнутый рендер, feedback между раундами.
-- 🟡 **Осталось:** 1H (финальная локализация), 1I (тесты), 1J (релиз v1.11.0).
-
-**Известные ограничения (v1.11.0):** KI-129 (F5 не восстанавливает блок дебатов — Planned, v1.11.x).
-
-Автономное взаимодействие суб-агентов с ролями «Исполнитель» (Actor)
-и «Критик» (Critic). Actor-Critic для `code_agent` — новый агент
-`code_reviewer_agent` + top-level tool `code_agent_with_review`.
+**Реализованы все 10 шагов (1A-1J):** entities → state machine →
+reviewer → tool → SSE → escalation → UI (селектор + dialog/collapsed +
+feedback) → localization → tests → release.
 
 - **Новые сущности:** `AgentDebateSession`, `AgentDebateRound`.
 - **SSE-события:** `debate_started` / `debate_round` / `debate_escalated` /
   `debate_completed`.
 - **Цикл:** до 3 раундов, консенсус — раньше.
 - **Эскалация:** при `critic.verdict == Uncertain` → `ask_external_llm`.
-- **UI:** селектор между «диалог» и «сворачиваемый».
-- **План:** 3 фазы (~12-15 ч). Ф1 — Actor-Critic (~5-6 ч);
-  Ф2 — Debate для `planner_agent` (v1.11.x); Ф3 — Orchestrator-Worker +
-  Blackboard (v2.0).
-- **Скоуп Ф1:** шаги 1A-1J (entities → state machine → reviewer →
-  tool → SSE → escalation → UI → localization → tests → release).
+- **UI:** селектор между «диалог» и «сворачиваемый», feedback между раундами.
+- **Тесты:** +62 (592 → 654).
+- **Известные ограничения:** KI-128 (Browser Agent — Planned, v1.11.x),
+  KI-129 (F5 не восстанавливает блок дебатов — Planned, v1.11.x).
+
+### v1.11.x (🚧 В работе) — Debate для `planner_agent` (KI-126, Фаза 2)
+
+Три роли: `architect_pro_agent` (защищает REST), `architect_contra_agent`
+(защищает gRPC), `architect_judge_agent` (синтез). Расширение модели данных
+(роль в раунде). ~5-6 ч.
 
 ### v1.10.1 (✅ Done, 2026-10-01) — Темы оформления UI (KI-122)
 
