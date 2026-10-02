@@ -134,8 +134,20 @@ namespace IIChatTools.Services.Implementation
             "\n" +
             "6. Вопросы про БД приложения (чаты, сообщения, аудит) — `database_agent`.\n" +
             "\n" +
-            "ПРИМЕР: «Напиши функцию для проверки палиндрома с обработкой edge cases» " +
-            "→ вызови `code_agent_with_review`.";
+            "7. Задача «исправить / доработать / отрефакторить код в файле X» " +
+            "(даже если X — приложенный через 📎 файл) — используй " +
+            "`code_agent_with_review` или `code_agent`, НЕ `file_system_agent`. " +
+            "Приложенные файлы лежат в RAG-индексе чата, а не в workspace — " +
+            "`file_system_agent` их не видит и вернёт «файл не найден». " +
+            "`code_agent` умеет искать содержимое вложений через " +
+            "`search_knowledge_base`.\n" +
+            "\n" +
+            "ПРИМЕР 1: «Напиши функцию для проверки палиндрома с обработкой edge cases» " +
+            "→ вызови `code_agent_with_review`.\n" +
+            "\n" +
+            "ПРИМЕР 2: «Исправь код в файле code-12345.py (приложен)» " +
+            "→ вызови `code_agent` (он найдёт содержимое через `search_knowledge_base`). " +
+            "НЕ вызывай `file_system_agent`.";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;
