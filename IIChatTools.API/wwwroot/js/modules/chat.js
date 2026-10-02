@@ -1857,6 +1857,32 @@ function handleApprovalResolved(data) {
 // ============ v1.11.0 (KI-126): Рендер дебатов (Actor-Critic) ============
 
 /**
+ * v1.11.0 (KI-126, Шаг 1H): читает локализованную строку из data-label-*
+ * на #chat-messages.
+ * @param {string} key — camelCase ключ (например, 'debateTitle')
+ * @param {string} fallback — если нет в data-*
+ * @returns {string}
+ */
+function L(key, fallback) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return fallback || '';
+    return container.dataset[key] || fallback || '';
+}
+
+/**
+ * v1.11.0 (KI-126, Шаг 1H): подставляет {0}, {1}, ... в шаблон.
+ * @param {string} tpl
+ * @param  {...any} args
+ * @returns {string}
+ */
+function fmt(tpl, ...args) {
+    return String(tpl || '').replace(/\{(\d+)\}/g, (m, i) => {
+        const idx = parseInt(i, 10);
+        return idx < args.length ? String(args[idx]) : m;
+    });
+}
+
+/**
  * Обрабатывает SSE-событие `debate_started`.
  * Сохраняет данные в кэш и создаёт контейнер в DOM.
  *
@@ -2019,10 +2045,10 @@ function renderDebateContainerInner(sessionId) {
     const headerHtml = `
         <div class="chat-debate-header">
             <span class="chat-debate-icon">⚔️</span>
-            <span class="chat-debate-title">Actor-Critic</span>
+            <span class="chat-debate-title">${escapeHtml(L('labelDebateTitle', 'Actor-Critic'))}</span>
             <span class="chat-debate-task" title="${escapeAttr(started.task)}">${escapeHtml(truncateText(started.task, 80))}</span>
-            <span class="chat-debate-meta">Max ${started.maxRounds} rounds</span>
-            ${entry.rounds.length > 0 ? `<span class="chat-debate-rounds-count">${entry.rounds.length} rounds</span>` : ''}
+            <span class="chat-debate-meta">${escapeHtml(fmt(L('labelDebateMaxRounds', 'Max {0} rounds'), started.maxRounds))}</span>
+            ${entry.rounds.length > 0 ? `<span class="chat-debate-rounds-count">${escapeHtml(fmt(L('labelDebateRoundsCount', '{0} rounds'), entry.rounds.length))}</span>` : ''}
         </div>
     `;
 
@@ -2047,11 +2073,13 @@ function renderDebateContainerInner(sessionId) {
         const completed = entry.completed;
         const verdict = completed?.verdict || 'InProgress';
         const verdictClass = verdict.toLowerCase();
-        const verdictLabel = completed ? getVerdictLabel(verdict) : '⏳ In progress…';
+        const verdictLabel = completed
+            ? getVerdictLabel(verdict)
+            : L('labelDebateInProgress', '⏳ In progress…');
 
         let costHtml = '';
         if (completed && completed.totalCostUsd > 0) {
-            costHtml = `<span class="chat-debate-cost">$${completed.totalCostUsd.toFixed(4)}</span>`;
+            costHtml = `<span class="chat-debate-cost">${escapeHtml(fmt(L('labelDebateTotalCost', 'Total cost: ${0}'), completed.totalCostUsd.toFixed(4)))}</span>`;
         }
 
         const finalArtifactHtml = completed?.finalArtifact
@@ -2077,7 +2105,7 @@ function renderDebateContainerInner(sessionId) {
                 <div class="chat-debate-completed-header">
                     <span class="chat-debate-icon">${verdict === 'Approved' ? '✅' : (verdict === 'InProgress' ? '⏳' : '⚠️')}</span>
                     <span class="chat-debate-completed-title">${verdictLabel}</span>
-                    ${completed ? `<span class="chat-debate-completed-meta">${completed.totalRounds} rounds</span>` : ''}
+                    ${completed ? `<span class="chat-debate-completed-meta">${escapeHtml(fmt(L('labelDebateRoundsCount', '{0} rounds'), completed.totalRounds))}</span>` : ''}
                     ${costHtml}
                 </div>
                 ${finalArtifactHtml}
@@ -2095,11 +2123,11 @@ function renderDebateContainerInner(sessionId) {
  * @returns {string}
  */
 function renderDetailsLabel(roundCount, completed) {
-    const word = roundCount === 1 ? 'round' : 'rounds';
+    const count = fmt(L('labelDebateRoundsCount', '{0} rounds'), roundCount);
     if (completed) {
-        return `▼ Показать детали (${roundCount} ${word})`;
+        return fmt(L('labelDebateDetailsShow', '▼ Show details ({0})'), count);
     }
-    return `▲ Раунды (${roundCount} ${word})`;
+    return fmt(L('labelDebateDetailsHide', '▲ Rounds ({0})'), count);
 }
 
 /**
@@ -2116,12 +2144,17 @@ function renderDebateRoundDialog(data) {
     const verdictClass = verdict.toLowerCase();
     const verdictLabel = getVerdictLabel(verdict);
 
+    const actorLabel = L('labelDebateActor', 'Actor');
+    const criticLabel = L('labelDebateCritic', 'Critic');
+    const roundLabel = fmt(L('labelDebateRound', 'Round {0}'), roundNum);
+    const escalatedLabel = L('labelDebateEscalated', '🌐 escalated');
+
     const actorHtml = `
         <div class="chat-debate-actor">
             <div class="chat-debate-round-title">
                 <span class="chat-debate-role-icon">🤖</span>
-                <span class="chat-debate-role-name">Actor</span>
-                <span class="chat-debate-round-num">Round ${roundNum}</span>
+                <span class="chat-debate-role-name">${escapeHtml(actorLabel)}</span>
+                <span class="chat-debate-round-num">${escapeHtml(roundLabel)}</span>
             </div>
             <pre class="chat-debate-actor-output">${escapeHtml(data.actorOutput || '')}</pre>
         </div>
@@ -2131,10 +2164,10 @@ function renderDebateRoundDialog(data) {
         <div class="chat-debate-critic">
             <div class="chat-debate-round-title">
                 <span class="chat-debate-role-icon">🧐</span>
-                <span class="chat-debate-role-name">Critic</span>
-                <span class="chat-debate-round-num">Round ${roundNum}</span>
+                <span class="chat-debate-role-name">${escapeHtml(criticLabel)}</span>
+                <span class="chat-debate-round-num">${escapeHtml(roundLabel)}</span>
                 <span class="chat-debate-verdict chat-debate-verdict-${verdictClass}">${verdictLabel}</span>
-                ${data.wasEscalated ? '<span class="chat-debate-escalation-badge">🌐 escalated</span>' : ''}
+                ${data.wasEscalated ? `<span class="chat-debate-escalation-badge">${escapeHtml(escalatedLabel)}</span>` : ''}
             </div>
             <div class="chat-debate-critic-feedback">${renderCriticFeedback(data.criticFeedback)}</div>
         </div>
@@ -2155,7 +2188,7 @@ function renderDebateCompletedDialog(data) {
 
     let costHtml = '';
     if (data.totalCostUsd > 0) {
-        costHtml = `<span class="chat-debate-cost">Total cost: $${data.totalCostUsd.toFixed(4)}</span>`;
+        costHtml = `<span class="chat-debate-cost">${escapeHtml(fmt(L('labelDebateTotalCost', 'Total cost: ${0}'), data.totalCostUsd.toFixed(4)))}</span>`;
     }
 
     return `
@@ -2177,14 +2210,15 @@ function renderDebateCompletedDialog(data) {
  * @returns {string}
  */
 function getVerdictLabel(verdict) {
-    const labels = {
-        'Approved': '✅ Approved',
-        'Rejected': '❌ Rejected',
-        'Uncertain': '❓ Uncertain',
-        'MaxRoundsReached': '⏹ Max Rounds',
-        'Cancelled': '🚫 Cancelled'
+    const map = {
+        'Approved': 'labelDebateVerdictApproved',
+        'Rejected': 'labelDebateVerdictRejected',
+        'Uncertain': 'labelDebateVerdictUncertain',
+        'MaxRoundsReached': 'labelDebateVerdictMaxRounds',
+        'Cancelled': 'labelDebateVerdictCancelled'
     };
-    return labels[verdict] || verdict;
+    const key = map[verdict];
+    return key ? L(key, verdict) : verdict;
 }
 
 /**
@@ -2193,28 +2227,46 @@ function getVerdictLabel(verdict) {
  * @returns {string} HTML
  */
 function renderCriticFeedback(feedback) {
-    if (!feedback) return '<span class="text-muted">No feedback</span>';
+    const noFeedback = L('labelDebateNoFeedback', 'No feedback');
+    const noIssues = L('labelDebateNoIssues', 'No issues');
+
+    if (!feedback) return `<span class="text-muted">${escapeHtml(noFeedback)}</span>`;
 
     try {
         const parsed = JSON.parse(feedback);
         if (parsed.issues && Array.isArray(parsed.issues)) {
             const issuesHtml = parsed.issues.map(issue => {
-                const severity = (issue.severity || 'Minor').toLowerCase();
+                const severityRaw = issue.severity || 'Minor';
+                const severity = severityRaw.toLowerCase();
                 const severityClass = `chat-debate-issue-${severity}`;
+                const severityLabel = getSeverityLabel(severityRaw);
                 return `
                     <div class="chat-debate-issue ${severityClass}">
-                        <span class="chat-debate-issue-severity">${escapeHtml(issue.severity || 'Minor')}</span>
+                        <span class="chat-debate-issue-severity">${escapeHtml(severityLabel)}</span>
                         <span class="chat-debate-issue-desc">${escapeHtml(issue.description || '')}</span>
                         ${issue.suggestion ? `<span class="chat-debate-issue-suggestion">💡 ${escapeHtml(issue.suggestion)}</span>` : ''}
                     </div>
                 `;
             }).join('');
-            return issuesHtml || '<span class="text-muted">No issues</span>';
+            return issuesHtml || `<span class="text-muted">${escapeHtml(noIssues)}</span>`;
         }
         return `<pre>${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
     } catch {
         return `<pre>${escapeHtml(feedback)}</pre>`;
     }
+}
+
+/**
+ * v1.11.0 (KI-126, Шаг 1H): локализованная метка серьёзности замечания.
+ */
+function getSeverityLabel(severity) {
+    const map = {
+        'Critical': 'labelDebateSeverityCritical',
+        'Major': 'labelDebateSeverityMajor',
+        'Minor': 'labelDebateSeverityMinor'
+    };
+    const key = map[severity];
+    return key ? L(key, severity) : severity;
 }
 
 /**

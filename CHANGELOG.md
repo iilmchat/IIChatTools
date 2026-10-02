@@ -19,6 +19,20 @@
 ## [Unreleased]
 
 ### Changed
+- **v1.11.0 Фаза 1 (KI-126, Шаг 1H) — закрыт**: финальная локализация
+  дебатов. Все ранее хардкодные строки (Actor / Critic / Round N / вердикты /
+  «Max N rounds» / «No feedback» / «No issues» / severity / «Total cost» /
+  «escalated» / `<summary>` details) вынесены в `.resx` (RU + EN) и
+  передаются в JS через `data-label-debate-*` на `#chat-messages` (RULES § 4.17).
+  Новые ключи: 22 (`ChatDebateTitle`, `ChatDebateActor`, `ChatDebateCritic`,
+  `ChatDebateRound`, `ChatDebateMaxRounds`, `ChatDebateRoundsCount`,
+  `ChatDebateInProgress`, `ChatDebateVerdict*` ×5, `ChatDebateDetailsShow/Hide`,
+  `ChatDebateTotalCost`, `ChatDebateEscalated`, `ChatDebateNoFeedback`,
+  `ChatDebateNoIssues`, `ChatDebateSeverity*` ×3). Хелперы `L()` / `fmt()` /
+  `getSeverityLabel()` в `chat.js`. Проверка синхронности —
+  `LocalizationSyncTests` (уже часть `dotnet test`). Осталось в Ф1: 1I (тесты),
+  1J (релиз v1.11.0).
+
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1G) — закрыт**: Actor-Critic UI полностью
   готов. Три подшага: 1G.1 (селектор вида + рендер dialog), 1G.2 (рендер
   collapsed + `<details>`), 1G.3 (feedback между раундами + возврат

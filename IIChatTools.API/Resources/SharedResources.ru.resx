@@ -754,4 +754,69 @@
     <data name="DebateFeedbackTimeout" xml:space="preserve">
       <value>Продолжаем с feedback критика</value>
     </data>
+
+    <!-- ===== v1.11.0 (KI-126, Шаг 1H): Локализация дебатов ===== -->
+    <data name="ChatDebateTitle" xml:space="preserve">
+      <value>Actor-Critic</value>
+    </data>
+    <data name="ChatDebateActor" xml:space="preserve">
+      <value>Актёр</value>
+    </data>
+    <data name="ChatDebateCritic" xml:space="preserve">
+      <value>Критик</value>
+    </data>
+    <data name="ChatDebateRound" xml:space="preserve">
+      <value>Раунд {0}</value>
+    </data>
+    <data name="ChatDebateMaxRounds" xml:space="preserve">
+      <value>Макс. {0} раундов</value>
+    </data>
+    <data name="ChatDebateRoundsCount" xml:space="preserve">
+      <value>{0} раундов</value>
+    </data>
+    <data name="ChatDebateInProgress" xml:space="preserve">
+      <value>⏳ В процессе…</value>
+    </data>
+    <data name="ChatDebateVerdictApproved" xml:space="preserve">
+      <value>✅ Одобрено</value>
+    </data>
+    <data name="ChatDebateVerdictRejected" xml:space="preserve">
+      <value>❌ Отклонено</value>
+    </data>
+    <data name="ChatDebateVerdictUncertain" xml:space="preserve">
+      <value>❓ Не уверен</value>
+    </data>
+    <data name="ChatDebateVerdictMaxRounds" xml:space="preserve">
+      <value>⏹ Лимит раундов</value>
+    </data>
+    <data name="ChatDebateVerdictCancelled" xml:space="preserve">
+      <value>🚫 Отменено</value>
+    </data>
+    <data name="ChatDebateDetailsShow" xml:space="preserve">
+      <value>▼ Показать детали ({0})</value>
+    </data>
+    <data name="ChatDebateDetailsHide" xml:space="preserve">
+      <value>▲ Раунды ({0})</value>
+    </data>
+    <data name="ChatDebateTotalCost" xml:space="preserve">
+      <value>Стоимость: ${0}</value>
+    </data>
+    <data name="ChatDebateEscalated" xml:space="preserve">
+      <value>🌐 эскалация</value>
+    </data>
+    <data name="ChatDebateNoFeedback" xml:space="preserve">
+      <value>Без замечаний</value>
+    </data>
+    <data name="ChatDebateNoIssues" xml:space="preserve">
+      <value>Проблем нет</value>
+    </data>
+    <data name="ChatDebateSeverityCritical" xml:space="preserve">
+      <value>Критично</value>
+    </data>
+    <data name="ChatDebateSeverityMajor" xml:space="preserve">
+      <value>Важно</value>
+    </data>
+    <data name="ChatDebateSeverityMinor" xml:space="preserve">
+      <value>Мелочь</value>
+    </data>
 </root>
