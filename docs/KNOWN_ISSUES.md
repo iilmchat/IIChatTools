@@ -2241,6 +2241,64 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-128 — Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.x
+- **Обнаружено:** 2026-10-02 (smoke Chat — «Открой rzd.ru и сделай скриншот»)
+- **Файлы (план):** `Startup.cs` (`RegisterSpecializedAgentTools`),
+  `appsettings.json` / `appsettings.Development.json` (`SubAgents:browser_agent`),
+  `IIChatTools.Services/Implementation/Tools/Browser/BrowserSessionControlTool.cs`,
+  `ChatStreamService.DefaultSystemPrompt`.
+- **Описание:** Chat (qwen3-4b) отказывается от задачи «Открой rzd.ru,
+  найди расписание и сделай скриншот в `minsk.png`», отвечая
+  «Я не могу открыть веб-сайты». При этом **технически** capability есть:
+
+  - `browser_session_open` / `browser_session_control` / `browser_session_close` /
+    `browser_open_page` зарегистрированы в DI и доступны через
+    `consult_secondary_agent` (`AllowedTools` = все browser-tools).
+  - `browser_session_control(command: "screenshot")` возвращает PNG в base64
+    (см. `BrowserSessionManager.ExecuteCommandAsync`).
+  - `/test` корректно рендерит PNG с кнопками «Открыть» / «Скачать»
+    (см. `test.js` → `renderResult`).
+
+  **Реальные причины отказа:**
+  1. **Нет `browser_agent` в SubAgents.** Browser-tools доступны только
+     через `consult_secondary_agent`, у которого Description обобщённый
+     («универсальный fallback») — без упоминания browser. LLM не связывает
+     «открой сайт» с этим инструментом.
+  2. **Нет `save_screenshot_to_file`.** `browser_session_control(screenshot)`
+     возвращает base64, но сохранить его в workspace из Chat **нельзя**:
+     `save_file` принимает текст, а не бинарь. Client-side `<a download>`
+     (как в `test.js`) для серверного Chat-workflow не подходит.
+  3. **`DefaultSystemPrompt` не содержит правила про browser.**
+     Есть правила про `code_agent_with_review`, `search_knowledge_base`,
+     `file_system_agent`, `web_agent`, `database_agent` — но не про
+     browser. 4B-модель не может «догадаться» про инструменты.
+  4. **Общая склонность qwen3-4b к отказу** (см. KI-118, KI-120, KI-127) —
+     шаблонный ответ «не могу» вместо исследования инструментов.
+
+- **Решение (Фаза 1, план):**
+  1. **`browser_agent`** — новый специализированный агент (наследник
+     `AgentToolBase`), `AllowedTools = [browser_session_open,
+     browser_session_control, browser_session_close, browser_open_page]`.
+     `DisplayName`: «Браузерный агент». `Description`: «Открыть сайт, кликнуть,
+     заполнить форму, сделать скриншот». По образцу `web_agent` (v1.4.0).
+  2. **`save_screenshot_to_file`** — либо расширить
+     `browser_session_control` командой `screenshot_to_file(path)`
+     (сохраняет PNG в workspace через `PathHelper`), либо новый tool
+     `save_screenshot(sessionId, path)`. Первый вариант предпочтительнее —
+     меньше инструментов.
+  3. **`DefaultSystemPrompt`** — правило 7: «Открыть сайт / кликнуть /
+     заполнить форму / сделать скриншот → `browser_agent`».
+  4. **Smoke:** «Открой rzd.ru и сделай скриншот в `minsk.png`» → approval
+     → `browser_agent` → PNG в `Workspace/users/{id}/browser/`.
+- **Оценка:** ~1.5-2 ч.
+- **Связанные:** KI-052 (Multi-Agent — база), KI-081 (браузерные инструменты —
+  v1.3), KI-127 (`code_agent_with_review` — аналогичная проблема выбора
+  инструмента), KI-118 / KI-120 (ограничения qwen3-4b).
+
+---
+
 ## v1.0.2 и ранее
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2357,9 +2415,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Planned | 4 |                       <!-- KI-108, KI-111, KI-113, KI-126 -->
+| Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-126, KI-128 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **85** |
+| **Всего** | **86** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

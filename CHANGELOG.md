@@ -18,6 +18,14 @@
 
 ## [Unreleased]
 
+### Documented
+- **KI-128** — Browser workflow недоступен через Chat (`browser_agent` +
+  `save_screenshot_to_file`). Planned, v1.11.x. Пример: «Открой rzd.ru и
+  сделай скриншот в minsk.png» → Chat отвечает отказом. Технически capability
+  есть (`browser_session_control(screenshot)` возвращает PNG base64), но:
+  нет `browser_agent` в `SubAgents`, нет способа сохранить PNG в workspace,
+  нет правила в `DefaultSystemPrompt`. Связанные: KI-052, KI-127, KI-118, KI-120.
+
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1G.2)**: рендеринг блоков дебатов в
   «свёрнутом» режиме. Кэш `state.debates[sessionId]` для перерендера при
