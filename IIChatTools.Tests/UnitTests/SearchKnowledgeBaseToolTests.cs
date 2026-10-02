@@ -70,7 +70,7 @@ namespace IIChatTools.Tests.UnitTests
 
             Assert.Equal("search_knowledge_base", tool.Name);
             Assert.False(tool.RequiresApprovalByDefault);
-            Assert.Equal(2, tool.Parameters.Count);   // query + topK
+            Assert.Equal(3, tool.Parameters.Count);   // query + topK + indexName
         }
 
         /// <summary>
@@ -149,6 +149,125 @@ namespace IIChatTools.Tests.UnitTests
 
             Assert.False(result.Success);
             Assert.Contains("LM Studio недоступен", result.Message);
+        }
+
+        // ============================================================
+        // v1.11.0 (KI-130): тесты параметра indexName
+        // ============================================================
+
+        /// <summary>
+        /// KI-130: indexName='my_rag_docs' → используется context.ChatId,
+        /// userId передаётся для per-user изоляции.
+        /// </summary>
+        [Fact]
+        public async Task ExecuteAsync_IndexName_MyRagDocs_UsesChatIdFromContext()
+        {
+            var fake = new FakeRetrievalService();
+            var tool = CreateTool(fake);
+
+            var ctx = new ToolExecutionContext
+            {
+                UserId = 42,
+                WorkspaceRoot = "/tmp",
+                ChatId = 777,
+                CancellationToken = CancellationToken.None
+            };
+
+            var result = await tool.ExecuteAsync(ctx, new JObject
+            {
+                ["query"] = "code-12345.py",
+                ["indexName"] = "my_rag_docs"
+            });
+
+            Assert.True(result.Success);
+            Assert.Single(fake.Calls);
+            var call = fake.Calls[0];
+            Assert.Equal("my_rag_docs", call.Index);
+            Assert.Equal(777, call.ChatId);
+            Assert.Equal(42, call.UserId);
+        }
+
+        /// <summary>
+        /// KI-130: indexName='my_rag_docs' без ChatId в контексте → Fail,
+        /// сервис не вызывается.
+        /// </summary>
+        [Fact]
+        public async Task ExecuteAsync_IndexName_MyRagDocs_WithoutChatId_ReturnsFail()
+        {
+            var fake = new FakeRetrievalService();
+            var tool = CreateTool(fake);
+
+            var ctx = new ToolExecutionContext
+            {
+                UserId = 42,
+                WorkspaceRoot = "/tmp",
+                ChatId = null,   // нет активного чата
+                CancellationToken = CancellationToken.None
+            };
+
+            var result = await tool.ExecuteAsync(ctx, new JObject
+            {
+                ["query"] = "code-12345.py",
+                ["indexName"] = "my_rag_docs"
+            });
+
+            Assert.False(result.Success);
+            Assert.Contains("my_rag_docs", result.Message);
+            Assert.Empty(fake.Calls);
+        }
+
+        /// <summary>
+        /// KI-130: indexName='project_docs' явно → глобальный поиск (chatId/userId = null).
+        /// </summary>
+        [Fact]
+        public async Task ExecuteAsync_IndexName_ProjectDocs_Explicit_UsesGlobalSearch()
+        {
+            var fake = new FakeRetrievalService();
+            var tool = CreateTool(fake);
+
+            var ctx = new ToolExecutionContext
+            {
+                UserId = 42,
+                WorkspaceRoot = "/tmp",
+                ChatId = 777,   // есть чат, но indexName='project_docs' — global
+                CancellationToken = CancellationToken.None
+            };
+
+            var result = await tool.ExecuteAsync(ctx, new JObject
+            {
+                ["query"] = "yield return",
+                ["indexName"] = "project_docs"
+            });
+
+            Assert.True(result.Success);
+            Assert.Single(fake.Calls);
+            var call = fake.Calls[0];
+            Assert.Equal("project_docs", call.Index);
+            Assert.Null(call.ChatId);
+            Assert.Null(call.UserId);
+        }
+
+        /// <summary>
+        /// KI-130: неизвестный indexName → fallback на 'project_docs'.
+        /// </summary>
+        [Theory]
+        [InlineData("unknown_index")]
+        [InlineData("MY_RAG_DOCS_TYPO")]
+        [InlineData("chat_history")]   // не поддерживается в этом tool'е
+        [InlineData("workspace")]      // не поддерживается в этом tool'е
+        public async Task ExecuteAsync_IndexName_Unknown_FallsBackToProjectDocs(string badIndex)
+        {
+            var fake = new FakeRetrievalService();
+            var tool = CreateTool(fake);
+
+            await tool.ExecuteAsync(Ctx(), new JObject
+            {
+                ["query"] = "test",
+                ["indexName"] = badIndex
+            });
+
+            Assert.Single(fake.Calls);
+            Assert.Equal("project_docs", fake.Calls[0].Index);
         }
     }
 }

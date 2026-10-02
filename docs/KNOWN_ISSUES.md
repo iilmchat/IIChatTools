@@ -2356,10 +2356,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-130 — code_agent / code_agent_with_review не могут читать вложения чата (RAG)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.11.0 (частично)
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-02 (smoke Chat — «исправь файл `code-1790941591651.py`»)
-- **Quick-fix:** 2026-10-02 (вариант 1 — правка конфига: `search_knowledge_base`
-  в `AllowedTools` `code_agent` + правило 5 в SystemPrompt)
+- **Fixed:** 2026-10-02 (полный фикс — `indexName` в `SearchKnowledgeBaseTool` +
+  обновление `SystemPrompt` `code_agent`)
 - **Файлы (план):**
   - `appsettings.json` / `appsettings.Development.json` — `SubAgents:code_agent:AllowedTools`.
   - `IIChatTools.Services/Implementation/Tools/CodeExecution/*` — потенциальный новый tool.
@@ -2440,11 +2440,24 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      (в `CodeAgentWithReviewTool`).
   4. **Или (самое простое, но не идеальное):** инжектить auto-inject
      RAG в system prompt **всех агентов**, если chatId задан.
-- **Что уже сделано (правильные шаги):**
-  - ✅ Rule 7 в `DefaultSystemPrompt` — Chat выбирает правильный агент.
-  - ✅ `search_knowledge_base` добавлен в `AllowedTools` `code_agent`
-    (пригодится для будущей интеграции).
-  - ❌ Моя первая правка была архитектурно неверной — искала в неправильном индексе.
+- **Финальное решение (2026-10-02, v1.11.0, полный фикс):**
+  - ✅ **`SearchKnowledgeBaseTool` расширен параметром `indexName`** —
+    `'project_docs'` (default) или `'my_rag_docs'`. Для `my_rag_docs`
+    `chatId` подставляется автоматически из `ToolExecutionContext.ChatId`.
+  - ✅ **Обновлён `SystemPrompt` `code_agent`** — правило 5 явно говорит:
+    «Приложенные файлы (code-*.py, 📎) — искать через
+    `search_knowledge_base(indexName='my_rag_docs')`. НЕ через
+    `list_directory` / `read_file` / `execute_command('ls')`».
+  - ✅ **Rule 7 в `DefaultSystemPrompt` Chat** (сохранён) — Chat выбирает
+    `code_agent_with_review` / `code_agent` для задач «исправь код в файле X».
+  - ✅ **Архитектурная цепочка работает** без изменений:
+    `ToolExecutionContext.ChatId` пробрасывается через
+    `ChatStreamService → CodeAgentWithReviewTool → AgentToolBase →
+    SubAgentService → SearchKnowledgeBaseTool`.
+  - **Почему этого достаточно:** не нужен ни новый tool
+    `search_chat_attachments`, ни проброс RAG-контекста в SubAgent —
+    агент сам вызывает `search_knowledge_base(indexName='my_rag_docs')`
+    и получает содержимое.
 - **Связанные:** KI-083 (RAG / attachments), KI-126 (Actor-Critic),
   KI-127 (выбор `code_agent_with_review`), KI-113 (галлюцинация успеха).
 
@@ -2566,8 +2579,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 1 |                   <!-- KI-126 -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
+| Fixed (v1.11.0) | 2 |              <!-- KI-130 (полный фикс) + KI-130 вошёл в v1.11.0 -->
 | Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
-| Partially Fixed | 2 |               <!-- KI-057, KI-130 -->
+| Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **88** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).

@@ -41,24 +41,25 @@
   восстанавливает блок). Осталось в Ф1: 1H (финальная локализация), 1I (тесты),
   1J (релиз v1.11.0).
 
-### Fixed (partially)
-- **KI-130 — code_agent не может читать вложения чата через RAG**
-  (v1.11.0, **Partially Fixed**).
+### Fixed
+- **KI-130 — code_agent может читать вложения чата через RAG**
+  (v1.11.0, **Fixed**).
 
-  **Что уже работает:**
+  **Что работает (итоговое решение):**
   - ✅ Rule 7 в `ChatStreamService.DefaultSystemPrompt` — Chat правильно
     выбирает `code_agent_with_review` / `code_agent` для задач
     «исправь код в файле X» (не `file_system_agent`).
-  - ✅ `search_knowledge_base` в `AllowedTools` `code_agent`.
-
-  **Что НЕ работает (архитектурные gap'ы, план v1.11.x):**
-  1. `search_knowledge_base` ищет в `project_docs`, а вложения чата —
-     в `my_rag_docs`. Tool'а для `my_rag_docs` не существует.
-  2. Auto-inject RAG работает только для Chat, не для SubAgent.
-  3. Chat не пробрасывает содержимое вложения в `context` агента.
-
-  **План:** новый tool `search_chat_attachments` (или параметр `indexName`
-  в `search_knowledge_base`); проброс RAG-контекста в `SubAgentTaskRequest`.
+  - ✅ `SearchKnowledgeBaseTool` расширен параметром `indexName`:
+    `'project_docs'` (default, документация проекта) или
+    `'my_rag_docs'` (файлы, приложенные к текущему чату через 📎).
+    Для `my_rag_docs` `chatId` подставляется автоматически из
+    `ToolExecutionContext.ChatId` (пробрасывается через всю цепочку:
+    ChatStreamService → CodeAgentWithReviewTool → AgentToolBase →
+    SubAgentService → SearchKnowledgeBaseTool).
+  - ✅ Обновлён `Description` tool'а и `SystemPrompt` `code_agent`
+    (правило 5) — LLM явно знает, что приложенные файлы нужно искать
+    через `search_knowledge_base(indexName='my_rag_docs')`, а не через
+    `file_system_agent` / `read_file` / `execute_command('ls')`.
 
 ### Added
 - **v1.11.0 Фаза 1 (KI-126, Шаг 1G.3)**: UI feedback между раундами
