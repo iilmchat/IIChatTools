@@ -46,5 +46,20 @@ namespace IIChatTools.Services.DTO.Speech
         /// если добавим <c>CancellationTokenSource.CancelAfter</c>.
         /// </summary>
         public int TimeoutSeconds { get; set; } = 60;
+
+        /// <summary>
+        /// Порог «no-speech» для Whisper.net (0.0..1.0). По умолчанию — 0.8
+        /// (выше, чем whisper.cpp default 0.6). Чем выше — тем чаще модель
+        /// считает вход тишиной/шумом и не выдаёт галлюцинации
+        /// типа <c>[BLANK_AUDIO]</c>, <c>[MUSIC]</c>.
+        /// </summary>
+        public float NoSpeechThreshold { get; set; } = 0.8f;
+
+        /// <summary>
+        /// Минимальная длительность аудио (мс). Короче — сразу возвращаем
+        /// пустой результат, не тратим CPU на Whisper.
+        /// Защита от одиночных кликов и случайных записей.
+        /// </summary>
+        public int MinAudioDurationMs { get; set; } = 300;
     }
 }

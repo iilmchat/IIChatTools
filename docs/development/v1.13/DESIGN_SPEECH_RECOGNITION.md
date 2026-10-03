@@ -1102,15 +1102,46 @@ tools/whisper/*.ggml
 
 ---
 
-## § 11. Открытые вопросы
+## § 11. Принятые решения и отложенные вопросы
 
-1. **Модель по умолчанию** — `base` (мой голос) или `small` (точнее, но медленнее)?
-2. **Язык** — `ru` (default) / `auto` / параметр в UI?
-3. **Позиция кнопки** — слева от 📎 (мой голос) или справа от Send?
-4. **Поведение** — вставлять в textarea (мой голос) или сразу отправлять?
-5. **Хоткей** — `Ctrl+Shift+Space` (Phase 4)?
-6. **GPU** — поддержка CUDA (Phase 4) или только CPU в MVP?
-7. **VAD** — auto-stop по тишине (Phase 4) или только ручной Stop?
+### § 11.1. Принятые решения (согласовано 2026-10-03)
+
+1. **Модель по умолчанию** — `base` (142 MB, sweet spot для русского).
+2. **Язык** — `"auto"` в `appsettings.Development.json`, `"ru"` в prod
+   `appsettings.json` (§ 3.2). Whisper определяет язык за ~1 сек, dev
+   удобнее для проверки RU+EN.
+3. **Позиция кнопки** — слева от 📎 в `.chat-input-box` (§ 4.1).
+4. **Поведение** — вставлять в `<textarea>` (в конец, если есть текст),
+   не отправлять автоматически (§ 4.2).
+5. **Ресемплинг WAV** — через `OfflineAudioContext` (§ 4.2),
+   **не** `AudioContext({ sampleRate: 16000 })` (Chrome игнорирует hint).
+6. **Auto-stop по 60 сек** — enforced на клиенте
+   (`MAX_RECORDING_MS`, § 4.2). Синхронизировано с `Speech:MaxAudioSeconds`.
+7. **`RequestSizeLimit`** — 20 MB hard cap (§ 3.5), реальный лимит —
+   `Speech:MaxFileSizeBytes = 10 MB` (валидация в контроллере).
+
+### § 11.2. Отложенные вопросы (Phase 4, опционально)
+
+1. **VAD** (auto-stop по тишине) — реализуется на клиенте через
+   `AnalyserNode`. Не требует backend. Приоритет: высокий.
+2. **Хоткей `Ctrl+Shift+Space`** — низкая сложность.
+3. **GPU** (`Whisper.net.Runtime.Cuda`) — зависит от железа.
+4. **Streaming** (промежуточная транскрибация) — требует переделки API.
+   Приоритет: низкий.
+
+### § 11.3. Технический долг (не блокер MVP)
+
+1. **Fail-fast при старте**: сейчас `WhisperFactory.FromPath` вызывается
+   лениво — если модель отсутствует, ошибка возникнет только при первом
+   `POST /api/speech/transcribe`. **Улучшение:** resolve
+   `ISpeechRecognitionService` в `Program.cs` при `Speech:Enabled = true`
+   (по образцу `ExternalProviderRegistry`, KI-109).
+2. **Валидация формата WAV**: `SpeechController` проверяет только
+   `file.Length`, но не magic bytes (`RIFF` + `WAVE`). Браузеры, как правило,
+   отправляют корректный WAV, но защита от подмены — в follow-up.
+3. **`TranscriptionResult.DurationMs = 0`**: длительность аудио сейчас не
+   заполняется (в § 3.4 — комментарий «заполним на контроллере по WAV-заголовку»).
+   Не критично для UI, но полезно для метрик.
 
 ---
 
