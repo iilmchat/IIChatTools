@@ -61,6 +61,6 @@ namespace IIChatTools.Services.DTO
         /// при отмене). По умолчанию <c>null</c>.
         /// </param>
         public static ToolResult Fail(string message, object data = null)
-            => new ToolResult { Success = false, Message = message };
+            => new ToolResult { Success = false, Message = message, Data = data };
     }
 }
