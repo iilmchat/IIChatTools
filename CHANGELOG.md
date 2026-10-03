@@ -18,6 +18,18 @@
 
 ## [Unreleased]
 
+### Added
+- **DESIGN v1.13 — Распознавание речи (KI-140, Draft)**:
+  `docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md`. Офлайн-распознавание
+  речи в чате через **Whisper.net** (whisper.cpp bindings, MIT). Локальная
+  модель `ggml-base.bin` (~142 MB). Клиент кодирует WAV 16 kHz mono через
+  Web Audio API + MediaRecorder. Без Python / ffmpeg / внешних CLI.
+  Приватность: аудио не покидает сервер. Работает в РФ без VPN.
+  План Ф1-Ф3 (MVP, ~3 ч): Backend (`SpeechController` + Singleton
+  `WhisperNetTranscriptionService`) → Frontend (`speech.js` + кнопка 🎤)
+  → Скрипт скачивания + smoke. Фаза 4 (опционально): hotkey, VAD,
+  streaming, GPU. **KI-140** → Planned (v1.13.0). Сводка: 92 → 93 KI.
+
 ### Fixed
 - **v1.11.0 (KI-136)**: tool-сообщение **не сохранялось** в БД
   при отмене SSE (F5 / Stop) — фактический root cause, не покрытый

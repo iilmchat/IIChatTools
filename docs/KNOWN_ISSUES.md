@@ -2793,6 +2793,58 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+## v1.13.0 — Speech Recognition (roadmap)
+
+### KI-140 — Голосовой ввод в чате (офлайн-распознавание речи, Whisper.net)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.0
+- **Обнаружено:** 2026-10-03 (запрос пользователя)
+- **DESIGN:** [`docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md`](development/v1.13/DESIGN_SPEECH_RECOGNITION.md)
+  (v1.13.0, Draft).
+- **Описание:** Кнопка 🎤 в `.chat-input-box` для голосового ввода. Требования:
+  - **Офлайн** — не зависит от интернета (в т.ч. в РФ без VPN).
+  - **Приватность** — аудио не покидает сервер.
+  - **Локальная модель** — Whisper.net (whisper.cpp bindings, MIT) +
+    GGML-модель (`ggml-base.bin`, ~142 MB).
+  - **Никаких Python / ffmpeg / внешних CLI** — только NuGet `Whisper.net` +
+    `Whisper.net.Runtime` (native libs, ~5 MB).
+
+- **Что входит (v1.13.0, Фазы 1–3, ~3 ч):**
+  - **Backend:** `ISpeechRecognitionService` + `WhisperNetTranscriptionService`
+    (Singleton, ленивая загрузка модели) + `SpeechController` +
+    `POST /api/speech/transcribe`. DTO `SpeechOptions` + `TranscriptionResult`.
+  - **Frontend:** `wwwroot/js/modules/speech.js` (MediaRecorder + Web Audio API
+    → WAV 16 kHz mono) + кнопка 🎤 в `.chat-input-box` + CSS
+    (idle / recording / transcribing / error).
+  - **Скрипт:** `scripts/setup/download-whisper-model.ps1`
+    (`tiny|base|small|medium|large-v3`).
+  - **Локализация RU + EN** (6 ключей: `SpeechButtonTooltip`, `SpeechButtonAria`,
+    `SpeechRecording`, `SpeechTranscribing`, `SpeechErrorPermission`,
+    `SpeechErrorBrowser`).
+  - **Unit-тесты:** `SpeechControllerTests` (4) + опциональные
+    `WhisperNetTranscriptionServiceTests` (3, Skip в CI — требуют модель).
+
+- **Что НЕ входит (Phase 4, опционально):**
+  - Хоткей `Ctrl+Shift+Space`.
+  - VAD (auto-stop по тишине).
+  - Streaming (промежуточная транскрибация).
+  - GPU-ускорение (`Whisper.net.Runtime.Cuda`).
+
+- **Открытые вопросы (см. DESIGN § 11):**
+  1. Модель по умолчанию — `base` / `small`.
+  2. Язык — `ru` (default) / `auto` / параметр в UI.
+  3. Позиция кнопки — слева от 📎 (текущий выбор).
+  4. Поведение — вставлять в textarea (текущий выбор) / сразу отправлять.
+  5. **`AudioContext({ sampleRate: 16000 })` — hint, Chrome игнорирует**
+     (см. DESIGN § 11 — нужен `OfflineAudioContext`).
+  6. **`MaxAudioSeconds = 60` не enforced в MVP** (только UI auto-stop в Phase 4).
+     Рассмотреть auto-stop в Phase 2.
+
+- **Связанные:** KI-126 (Chat UI — где живёт кнопка), KI-109 (External-LLM —
+  принципиально НЕ используется, офлайн-only).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -2822,9 +2874,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
-| Planned | 8 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-131, KI-137, KI-138, KI-139 -->
+| Planned | 9 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-131, KI-137, KI-138, KI-139, KI-140 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **92** |
+| **Всего** | **93** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
