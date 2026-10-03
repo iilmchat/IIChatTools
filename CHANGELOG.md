@@ -19,6 +19,24 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф2.3-Ф2.4)**: whitelist + Chrome + screenshot.
+  - **Ф2.3 (`OpenAsync`):** проверка домена через новый
+    `VisionWhitelistValidator` (public static; поддержка exact + `*.wildcard`,
+    DeniedDomains приоритетнее, AllowAnyDomain как «открытый режим»).
+    Запуск Chrome/Edge через `BrowserLocator.Resolve` (переиспользуется из
+    v1.1) с fresh-профилем в `%TEMP%\vision-profile-{instanceId}`,
+    `--no-first-run`, `--disable-blink-features=AutomationControlled`,
+    `--start-maximized`. Без `--headless` — окно видимое (управляем мышью).
+  - **Ф2.4 (`ScreenshotAsync`):** GDI-захват всего экрана через
+    `Graphics.CopyFromScreen`, PNG-кодирование, проверка лимита
+    `MaxScreenshotBytes`. На Linux бросает `PlatformNotSupportedException`
+    (`System.Drawing.Common` deprecated .NET 7+).
+  - **Cleanup:** `DisposeAsync` → `CloseBrowser` (Kill entire tree + удаление
+    временного профиля).
+  - **Тесты:** `VisionWhitelistValidatorTests` (+12 кейсов: exact/wildcard/
+    denied/allowAny/scheme/invalid/case-insensitive/null).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф2.5 (мышь через SendInput).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф2.1-Ф2.2)**: Local backend skeleton.
   - **Ф2.1 (deps):** `System.Drawing.Common 10.0.0` в `IIChatTools.Services.csproj`
     (GDI-скриншоты, plain `net10.0` — не ломает Linux-сборку Docker).
