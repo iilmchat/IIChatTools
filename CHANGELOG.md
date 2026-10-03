@@ -18,6 +18,21 @@
 
 ## [Unreleased]
 
+### Added
+- **v1.11.0 (KI-129, Шаг 2 — frontend)**: восстановление блоков
+  Actor-Critic при перезагрузке страницы (F5).
+  - `chat.js:selectChat` — `prefillDebatesFromChatDetail()` заполняет
+    `state.debates[sid]` из `chatDetail.debateSessions` + маппинг
+    `toolCallId → sessionId` из tool-сообщений (`debateSessionByToolCallId`).
+  - `chat.js:renderMessage` — для assistant-сообщений с `toolCallsJson`,
+    содержащим `code_agent_with_review`, вставляет блок дебатов через
+    `renderDebateContainerInner(sid)` (формат — как в live-режиме).
+  - Orphaned-сессии (`InProgress` / `Pending` без `completed`) —
+    бейдж «⚠️ Прервано», **без** feedback-UI.
+  - Локализация: новый ключ `ChatDebateOrphaned` (RU + EN) + `data-label-debate-orphaned`
+    на `#chat-messages`.
+  - Обновлён `state.debateSessionByToolCallId` в `showEmptyState` / `selectChat`.
+
 ### Fixed
 - **v1.11.0 (KI-132)**: `code_agent_with_review` возвращал раздутый
   `ToolResult.Data` с полным `rounds[]` (каждый `actorOutput` — код

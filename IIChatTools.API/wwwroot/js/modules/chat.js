@@ -59,6 +59,11 @@ const state = {
     // Формат: { [sessionId]: { status, expiresAt, text } }
     //   status: 'pending' | 'sending' | 'sent' | 'skipped' | 'timeout'
     feedbackDrafts: {},
+
+    // v1.11.0 (KI-129): маппинг toolCallId → sessionId — для восстановления
+    // блоков Actor-Critic при F5. Заполняется в prefillDebatesFromChatDetail
+    // при selectChat. Ключ — tool_call.id из ToolCallsJson assistant-сообщения.
+    debateSessionByToolCallId: {},
 };
 
 // ============ Инициализация ============
@@ -1105,6 +1110,12 @@ async function selectChat(chatId) {
     // DOM будет перерисован, старые sessionId неактуальны.
     state.debates = {};
     state.feedbackDrafts = {};
+    // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
+    state.debateSessionByToolCallId = {};
+
+    // v1.11.0 (KI-129): заполнить state.debates из chatDetail.debateSessions
+    // ДО renderMessages — иначе renderMessage не найдёт данные для блоков.
+    prefillDebatesFromChatDetail(res.data);
 
     // KI-078A: при переключении чата — закрыть панель поиска (marks устарели).
     closeChatSearch();
@@ -2027,6 +2038,134 @@ function refreshDebateViews() {
     });
 }
 
+// ============ v1.11.0 (KI-129): Восстановление дебатов при F5 ============
+
+/**
+ * Заполняет state.debates и state.debateSessionByToolCallId из chatDetail
+ * при перезагрузке страницы (F5).
+ *
+ * <para>
+ * Маппинг на формат live-режима:
+ * <list type="bullet">
+ *   <item>started   ← { sessionId, task, actorAgent, criticAgent, maxRounds,
+ *                       humanApproval, status }  (status — для orphaned);</item>
+ *   <item>rounds    ← [{ roundNumber, actorOutput, criticVerdict,
+ *                       criticFeedback, wasEscalated }]  (feedback → camelCase);</item>
+ *   <item>completed ← { verdict, totalRounds, finalArtifact, totalCostUsd }.</item>
+ * </list>
+ * </para>
+ *
+ * @param {object} chatDetail — ответ GET /api/chats/{id}
+ */
+function prefillDebatesFromChatDetail(chatDetail) {
+    if (!chatDetail) return;
+
+    // 1. Заполнить state.debates[sid] для каждой сессии.
+    const sessions = Array.isArray(chatDetail.debateSessions)
+        ? chatDetail.debateSessions
+        : [];
+
+    for (const s of sessions) {
+        if (!s || !Number.isFinite(s.sessionId)) continue;
+
+        state.debates[s.sessionId] = {
+            started: {
+                sessionId: s.sessionId,
+                task: s.task || '',
+                actorAgent: s.actorAgent || 'code_agent',
+                criticAgent: s.criticAgent || 'code_reviewer_agent',
+                maxRounds: s.maxRounds || 3,
+                humanApproval: s.humanApproval || 'BetweenRounds',
+                // v1.11.0 (KI-129): статус из БД — нужен для orphaned-детекции.
+                status: s.status || null
+            },
+            rounds: (Array.isArray(s.rounds) ? s.rounds : []).map(r => ({
+                roundNumber: r.roundNumber,
+                actorOutput: r.actorOutput || '',
+                criticVerdict: r.criticVerdict || 'Uncertain',
+                // В БД хранится как CriticFeedbackJson (Newtonsoft),
+                // в SSE (live) — criticFeedback. Унифицируем на клиенте.
+                criticFeedback: r.criticFeedbackJson || null,
+                wasEscalated: !!r.wasEscalated
+            })),
+            completed: s.finalVerdict
+                ? {
+                    verdict: s.finalVerdict,
+                    totalRounds: s.totalRounds || 0,
+                    finalArtifact: parseFinalArtifact(s.finalArtifactJson),
+                    totalCostUsd: Number(s.totalCostUsd) || 0
+                }
+                : null
+        };
+    }
+
+    // 2. Построить маппинг toolCallId → sessionId из tool-сообщений.
+    const messages = Array.isArray(chatDetail.messages) ? chatDetail.messages : [];
+    for (const m of messages) {
+        if (m.role !== 'tool') continue;
+        if (m.toolName !== 'code_agent_with_review') continue;
+        if (!Number.isFinite(m.debateSessionId)) continue;
+        if (!m.toolCallId) continue;
+        state.debateSessionByToolCallId[m.toolCallId] = m.debateSessionId;
+    }
+}
+
+/**
+ * Парсит finalArtifactJson из backend DTO: ожидаемый формат
+ * { "finalArtifact": "..." }. При ошибке — возвращает исходную строку
+ * (лучше показать сырой JSON, чем ничего).
+ * @param {string} raw
+ * @returns {string}
+ */
+function parseFinalArtifact(raw) {
+    if (!raw) return '';
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed?.finalArtifact || '';
+    } catch {
+        return raw;
+    }
+}
+
+/**
+ * Возвращает HTML-фрагмент с блоками дебатов для assistant-сообщения.
+ * Для каждого tool_call с именем `code_agent_with_review` ищем sessionId
+ * через state.debateSessionByToolCallId → state.debates[sid] → рендерим блок.
+ *
+ * @param {object} msg — ChatMessageDto
+ * @returns {string} HTML или '' (если это не assistant / нет tool_calls /
+ *                   нет соответствующих сессий)
+ */
+function renderDebatesForMessage(msg) {
+    if (!msg || msg.role !== 'assistant' || !msg.toolCallsJson) return '';
+
+    let calls;
+    try { calls = JSON.parse(msg.toolCallsJson); }
+    catch { return ''; }
+    if (!Array.isArray(calls) || calls.length === 0) return '';
+
+    const sids = new Set();
+    for (const call of calls) {
+        if (call?.function?.name !== 'code_agent_with_review') continue;
+        const callId = call.id;
+        if (!callId) continue;
+        const sid = state.debateSessionByToolCallId[callId];
+        if (Number.isFinite(sid)) sids.add(sid);
+    }
+
+    if (sids.size === 0) return '';
+
+    return Array.from(sids).map(sid => {
+        const entry = state.debates[sid];
+        if (!entry) return '';
+        return `
+            <div class="chat-debate-block chat-debate-${state.debateView}"
+                 data-debate-session-id="${sid}">
+                ${renderDebateContainerInner(sid)}
+            </div>`;
+    }).join('');
+}
+
 /**
  * Возвращает HTML-содержимое блока дебатов (без внешнего div-обёртки).
  * В зависимости от `state.debateView` рендерит в режиме «диалог» или «свёрнутый».
@@ -2041,6 +2180,13 @@ function renderDebateContainerInner(sessionId) {
     const started = entry.started;
     const isDialog = state.debateView === 'dialog';
 
+    // v1.11.0 (KI-129): orphaned — сессия восстановлена из БД (F5) в статусе
+    // InProgress / Pending без completed. Серверный координатор уже мёртв,
+    // feedback-UI показывать нельзя (POST /inject вернёт false).
+    const isOrphaned = !entry.completed
+        && started.status
+        && (started.status === 'InProgress' || started.status === 'Pending');
+
     // --- Заголовок ---
     const headerHtml = `
         <div class="chat-debate-header">
@@ -2053,7 +2199,8 @@ function renderDebateContainerInner(sessionId) {
     `;
 
     // v1.11.0 (KI-126, Шаг 1G.3): feedback-блок между раундами.
-    const feedbackHtml = renderFeedbackBlock(sessionId);
+    // v1.11.0 (KI-129): для orphaned-сессий feedback не показываем.
+    const feedbackHtml = isOrphaned ? '' : renderFeedbackBlock(sessionId);
 
     if (isDialog) {
         // --- Диалоговый режим: все раунды + feedback + финал ---
@@ -2071,11 +2218,14 @@ function renderDebateContainerInner(sessionId) {
     } else {
         // --- Свёрнутый режим: финал + <details> со всеми раундами ---
         const completed = entry.completed;
-        const verdict = completed?.verdict || 'InProgress';
+        const verdict = completed?.verdict
+            || (isOrphaned ? 'Orphaned' : 'InProgress');
         const verdictClass = verdict.toLowerCase();
         const verdictLabel = completed
             ? getVerdictLabel(verdict)
-            : L('labelDebateInProgress', '⏳ In progress…');
+            : (isOrphaned
+                ? L('labelDebateOrphaned', '⚠️ Interrupted')
+                : L('labelDebateInProgress', '⏳ In progress…'));
 
         let costHtml = '';
         if (completed && completed.totalCostUsd > 0) {
@@ -2087,7 +2237,7 @@ function renderDebateContainerInner(sessionId) {
             : '';
 
         const roundsHtml = entry.rounds.map(r => renderDebateRoundDialog(r)).join('');
-        const detailsOpenAttr = completed ? '' : ' open';   // пока сессия не завершена — держим открытым
+        const detailsOpenAttr = completed ? '' : ' open';
         const detailsHtml = entry.rounds.length > 0
             ? `
                 <details class="chat-debate-details"${detailsOpenAttr}>
@@ -2099,11 +2249,15 @@ function renderDebateContainerInner(sessionId) {
             `
             : '';
 
+        const icon = completed
+            ? (verdict === 'Approved' ? '✅' : '⚠️')
+            : (isOrphaned ? '⚠️' : '⏳');
+
         return `
             ${headerHtml}
             <div class="chat-debate-completed chat-debate-completed-${verdictClass}">
                 <div class="chat-debate-completed-header">
-                    <span class="chat-debate-icon">${verdict === 'Approved' ? '✅' : (verdict === 'InProgress' ? '⏳' : '⚠️')}</span>
+                    <span class="chat-debate-icon">${icon}</span>
                     <span class="chat-debate-completed-title">${verdictLabel}</span>
                     ${completed ? `<span class="chat-debate-completed-meta">${escapeHtml(fmt(L('labelDebateRoundsCount', '{0} rounds'), completed.totalRounds))}</span>` : ''}
                     ${costHtml}
@@ -2623,6 +2777,10 @@ function renderMessage(msg, opts = {}) {
         toolCallsHtml = renderToolCallsFromJson(msg.toolCallsJson);
     }
 
+    // v1.11.0 (KI-129): блоки дебатов для assistant-сообщений —
+    // восстанавливаются при F5 через state.debates + маппинг toolCallId.
+    const debatesHtml = renderDebatesForMessage(msg);
+
     // User-сообщения — plain text (пользователь пишет текст, а не Markdown).
     // Assistant — полноценный Markdown-рендер.
     const contentHtml = msg.content
@@ -2651,12 +2809,18 @@ function renderMessage(msg, opts = {}) {
         })
         : '';
 
+    // v1.11.0 (KI-129): контейнер .chat-message-tools — для консистентности
+    // с live-режимом (в appendAssistantBubble он создаётся заранее).
+    const toolsContent = (toolCallsHtml || debatesHtml)
+        ? `<div class="chat-message-tools">${toolCallsHtml}${debatesHtml}</div>`
+        : '';
+
     return `
         <div class="chat-message ${isUser ? 'user' : 'assistant'}" data-message-id="${msg.id}">
             <div class="chat-message-avatar">${avatar}</div>
             <div class="chat-message-body">
                 <div class="chat-message-meta">${roleLabel} · ${escapeHtml(formatTime(msg.createdAt))}${tokenMetaHtml}</div>
-                ${toolCallsHtml}
+                ${toolsContent}
                 ${contentHtml}
                 ${sourcesHtml}
                 ${actionsHtml}
@@ -3030,6 +3194,8 @@ function showEmptyState() {
     // v1.11.0 (KI-126, Шаг 1G.2): сброс кэша дебатов.
     state.debates = {};
     state.feedbackDrafts = {};
+    // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
+    state.debateSessionByToolCallId = {};
 
     // Фаза 2.2.4: очистить селект модели (нет активного чата)
     const selectEl = document.getElementById('chat-model-select');

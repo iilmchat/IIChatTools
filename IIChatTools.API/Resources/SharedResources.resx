@@ -790,7 +790,10 @@
       <value>⏹ Max Rounds</value>
   </data>
   <data name="ChatDebateVerdictCancelled" xml:space="preserve">
-      <value>🚫 Cancelled</value>
+    <value>🚫 Cancelled</value>
+  </data>
+  <data name="ChatDebateOrphaned" xml:space="preserve">
+    <value>⚠️ Interrupted</value>
   </data>
   <data name="ChatDebateDetailsShow" xml:space="preserve">
       <value>▼ Show details ({0})</value>

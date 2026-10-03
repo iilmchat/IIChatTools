@@ -792,6 +792,9 @@
     <data name="ChatDebateVerdictCancelled" xml:space="preserve">
       <value>🚫 Отменено</value>
     </data>
+    <data name="ChatDebateOrphaned" xml:space="preserve">
+      <value>⚠️ Прервано</value>
+    </data>    
     <data name="ChatDebateDetailsShow" xml:space="preserve">
       <value>▼ Показать детали ({0})</value>
     </data>
