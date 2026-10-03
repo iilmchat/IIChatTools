@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.VisionAgent;
@@ -25,12 +26,15 @@ namespace IIChatTools.Services.Implementation.VisionAgent
     /// v1.12.0 (KI-131, Ф2.1-Ф2.2). См. DESIGN § 3.1, § 7.2.
     /// </para>
     /// <para>
-    /// <b>Платформа:</b> методы <c>ScreenshotAsync</c> / <c>ClickAsync</c> /
-    /// <c>TypeAsync</c> бросают <c>PlatformNotSupportedException</c> на Linux
-    /// (System.Drawing.Common deprecated в .NET 7+, работает только на Windows).
-    /// На остальных методах это ожидаемо — Vision Agent требует Windows-машину.
+    /// <b>Платформа:</b> только Windows. Использует GDI (через
+    /// <c>System.Drawing.Common</c>) + Win32 P/Invoke (<c>SendInput</c>,
+    /// <c>GetSystemMetrics</c>). Атрибут <see cref="SupportedOSPlatformAttribute"/>
+    /// отключает CA1416 — анализатор корректно понимает, что класс
+    /// Windows-only, и не требует явных проверок <c>IsOSPlatform</c> в каждом
+    /// методе.
     /// </para>
     /// </remarks>
+    [SupportedOSPlatform("windows")]
     public sealed class LocalHarnessVisionBackend : IVisionBackend
     {
         /// <inheritdoc />
@@ -261,50 +265,151 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         }
 
         // ============================================================
+        // Mouse helpers (v1.12.0, KI-131, Ф2.5)
+        // ============================================================
+
+        /// <summary>
+        /// Отправляет Move+LeftClick или Move+RightClick.
+        /// </summary>
+        /// <param name="x">X в пикселях.</param>
+        /// <param name="y">Y в пикселях.</param>
+        /// <param name="rightClick">Правая кнопка (контекстное меню) или левая.</param>
+        private void SendMouseClick(int x, int y, bool rightClick)
+        {
+            var (nx, ny) = NormalizeCoordinates(x, y);
+
+            var downFlag = rightClick
+                ? Win32Interop.MOUSEEVENTF_RIGHTDOWN
+                : Win32Interop.MOUSEEVENTF_LEFTDOWN;
+            var upFlag = rightClick
+                ? Win32Interop.MOUSEEVENTF_RIGHTUP
+                : Win32Interop.MOUSEEVENTF_LEFTUP;
+
+            // Move (absolute) + Down + Up — три события за один SendInput call.
+            var inputs = new[]
+            {
+                MakeMouseInput(nx, ny, Win32Interop.MOUSEEVENTF_MOVE | Win32Interop.MOUSEEVENTF_ABSOLUTE),
+                MakeMouseInput(nx, ny, downFlag),
+                MakeMouseInput(nx, ny, upFlag)
+            };
+
+            SendInputBatch(inputs);
+        }
+
+        /// <summary>
+        /// Отправляет только Move (без клика).
+        /// </summary>
+        private void SendMouseMove(int x, int y)
+        {
+            var (nx, ny) = NormalizeCoordinates(x, y);
+            var inputs = new[]
+            {
+                MakeMouseInput(nx, ny, Win32Interop.MOUSEEVENTF_MOVE | Win32Interop.MOUSEEVENTF_ABSOLUTE)
+            };
+            SendInputBatch(inputs);
+        }
+
+        /// <summary>
+        /// Создаёт INPUT с MOUSEINPUT.
+        /// </summary>
+        private static Win32Interop.INPUT MakeMouseInput(int nx, int ny, uint flags)
+        {
+            return new Win32Interop.INPUT
+            {
+                type = Win32Interop.INPUT_MOUSE,
+                U = new Win32Interop.InputUnion
+                {
+                    mi = new Win32Interop.MOUSEINPUT
+                    {
+                        dx = nx,
+                        dy = ny,
+                        mouseData = 0,
+                        dwFlags = flags,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero
+                    }
+                }
+            };
+        }
+
+        /// <summary>
+        /// Отправляет массив INPUT в <c>SendInput</c>. Проверяет результат.
+        /// </summary>
+        private void SendInputBatch(Win32Interop.INPUT[] inputs)
+        {
+            var sent = Win32Interop.SendInput(
+                (uint)inputs.Length,
+                inputs,
+                System.Runtime.InteropServices.Marshal.SizeOf<Win32Interop.INPUT>());
+
+            if (sent != inputs.Length)
+            {
+                var err = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                _logger.LogWarning(
+                    "VisionAgent: SendInput отправил {Sent}/{Total} (win32err={Err})",
+                    sent, inputs.Length, err);
+                throw new InvalidOperationException(
+                    $"SendInput: отправлено {sent} из {inputs.Length} (Win32 error {err}).");
+            }
+        }
+
+        /// <summary>
+        /// Нормализует пиксельные координаты в 0..65535 для Win32 SendInput.
+        /// </summary>
+        private static (int nx, int ny) NormalizeCoordinates(int x, int y)
+        {
+            var screenWidth = Win32Interop.GetSystemMetrics(Win32Interop.SM_CXSCREEN);
+            var screenHeight = Win32Interop.GetSystemMetrics(Win32Interop.SM_CYSCREEN);
+            return VisionMouseCoordinates.NormalizeToAbsolute(x, y, screenWidth, screenHeight);
+        }
+
+        // ============================================================
         // IVisionBackend — mouse (Ф2.5)
         // ============================================================
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.5): <c>SendInput</c> с <c>MOUSEEVENTF_LEFTDOWN</c> /
-        /// <c>LEFTUP</c> + <c>SetCursorPos</c>.
+        /// v1.12.0 (KI-131, Ф2.5): <c>SendInput</c> — Move (absolute) + LeftDown + LeftUp.
         /// </remarks>
         public Task ClickAsync(int x, int y, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.ClickAsync — реализация в Ф2.5 (DESIGN § 7.2).");
+            cancellationToken.ThrowIfCancellationRequested();
+            SendMouseClick(x, y, rightClick: false);
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.5): двойной <c>SendInput</c> с паузой ~50 мс.
+        /// v1.12.0 (KI-131, Ф2.5): два клика с паузой 50 мс (порог double-click Windows).
         /// </remarks>
-        public Task DoubleClickAsync(int x, int y, CancellationToken cancellationToken = default)
+        public async Task DoubleClickAsync(int x, int y, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.DoubleClickAsync — реализация в Ф2.5 (DESIGN § 7.2).");
+            cancellationToken.ThrowIfCancellationRequested();
+            SendMouseClick(x, y, rightClick: false);
+            await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+            SendMouseClick(x, y, rightClick: false);
         }
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.5): <c>SendInput</c> с <c>MOUSEEVENTF_RIGHTDOWN</c> /
-        /// <c>RIGHTUP</c>.
+        /// v1.12.0 (KI-131, Ф2.5): Move + RightDown + RightUp.
         /// </remarks>
         public Task RightClickAsync(int x, int y, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.RightClickAsync — реализация в Ф2.5 (DESIGN § 7.2).");
+            cancellationToken.ThrowIfCancellationRequested();
+            SendMouseClick(x, y, rightClick: true);
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.5): <c>SetCursorPos(x, y)</c> без клика
-        /// (для hover-меню).
+        /// v1.12.0 (KI-131, Ф2.5): только Move без клика (hover).
         /// </remarks>
         public Task MoveMouseAsync(int x, int y, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.MoveMouseAsync — реализация в Ф2.5 (DESIGN § 7.2).");
+            cancellationToken.ThrowIfCancellationRequested();
+            SendMouseMove(x, y);
+            return Task.CompletedTask;
         }
 
         // ============================================================

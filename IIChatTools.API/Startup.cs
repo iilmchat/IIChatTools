@@ -915,8 +915,15 @@ namespace IIChatTools.API
                 return;
             }
 
-            // Все три backend'а регистрируются как Scoped (DESIGN § 4.2).
-            // Пока только Local; Sandbox и VncMcp — Ф3, Ф4.
+            // CA1416: LocalHarnessVisionBackend помечен [SupportedOSPlatform("windows")],
+            // потому что использует System.Drawing.Common (Windows-only в рантайме).
+            // Проект таргетит plain net10.0 (для совместимости с Linux-сборкой Docker),
+            // поэтому анализатор ругается при регистрации в DI. Подавляем локально:
+            // на Linux backend фактически не будет создан — RegisterVisionAgentTools
+            // вызывается только при VisionAgent:Enabled = true, а на Linux
+            // Mode остаётся "local-harness" по дефолту → runtime-ошибка в ScreenshotAsync,
+            // а не при сборке.
+#pragma warning disable CA1416
             services.AddScoped<LocalHarnessVisionBackend>();
 
             // Выбор backend'а по VisionAgent:Backend:Mode.
@@ -930,6 +937,7 @@ namespace IIChatTools.API
                     _ => sp.GetRequiredService<LocalHarnessVisionBackend>()
                 };
             });
+#pragma warning restore CA1416
         }
 
         /// <summary>

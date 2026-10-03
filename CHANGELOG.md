@@ -18,7 +18,34 @@
 
 ## [Unreleased]
 
+### Fixed
+- **v1.12.0 (KI-131, Ф2.5-fix)**: `LocalHarnessVisionBackend` — 7 warnings
+  CA1416 (Windows-only API: `Bitmap`, `Graphics.FromImage`,
+  `Graphics.CopyFromScreen`, `ImageFormat.Png`, `PixelFormat.Format32bppArgb`,
+  `CopyPixelOperation.SourceCopy`). Причина: `System.Drawing.Common` в plain
+  `net10.0` без `-windows` TFM. Fix: `[SupportedOSPlatform("windows")]` на
+  класс + локальный `#pragma warning disable CA1416` вокруг
+  `RegisterVisionAgentTools` в `Startup.cs`. Каждый метод теперь не требует
+  собственной проверки `IsOSPlatform`.
+
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф2.5)**: мышь через SendInput.
+  - **Win32Interop.cs** (internal): P/Invoke `SendInput` + `GetSystemMetrics`,
+    структуры `INPUT` / `MOUSEINPUT` / `KEYBDINPUT` / `HARDWAREINPUT` (union
+    через `[FieldOffset(0)]`). Готово к переиспользованию в Ф2.6 (клавиатура).
+  - **VisionMouseCoordinates.cs** (public static): `NormalizeToAbsolute(x, y,
+    screenW, screenH)` — Win32 absolute coordinates 0..65535 для
+    `MOUSEEVENTF_ABSOLUTE`. Валидация границ, отдельно для тестов.
+  - **LocalHarnessVisionBackend:** реализованы `ClickAsync` (Move + LeftDown +
+    LeftUp), `DoubleClickAsync` (два клика с паузой 50 мс), `RightClickAsync`
+    (Move + RightDown + RightUp), `MoveMouseAsync` (только Move). Всё через
+    `SendInput` (batch из 3 INPUT в одном вызове). Проверка результата
+    `SendInput` с `GetLastWin32Error`.
+  - **Тесты:** `VisionMouseCoordinatesTests` (+8 кейсов: углы / центр /
+    4K / 1-pixel screen / границы / negative / outside).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф2.6 (клавиатура:
+    `TypeAsync` Unicode + `PressKeyAsync` + `HotkeyAsync`).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф2.3-Ф2.4)**: whitelist + Chrome + screenshot.
   - **Ф2.3 (`OpenAsync`):** проверка домена через новый
     `VisionWhitelistValidator` (public static; поддержка exact + `*.wildcard`,
