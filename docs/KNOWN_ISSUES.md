@@ -2319,42 +2319,59 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-129 — Debate blocks not restored on F5 (session/rounds in DB, UI ignores them)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.x
-- **Обнаружено:** 2026-10-02 (smoke Шага 1G.1)
-- **Файлы (план):**
-  - `IIChatTools.API/Controllers/ChatController.cs` — `GetChatAsync`.
-  - `IIChatTools.Services/DTO/Chat/ChatDtos.cs` — `ChatDetailDto`.
-  - `IIChatTools.Services/Interfaces/IAgentDebateSessionService.cs` — новый метод.
-  - `IIChatTools.Services/Implementation/Debate/AgentDebateSessionService.cs` — реализация.
-  - `IIChatTools.API/wwwroot/js/modules/chat.js` — `renderMessages`.
-- **Описание:** Блок Actor-Critic отображается только в live-режиме (SSE).
-  При F5 история сообщений загружается из БД, но данные debate-сессий
-  **не восстанавливаются** в UI — блок исчезает.
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Обнаружено:** 2026-10-02 (smoke Шага 1G.1) | **Устранено:** 2026-10-03
+- **Файлы (итог):**
+  - `IIChatTools.API/Controllers/ChatController.cs` — `GetChatAsync` (заполняет
+    `DebateSessions`, парсит `DebateSessionId` через helper `ParseDebateSessionId`).
+  - `IIChatTools.Services/DTO/Chat/ChatDtos.cs` — `ChatDetailDto.DebateSessions` +
+    `ChatMessageDto.DebateSessionId` (`int?`).
+  - `IIChatTools.Services/Interfaces/IAgentDebateSessionService.cs` — новый метод
+    `GetSessionsByChatAsync(chatId, userId)`.
+  - `IIChatTools.Services/Implementation/Debate/AgentDebateSessionService.cs` —
+    реализация (eager-load раундов через `Include(Rounds)`, сортировка `StartedAt asc`).
+  - `IIChatTools.Services/DTO/Debate/AgentDebateStatusDto.cs` — расширен 6 полями:
+    `Task`, `FinalArtifactJson`, `MaxRounds`, `HumanApproval`, `ActorAgent`, `CriticAgent`.
+    Парсинг `ConfigSnapshotJson` — через общий private helper `BuildStatusDto`.
+  - `IIChatTools.Services/Implementation/ChatStreamService.cs` — сохраняет
+    `MetadataJson = { debateSessionId }` в tool-сообщение `code_agent_with_review`
+    (из `ToolResult.Data.sessionId`).
+  - `IIChatTools.API/wwwroot/js/modules/chat.js` — `prefillDebatesFromChatDetail()`,
+    `renderDebatesForMessage()`, `state.debateSessionByToolCallId`,
+    обновлённый `renderMessage` (вставляет блоки дебатов в `.chat-message-tools`).
+  - `Resources/SharedResources*.resx` — новый ключ `ChatDebateOrphaned` (RU + EN).
+- **Описание:** Блок Actor-Critic отображался только в live-режиме (SSE).
+  При F5 история сообщений загружалась из БД, но данные debate-сессий
+  **не восстанавливались** в UI — блок исчезал.
 
-  **При этом сами сессии УЖЕ сохраняются в БД** (Шаг 1E-part2):
-  - `AgentDebateSession` — сессии (ChatId, UserId, Task, Status,
-    FinalVerdict, StartedAt, CompletedAt).
-  - `AgentDebateRound` — раунды (SessionId, RoundNumber, ActorOutput,
-    CriticVerdict, CriticFeedbackJson, WasEscalated).
-  - Persistence реализован через `IAgentDebateSessionService`
-    (`StartAsync` / `MarkInProgressAsync` / `AddRoundAsync` / `CompleteAsync`).
-
-  **Корень проблемы:** `ChatController.GetChatAsync` возвращает только
-  `ChatMessageDto[]` — данных дебатов там нет. UI не знает о сессиях.
-
-- **Решение (план):**
-  1. `IAgentDebateSessionService.GetSessionsByChatAsync(chatId, userId)` —
-     новый метод (с eager-load раундов через `Include`).
-  2. `ChatDetailDto.DebateSessions` — новое свойство
-     (`IReadOnlyList<ChatDebateSessionDto>` с сессией + раундами).
-  3. `ChatController.GetChatAsync` — заполнять `DebateSessions`.
-  4. `chat.js` — в `renderMessages` находить assistant-сообщения с
-     `toolCallsJson`, содержащим `code_agent_with_review`, и вставлять
-     восстановленный блок в `.chat-message-tools` (по аналогии с live-рендером).
-     Данные предзаполнять в `state.debates[sessionId]` из
-     `chatDetail.debateSessions` до `renderMessages`.
-- **Оценка:** ~1-1.5 ч.
-- **Связанные:** KI-126 (Шаг 1E-part2 — persistence), Шаг 1G.1 (UI rendering).
+  **При этом сами сессии УЖЕ сохранялись в БД** (Шаг 1E-part2):
+  `AgentDebateSession` + `AgentDebateRound` (persistence через
+  `IAgentDebateSessionService`).
+- **Решение (реализовано):**
+  1. **Шаг 1 (backend, коммит `399bcd7`)**: `GetSessionsByChatAsync` +
+     `ChatDetailDto.DebateSessions` + `ChatMessageDto.DebateSessionId` +
+     запись `debateSessionId` в `MetadataJson` tool-сообщения.
+  2. **Шаг 2 (frontend, коммит `16ac2a5`)**: `prefillDebatesFromChatDetail()` +
+     `renderDebatesForMessage()` + маппинг `toolCallId → sessionId` из tool-сообщений
+     (`state.debateSessionByToolCallId`).
+  3. **Orphaned-бейдж (коммиты `8387d06`, `579006b`, `c17a48f`)**: сессии в статусе
+     `InProgress` / `Pending` без `completed` — отображаются с бейджем «⚠️ Прервано»,
+     без feedback-UI. **Важно:** после KI-134/135/136 сценарий «F5 посреди feedback»
+     теперь корректно приводит сессию в `Cancelled` (см. ниже), а orphaned-ветка
+     остаётся fallback'ом для действительно «зависших» сессий (например, падение
+     процесса приложения).
+  4. **Косвенно исправлено в KI-134/135/136**: tool-сообщение с `debateSessionId`
+     теперь **гарантированно сохраняется** в БД до `yield ToolResult` (KI-136) и
+     с `CancellationToken.None` (KI-134). `Data.sessionId` возвращается даже в
+     `ToolResult.Fail` (KI-135).
+- **Smoke (2026-10-03):**
+  - ✅ Live: дебаты отображаются в dialog/collapsed — работало и до фикса.
+  - ✅ **F5 после завершения**: блок дебатов восстанавливается с финальным вердиктом.
+  - ✅ **F5 посреди feedback**: сессия = `Cancelled`, блок восстанавливается с «❌ Отменено».
+  - ✅ **F5 после Stop**: то же.
+  - ⚠️ **Orphaned fallback**: проверяется только при падении процесса — не воспроизводили.
+- **Связанные:** KI-126 (persistence — Шаг 1E-part2), KI-134, KI-135, KI-136
+  (порядок сохранения tool-сообщений).
 
 ---
 
@@ -2653,6 +2670,129 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+## v1.12.0 — Vision Agent (roadmap)
+
+### KI-131 — Vision Agent (Vision LLM + Planner LLM + 3 backend'а)
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.0
+- **Обнаружено:** 2026-10-03 (обсуждение с пользователем)
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
+  (v2.1, Draft — ждёт согласования).
+- **Описание:** LLM не умеет управлять компьютером через визуальные подсказки —
+  только CSS-селекторы (и то через `browser_session_control`). Из-за этого:
+  - Не работает с canvas / WebGL / shadow-DOM.
+  - Не обходит антибот-защиту (Cloudflare Turnstile, DataDome).
+  - Не выполняет многошаговые задачи: «купи билет РЖД до Камчатки»,
+    «заполни заявление на госуслугах», «настрой 1С».
+  - Не управляет десктопными приложениями (Outlook, Excel, 1С).
+
+- **Что входит (v1.12.0, Фазы 0–9, ~62 ч):**
+  - **Top-level инструмент** `vision_agent` (не `AgentToolBase` — по образцу
+    `DatabaseAgentTool` / `CodeAgentWithReviewTool`).
+  - **Оркестрация трёх моделей** (все в конфиге, взаимозаменяемы):
+    - **Chat LLM** (`qwen3-4b`) — диалог + делегирование.
+    - **Planner LLM** (`qwen3-coder-30b-a3b`) — планирование действий.
+    - **Vision LLM** (`ministral-3-3b-instruct-2512`) — описание UI со скриншота.
+  - **Три backend'а:**
+    - `LocalHarnessVisionBackend` — SystemHarness + Chrome fresh profile.
+    - `SandboxVisionBackend` — Windows Sandbox + TightVNC.
+    - `VncMcpVisionBackend` — MCP-клиент для удалённой машины.
+  - **Loop:** screenshot → describe → plan → act → repeat.
+  - **On-screen indicator** (`VisionOverlay.exe`, WPF, always-on-top) —
+    **обязателен** для `local-harness` и `sandbox`. ESC / кнопка STOP —
+    немедленная остановка.
+  - **5 уровней безопасности:** изоляция backend'а + whitelist процессов +
+    on-screen indicator + approval/бюджет + валидатор/audit.
+  - **Конфигурация:** `appsettings.json` → секция `VisionAgent`
+    (Backend / VisionLlm / PlannerLlm / Limits / Whitelist / ActionValidation / Privacy).
+    Admin override через `AppSettings` (по образцу `SubAgents.*` / `SqlAgent.*`).
+
+- **Что НЕ входит:** Linux desktop, macOS desktop, OCR без VL, обход капчи,
+  real-time streaming, fine-tuning.
+- **Оценка:** ~62 ч (≈8 рабочих дней), 9 фаз + DESIGN.
+- **Связанные:** KI-137 (OCR fallback), KI-138 (PII masking), KI-139 (External VL),
+  KI-097 (Database Agent — эталон top-level ITool), KI-126 (Actor-Critic —
+  эталон SSE + EventWriter), KI-101 (per-action approval).
+
+---
+
+### KI-137 — Vision Agent: OCR-fallback для мелкого текста
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-03
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 9.1.
+- **Описание:** VL-модели (Ministral-3B, llava-1.5, pixtral) **плохо читают
+  мелкий текст** на скриншотах — 8-10px шрифты в формах, капчу (не для обхода,
+  а для чтения «введите код»), таблицы с плотной вёрсткой. VL-модель даёт общее
+  описание, но не может точно воспроизвести содержимое поля или текст ошибки.
+- **Возможные решения:**
+  1. **Tesseract OCR** (Apache 2.0, .NET-обёртка `Tesseract` 5.2.0) —
+     preprocess: crop региона → upscale ×2 → grayscale → OCR → merge
+     с `ScreenDescriptionDto`.
+  2. **PaddleOCR** (Apache 2.0, ONNX-runtime) — лучше на кириллице, но требует
+     ONNX runtime.
+  3. **External VL** — отдать в Claude / GPT-4V (см. KI-139).
+- **Триггер:** VL-модель возвращает `ui_elements[].label` короче 3 символов
+  ИЛИ Planner LLM делает `action = "fail", reason = "не вижу текста"`.
+- **Оценка:** ~4-6 ч.
+- **Связанные:** KI-131 (Vision Agent), KI-139 (External VL — альтернатива).
+
+---
+
+### KI-138 — Vision Agent: маскирование PII на скриншотах
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-03
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 6.5.
+- **Описание:** VL-модель может «увидеть» на скриншоте:
+  - Номера банковских карт (Visa / Mastercard / МИР).
+  - Email-адреса, номера телефонов.
+  - Паспортные данные, СНИЛС, ИНН.
+  - Пароли, токены в адресной строке (частично закрывается `MaskUrlBar`).
+  - Личные сообщения (мессенджеры, почта).
+
+  Даже при `PersistScreenshots = false` (default — скриншоты НЕ сохраняются
+  в `ChatMessage.MetadataJson`) VL-модель видит PII в момент анализа. Утечка
+  возможна через:
+  - логи VL-модели (в LM Studio DevTools);
+  - `AuditLog.ParametersJson` (если туда попадут `text` из action);
+  - External VL (см. KI-139 — данные уходят на чужой сервер).
+- **Возможные решения:**
+  1. **Pre-OCR маскирование:** Tesseract → regex-детекция (credit card Luhn,
+     email, phone, СНИЛС) → blur регионов на PNG до VL-модели.
+  2. **VL-детекция:** отдельный prompt «найди PII на скриншоте» → координаты →
+     blur → основной VL-prompt.
+  3. **Post-логирование:** явный whitelist полей для audit — никогда не писать
+     `ui_elements[].value` с типом `text_input` / `password`.
+- **Оценка:** ~5-7 ч.
+- **Связанные:** KI-131 (Vision Agent), KI-139 (External VL — критично для
+  privacy, данные уходят в чужой сервер).
+
+---
+
+### KI-139 — Vision Agent: поддержка внешних VL (Claude Computer Use / OpenAI CUA)
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-03
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 3.2.
+- **Описание:** В v1.12.0 Vision LLM и Planner LLM работают **только локально**
+  (LM Studio + Ministral-3B + qwen3-coder-30b-a3b). Внешние VL (Claude Computer
+  Use, OpenAI CUA, Gemini) могут дать:
+  - Более точное распознавание сложных UI.
+  - Готовые action-схемы (Computer Use API от Anthropic).
+  - Fallback, когда локальная Ministral-3B ошибается на сложных страницах.
+- **Что нужно:**
+  1. `ExternalVisionClient` + `ExternalPlannerClient` — обёртки над
+     `IExternalLlmClient` (v1.8.1, KI-109).
+  2. **Multimodal support** в `ExternalLlmClient` — сейчас только text
+     (см. README, раздел External-LLM Agent → Ограничения: «vision не поддерживается»).
+  3. Конфиг `VisionAgent:VisionLlm:Provider = "external"` +
+     `FallbackChain: ["lmstudio", "external:claude", "external:openai"]`.
+  4. **Отдельный провайдер `anthropic-computer-use`** (beta API) — свой
+     формат запроса/ответа.
+- **Оценка:** ~6-8 ч.
+- **Связанные:** KI-131 (Vision Agent), KI-109 (External-LLM Agent — база),
+  KI-110a/b (Anthropic / Gemini — собственные форматы), KI-138 (PII — критично
+  для external).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -2681,10 +2821,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Fixed (v1.11.0) | 8 |              <!-- KI-126, KI-127, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
-| Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
+| Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
+| Planned | 8 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-131, KI-137, KI-138, KI-139 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **88** |
+| **Всего** | **92** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
