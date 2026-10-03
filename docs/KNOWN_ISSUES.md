@@ -2675,6 +2675,14 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ### KI-131 — Vision Agent (Vision LLM + Planner LLM + 3 backend'а)
 - **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.12.0
 - **Начало работы:** 2026-10-04 (Фаза 1 — контракты и DTO).
+- **Фаза 2 закрыта** (2026-10-04): `LocalHarnessVisionBackend` полностью
+  реализован — 11 методов `IVisionBackend` + 5 защитных слоёв (whitelist
+  доменов через `VisionWhitelistValidator`, whitelist процессов через
+  `GetForegroundWindow` + `VisionProcessWhitelistChecker`, DPI-координаты
+  через `VisionMouseCoordinates`, Unicode-ввод через `KEYEVENTF_UNICODE`,
+  downscale PNG через `VisionImageResizer`). Помощники: `Win32Interop`
+  (P/Invoke SendInput + GetSystemMetrics + GetForegroundWindow),
+  `VisionKeyMapper` (VK-маппинг). Тесты: 666 → 825 (+159).
 - **Обнаружено:** 2026-10-03 (обсуждение с пользователем)
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
   (v2.1, Draft — ждёт согласования).
