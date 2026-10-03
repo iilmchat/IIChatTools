@@ -1,9 +1,9 @@
 # PROMPT_V3.md — Стартовый промпт для нового чата
 
-**Версия промпта:** v3.3
-**Дата:** 2026-10-02
+**Версия промпта:** v3.4
+**Дата:** 2026-10-03
 **Актуальный релиз проекта:** v1.11.0 (2026-10-02)
-**Статус:** v1.11.0 выпущен (Actor-Critic Ф1 закрыт, KI-126 Fixed). В работе — KI-108 (per-user mail) / KI-091 (SqlServer миграции) / KI-126 Ф2 (Debate для planner_agent, v1.11.x).
+**Статус:** v1.11.0 выпущен (Actor-Critic Ф1 закрыт; KI-126 Fixed; KI-129 Fixed). В работе — KI-131 (Vision Agent, оформление) / KI-108 (per-user mail) / KI-091 (SqlServer миграции) / KI-126 Ф2 (Debate для planner_agent, v1.11.x).
 
 ---
 
@@ -29,7 +29,7 @@
 - **GitHub:** https://github.com/iilmchat/IIChatTools
 - **Ветка по умолчанию:** `main`
 - **Текущий релиз:** v1.11.0 (2026-10-02)
-- **В работе:** KI-126 Ф2 (Debate для `planner_agent`, v1.11.x) / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
+- **В работе:** KI-131 (Vision Agent, оформление завершено — см. `docs/development/v1.12/DESIGN_VISION_AGENT.md` v2.1) / KI-126 Ф2 (Debate для `planner_agent`, v1.11.x) / KI-108 (per-user mail) / KI-091 (SqlServer миграции).
 
 ---
 
@@ -62,7 +62,7 @@
 
 ---
 
-## § 3. Текущее состояние (v1.10.1)
+## § 3. Текущее состояние (v1.11.0)
 
 ### Стек
 
@@ -100,8 +100,8 @@
   - +3 external-llm-tools.
 - **Chat видит 16 инструментов** (после KI-126): 9 агентов + `consult_secondary_agent` + 3 RAG + `database_agent` + `code_agent_with_review`.
 - **Тесты:** 654/654 (649 pass, 5 Skip — реальные внешние провайдеры).
-- **KI:** 88 в реестре; Fixed ≈ 84; Deferred = 5; Documented = 12; In Progress = 0; Planned = 5 (KI-108, KI-111, KI-113, KI-128, KI-129); Partially Fixed = 1; Implemented = 3.
-- **Релизы после v1.8.2:** v1.9.0 (Anthropic) · v1.10.0 (Gemini) · v1.10.1 (темы UI) · **v1.11.0 (Actor-Critic, KI-126)**. Детали — `CHANGELOG.md`.
+- **KI:** 92 в реестре; Fixed ≈ 85; Deferred = 5; Documented = 12; In Progress = 0; Planned = 8 (KI-108, KI-111, KI-113, KI-128, KI-131, KI-137, KI-138, KI-139); Partially Fixed = 1; Implemented = 3.
+- **Релизы после v1.8.2:** v1.9.0 (Anthropic) · v1.10.0 (Gemini) · v1.10.1 (темы UI) · **v1.11.0 (Actor-Critic, KI-126 / KI-129)**. Детали — `CHANGELOG.md`.
 
 ---
 
@@ -193,8 +193,21 @@ feedback) → localization → tests → release.
 - **Эскалация:** при `critic.verdict == Uncertain` → `ask_external_llm`.
 - **UI:** селектор между «диалог» и «сворачиваемый», feedback между раундами.
 - **Тесты:** +62 (592 → 654).
-- **Известные ограничения:** KI-128 (Browser Agent — Planned, v1.11.x),
-  KI-129 (F5 не восстанавливает блок дебатов — Planned, v1.11.x).
+- **Известные ограничения:** KI-128 (Browser Agent — Planned, v1.11.x).
+
+### v1.12.0 (📋 Planned) — Vision Agent (KI-131)
+
+Управление компьютером через визуальные подсказки (Computer Use pattern).
+Оркестрация трёх моделей: Chat LLM (`qwen3-4b`) → Planner LLM
+(`qwen3-coder-30b-a3b`) → Vision LLM (`ministral-3-3b-instruct-2512`).
+Три backend'а: `local-harness` (SystemHarness + Chrome fresh profile),
+`sandbox` (Windows Sandbox + TightVNC), `remote-vnc` (MCP-клиент).
+5 уровней безопасности (изоляция + whitelist процессов + on-screen indicator +
+approval/бюджет + валидатор/audit). Top-level `vision_agent` (не `AgentToolBase`).
+
+**DESIGN:** `docs/development/v1.12/DESIGN_VISION_AGENT.md` (v2.1, Draft).
+**Оценка:** ~62 ч, 9 фаз. **Sub-KI:** KI-137 (OCR fallback), KI-138 (PII masking),
+KI-139 (External VL).
 
 ### v1.11.x (🚧 В работе) — Debate для `planner_agent` (KI-126, Фаза 2)
 

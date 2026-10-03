@@ -1,7 +1,7 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.26
-**Обновлено:** 2026-09-30
+**Версия:** 1.4.28
+**Обновлено:** 2026-10-03
 **Назначение:** единый свод правил для команды и ассистента.
 
 При работе над проектом **все** изменения должны соответствовать этим правилам.
@@ -167,7 +167,7 @@
 
 См. [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — полный реестр.
 
-**Краткая выжимка Open/Deferred/Documented (после релиза v1.7.0):**
+**Краткая выжимка Open/Deferred/Documented (после релиза v1.11.0):**
 
 | KI | Приоритет | Статус | Суть | План |
 |----|-----------|--------|------|------|
@@ -189,12 +189,19 @@
 | KI-096 | 🟢 | Deferred | GitHub Wiki для проекта | v1.8.0+ |
 | KI-099 | 🟢 | Deferred | Внешние БД (Postgres / MySQL) для Database Agent | v1.8.0 |
 | KI-103 | 🟡 | Documented | `/status` — hardcoded RU в `status.js` | v1.7.x |
+| KI-128 | 🟡 | Planned | Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`) | v1.11.x |
+| KI-131 | 🟡 | Planned | Vision Agent (Vision LLM + Planner LLM + 3 backend'а) | **v1.12.0** |
+| KI-137 | 🟢 | Planned | Vision Agent: OCR-fallback для мелкого текста | v1.12.x |
+| KI-138 | 🟢 | Planned | Vision Agent: маскирование PII на скриншотах | v1.12.x |
+| KI-139 | 🟢 | Planned | Vision Agent: внешние VL (Claude Computer Use / OpenAI CUA) | v1.12.x |
 
 **Fixed в v1.7.0:** KI-097 (Database Agent), KI-098 (Admin UI whitelist), KI-101 (per-action approval), KI-102 (Admin UI локализация).
 
+**Fixed в v1.11.0:** KI-126 (Actor-Critic Ф1), KI-127 (`code_agent_with_review` выбор), KI-129 (F5 persistence), KI-130 (code_agent + вложения), KI-132 (tool_result раздут), KI-133 (Skip feedback), KI-134 (tool-сообщение при отмене SSE), KI-135 (orphaned sessionId), KI-136 (порядок yield).
+
 **Implemented в v1.7.0:** KI-088 (`docs/TESTING.md`).
 
-**Всего в реестре:** 62+ KI. **Fixed/Resolved:** 60+ (v1.0.x–v1.7.0). **Deferred:** 5. **Documented:** 9.
+**Всего в реестре:** 92 KI. **Fixed/Resolved:** ~85 (v1.0.x–v1.11.0). **Deferred:** 5. **Documented:** 12. **Planned:** 8.
 
 > **KI-068** (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
 >
@@ -240,6 +247,7 @@
 | 2026-09-30 | 1.4.25 | § 4.49 — `AddMemoryCache` / `AddOptions` / `AddHttpClient` принимают `Action<T>`, не фабрику; `IConfiguration` для чтения настроек в `Startup`. **v1.8.2 Шаг 1.2** (ToolResultCache). |
 | 2026-09-30 | **1.4.26** | § 4.50 — `params` + именованный аргумент = CS8323; флаг-параметр всегда позиционный первый. **v1.8.2 Шаг 1.3** (ToolResultCacheTests). |
 | 2026-10-01 | **1.4.27** | § 4.51 — `ITool`, зависящий от `IToolRegistry` / `ISubAgentService`, → `Func<T>` (ADR-002); симптом «A circular dependency was detected» виден только при `dotnet run`. **Прецедент:** `CodeAgentWithReviewTool` (KI-126, Шаг 1D-fix2). |
+| 2026-10-03 | **1.4.28** | § 7 — актуализация KI-выжимки после релиза v1.11.0 + регистрации KI-131/137/138/139 (Planned, v1.12.0/v1.12.x). KI-129 → Fixed (v1.11.0). **Docs-only.** |
 
 ---
 
