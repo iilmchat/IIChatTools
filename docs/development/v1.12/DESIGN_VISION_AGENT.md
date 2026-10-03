@@ -1,4 +1,4 @@
-# DESIGN v1.9 — Vision Agent
+# DESIGN v1.12 — Vision Agent
 
 **Версия:** 2.1
 **Дата:** 2026-10-03
@@ -51,7 +51,7 @@ xAI). Общий паттерн — **VLM-loop**:
 (dynamic ID, canvas, shadow-DOM, антибот), но уступает селекторам в скорости
 и стоимости. Поэтому Vision Agent — **дополнение**, не замена `browser_*`.
 
-### § 1.3. Цели v1.9.0
+### § 1.3. Цели v1.12.0
 
 | # | Цель | Метрика |
 |---|---|---|
@@ -63,7 +63,7 @@ xAI). Общий паттерн — **VLM-loop**:
 | 6 | 5 уровней безопасности | Whitelist + approval + audit |
 | 7 | Готовность к Windows-приложениям (Outlook, Excel) | `LocalHarnessVisionBackend` |
 
-### § 1.4. Что НЕ входит в v1.9.0
+### § 1.4. Что НЕ входит в v1.12.0
 
 - **Linux desktop** (X11 / Wayland, `xdotool`, `grim`) — не планируется.
 - **macOS desktop** — не планируется.
@@ -755,7 +755,7 @@ dotnet user-secrets set "ExternalLlm:DeepSeek:ApiKey" "sk-…"
 | 6 | `VisionAgentService` loop + `VisionOverlay.exe` | 8 ч | Фазы 2-5 |
 | 7 | `VisionAgentTool` + Chat-интеграция | 4 ч | Фаза 6 |
 | 8 | Тесты (unit + integration) | 6 ч | Фазы 1-7 |
-| 9 | Документация + релиз v1.9.0 | 4 ч | Фазы 1-8 |
+| 9 | Документация + релиз v1.12.0 | 4 ч | Фазы 1-8 |
 
 ### § 7.1. Фаза 1 — Контракты + DTO (4 ч)
 
@@ -779,7 +779,7 @@ dotnet user-secrets set "ExternalLlm:DeepSeek:ApiKey" "sk-…"
 | 1.16 | `Interfaces/IVisionActionValidator.cs` | — |
 
 **DoD фазы:** `dotnet build` 0/0. Все DTO/интерфейсы компилируются, но нигде
-не используются. Заведена **KI-124**.
+не используются. Заведена **KI-131**.
 
 ### § 7.2. Фаза 2 — `LocalHarnessVisionBackend` (8 ч)
 
@@ -872,7 +872,7 @@ Sandbox закрывается.
 | 7.5 | Smoke через curl: describe / run_task | — |
 | 7.6 | Smoke через Chat UI: «купи билет РЖД…» | — |
 
-**DoD фазы:** Chat видит **14 инструментов** (было 13). LLM может вызвать
+**DoD фазы:** Chat видит **16 инструментов** (было 15). LLM может вызвать
 `vision_agent` и выполнить задачу.
 
 ### § 7.8. Фаза 8 — Тесты (6 ч)
@@ -890,25 +890,25 @@ Sandbox закрывается.
 
 **Итого: +75 тестов** (658 → ~733).
 
-### § 7.9. Фаза 9 — Документация + релиз v1.9.0 (4 ч)
+### § 7.9. Фаза 9 — Документация + релиз v1.12.0 (4 ч)
 
 | Шаг | Что |
 |---|---|
 | 9.1 | README — раздел «Vision Agent» (3 backend'а, примеры, ограничения) |
 | 9.2 | RULES.md § 4 — новые правила (по итогам уроков) |
-| 9.3 | KNOWN_ISSUES.md — KI-124 → Fixed |
+| 9.3 | KNOWN_ISSUES.md — KI-131 → Fixed |
 | 9.4 | TESTING.md — smoke для всех 3 backend'ов |
 | 9.5 | CHANGELOG.md — [1.9.0] |
 | 9.6 | Directory.Build.props — `<Version>1.9.0</Version>` |
-| 9.7 | Tag v1.9.0 + GitHub Release + Docker |
+| 9.7 | Tag v1.12.0 + GitHub Release + Docker |
 
 ---
 
-## § 8. Definition of Done (v1.9.0)
+## § 8. Definition of Done (v1.12.0)
 
 ### § 8.1. Функциональные требования
 
-- [ ] `VisionAgentTool` зарегистрирован в DI и виден Chat (**14 инструментов**).
+- [ ] `VisionAgentTool` зарегистрирован в DI и виден Chat (**16 инструментов**).
 - [ ] `local-harness` backend: скриншот + клик + ввод работают на Chrome.
 - [ ] `sandbox` backend: Windows Sandbox запускается, VNC подключается, задачи
       выполняются, Sandbox закрывается после задачи.
@@ -932,7 +932,7 @@ Sandbox закрывается.
 ### § 8.2. Нефункциональные
 
 - [ ] `dotnet build` — 0 warnings, 0 errors.
-- [ ] `dotnet test` — ~604/604.
+- [ ] `dotnet test` — ~733/733.
 - [ ] CI + Docker Publish — зелёные.
 - [ ] Покрытие `VisionActionValidator` — > 90%.
 - [ ] Все секреты (VNC, MCP, API-ключи) — только в User Secrets.
@@ -959,7 +959,7 @@ Sandbox закрывается.
 
 - [ ] README — раздел «Vision Agent» (3 backend'а, требования, ограничения).
 - [ ] CHANGELOG — [1.9.0].
-- [ ] KNOWN_ISSUES — KI-124 → Fixed.
+- [ ] KNOWN_ISSUES — KI-131 → Fixed.
 - [ ] TESTING.md — smoke для 3 backend'ов.
 - [ ] RULES.md — обновлён, если есть новые уроки.
 
