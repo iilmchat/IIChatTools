@@ -822,4 +822,25 @@
   <data name="ChatDebateSeverityMinor" xml:space="preserve">
       <value>Minor</value>
   </data>
+  <data name="SpeechButtonTooltip" xml:space="preserve">
+    <value>Voice input</value>
+  </data>
+  <data name="SpeechButtonAria" xml:space="preserve">
+    <value>Start recording</value>
+  </data>
+  <data name="SpeechRecording" xml:space="preserve">
+    <value>Recording…</value>
+  </data>
+  <data name="SpeechTranscribing" xml:space="preserve">
+    <value>Transcribing…</value>
+  </data>
+  <data name="SpeechErrorPermission" xml:space="preserve">
+    <value>Microphone access denied</value>
+  </data>
+  <data name="SpeechErrorBrowser" xml:space="preserve">
+    <value>Browser doesn't support recording</value>
+  </data>
+  <data name="SpeechDisabled" xml:space="preserve">
+    <value>Voice input disabled</value>
+  </data>  
 </root>

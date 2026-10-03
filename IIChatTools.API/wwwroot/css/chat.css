@@ -2016,3 +2016,74 @@ body.chat-global-search-open {
         display: none;   /* оставляем только имя файла */
     }
 }
+
+/* ============================================================
+   v1.13.0 (KI-140): голосовой ввод (Speech Recognition)
+   ============================================================ */
+
+.chat-input-action-speech {
+    position: relative;   /* для ::after (таймер записи) */
+    background: transparent;
+    color: var(--bs-secondary-color);
+    border: none;
+}
+
+.chat-input-action-speech:hover:not(:disabled) {
+    background: var(--bs-secondary-bg);
+    color: var(--bs-primary);
+}
+
+/* Запись — красная пульсирующая */
+.chat-input-action-speech.recording {
+    background: var(--bs-danger);
+    color: var(--bs-white);
+    animation: speech-pulse 1.2s infinite ease-in-out;
+}
+
+/* Таймер над кнопкой: ● 00:07 */
+.chat-input-action-speech.recording::after {
+    content: attr(data-timer);
+    position: absolute;
+    top: -28px;
+    right: 0;
+    background: var(--bs-danger);
+    color: var(--bs-white);
+    padding: 2px 6px;
+    border-radius: .2rem;
+    font-size: .7rem;
+    font-family: var(--bs-font-monospace);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+@keyframes speech-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--bs-danger-rgb), .7); }
+    50%      { box-shadow: 0 0 0 8px rgba(var(--bs-danger-rgb), 0); }
+}
+
+/* Транскрибация — disabled + курсор ожидания */
+.chat-input-action-speech.transcribing {
+    opacity: .6;
+    cursor: wait;
+}
+
+/* Ошибка — красный фон на 3 сек */
+.chat-input-action-speech.error {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger);
+}
+
+/* Disabled (Speech:Enabled = false или во время стрима) */
+.chat-input-action-speech:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+/* Мобильная адаптация: таймер компактнее */
+@media (max-width: 576px) {
+    .chat-input-action-speech.recording::after {
+        font-size: .6rem;
+        padding: 1px 4px;
+        top: -24px;
+    }
+}

@@ -10,6 +10,7 @@
 import { apiGet, apiPost } from './api.js';
 import { escapeHtml, toast } from './ui.js';
 import { requestChatApproval } from './approvals.js';
+import { initSpeechRecognition } from './speech.js';   // v1.13.0 (KI-140)
 
 // ============ Состояние ============
 
@@ -92,6 +93,16 @@ export async function initChatPage() {
 
     bindEvents();
     applyDebateViewUI();
+
+    // v1.13.0 (KI-140): инициализация голосового ввода (Speech Recognition).
+    // Кнопка активна только при Speech:Enabled = true (data-speech-enabled
+    // на #chat-messages, проставляется из Razor).
+    const messagesEl = document.getElementById('chat-messages');
+    initSpeechRecognition(
+        document.getElementById('btn-speech'),
+        document.getElementById('chat-input'),
+        messagesEl,
+        messagesEl?.dataset.speechEnabled || 'false');
 
     // v1.11.0 (KI-126, Шаг 1G.3): глобальный интервал для countdown
     // в feedback-блоках (1 сек). Ничего не делает, если активных нет.
@@ -1566,6 +1577,15 @@ function setStreamingUI(isStreaming) {
     // Фаза 2.2.4: селектор модели disabled во время стрима
     const modelSelect = document.getElementById('chat-model-select');
     if (modelSelect) modelSelect.disabled = isStreaming;
+
+    // v1.13.0 (KI-140): блокируем 🎤 во время стрима — не записываем,
+    // когда генерация активна. Не трогаем disabled, если Speech:Enabled = false.
+    const btnSpeech = document.getElementById('btn-speech');
+    if (btnSpeech) {
+        const speechEnabled = document.getElementById('chat-messages')
+            ?.dataset.speechEnabled === 'true';
+        if (speechEnabled) btnSpeech.disabled = isStreaming;
+    }
 }
 
 /**

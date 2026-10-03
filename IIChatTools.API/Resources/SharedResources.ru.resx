@@ -822,4 +822,25 @@
     <data name="ChatDebateSeverityMinor" xml:space="preserve">
       <value>Мелочь</value>
     </data>
+  <data name="SpeechButtonTooltip" xml:space="preserve">
+    <value>Голосовой ввод</value>
+  </data>
+  <data name="SpeechButtonAria" xml:space="preserve">
+    <value>Начать запись</value>
+  </data>
+  <data name="SpeechRecording" xml:space="preserve">
+    <value>Идёт запись…</value>
+  </data>
+  <data name="SpeechTranscribing" xml:space="preserve">
+    <value>Распознаю…</value>
+  </data>
+  <data name="SpeechErrorPermission" xml:space="preserve">
+    <value>Нет доступа к микрофону</value>
+  </data>
+  <data name="SpeechErrorBrowser" xml:space="preserve">
+    <value>Браузер не поддерживает запись</value>
+  </data>
+  <data name="SpeechDisabled" xml:space="preserve">
+    <value>Голосовой ввод отключён</value>
+  </data>    
 </root>
