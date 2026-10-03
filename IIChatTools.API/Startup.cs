@@ -25,6 +25,8 @@ using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.Speech;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
+using IIChatTools.Services.Implementation.VisionAgent;    // v1.12.0 (KI-131, Ф2.2): LocalHarnessVisionBackend
+using IIChatTools.Services.DTO.VisionAgent;               // v1.12.0 (KI-131): VisionAgentOptions
 using IIChatTools.Services.Implementation.Mail;           // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.Implementation.Tools.Mail;     // v1.8.0 (KI-107): Mail tools
 using IIChatTools.Services.Implementation.Tools.ExternalLlm;  // v1.8.1 (KI-109): External-LLM tools
@@ -499,6 +501,17 @@ namespace IIChatTools.API
             services.Configure<SpeechOptions>(Configuration.GetSection("Speech"));
             services.AddSingleton<ISpeechRecognitionService, WhisperNetTranscriptionService>();
 
+            // ============ Vision Agent (v1.12.0, KI-131, Ф2.1-Ф2.2) ============
+            // Computer-use pattern: VL-модель описывает экран, Planner LLM решает
+            // следующее действие, backend выполняет (клик / ввод / скролл).
+            // См. DESIGN_VISION_AGENT.md § 4.2.
+            //
+            // Ф2.2 — только LocalHarnessVisionBackend (скелет).
+            // SandboxVisionBackend — Ф3, VncMcpVisionBackend — Ф4.
+            // IVisionAgentService — Ф6, VisionAgentTool — Ф7.
+            services.Configure<VisionAgentOptions>(Configuration.GetSection("VisionAgent"));
+            RegisterVisionAgentTools(services, Configuration);
+
             // ============ External-LLM Agent (v1.8.1, KI-109, Фаза 2.6) ============
             // Baseline-конфиг из appsettings:ExternalLlm. API-ключи — только через
             // User Secrets / env (по ApiKeySecretName). Fail-fast валидация конфига —
@@ -874,6 +887,49 @@ namespace IIChatTools.API
             services.AddScoped<ITool, DeleteEmailTool>();
             services.AddScoped<ITool, MoveEmailTool>();
             services.AddScoped<ITool, MarkAsReadTool>();
+        }
+
+        /// <summary>
+        /// Регистрирует Vision Agent (v1.12.0, KI-131, Ф2.1-Ф2.2).
+        ///
+        /// <para>
+        /// Если <c>VisionAgent:Enabled = false</c> — backend не регистрируется,
+        /// DI не содержит <see cref="IVisionBackend"/>. Chat не видит инструмент
+        /// (VisionAgentTool появится в Ф7).
+        /// </para>
+        ///
+        /// <para>
+        /// Ф2.2 — только <c>LocalHarnessVisionBackend</c> (скелет, все методы —
+        /// <c>NotImplementedException</c>). Sandbox — Ф3, RemoteVnc — Ф4.
+        /// </para>
+        /// </summary>
+        /// <param name="services">Коллекция сервисов.</param>
+        /// <param name="configuration">Конфигурация (для чтения <c>VisionAgent:Enabled</c> и <c>Backend:Mode</c>).</param>
+        private static void RegisterVisionAgentTools(
+            IServiceCollection services,
+            IConfiguration configuration)
+        {
+            var enabled = configuration.GetValue<bool>("VisionAgent:Enabled", defaultValue: false);
+            if (!enabled)
+            {
+                return;
+            }
+
+            // Все три backend'а регистрируются как Scoped (DESIGN § 4.2).
+            // Пока только Local; Sandbox и VncMcp — Ф3, Ф4.
+            services.AddScoped<LocalHarnessVisionBackend>();
+
+            // Выбор backend'а по VisionAgent:Backend:Mode.
+            services.AddScoped<IVisionBackend>(sp =>
+            {
+                var mode = configuration["VisionAgent:Backend:Mode"] ?? "local-harness";
+                return mode switch
+                {
+                    // "sandbox"    => sp.GetRequiredService<SandboxVisionBackend>(),
+                    // "remote-vnc" => sp.GetRequiredService<VncMcpVisionBackend>(),
+                    _ => sp.GetRequiredService<LocalHarnessVisionBackend>()
+                };
+            });
         }
 
         /// <summary>

@@ -19,6 +19,25 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф2.1-Ф2.2)**: Local backend skeleton.
+  - **Ф2.1 (deps):** `System.Drawing.Common 10.0.0` в `IIChatTools.Services.csproj`
+    (GDI-скриншоты, plain `net10.0` — не ломает Linux-сборку Docker).
+    **Отказ от** `SystemHarness.Core` / `SystemHarness.Windows` — TFM-конфликт
+    NU1202 (`net10.0-windows10.0.19041` несовместим с plain `net10.0`).
+  - **Ф2.2 (skeleton):** `LocalHarnessVisionBackend` реализует `IVisionBackend`
+    (Ф1): `Name = "local-harness"` + 11 методов + `IAsyncDisposable`.
+    Реализован только `WaitAsync` (простая пауза); остальные методы —
+    `NotImplementedException` с указанием фазы (Ф2.3-Ф2.9).
+    Регистрация в DI — `Startup.RegisterVisionAgentTools` (условно,
+    `VisionAgent:Enabled = true`). Секция `VisionAgent` добавлена в
+    `appsettings.json` (Enabled=false) и `appsettings.Development.json`
+    (Enabled=true + минимальный набор опций для будущих smoke).
+  - **DoD Ф2.2:** решение компилируется, DI-регистрация условная —
+    при `Enabled=false` backend не в контейнере, Chat видит 15 инструментов
+    как раньше.
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф2.3 (`OpenAsync` +
+    Chrome fresh profile + whitelist доменов).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Фаза 1)**: контракты и DTO.
   `docs/development/v1.12/DESIGN_VISION_AGENT.md` v2.1 (Implemented, Фаза 1).
   16 файлов в `IIChatTools.Services/DTO/VisionAgent/` (11 DTO) +
