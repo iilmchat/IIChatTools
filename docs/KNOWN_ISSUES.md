@@ -2830,15 +2830,25 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Streaming (промежуточная транскрибация).
   - GPU-ускорение (`Whisper.net.Runtime.Cuda`).
 
-- **Открытые вопросы (см. DESIGN § 11):**
-  1. Модель по умолчанию — `base` / `small`.
-  2. Язык — `ru` (default) / `auto` / параметр в UI.
-  3. Позиция кнопки — слева от 📎 (текущий выбор).
-  4. Поведение — вставлять в textarea (текущий выбор) / сразу отправлять.
-  5. **`AudioContext({ sampleRate: 16000 })` — hint, Chrome игнорирует**
-     (см. DESIGN § 11 — нужен `OfflineAudioContext`).
-  6. **`MaxAudioSeconds = 60` не enforced в MVP** (только UI auto-stop в Phase 4).
-     Рассмотреть auto-stop в Phase 2.
+- **Принятые решения (2026-10-03, см. DESIGN § 11.1):**
+  1. Модель по умолчанию — `base` (142 MB).
+  2. Язык — `"auto"` в `appsettings.Development.json`, `"ru"` в prod.
+  3. Позиция кнопки — слева от 📎.
+  4. Поведение — вставлять в `<textarea>`.
+  5. Ресемплинг WAV — через `OfflineAudioContext` (§ 4.2).
+  6. Auto-stop 60 сек — enforced на клиенте (`MAX_RECORDING_MS`).
+  7. `RequestSizeLimit(20 MB)` — hard cap; реальный лимит — 10 MB в опциях.
+
+- **Отложено (Phase 4, см. DESIGN § 11.2):**
+  - VAD (auto-stop по тишине) — высокий приоритет, чистый JS (~30 строк).
+  - Хоткей `Ctrl+Shift+Space`.
+  - GPU (`Whisper.net.Runtime.Cuda`).
+  - Streaming (chunked upload + пересборка транскрипта).
+
+- **Технический долг (не блокер MVP, см. DESIGN § 11.3):**
+  - Fail-fast при старте (сейчас — ленивая инициализация).
+  - Валидация magic bytes WAV (сейчас — только `file.Length`).
+  - `TranscriptionResult.DurationMs` = 0 (не заполняется).
 
 - **Связанные:** KI-126 (Chat UI — где живёт кнопка), KI-109 (External-LLM —
   принципиально НЕ используется, офлайн-only).

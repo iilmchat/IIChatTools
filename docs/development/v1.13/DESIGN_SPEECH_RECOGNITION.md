@@ -156,18 +156,37 @@ ChatGPT / DeepSeek) значительно ускоряет работу и сн
 
 ### § 3.2. Конфигурация
 
-**`appsettings.json` / `appsettings.Development.json`:**
+**`appsettings.Development.json`:**
 
 ```jsonc
 "Speech": {
   "Enabled": true,
   "ModelPath": "tools/whisper/ggml-base.bin",
-  "Language": "ru",                       // ru | en | auto
+  "Language": "auto",                     // dev — auto (проверка RU+EN)
   "MaxAudioSeconds": 60,
   "MaxFileSizeBytes": 10485760,           // 10 MB
   "TimeoutSeconds": 60
 }
 ```
+
+**`appsettings.json` (prod):**
+
+```jsonc
+"Speech": {
+  "Enabled": false,                       // prod — включается осознанно админом
+  "ModelPath": "tools/whisper/ggml-base.bin",
+  "Language": "ru",                       // prod — фиксированный RU (основной сценарий)
+  "MaxAudioSeconds": 60,
+  "MaxFileSizeBytes": 10485760,
+  "TimeoutSeconds": 60
+}
+```
+
+**Почему `auto` в dev и `ru` в prod:** Whisper определяет язык за ~1 сек
+(первый segment), стоимость незначительна. В dev `auto` удобнее для
+проверки смешанной речи (RU + EN термины). В prod `ru` фиксирует
+распознавание — не тратит первый segment на детект и не «дрожит» при
+коротких записях (2-3 сек).
 
 **DTO `SpeechOptions`** (`IIChatTools.Services/DTO/Speech/SpeechOptions.cs`):
 
@@ -431,8 +450,20 @@ namespace IIChatTools.API.Controllers
         /// </summary>
         /// <param name="file">WAV-файл (16 kHz mono, multipart/form-data).</param>
         /// <param name="ct">Токен отмены.</param>
+        /// <remarks>
+        /// <c>RequestSizeLimit(20 MB)</c> — жёсткий hard cap на уровне ASP.NET Core
+        /// (запас над реальным лимитом 10 MB). Реальная валидация — ниже,
+        /// по <c>Speech:MaxFileSizeBytes</c> (конфигурируемый).
+        ///
+        /// <para>
+        /// ВНИМАНИЕ: в <c>Startup.cs</c> (v1.5.0, KI-083) уже установлен глобальный
+        /// <c>KestrelServerOptions.Limits.MaxRequestBodySize = 40 MB</c>. Атрибут
+        /// <c>[RequestSizeLimit]</c> применяется <b>поверх</b> — итоговый лимит для
+        /// этого endpoint'а = 20 MB.
+        /// </para>
+        /// </remarks>
         [HttpPost("transcribe")]
-        [RequestSizeLimit(11 * 1024 * 1024)]   // 11 MB (10 MB + overhead)
+        [RequestSizeLimit(20 * 1024 * 1024)]   // hard cap; реальный лимит — в Speech:MaxFileSizeBytes
         public async Task<IActionResult> TranscribeAsync(
             [FromForm] IFormFile file,
             CancellationToken ct)
@@ -580,7 +611,7 @@ async function startRecording(button, textarea) {
         _isRecording = true;
         _recordingStartTime = Date.now();
         setRecordingUI(button, true);
-        startTimer(button);
+        startTimer(button, textarea);   // v1.13.0: textarea нужен для auto-stop
     } catch (ex) {
         showError(button, 'Нет доступа к микрофону');
         console.error('[speech] getUserMedia failed:', ex);
@@ -633,12 +664,36 @@ async function onRecordingStop(button, textarea) {
 
 /**
  * Конвертирует WebM/Opus → WAV 16 kHz mono через Web Audio API.
+ *
+ * ВАЖНО: `new AudioContext({ sampleRate: 16000 })` — это hint, не гарантия.
+ * Chrome игнорирует его для `decodeAudioData` — возвращает buffer в native rate
+ * (обычно 48 kHz). Whisper.net ожидает WAV 16 kHz — поэтому делаем явный
+ * ресемплинг через `OfflineAudioContext`.
  */
 async function webmToWav(blob) {
     const arrayBuffer = await blob.arrayBuffer();
-    const audioCtx = new AudioContext({ sampleRate: 16000 });
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    return encodeWav(audioBuffer);
+
+    // 1. Декодируем во временный AudioContext (native sample rate).
+    const tempCtx = new AudioContext();
+    let audioBuffer;
+    try {
+        audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+    } finally {
+        await tempCtx.close();
+    }
+
+    // 2. Ресемплим до 16 kHz mono через OfflineAudioContext.
+    //    Конструктор: (channels=1, length, sampleRate=16000).
+    const targetRate = 16000;
+    const length = Math.ceil(audioBuffer.duration * targetRate);
+    const offlineCtx = new OfflineAudioContext(1, length, targetRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start();
+    const resampled = await offlineCtx.startRendering();
+
+    return encodeWav(resampled);
 }
 
 function encodeWav(audioBuffer) {
@@ -687,12 +742,23 @@ function setTranscribingUI(button, transcribing) {
     button.disabled = transcribing;
 }
 
-function startTimer(button) {
+/** Лимит длительности записи (мс). Enforced на клиенте (см. § 6, § 11.1). */
+const MAX_RECORDING_MS = 60_000;
+
+function startTimer(button, textarea) {
     _recordingTimer = setInterval(() => {
-        const sec = Math.floor((Date.now() - _recordingStartTime) / 1000);
+        const elapsedMs = Date.now() - _recordingStartTime;
+        const sec = Math.floor(elapsedMs / 1000);
         const mm = String(Math.floor(sec / 60)).padStart(2, '0');
         const ss = String(sec % 60).padStart(2, '0');
         button.dataset.timer = `${mm}:${ss}`;
+
+        // Auto-stop: превысили 60 сек → останавливаем и транскрибируем.
+        // MAX_RECORDING_MS синхронизирован с Speech:MaxAudioSeconds (60).
+        if (elapsedMs >= MAX_RECORDING_MS && _isRecording) {
+            console.info('[speech] auto-stop: достигнут лимит 60 сек');
+            stopRecording(button, textarea);
+        }
     }, 500);
 }
 
@@ -903,7 +969,7 @@ tools/whisper/*.ggml
 | **Аудио не покидает сервер** | Whisper.net работает in-process, никаких облачных API |
 | **Permission** | `getUserMedia` требует явного разрешения браузера |
 | **Ограничение размера** | `MaxFileSizeBytes = 10 MB` (≈ 5 мин при 16 kHz mono 16-bit) |
-| **Ограничение длительности** | `MaxAudioSeconds = 60` (UI auto-stop — Phase 4) |
+| **Ограничение длительности** | `MaxAudioSeconds = 60` — auto-stop **на клиенте** (`MAX_RECORDING_MS` в `speech.js`, § 4.2). Серверный hard-cap — `RequestSizeLimit(20 MB)` + валидация `MaxFileSizeBytes = 10 MB` (§ 3.5). |
 | **Таймаут** | 60 сек на транскрибацию (защита от зависаний) |
 | **Формат** | Только WAV (валидация MIME + magic bytes `RIFF`) |
 | **Cleanup** | Поток обрабатывается in-memory, не сохраняется на диск |
@@ -975,10 +1041,16 @@ tools/whisper/*.ggml
 
 ### § 8.4. Фаза 4 — Опционально (~30-60 мин)
 
-- **Hotkey `Ctrl+Shift+Space`** — start/stop записи.
 - **VAD (Voice Activity Detection)** — auto-stop по тишине 2 сек.
-- **Стриминг** — промежуточная транскрибация в реальном времени.
+  Реализуется **на клиенте** через Web Audio API `AnalyserNode` с порогом
+  амплитуды (~30 строк JS). Не требует изменений backend.
+- **Хоткей `Ctrl+Shift+Space`** — start/stop записи.
+- **Стриминг** — промежуточная транскрибация в реальном времени
+  (требует переделки API на chunked upload + пересборка транскрипта).
 - **GPU** — `Whisper.net.Runtime.Cuda` (если есть NVIDIA GPU).
+
+**Приоритет Ф4:** VAD > hotkey > GPU > streaming (по соотношению
+«эффект / трудозатраты»).
 
 **Итого MVP (Фазы 1-3):** ~3 ч.
 

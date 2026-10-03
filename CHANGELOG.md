@@ -30,6 +30,21 @@
   → Скрипт скачивания + smoke. Фаза 4 (опционально): hotkey, VAD,
   streaming, GPU. **KI-140** → Planned (v1.13.0). Сводка: 92 → 93 KI.
 
+### Changed
+- **DESIGN v1.13 (KI-140) — уточнения после ревью (2026-10-03)**:
+  - **Ресемплинг WAV** — `OfflineAudioContext` вместо `AudioContext({sampleRate:16000})`
+    (Chrome игнорирует hint; native rate обычно 48 kHz). § 4.2.
+  - **Auto-stop 60 сек** — enforced на клиенте (`MAX_RECORDING_MS` в `speech.js`,
+    синхронизировано с `Speech:MaxAudioSeconds`). § 4.2, § 6.
+  - **`RequestSizeLimit`** — 20 MB hard cap (было 11 MB); реальный лимит —
+    `Speech:MaxFileSizeBytes = 10 MB` (валидация в контроллере). § 3.5.
+  - **Language** — `"auto"` в `appsettings.Development.json`, `"ru"` в prod.
+    § 3.2.
+  - **VAD** (Phase 4) — на клиенте через `AnalyserNode`, не требует backend.
+    Приоритет Ф4: VAD > hotkey > GPU > streaming. § 8.4.
+  - § 11 переименован в «Принятые решения и отложенные вопросы»:
+    7 решений + 4 отложенных + 3 пункта технического долга.
+
 ### Fixed
 - **v1.11.0 (KI-136)**: tool-сообщение **не сохранялось** в БД
   при отмене SSE (F5 / Stop) — фактический root cause, не покрытый
