@@ -198,12 +198,28 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 pngBytes = ms.ToArray();
             }
 
-            // 4. Проверка лимита.
+            // 4. Downscale до MaxImageWidth × MaxImageHeight (v1.12.0, KI-131, Ф2.8).
+            //    VL-модель не нуждается в полном 4K-скриншоте — 1024×768 достаточно,
+            //    и это критично снижает размер payload'а (base64 в HTTP).
+            var beforeBytes = pngBytes.Length;
+            pngBytes = VisionImageResizer.Resize(
+                pngBytes,
+                _options.VisionLlm.MaxImageWidth,
+                _options.VisionLlm.MaxImageHeight);
+
+            if (pngBytes.Length != beforeBytes)
+            {
+                _logger.LogDebug(
+                    "VisionAgent: downscale {Before} → {After} байт",
+                    beforeBytes, pngBytes.Length);
+            }
+
+            // 5. Проверка лимита (после downscale — на всякий случай).
             if (pngBytes.Length > _options.Limits.MaxScreenshotBytes)
             {
                 throw new InvalidOperationException(
                     $"Скриншот {pngBytes.Length} байт превышает лимит " +
-                    $"{_options.Limits.MaxScreenshotBytes} байт.");
+                    $"{_options.Limits.MaxScreenshotBytes} байт даже после downscale.");
             }
 
             _logger.LogDebug(

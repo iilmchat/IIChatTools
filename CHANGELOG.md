@@ -19,6 +19,24 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф2.8)**: downscale PNG.
+  - **VisionImageResizer.cs** (public static):
+    - `CalculateTargetSize(origW, origH, maxW, maxH)` — pure function,
+      кроссплатформенная. Пропорциональный downscale (сохранение aspect ratio),
+      без увеличения. Тестируется в CI ubuntu-latest.
+    - `Resize(pngBytes, maxW, maxH)` — `[SupportedOSPlatform("windows")]`,
+      `InterpolationMode.HighQualityBicubic`. Если размеры не меняются —
+      возвращает тот же массив (0 копий).
+  - **`LocalHarnessVisionBackend.ScreenshotAsync`** — downscale вызывается
+    после захвата GDI, до проверки `MaxScreenshotBytes`. Экономит трафик
+    (PNG 4K ≈ 2-3 MB → 1024×576 ≈ 200-300 KB) и упрощает VL-модели (не тратит
+    токены на обработку 4K).
+  - **Тесты:** `VisionImageResizerTests` (+~9 кейсов: CalculateTargetSize —
+    small/exact/wide/tall/square/ultrawide/invalid/extreme-small; Resize —
+    runtime-skip на Linux).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф2.9 (whitelist процессов
+    через `GetForegroundWindow` + `GetWindowThreadProcessId`).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф2.7)**: прокрутка колеса мыши.
   - **VisionScrollHelper.cs** (public static): `Clamp(deltaY, maxAbs)` +
     `ToWheelMouseData(deltaY)` (инверсия знака — Win32 семантика
