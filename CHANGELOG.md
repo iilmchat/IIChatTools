@@ -19,6 +19,31 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф2.9)**: whitelist процессов.
+  - **Win32Interop.cs:** +`GetForegroundWindow()`,
+    +`GetWindowThreadProcessId(hWnd, out pid)`.
+  - **VisionProcessWhitelistChecker.cs** (public static, кроссплатформенный):
+    `IsProcessAllowed(processName, allowedList, out error)` — сверка с
+    whitelist процессов. Нормализация: trim + strip `.exe` +
+    case-insensitive. Пустой whitelist = allow all (fail-safe UX).
+    `NormalizeProcessName(name)` — отдельная чистая функция.
+  - **LocalHarnessVisionBackend:** `EnsureForegroundProcessAllowed()` —
+    вызывается <b>перед каждым</b> mouse / keyboard действием
+    (`ClickAsync`, `DoubleClickAsync`, `RightClickAsync`, `MoveMouseAsync`,
+    `TypeAsync`, `PressKeyAsync`, `HotkeyAsync`, `ScrollAsync`).
+    НЕ вызывается перед `ScreenshotAsync` (read-only). Bypass при
+    `Backend:Local:AllowNonBrowserProcesses = true` (dev-режим, DESIGN § 5.1).
+    Пропускается при `GetForegroundWindow = 0` или упавшем
+    `Process.GetProcessById`.
+  - **Тесты:** `VisionProcessWhitelistCheckerTests` (+~26 кейсов:
+    known / .exe / mixed-case / unknown / null whitelist / empty whitelist /
+    null processName / normalize).
+  - **🎉 Ф2 закрыта:** `IVisionBackend` полностью реализован в
+    `LocalHarnessVisionBackend` со всеми защитами (whitelist доменов +
+    процессов, DPI-координаты, Unicode-ввод, downscale скриншотов).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф3
+    (`SandboxVisionBackend`, ~10 ч).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф2.8)**: downscale PNG.
   - **VisionImageResizer.cs** (public static):
     - `CalculateTargetSize(origW, origH, maxW, maxH)` — pure function,

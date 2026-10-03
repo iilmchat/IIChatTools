@@ -380,6 +380,70 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         }
 
         // ============================================================
+        // Whitelist processes (v1.12.0, KI-131, Ф2.9)
+        // ============================================================
+
+        /// <summary>
+        /// Проверяет, что процесс в фокусе — в whitelist
+        /// (<c>VisionAgent:Backend:Local:AllowedProcesses</c>).
+        /// Бросает <see cref="InvalidOperationException"/> при нарушении.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Вызывается <b>перед</b> каждым mouse / keyboard действием.
+        /// Не вызывается перед <see cref="ScreenshotAsync"/> — read-only.
+        /// </para>
+        /// <para>
+        /// Пропускается если:
+        /// <list type="bullet">
+        ///   <item><c>AllowNonBrowserProcesses = true</c> — dev-режим (DESIGN § 5.1);</item>
+        ///   <item>whitelist не задан / пустой (DESIGN § 5.1);</item>
+        ///   <item>нет foreground-окна (<c>GetForegroundWindow = 0</c>) — рабочий стол;</item>
+        ///   <item>процесс не удалось получить (<c>Process.GetProcessById</c> упал).</item>
+        /// </list>
+        /// </para>
+        /// </remarks>
+        private void EnsureForegroundProcessAllowed()
+        {
+            // Dev-bypass: AllowNonBrowserProcesses = true → игнорируем whitelist.
+            var localOptions = _options.Backend?.Local;
+            if (localOptions != null && localOptions.AllowNonBrowserProcesses)
+            {
+                return;
+            }
+
+            var allowed = localOptions?.AllowedProcesses;
+            if (allowed == null || allowed.Count == 0)
+            {
+                return;   // whitelist не задан — без ограничений.
+            }
+
+            var hwnd = Win32Interop.GetForegroundWindow();
+            if (hwnd == IntPtr.Zero) return;   // фокуса нет — не блокируем.
+
+            Win32Interop.GetWindowThreadProcessId(hwnd, out var pid);
+            if (pid == 0) return;
+
+            string processName;
+            try
+            {
+                using var proc = Process.GetProcessById((int)pid);
+                processName = proc.ProcessName;
+            }
+            catch
+            {
+                // Процесс завершился между вызовами — не блокируем.
+                return;
+            }
+
+            if (!VisionProcessWhitelistChecker.IsProcessAllowed(processName, allowed, out var error))
+            {
+                _logger.LogWarning("VisionAgent: {Error}", error);
+                throw new InvalidOperationException(error);
+            }
+        }
+
+        // ============================================================
         // Keyboard helpers (v1.12.0, KI-131, Ф2.6)
         // ============================================================
 
@@ -503,6 +567,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public Task ClickAsync(int x, int y, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            EnsureForegroundProcessAllowed();
             SendMouseClick(x, y, rightClick: false);
             return Task.CompletedTask;
         }
@@ -514,6 +579,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public async Task DoubleClickAsync(int x, int y, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            EnsureForegroundProcessAllowed();
             SendMouseClick(x, y, rightClick: false);
             await Task.Delay(50, cancellationToken).ConfigureAwait(false);
             SendMouseClick(x, y, rightClick: false);
@@ -526,6 +592,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public Task RightClickAsync(int x, int y, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            EnsureForegroundProcessAllowed();
             SendMouseClick(x, y, rightClick: true);
             return Task.CompletedTask;
         }
@@ -537,6 +604,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public Task MoveMouseAsync(int x, int y, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            EnsureForegroundProcessAllowed();
             SendMouseMove(x, y);
             return Task.CompletedTask;
         }
@@ -554,6 +622,9 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public async Task TypeAsync(string text, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(text)) return;
+
+            // Проверка whitelist один раз перед всем вводом (не на каждый char).
+            EnsureForegroundProcessAllowed();
 
             // Разбиваем по \n — между ними посылаем VK_RETURN.
             var lines = text.Split('\n');
@@ -590,6 +661,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public Task PressKeyAsync(string key, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            EnsureForegroundProcessAllowed();
 
             var vk = VisionKeyMapper.GetVirtualKey(key);
             if (vk == null)
@@ -621,9 +693,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
             if (keys.Count == 1)
             {
-                // Один элемент — обычное нажатие клавиши.
+                // Один элемент — обычное нажатие клавиши (whitelist там же).
                 return PressKeyAsync(keys[0], cancellationToken);
             }
+
+            // Whitelist-проверка (для multi-key hotkey).
+            EnsureForegroundProcessAllowed();
 
             // Все, кроме последнего — модификаторы.
             var modifiers = new List<ushort>();
@@ -673,6 +748,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public Task ScrollAsync(int deltaY, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            EnsureForegroundProcessAllowed();
             SendMouseWheel(deltaY);
             return Task.CompletedTask;
         }

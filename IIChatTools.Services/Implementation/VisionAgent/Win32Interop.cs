@@ -74,6 +74,27 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             int cbSize);
 
         // ============================================================
+        // Foreground window (v1.12.0, KI-131, Ф2.9)
+        // ============================================================
+
+        /// <summary>
+        /// Возвращает HWND окна, находящегося в фокусе. <see cref="IntPtr.Zero"/>,
+        /// если фокуса нет (например, рабочий стол).
+        /// </summary>
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+
+        /// <summary>
+        /// Возвращает ID процесса, владеющего окном <paramref name="hWnd"/>.
+        /// Возвращаемое значение — ID потока (не нужен); <paramref name="lpdwProcessId"/>
+        /// — ID процесса (нужен).
+        /// </summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern uint GetWindowThreadProcessId(
+            IntPtr hWnd,
+            out uint lpdwProcessId);
+
+        // ============================================================
         // Struct definitions (для SendInput)
         // ============================================================
 
