@@ -1,21 +1,26 @@
 # DESIGN v1.9 — Vision Agent
 
-**Версия:** 2.0
-**Дата:** 2026-10-02
-**Статус:** Draft — ждёт согласования
-**Связанные KI:** KI-124 (Vision Agent — завести при старте Фазы 1)
-**Целевой релиз:** v1.9.0 (local-harness + sandbox + remote-vnc, 3 модели)
+**Версия:** 2.1
+**Дата:** 2026-10-03
+**Статус:** Draft — ждёт согласования (Planned в v1.12.0)
+**Связанные KI:** KI-131 (Vision Agent) · KI-137 (OCR fallback) ·
+KI-138 (PII masking) · KI-139 (External VL)
+**Целевой релиз:** v1.12.0 (local-harness + sandbox + remote-vnc, 3 модели)
 **Связанные документы:** [RULES.md](../RULES.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [DESIGN_DB_AGENT.md](../v1.7/DESIGN_DB_AGENT.md), [DESIGN_EXTERNAL_LLM.md](../v1.8/DESIGN_EXTERNAL_LLM.md)
 
 ---
 
 ## § 1. Контекст
 
-### § 1.1. Текущее состояние (после v1.8.2)
+### § 1.1. Текущее состояние (после v1.11.0)
 
-- **Chat видит 13 инструментов:** 8 агентов (`file_system`, `code`, `web`,
-  `git`, `github`, `planner`, `mail`, `external_llm`) + `consult_secondary_agent`
+- **Chat видит 15 инструментов:** 10 агентов (`file_system`, `code`,
+  `code_reviewer`, `code_agent_with_review`, `web`, `git`, `github`,
+  `planner`, `mail`, `external_llm`) + `consult_secondary_agent`
   + 3 RAG + `database_agent`.
+- **Actor-Critic (v1.11.0, KI-126):** top-level `code_agent_with_review`
+  + субагент-критик `code_reviewer_agent`; persistence в
+  `AgentDebateSession` / `AgentDebateRound`; F5-восстановление (KI-129).
 - **Browser-автоматизация** (v1.1.0): 4 raw-инструмента (`browser_navigate`,
   `browser_get_content`, `browser_screenshot`, `browser_close`) — только
   чтение, без управления.
@@ -249,14 +254,22 @@ IIChatTools.VisionOverlay/                    — отдельный WPF-про�
   └── Program.cs                              — single-instance + IPC
 ```
 
-**Почему `VisionAgentTool` — top-level `ITool` (как `DatabaseAgentTool`), а
-не `AgentToolBase`:**
+**Почему `VisionAgentTool` — top-level `ITool`, а не `AgentToolBase`:**
 
 - `AgentToolBase` работает через `SubAgentService`, который **не умеет**
   передавать изображения в LLM.
 - Vision-агенту нужен **свой** loop со скриншотами и двумя моделями.
-- Паттерн совпадает с `DatabaseAgentTool` (v1.7.0) — прямой детерминированный
-  оркестратор.
+- Паттерн совпадает с двумя прецедентами:
+  - `DatabaseAgentTool` (v1.7.0, KI-097) — прямой детерминированный
+    оркестратор (4 action);
+  - `CodeAgentWithReviewTool` (v1.11.0, KI-126) — top-level `ITool`,
+    координирует actor+critic через `IToolRegistry`, эмитит SSE-события
+    через `ToolExecutionContext.EventWriter`.
+- **RULES § 4.44:** top-level `ITool` → обязательно добавить в
+  `allowedNames` в `ChatStreamService.StreamAsync`.
+- **RULES § 4.51:** если `VisionAgentTool` будет зависеть от `IToolRegistry`
+  (например, для вызова `consult_secondary_agent`) — использовать
+  `Func<IToolRegistry>` (ADR-002) для разрыва DI-цикла.
 
 ### § 4.2. DI-регистрация (Startup.cs)
 
@@ -875,7 +888,7 @@ Sandbox закрывается.
 | 8.7 | `VisionAgentToolTests` | ~8 |
 | 8.8 | Integration: `run_task` на `example.com` | ~2 |
 
-**Итого: +75 тестов** (529 → ~604).
+**Итого: +75 тестов** (658 → ~733).
 
 ### § 7.9. Фаза 9 — Документация + релиз v1.9.0 (4 ч)
 
@@ -956,12 +969,12 @@ Sandbox закрывается.
 
 ### § 9.1. KI
 
-- **KI-124** — Vision Agent (этот документ). Завести при старте Фазы 1.
-- **KI-125** (планируется) — Vision Agent: OCR-fallback для мелкого текста.
-- **KI-126** (планируется) — Vision Agent: маскирование PII на скриншотах
+- **KI-131** — Vision Agent (этот документ). Planned, v1.12.0.
+- **KI-137** (Planned, v1.12.x) — Vision Agent: OCR-fallback для мелкого текста.
+- **KI-138** (Planned, v1.12.x) — Vision Agent: маскирование PII на скриншотах
   (детекция credit card / email через VL-модель).
-- **KI-127** (планируется) — Vision Agent: поддержка внешних VL (Claude
-  Computer Use / OpenAI CUA).
+- **KI-139** (Planned, v1.12.x) — Vision Agent: поддержка внешних VL
+  (Claude Computer Use / OpenAI CUA).
 
 ### § 9.2. Правила (RULES.md)
 
@@ -1111,6 +1124,4 @@ Result: { success: true, steps: 12, durationMs: 45230, summary: "..." }
 }
 ```
 
----
-
-**Конец DESIGN_VISION_AGENT.md v2.0.**
+**© 2026 RuChating (iilmchat) · IIChatTools v1.12.0**
