@@ -364,6 +364,79 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         }
 
         // ============================================================
+        // Keyboard helpers (v1.12.0, KI-131, Ф2.6)
+        // ============================================================
+
+        /// <summary>
+        /// Отправляет Down или Up для заданного VK-кода (обычная клавиша).
+        /// </summary>
+        /// <param name="vkCode">Virtual-key code.</param>
+        /// <param name="up">true — KeyUp, false — KeyDown.</param>
+        private void SendVirtualKey(ushort vkCode, bool up)
+        {
+            var flags = up ? Win32Interop.KEYEVENTF_KEYUP : 0u;
+            var inputs = new[]
+            {
+                new Win32Interop.INPUT
+                {
+                    type = Win32Interop.INPUT_KEYBOARD,
+                    U = new Win32Interop.InputUnion
+                    {
+                        ki = new Win32Interop.KEYBDINPUT
+                        {
+                            wVk = vkCode,
+                            wScan = 0,
+                            dwFlags = flags,
+                            time = 0,
+                            dwExtraInfo = IntPtr.Zero
+                        }
+                    }
+                }
+            };
+            SendInputBatch(inputs);
+        }
+
+        /// <summary>
+        /// Отправляет Unicode-символ (Down + Up) через <c>KEYEVENTF_UNICODE</c>.
+        /// Работает для BMP и surrogate pairs (2 символа UTF-16 = 2 пары Down/Up).
+        /// </summary>
+        /// <param name="ch">Символ (UTF-16 code unit).</param>
+        private void SendUnicodeChar(char ch)
+        {
+            var down = new Win32Interop.INPUT
+            {
+                type = Win32Interop.INPUT_KEYBOARD,
+                U = new Win32Interop.InputUnion
+                {
+                    ki = new Win32Interop.KEYBDINPUT
+                    {
+                        wVk = 0,
+                        wScan = ch,
+                        dwFlags = Win32Interop.KEYEVENTF_UNICODE,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero
+                    }
+                }
+            };
+            var up = new Win32Interop.INPUT
+            {
+                type = Win32Interop.INPUT_KEYBOARD,
+                U = new Win32Interop.InputUnion
+                {
+                    ki = new Win32Interop.KEYBDINPUT
+                    {
+                        wVk = 0,
+                        wScan = ch,
+                        dwFlags = Win32Interop.KEYEVENTF_UNICODE | Win32Interop.KEYEVENTF_KEYUP,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero
+                    }
+                }
+            };
+            SendInputBatch(new[] { down, up });
+        }
+
+        // ============================================================
         // IVisionBackend — mouse (Ф2.5)
         // ============================================================
 
@@ -418,35 +491,116 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.6): <c>SendInput</c> с юникод-сканированием
-        /// (KEYEVENTF_UNICODE) — работает для кириллицы / эмодзи.
+        /// v1.12.0 (KI-131, Ф2.6): Unicode через <c>KEYEVENTF_UNICODE</c> —
+        /// работает для кириллицы / эмодзи / любых символов BMP и surrogate pairs.
+        /// Перенос строки <c>\n</c> конвертируется в VK_RETURN (Down+Up).
         /// </remarks>
-        public Task TypeAsync(string text, CancellationToken cancellationToken = default)
+        public async Task TypeAsync(string text, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.TypeAsync — реализация в Ф2.6 (DESIGN § 7.2).");
+            if (string.IsNullOrEmpty(text)) return;
+
+            // Разбиваем по \n — между ними посылаем VK_RETURN.
+            var lines = text.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (i > 0)
+                {
+                    // Перенос строки.
+                    SendVirtualKey(0x0D, up: false);
+                    SendVirtualKey(0x0D, up: true);
+                }
+
+                // Убираем \r в конце строки (если был \r\n).
+                var line = lines[i].TrimEnd('\r');
+                if (line.Length == 0) continue;
+
+                // Каждый символ UTF-16 — Down + Up через KEYEVENTF_UNICODE.
+                foreach (var ch in line)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    SendUnicodeChar(ch);
+                }
+            }
+
+            // Микро-пауза, чтобы приложение успело обработать очередь (не обязательно).
+            await Task.Delay(20, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.6): маппинг имени (<c>Enter</c>, <c>Tab</c>, ...)
-        /// в virtual-key code + <c>SendInput</c>.
+        /// v1.12.0 (KI-131, Ф2.6): маппинг имени (<c>Enter</c>, <c>Tab</c>, <c>F5</c>, ...)
+        /// в VK-код через <see cref="VisionKeyMapper"/>, затем Down + Up.
         /// </remarks>
         public Task PressKeyAsync(string key, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.PressKeyAsync — реализация в Ф2.6 (DESIGN § 7.2).");
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var vk = VisionKeyMapper.GetVirtualKey(key);
+            if (vk == null)
+            {
+                throw new ArgumentException(
+                    $"Неизвестное имя клавиши: «{key}». " +
+                    "Примеры: Enter, Tab, Escape, F1-F12, A-Z, 0-9, Left, Up, ...",
+                    nameof(key));
+            }
+
+            SendVirtualKey(vk.Value, up: false);
+            SendVirtualKey(vk.Value, up: true);
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.6): последовательное нажатие модификаторов +
-        /// финальной клавиши (<c>Ctrl+C</c>, <c>Alt+F4</c>).
+        /// v1.12.0 (KI-131, Ф2.6): <c>["Ctrl", "C"]</c> → Down(Ctrl) → Down(C) → Up(C) → Up(Ctrl).
+        /// Последний элемент — финальная клавиша, все предыдущие — модификаторы.
         /// </remarks>
         public Task HotkeyAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.HotkeyAsync — реализация в Ф2.6 (DESIGN § 7.2).");
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (keys == null || keys.Count == 0)
+            {
+                throw new ArgumentException("Список клавиш пустой.", nameof(keys));
+            }
+
+            if (keys.Count == 1)
+            {
+                // Один элемент — обычное нажатие клавиши.
+                return PressKeyAsync(keys[0], cancellationToken);
+            }
+
+            // Все, кроме последнего — модификаторы.
+            var modifiers = new List<ushort>();
+            for (int i = 0; i < keys.Count - 1; i++)
+            {
+                var vk = VisionKeyMapper.GetModifierVirtualKey(keys[i]);
+                if (vk == null)
+                {
+                    throw new ArgumentException(
+                        $"«{keys[i]}» не является модификатором (ожидается Ctrl / Alt / Shift / Win).",
+                        nameof(keys));
+                }
+                modifiers.Add(vk.Value);
+            }
+
+            // Последний элемент — финальная клавиша.
+            var finalVk = VisionKeyMapper.GetVirtualKey(keys[keys.Count - 1]);
+            if (finalVk == null)
+            {
+                throw new ArgumentException(
+                    $"Неизвестное имя клавиши: «{keys[keys.Count - 1]}».",
+                    nameof(keys));
+            }
+
+            // Down всех модификаторов.
+            foreach (var m in modifiers) SendVirtualKey(m, up: false);
+            // Down + Up финальной.
+            SendVirtualKey(finalVk.Value, up: false);
+            SendVirtualKey(finalVk.Value, up: true);
+            // Up модификаторов (в обратном порядке).
+            for (int i = modifiers.Count - 1; i >= 0; i--) SendVirtualKey(modifiers[i], up: true);
+
+            return Task.CompletedTask;
         }
 
         // ============================================================

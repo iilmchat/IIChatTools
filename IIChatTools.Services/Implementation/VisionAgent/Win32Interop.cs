@@ -48,6 +48,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
         public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
 
+        // Keyboard flags (v1.12.0, KI-131, Ф2.6).
+        /// <summary>Клавиша была нажата (KeyUp), а не опущена (KeyDown).</summary>
+        public const uint KEYEVENTF_KEYUP = 0x0002;
+        /// <summary>Символ передаётся в <c>wScan</c> как Unicode (для не-ASCII ввода).</summary>
+        public const uint KEYEVENTF_UNICODE = 0x0004;
+
         /// <summary>
         /// Отправляет массив событий INPUT в систему (мышь / клавиатура).
         /// Возвращает число успешно обработанных событий (0 при ошибке).

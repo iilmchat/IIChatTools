@@ -18,6 +18,26 @@
 
 ## [Unreleased]
 
+### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф2.6)**: клавиатура через SendInput.
+  - **VisionKeyMapper.cs** (public static): маппинг имён клавиш → VK-коды.
+    Именованные (`Enter`/`Return`, `Escape`/`Esc`, `Delete`/`Del`,
+    `PageUp`/`PgUp`, стрелки, `Home`, `End`, ...) + F1-F12 + A-Z + 0-9.
+    Модификаторы (`Ctrl`/`Control`, `Alt`, `Shift`, `Win`/`Meta`/`Cmd`)
+    с L/R-вариантами. Case-insensitive. `IsModifier`-флаг.
+  - **LocalHarnessVisionBackend:** реализованы:
+    - `TypeAsync` — Unicode через `KEYEVENTF_UNICODE` (кириллица / эмодзи /
+      surrogate pairs). `\n` конвертируется в VK_RETURN (Down+Up).
+    - `PressKeyAsync` — VK-код через `VisionKeyMapper.GetVirtualKey`,
+      Down + Up. `ArgumentException` при неизвестном имени.
+    - `HotkeyAsync` — `["Ctrl", "C"]` → Down(mods) → Down+Up(final) →
+      Up(mods в обратном порядке). Один элемент = обычное нажатие.
+  - **Win32Interop:** +`KEYEVENTF_KEYUP = 0x0002`, +`KEYEVENTF_UNICODE = 0x0004`.
+  - **Тесты:** `VisionKeyMapperTests` (+~18 кейсов: named / letters / F1-F12 /
+    case-insensitive / unknown / null / modifiers / IsModifier).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф2.7 (scroll через
+    `MOUSEEVENTF_WHEEL` + `WaitAsync` — уже готов).
+
 ### Fixed
 - **v1.12.0 (KI-131, Ф2.5-fix)**: `LocalHarnessVisionBackend` — 7 warnings
   CA1416 (Windows-only API: `Bitmap`, `Graphics.FromImage`,
