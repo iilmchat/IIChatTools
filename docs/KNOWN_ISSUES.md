@@ -2587,6 +2587,47 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-134 — Tool-сообщение не сохраняется в БД при отмене SSE
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Обнаружено:** 2026-10-03 (smoke KI-129 Шаг 2 — F5 посреди feedback)
+- **Симптом:** при F5 (или Stop) в момент выполнения tool'а
+  tool-сообщение **терялось** из БД. В истории чата оставался
+  assistant с `tool_calls` без ответа tool'а.
+- **Причина:** `ChatStreamService` вызывал `AddMessageAsync(...,
+  cancellationToken)`. При отмене SSE `cancellationToken` уже
+  отменён → `OperationCanceledException` → сохранение не происходило.
+- **Fix:** сохранение assistant с `tool_calls` и tool-сообщения —
+  с `CancellationToken.None`. Баг влиял на **все** инструменты
+  (не только `code_agent_with_review`). Также убрано условие
+  `toolResult.Success` при записи `debateSessionId` (см. KI-135).
+- **Связанные:** KI-129 (F5 persistence), KI-135.
+
+### KI-135 — Orphaned-сессия Actor-Critic не восстанавливается при F5
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Обнаружено:** 2026-10-03 (smoke KI-129 Шаг 2)
+- **Симптом:** при F5 в момент ожидания feedback (между раундами
+  Actor-Critic) сессия завершалась в БД как `Cancelled`, но блок
+  дебатов в UI **не восстанавливался** после F5.
+- **Причина:** `CodeAgentWithReviewTool` возвращал
+  `Fail("Операция отменена пользователем.")` **без** `Data.sessionId`.
+  ChatStreamService не мог записать `debateSessionId` в tool-сообщение
+  (см. KI-134) → маппинг `toolCallId → sessionId` оставался пуст.
+- **Fix:**
+  - `ToolResult.Fail(message, data)` — новый опциональный параметр.
+  - `CodeAgentWithReviewTool` при отмене возвращает
+    `Data = { sessionId, cancelled = true }`.
+  - `ChatStreamService` пишет `debateSessionId` в `MetadataJson`
+    tool-сообщения (убрано условие `toolResult.Success`).
+  - Фронт (`chat.js`): `isOrphaned`-ветка осталась как **fallback**
+    для действительно «зависших» сессий (например, падение процесса
+    приложения). Сценарий «F5 посреди feedback» теперь корректно
+    отображается как «❌ Отменено» через стандартную `completed`-ветку.
+- **Связанные:** KI-129 (F5 persistence), KI-134.
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -2615,7 +2656,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Fixed (v1.11.0) | 5 |              <!-- KI-126, KI-127, KI-130, KI-132, KI-133 -->
+| Fixed (v1.11.0) | 7 |              <!-- KI-126, KI-127, KI-130, KI-132, KI-133, KI-134, KI-135 -->
 | Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **88** |

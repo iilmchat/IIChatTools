@@ -498,7 +498,16 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     await SafeCompleteAsync(
                         sessionId.Value, "Cancelled", null, CancellationToken.None);
                 }
-                return ToolResult.Fail("Операция отменена пользователем.");
+
+                // v1.11.0 (KI-135): возвращаем sessionId даже в Fail —
+                // ChatStreamService запишет его в MetadataJson tool-сообщения
+                // (KI-134), и UI сможет восстановить блок дебатов при F5
+                // с вердиктом «❌ Отменено».
+                return ToolResult.Fail(
+                    "Операция отменена пользователем.",
+                    data: sessionId.HasValue
+                        ? new { sessionId = sessionId.Value, cancelled = true }
+                        : null);
             }
 
             // 4. Финальный вердикт.

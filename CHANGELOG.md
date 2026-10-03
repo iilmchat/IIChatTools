@@ -18,6 +18,27 @@
 
 ## [Unreleased]
 
+### Fixed
+- **v1.11.0 (KI-134)**: tool-сообщение **не сохранялось** в БД при
+  отмене SSE-стрима (F5 / Stop).
+  **Причина:** `ChatStreamService` вызывал `AddMessageAsync(...,
+  cancellationToken)`. При отмене `cancellationToken` уже отменён →
+  `OperationCanceledException` → tool-сообщение терялось.
+  **Fix:** сохранение assistant с `tool_calls` и tool-сообщения —
+  с `CancellationToken.None`. Иначе теряется вся история tool-call'а
+  (не только для дебатов — для **любого** tool'а).
+  Также убрано условие `toolResult.Success` при записи `debateSessionId`
+  в `MetadataJson` — при отмене tool возвращает `Fail` с `Data.sessionId`.
+
+- **v1.11.0 (KI-135)**: при отмене `code_agent_with_review` (F5 посреди
+  feedback-блока или Stop) сессия завершалась как `Cancelled` в БД, но
+  UI-блок не восстанавливался при F5.
+  **Причина:** `CodeAgentWithReviewTool` возвращал
+  `Fail("Операция отменена")` **без** `Data.sessionId` → маппинг
+  `toolCallId → sessionId` пуст.
+  **Fix:** возвращать `Data = { sessionId, cancelled = true }` даже в `Fail`.
+  После F5 блок дебатов восстанавливается с вердиктом «❌ Отменено».
+
 ### Added
 - **v1.11.0 (KI-129, Шаг 2 — frontend)**: восстановление блоков
   Actor-Critic при перезагрузке страницы (F5).

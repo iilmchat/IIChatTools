@@ -576,6 +576,10 @@ namespace IIChatTools.Services.Implementation
                 ChatMessage assistantWithTools = null;
                 try
                 {
+                    // v1.11.0 (KI-134): сохраняем assistant-сообщение с tool_calls
+                    // с CancellationToken.None — при отмене SSE (F5/Stop) история
+                    // должна сохраниться, иначе tool-сообщение ниже потеряет
+                    // «родителя» и F5-восстановление сломается.
                     assistantWithTools = await _chatService.AddMessageAsync(
                         request.ChatId, userId,
                         new ChatMessage
@@ -584,7 +588,7 @@ namespace IIChatTools.Services.Implementation
                             Content = partialContent,
                             ToolCallsJson = toolCallsJson
                         },
-                        cancellationToken);
+                        CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
@@ -746,11 +750,14 @@ namespace IIChatTools.Services.Implementation
                     // Данные приходят в ToolResult.Data.sessionId (возвращается
                     // CodeAgentWithReviewTool при успехе).
                     string toolMetadataJson = null;
+                    // v1.11.0 (KI-134): убрано условие toolResult.Success —
+                    // при отмене (KI-135) CodeAgentWithReviewTool возвращает
+                    // Fail с Data.sessionId, и мы должны записать этот sessionId,
+                    // чтобы F5-восстановление показало блок с бейджем «Отменено».
                     if (string.Equals(
                             functionName,
                             CodeAgentWithReviewToolName,
                             StringComparison.Ordinal)
-                        && toolResult.Success
                         && toolResult.Data != null)
                     {
                         try
@@ -780,6 +787,12 @@ namespace IIChatTools.Services.Implementation
                     // Сохраняем tool message в БД
                     try
                     {
+                        // v1.11.0 (KI-134): сохраняем tool-сообщение с
+                        // CancellationToken.None. При отмене SSE (F5/Stop)
+                        // CancellationToken уже отменён — иначе AddMessageAsync
+                        // бросит OperationCanceledException, и вся история
+                        // tool-call'а потеряется. Fix также нужен для F5-восстановления
+                        // блоков дебатов (см. KI-129 Шаг 2).
                         await _chatService.AddMessageAsync(
                             request.ChatId, userId,
                             new ChatMessage
@@ -796,7 +809,7 @@ namespace IIChatTools.Services.Implementation
                                 // v1.11.0 (KI-129): debateSessionId для F5.
                                 MetadataJson = toolMetadataJson
                             },
-                            cancellationToken);
+                            CancellationToken.None);
                     }
                     catch (Exception ex)
                     {

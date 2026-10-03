@@ -2183,6 +2183,11 @@ function renderDebateContainerInner(sessionId) {
     // v1.11.0 (KI-129): orphaned — сессия восстановлена из БД (F5) в статусе
     // InProgress / Pending без completed. Серверный координатор уже мёртв,
     // feedback-UI показывать нельзя (POST /inject вернёт false).
+    //
+    // v1.11.0 (KI-134/KI-135): сценарий «F5 посреди feedback» теперь приводит
+    // сессию в статус "Cancelled" (backend корректно сохраняет tool-сообщение
+    // и завершает сессию). Поэтому эта ветка становится fallback'ом для
+    // действительно «зависших» сессий (например, упал процесс приложения).
     const isOrphaned = !entry.completed
         && started.status
         && (started.status === 'InProgress' || started.status === 'Pending');

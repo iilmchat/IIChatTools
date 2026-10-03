@@ -50,11 +50,17 @@ namespace IIChatTools.Services.DTO
             };
 
         /// <summary>
-        /// Создаёт результат-ошибку.
+        /// Результат с ошибкой. Опциональный <paramref name="data"/>
+        /// используется для передачи метаданных даже при неудаче
+        /// (v1.11.0, KI-134: sessionId debate-сессии при отмене).
         /// </summary>
-        /// <param name="message">Сообщение об ошибке</param>
-        /// <returns>Результат-ошибка</returns>
-        public static ToolResult Fail(string message)
+        /// <param name="message">Сообщение об ошибке.</param>
+        /// <param name="data">
+        /// Опциональные метаданные, доступные клиенту даже при неудаче
+        /// (например, <c>sessionId</c> для <c>code_agent_with_review</c>
+        /// при отмене). По умолчанию <c>null</c>.
+        /// </param>
+        public static ToolResult Fail(string message, object data = null)
             => new ToolResult { Success = false, Message = message };
     }
 }
