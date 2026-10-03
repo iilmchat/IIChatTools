@@ -124,5 +124,26 @@ namespace IIChatTools.Services.Implementation.Debate
                 sessionId);
             return Task.FromResult(false);
         }
+
+        /// <inheritdoc />
+        public Task<bool> SkipFeedbackAsync(int sessionId)
+        {
+            // v1.11.0 (KI-133): null = сигнал skip. WaitForFeedbackAsync
+            // вернёт null — CodeAgentWithReviewTool расценит это как
+            // «продолжить с feedback критика», без ожидания 5 минут.
+            if (_waiters.TryRemove(sessionId, out var tcs))
+            {
+                var ok = tcs.TrySetResult(null);
+                _logger.LogInformation(
+                    "SkipFeedback sessionId={SessionId} → успех={Ok}",
+                    sessionId, ok);
+                return Task.FromResult(ok);
+            }
+
+            _logger.LogWarning(
+                "SkipFeedback sessionId={SessionId} → нет ожидающего",
+                sessionId);
+            return Task.FromResult(false);
+        }
     }
 }

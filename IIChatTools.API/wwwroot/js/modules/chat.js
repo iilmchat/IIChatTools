@@ -2446,14 +2446,29 @@ async function submitFeedback(sessionId) {
 }
 
 /**
- * Пропускает feedback: локально помечает, ничего не отправляет.
- * Сервер сам разблокируется через timeout (5 мин) и продолжит с feedback критика.
+ * v1.11.0 (KI-133): пропускает feedback — POST /api/chat/debate/{id}/skip.
+ * Сервер немедленно разблокирует раунд и продолжит с feedback критика,
+ * не дожидаясь таймаута 5 минут.
  * @param {number} sessionId
  */
-function skipFeedback(sessionId) {
+async function skipFeedback(sessionId) {
     const draft = state.feedbackDrafts[sessionId];
     if (!draft || draft.status !== 'pending') return;
-    draft.status = 'skipped';
+
+    // Показываем индикатор «отправка», как и при submitFeedback.
+    draft.status = 'sending';
+    refreshFeedbackBlock(sessionId);
+
+    try {
+        const res = await apiPost(`/api/chat/debate/${sessionId}/skip`, {});
+        // Успех или «уже неактуально» — в обоих случаях блок можно скрыть.
+        draft.status = 'skipped';
+    } catch (ex) {
+        console.warn('[chat] Ошибка skip feedback:', ex);
+        // Сеть отвалилась — оставляем локальный skipped, чтобы не висело.
+        draft.status = 'skipped';
+    }
+
     refreshFeedbackBlock(sessionId);
 }
 

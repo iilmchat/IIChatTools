@@ -84,7 +84,10 @@ namespace IIChatTools.Tests.UnitTests.Debate
             Mock<IAgentDebateCoordinator> coordinatorMock = null,
             Mock<IExternalLlmClient> externalLlmMock = null,
             Mock<IExternalProviderRegistry> externalProviderRegistryMock = null,
-            IConfiguration config = null)
+            IConfiguration config = null,
+            // v1.11.0 (KI-132): rounds[] убран из ToolResult.Data —
+            // перехватываем раунды через callback AddRoundAsync.
+            Action<AgentDebateRoundDto> onRoundAdded = null)
         {
             sessionMock ??= new Mock<IAgentDebateSessionService>();
             sessionMock.Setup(s => s.StartAsync(
@@ -97,6 +100,8 @@ namespace IIChatTools.Tests.UnitTests.Debate
             sessionMock.Setup(s => s.AddRoundAsync(
                     It.IsAny<int>(), It.IsAny<AgentDebateRoundDto>(),
                     It.IsAny<CancellationToken>()))
+                .Callback<int, AgentDebateRoundDto, CancellationToken>(
+                    (_, round, _) => onRoundAdded?.Invoke(round))
                 .ReturnsAsync(true);
             sessionMock.Setup(s => s.CompleteAsync(
                     It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
@@ -516,10 +521,14 @@ namespace IIChatTools.Tests.UnitTests.Debate
                     DurationMs = 500
                 });
 
+            // v1.11.0 (KI-132): rounds[] убран из ToolResult.Data —
+            // перехватываем раунды через callback AddRoundAsync.
+            var capturedRounds = new List<AgentDebateRoundDto>();
             var tool = CreateTool(
                 registry,
                 externalLlmMock: externalMock,
-                externalProviderRegistryMock: RegistryWithDeepSeek());
+                externalProviderRegistryMock: RegistryWithDeepSeek(),
+                onRoundAdded: r => capturedRounds.Add(r));
 
             var result = await tool.ExecuteAsync(
                 CtxWithChat(), new JObject { ["task"] = "Палиндром" });
@@ -538,11 +547,10 @@ namespace IIChatTools.Tests.UnitTests.Debate
             var criticCalls = registry.CalledTools.Where(t => t == "code_reviewer_agent").Count();
             Assert.Equal(2, criticCalls);
 
-            // round в ответе: был Escalated.
-            var rounds = data["rounds"] as JArray;
-            Assert.NotNull(rounds);
-            Assert.Single(rounds);
-            Assert.True(rounds[0]["wasEscalated"]?.Value<bool>());
+            // v1.11.0 (KI-132): раунд был эскалирован.
+            Assert.Single(capturedRounds);
+            Assert.True(capturedRounds[0].WasEscalated);
+            Assert.Equal("deepseek", capturedRounds[0].EscalationProvider);
         }
 
         [Fact]
@@ -606,10 +614,13 @@ namespace IIChatTools.Tests.UnitTests.Debate
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("Daily budget exceeded"));
 
+            // v1.11.0 (KI-132): rounds[] убран из ToolResult.Data.
+            var capturedRounds = new List<AgentDebateRoundDto>();
             var tool = CreateTool(
                 registry,
                 externalLlmMock: externalMock,
-                externalProviderRegistryMock: RegistryWithDeepSeek());
+                externalProviderRegistryMock: RegistryWithDeepSeek(),
+                onRoundAdded: r => capturedRounds.Add(r));
 
             var result = await tool.ExecuteAsync(
                 CtxWithChat(), new JObject { ["task"] = "Test" });
@@ -622,9 +633,9 @@ namespace IIChatTools.Tests.UnitTests.Debate
             var criticCalls = registry.CalledTools.Where(t => t == "code_reviewer_agent").Count();
             Assert.Equal(1, criticCalls);
 
-            // round.wasEscalated == false (эскалация не удалась).
-            var rounds = data["rounds"] as JArray;
-            Assert.False(rounds[0]["wasEscalated"]?.Value<bool>());
+            // v1.11.0 (KI-132): раунд был, но без эскалации.
+            Assert.Single(capturedRounds);
+            Assert.False(capturedRounds[0].WasEscalated);
         }
 
         [Fact]
@@ -724,19 +735,19 @@ namespace IIChatTools.Tests.UnitTests.Debate
                 AgentOk("{\"verdict\":\"Approved\",\"issues\":[],\"summary\":\"OK\"}")
             });
 
-            var tool = CreateTool(registry);
+            // v1.11.0 (KI-132): rounds[] убран из ToolResult.Data.
+            var capturedRounds = new List<AgentDebateRoundDto>();
+            var tool = CreateTool(registry, onRoundAdded: r => capturedRounds.Add(r));
             var result = await tool.ExecuteAsync(
                 CtxWithChat(), new JObject { ["task"] = "Задача" });
 
             Assert.True(result.Success);
-            var data = JObject.FromObject(result.Data);
-            var rounds = data["rounds"] as JArray;
-            Assert.NotNull(rounds);
-            Assert.Equal(3, rounds.Count);
 
-            Assert.Equal(1, rounds[0]["roundNumber"]?.Value<int>());
-            Assert.Equal(2, rounds[1]["roundNumber"]?.Value<int>());
-            Assert.Equal(3, rounds[2]["roundNumber"]?.Value<int>());
+            // v1.11.0 (KI-132): проверяем через callback (rounds[] больше не в Data).
+            Assert.Equal(3, capturedRounds.Count);
+            Assert.Equal(1, capturedRounds[0].RoundNumber);
+            Assert.Equal(2, capturedRounds[1].RoundNumber);
+            Assert.Equal(3, capturedRounds[2].RoundNumber);
         }
 
         [Fact]

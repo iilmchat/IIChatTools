@@ -48,5 +48,22 @@ namespace IIChatTools.Services.Interfaces
         /// <c>false</c>, если ожидающего нет (таймаут / неверный sessionId).
         /// </returns>
         Task<bool> ProvideFeedbackAsync(int sessionId, string feedback);
+
+        /// <summary>
+        /// v1.11.0 (KI-133): сигнализирует «пропустить feedback» —
+        /// сервер немедленно продолжит раунд с feedback критика,
+        /// не дожидаясь таймаута 5 минут.
+        ///
+        /// <para>
+        /// Используется когда пользователь нажимает «Пропустить» в
+        /// inline-блоке feedback между раундами Actor-Critic.
+        /// </para>
+        /// </summary>
+        /// <param name="sessionId">Идентификатор сессии.</param>
+        /// <returns>
+        /// <c>true</c>, если ожидающий найден и разбужен сигналом skip;
+        /// <c>false</c>, если ожидающего нет (сессия уже завершена / timeout).
+        /// </returns>
+        Task<bool> SkipFeedbackAsync(int sessionId);
     }
 }

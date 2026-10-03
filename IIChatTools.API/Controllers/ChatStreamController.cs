@@ -28,6 +28,7 @@ namespace IIChatTools.API.Controllers
         private readonly IChatService _chatService;
         private readonly IChatApprovalCoordinator _approvalCoordinator;
         private readonly IAgentDebateSessionService _debateSessionService;
+        private readonly IAgentDebateCoordinator _debateCoordinator;
         private readonly IAuditService _auditService;
         private readonly ILogger<ChatStreamController> _logger;
 
@@ -40,6 +41,9 @@ namespace IIChatTools.API.Controllers
         /// <param name="debateSessionService">
         /// Сервис управления сессиями Actor-Critic (v1.11.0, KI-126, Шаг 1E-part2).
         /// </param>
+        /// <param name="debateCoordinator">
+        /// Координатор Human-in-the-loop для Actor-Critic (v1.11.0, KI-133).
+        /// </param>
         /// <param name="auditService">Сервис аудита (для записи Stop)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
@@ -48,6 +52,7 @@ namespace IIChatTools.API.Controllers
             IChatService chatService,
             IChatApprovalCoordinator approvalCoordinator,
             IAgentDebateSessionService debateSessionService,
+            IAgentDebateCoordinator debateCoordinator,
             IAuditService auditService,
             ILogger<ChatStreamController> logger)
         {
@@ -55,6 +60,7 @@ namespace IIChatTools.API.Controllers
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _approvalCoordinator = approvalCoordinator ?? throw new ArgumentNullException(nameof(approvalCoordinator));
             _debateSessionService = debateSessionService ?? throw new ArgumentNullException(nameof(debateSessionService));
+            _debateCoordinator = debateCoordinator ?? throw new ArgumentNullException(nameof(debateCoordinator));
             _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -398,6 +404,60 @@ namespace IIChatTools.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка inject debate feedback sessionId={SessionId}", sessionId);
+                return Ok(new { success = false, message = "Внутренняя ошибка сервера." });
+            }
+        }
+
+        /// <summary>
+        /// v1.11.0 (KI-133): пропустить feedback между раундами Actor-Critic —
+        /// сервер немедленно продолжит с feedback критика, не дожидаясь таймаута.
+        ///
+        /// <para>
+        /// Используется, когда пользователь нажимает «Пропустить» в inline-блоке
+        /// feedback после события <c>debate_round</c> с <c>criticVerdict = "Rejected"</c>.
+        /// </para>
+        /// </summary>
+        /// <param name="sessionId">Идентификатор debate-сессии.</param>
+        /// <returns>JSON { success, data: { skipped } } или { success: false, message }.</returns>
+        [HttpPost("debate/{sessionId:int}/skip")]
+        public async Task<IActionResult> SkipDebateFeedbackAsync(int sessionId)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                _logger.LogInformation(
+                    "Debate skip: sessionId={SessionId}, userId={UserId}",
+                    sessionId, userId);
+
+                // Проверка владения через сервис — сам координатор не хранит user.
+                var status = await _debateSessionService.GetStatusAsync(sessionId, userId);
+                if (status == null)
+                {
+                    return Ok(new { success = false, message = "Сессия не найдена." });
+                }
+
+                var ok = await _debateCoordinator.SkipFeedbackAsync(sessionId);
+                if (!ok)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "Сессия не ожидает feedback " +
+                                  "(уже завершена или таймаут истёк)."
+                    });
+                }
+
+                return Ok(new { success = true, data = new { skipped = true } });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Ошибка skip debate feedback sessionId={SessionId}", sessionId);
                 return Ok(new { success = false, message = "Внутренняя ошибка сервера." });
             }
         }

@@ -18,6 +18,26 @@
 
 ## [Unreleased]
 
+### Fixed
+- **v1.11.0 (KI-132)**: `code_agent_with_review` возвращал раздутый
+  `ToolResult.Data` с полным `rounds[]` (каждый `actorOutput` — код
+  на ~1500-2500 токенов). При 2-3 раундах tool_result раздувался до
+  ~5000+ токенов → на следующей итерации Chat LLM контекст превышал
+  8192 (или 16384) → LM Studio возвращал 400.
+  **Fix:** убрано поле `rounds[]` из `ToolResult.Data`. История раундов
+  остаётся доступной через SSE-событие `debate_round` (live) и
+  `GET /api/chats/{id}` → `DebateSessions[].Rounds` (F5).
+  `finalArtifact` (одобренный код) — сохраняется.
+
+- **v1.11.0 (KI-133)**: кнопка «Пропустить» в feedback-блоке между
+  раундами Actor-Critic не разблокировала сервер — только скрывала
+  UI-блок. `AgentDebateCoordinator.WaitForFeedbackAsync` продолжал
+  ждать 5 минут (FeedbackTimeout), затем возвращал null.
+  **Fix:** новый метод `IAgentDebateCoordinator.SkipFeedbackAsync`
+  (Singleton-координатор резолвит TCS значением `null` — сигнал skip).
+  Новый endpoint `POST /api/chat/debate/{sessionId}/skip`.
+  `chat.js:skipFeedback` — теперь вызывает сервер.
+
 ### Added
 - **v1.11.0 (KI-129, Шаг 1 — backend)**: подготовка к восстановлению
   блоков Actor-Critic при F5.

@@ -2555,6 +2555,38 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-132 — Chat LLM context overflow из-за раздутого tool_result от code_agent_with_review
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Обнаружено:** 2026-10-03 (smoke Actor-Critic, chatId=2)
+- **Симптом:** после одобрения критиком `code_agent_with_review` возвращал
+  `ToolResult.Data` с полем `rounds[]`, содержащим полные `actorOutput`
+  каждого раунда (код на ~1500-2500 токенов). При 2-3 раундах tool_result
+  раздувался до ~5000+ токенов, и на следующей итерации Chat LLM
+  контекст превышал 8192 (или даже 16384) → LM Studio 400:
+  `request (8376 tokens) exceeds the available context size (8192 tokens)`.
+- **Fix:** убрано поле `rounds[]` из `ToolResult.Data`.
+  `finalArtifact` (последний approved-код) — сохраняется.
+  История раундов доступна через SSE-событие `debate_round` (live) и
+  `GET /api/chats/{id}` → `DebateSessions[].Rounds` (F5).
+- **Связанные:** KI-126 (Actor-Critic), KI-117 (требование 16384 в LM Studio).
+
+### KI-133 — Skip feedback не разблокирует сервер
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Обнаружено:** 2026-10-03 (smoke Actor-Critic, chatId=3)
+- **Симптом:** в inline-блоке feedback между раундами кнопка
+  «Пропустить» только скрывала UI-блок; сервер продолжал ждать
+  5 минут (`FeedbackTimeout`), затем возвращал null.
+  Пользователь ждал ~5 минут до следующего раунда.
+- **Fix:** новый метод `IAgentDebateCoordinator.SkipFeedbackAsync`
+  (резолвит TCS значением `null`). Новый endpoint
+  `POST /api/chat/debate/{sessionId}/skip`. `chat.js:skipFeedback`
+  теперь вызывает сервер.
+- **Связанные:** KI-126 (Actor-Critic, Human-in-the-loop).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -2583,7 +2615,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Fixed (v1.11.0) | 3 |              <!-- KI-126 (Actor-Critic), KI-127 (выбор review), KI-130 (вложения чата) -->
+| Fixed (v1.11.0) | 5 |              <!-- KI-126, KI-127, KI-130, KI-132, KI-133 -->
 | Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **88** |

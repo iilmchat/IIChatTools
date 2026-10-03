@@ -506,6 +506,13 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 ? "Approved"
                 : (rounds.Count >= maxRounds ? "MaxRoundsReached" : lastVerdict);
 
+            // v1.11.0 (KI-132): не возвращаем rounds[] — каждый actorOutput
+            // содержит полный код (~1500-2500 токенов), и при 2-3 раундах
+            // tool_result раздувается до ~5000+ токенов. На следующей итерации
+            // Chat LLM этот JSON попадает в контекст → превышение 8192/16384.
+            // История раундов доступна через:
+            //   - SSE-событие debate_round (live);
+            //   - GET /api/chats/{id} → DebateSessions[].Rounds (F5).
             var resultData = new
             {
                 verdict = finalVerdict,
@@ -513,14 +520,6 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 maxRounds = maxRounds,
                 finalArtifact = lastActorOutput,
                 sessionId = sessionId,
-                rounds = rounds.Select(r => new
-                {
-                    roundNumber = r.RoundNumber,
-                    actorOutput = r.ActorOutput,
-                    criticVerdict = r.CriticVerdict,
-                    criticFeedback = r.CriticFeedbackJson,
-                    wasEscalated = r.WasEscalated
-                }).ToList(),
                 durationMs = sw.ElapsedMilliseconds
             };
 
