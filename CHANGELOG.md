@@ -30,6 +30,29 @@
   → Скрипт скачивания + smoke. Фаза 4 (опционально): hotkey, VAD,
   streaming, GPU. **KI-140** → Planned (v1.13.0). Сводка: 92 → 93 KI.
 
+### Added
+- **Speech Recognition — Whisper.net (KI-140, Ф1–Ф3.6)**: офлайн-распознавание
+  речи в Chat UI. Кнопка 🎤 в `.chat-input-box` (слева от 📎) → MediaRecorder →
+  WAV 16 kHz mono (Web Audio API + `OfflineAudioContext`) → `POST /api/speech/transcribe`
+  → Whisper.net (Singleton, ленивая загрузка модели `ggml-base.bin` ~142 MB).
+  - **Ф1** (`cc02339`): backend — `ISpeechRecognitionService` +
+    `WhisperNetTranscriptionService` + `SpeechController` + DI + 2 config-файла.
+  - **Ф2** (`ecc2628`): frontend — `speech.js` + кнопка 🎤 + CSS (idle/recording/
+    transcribing/error) + 7 ключей `.resx` (RU+EN).
+  - **Ф3** (`ca6da86`): скрипт `scripts/setup/download-whisper-model.ps1`
+    (tiny|base|small|medium|large-v3) + `.gitignore`.
+  - **Ф3.5** (`8867c96`): fix `[BLANK_AUDIO]` — фильтр 20+ служебных маркеров
+    Whisper + `NoSpeechThreshold=0.8` + `TryReadWavDurationMs()` (парсинг
+    WAV-заголовка — закрывает техдолг § 11.3 DESIGN).
+  - **Ф3.6** (`<текущий>`): `SpeechControllerTests` (8 unit-тестов:
+    Disabled / NullFile / ZeroLength / TooLarge / Valid / EmptyResult /
+    ModelNotFound / Cancelled). Тесты: 658 → **666**.
+  - **Приватность:** аудио не покидает сервер, работает в РФ без VPN.
+  - **Docs-only доработки:** DESIGN_SPEECH_RECOGNITION.md v1.13.0 (7 правок
+    после ревью — OfflineAudioContext, auto-stop 60 сек, RequestSizeLimit 20 MB,
+    Language auto/ru, VAD priority).
+  - **KI-140** → Planned (v1.13.0). Сводка: 92 → 93 KI.
+
 ### Changed
 - **DESIGN v1.13 (KI-140) — уточнения после ревью (2026-10-03)**:
   - **Ресемплинг WAV** — `OfflineAudioContext` вместо `AudioContext({sampleRate:16000})`
@@ -46,6 +69,13 @@
     7 решений + 4 отложенных + 3 пункта технического долга.
 
 ### Fixed
+- **v1.13.0 (KI-140, Ф3.5)**: `[BLANK_AUDIO]` — Whisper на тишине/шуме
+  выдавал служебные маркеры как текст. Фильтр 20+ маркеров
+  (`[BLANK_AUDIO]`, `[MUSIC]`, `[SOUND]`, …) + `NoSpeechThreshold = 0.8`
+  (было whisper.cpp default 0.6) + `TryReadWavDurationMs()` (парсинг
+  WAV-заголовка; `MinAudioDurationMs = 300` — ранний выход на коротких
+  записях). Закрывает техдолг § 11.3 DESIGN.
+
 - **v1.11.0 (KI-136)**: tool-сообщение **не сохранялось** в БД
   при отмене SSE (F5 / Stop) — фактический root cause, не покрытый
   KI-134/135.
