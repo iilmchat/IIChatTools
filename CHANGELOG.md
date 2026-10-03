@@ -19,6 +19,22 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф2.7)**: прокрутка колеса мыши.
+  - **VisionScrollHelper.cs** (public static): `Clamp(deltaY, maxAbs)` +
+    `ToWheelMouseData(deltaY)` (инверсия знака — Win32 семантика
+    `MOUSEEVENTF_WHEEL` обратна user-facing deltaY). Единицы — в
+    `WHEEL_DELTA` (120 = один щелчок). Отдельно для тестов.
+  - **LocalHarnessVisionBackend:** реализован `ScrollAsync` — clamp к
+    `ActionValidation.MaxScrollDelta` (defense in depth), конвертация знака,
+    `SendInput` с `MOUSEEVENTF_WHEEL`. `deltaY = 0` → no-op.
+  - **Win32Interop:** +`MOUSEEVENTF_WHEEL = 0x0800`, +`WHEEL_DELTA = 120`.
+  - **Тесты:** `VisionScrollHelperTests` (+~12 кейсов: clamp границ / fallback
+    к 1 / инверсия знака / инволюция).
+  - **🎉 `IVisionBackend` полностью реализован в `LocalHarnessVisionBackend`**
+    (11 методов + DisposeAsync). Остались downscale (Ф2.8) и whitelist
+    процессов (Ф2.9).
+  - **KI-131** — In Progress (v1.12.0).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф2.6)**: клавиатура через SendInput.
   - **VisionKeyMapper.cs** (public static): маппинг имён клавиш → VK-коды.
     Именованные (`Enter`/`Return`, `Escape`/`Esc`, `Delete`/`Del`,

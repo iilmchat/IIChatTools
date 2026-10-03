@@ -436,6 +436,46 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             SendInputBatch(new[] { down, up });
         }
 
+        /// <summary>
+        /// Отправляет прокрутку колеса мыши (<c>MOUSEEVENTF_WHEEL</c>).
+        /// v1.12.0 (KI-131, Ф2.7).
+        /// </summary>
+        /// <param name="deltaY">Желаемое значение (+ = вниз, − = вверх), в единицах WHEEL_DELTA.</param>
+        private void SendMouseWheel(int deltaY)
+        {
+            // Defense in depth: основной clamp — в IVisionActionValidator (Ф5),
+            // но и backend не даёт отправить абсурдно большие значения.
+            var maxAbs = _options.ActionValidation?.MaxScrollDelta ?? 2000;
+            var clamped = VisionScrollHelper.Clamp(deltaY, maxAbs);
+            if (clamped == 0) return;
+
+            // Win32 mouseData в WHEEL: положительный = scroll up (content down),
+            // отрицательный = scroll down. User-facing deltaY: + = scroll down.
+            // ToWheelMouseData инвертирует знак.
+            var mouseData = VisionScrollHelper.ToWheelMouseData(clamped);
+
+            var inputs = new[]
+            {
+                new Win32Interop.INPUT
+                {
+                    type = Win32Interop.INPUT_MOUSE,
+                    U = new Win32Interop.InputUnion
+                    {
+                        mi = new Win32Interop.MOUSEINPUT
+                        {
+                            dx = 0,
+                            dy = 0,
+                            mouseData = unchecked((uint)mouseData),
+                            dwFlags = Win32Interop.MOUSEEVENTF_WHEEL,
+                            time = 0,
+                            dwExtraInfo = IntPtr.Zero
+                        }
+                    }
+                }
+            };
+            SendInputBatch(inputs);
+        }
+
         // ============================================================
         // IVisionBackend — mouse (Ф2.5)
         // ============================================================
@@ -609,13 +649,16 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
         /// <inheritdoc />
         /// <remarks>
-        /// v1.12.0 (KI-131, Ф2.7): <c>SendInput</c> с
-        /// <c>MOUSEEVENTF_WHEEL</c> (deltaY &gt; 0 — вниз / &lt; 0 — вверх).
+        /// v1.12.0 (KI-131, Ф2.7): <c>SendInput</c> с <c>MOUSEEVENTF_WHEEL</c>.
+        /// deltaY в единицах <see cref="Win32Interop.WHEEL_DELTA"/> (120 = один щелчок).
+        /// Значение clamp'ится к <c>[-MaxScrollDelta, MaxScrollDelta]</c>
+        /// (defense in depth; основной валидатор — Ф5, IVisionActionValidator).
         /// </remarks>
         public Task ScrollAsync(int deltaY, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException(
-                "LocalHarnessVisionBackend.ScrollAsync — реализация в Ф2.7 (DESIGN § 7.2).");
+            cancellationToken.ThrowIfCancellationRequested();
+            SendMouseWheel(deltaY);
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc />

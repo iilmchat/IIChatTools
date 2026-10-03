@@ -48,6 +48,15 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
         public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
 
+        /// <summary>Прокрутка колеса мыши (v1.12.0, KI-131, Ф2.7).</summary>
+        public const uint MOUSEEVENTF_WHEEL = 0x0800;
+
+        /// <summary>
+        /// Один «щелчок» колеса в Win32. mouseData в MOUSEEVENTF_WHEEL
+        /// должен быть кратен этой величине. v1.12.0 (KI-131, Ф2.7).
+        /// </summary>
+        public const int WHEEL_DELTA = 120;
+
         // Keyboard flags (v1.12.0, KI-131, Ф2.6).
         /// <summary>Клавиша была нажата (KeyUp), а не опущена (KeyDown).</summary>
         public const uint KEYEVENTF_KEYUP = 0x0002;
