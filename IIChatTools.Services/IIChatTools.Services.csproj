@@ -60,6 +60,11 @@
          Явная версия 10.0.0 перебивает транзитивную (прецедент KI-022). -->
     <PackageReference Include="System.IO.Packaging" Version="$(SystemIOPackagingVersion)" />
     <PackageReference Include="MailKit" Version="$(MailKitVersion)" />
+
+    <!-- v1.13.0 (KI-140): Whisper.net — офлайн-распознавание речи.
+         Whisper.net — managed API + Whisper.net.Runtime — native libs (CPU). -->
+    <PackageReference Include="Whisper.net" Version="$(WhisperNetVersion)" />
+    <PackageReference Include="Whisper.net.Runtime" Version="$(WhisperNetVersion)" />    
   </ItemGroup>
 
 </Project>

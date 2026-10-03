@@ -74,6 +74,11 @@
          - GHSA-g7hc-96xr-gvvx (MimeKit, CRLF injection) — fixed 4.15.1.
          MimeKit подтягивается транзитивно на ту же версию. -->
     <MailKitVersion>4.18.1</MailKitVersion>
+
+    <!-- v1.13.0 (KI-140): Whisper.net — офлайн-распознавание речи.
+         Whisper.net — managed API (MIT). Whisper.net.Runtime — native whisper.cpp.
+         Оба пакета — одной версии. См. DESIGN_SPEECH_RECOGNITION.md § 3.1. -->
+    <WhisperNetVersion>1.8.1</WhisperNetVersion>
   </PropertyGroup>
 
 </Project>

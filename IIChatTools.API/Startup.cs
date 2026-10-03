@@ -13,6 +13,7 @@ using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): Sq
 using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.DTO.ExternalLlm;               // v1.8.1 (KI-109): External-LLM
 using IIChatTools.Services.DTO.Cache;                     // v1.8.2: ToolResultCacheOptions
+using IIChatTools.Services.DTO.Speech;
 using IIChatTools.Services.Implementation.ExternalLlm;    // v1.8.1 (KI-109): ExternalLlmClient и т.д.
 using IIChatTools.Services.Implementation.Cache;          // v1.8.2: ToolResultCache
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
@@ -22,6 +23,7 @@ using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
 using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
+using IIChatTools.Services.Implementation.Speech;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.Implementation.Mail;           // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.Implementation.Tools.Mail;     // v1.8.0 (KI-107): Mail tools
@@ -487,6 +489,15 @@ namespace IIChatTools.API
             // AttachmentService — Scoped (зависит от IWorkspaceResolver).
             services.AddSingleton<IMailRateLimiter, InMemoryMailRateLimiter>();
             services.AddScoped<IMailAttachmentService, MailAttachmentService>();
+
+            // ============ Speech Recognition (v1.13.0, KI-140) ============
+            // Офлайн-распознавание речи через Whisper.net (whisper.cpp bindings).
+            // Singleton — модель (~142 MB) загружается лениво при первом запросе,
+            // кэшируется на всё время жизни приложения.
+            // Переиспользует IAppPathProvider (v1.7.0, KI-100) для резолва ModelPath.
+            // См. DESIGN_SPEECH_RECOGNITION.md § 3.6.
+            services.Configure<SpeechOptions>(Configuration.GetSection("Speech"));
+            services.AddSingleton<ISpeechRecognitionService, WhisperNetTranscriptionService>();
 
             // ============ External-LLM Agent (v1.8.1, KI-109, Фаза 2.6) ============
             // Baseline-конфиг из appsettings:ExternalLlm. API-ключи — только через
