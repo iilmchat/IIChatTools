@@ -725,35 +725,16 @@ namespace IIChatTools.Services.Implementation
                         toolResult = holder.Result;
                     }
 
-                    // SSE-событие: tool_result
-                    // v1.6.0 (KI-086): проброс sources — UI покажет «Источники»
-                    // под ответом ассистента (Шаг 4) без F5.
-                    yield return ChatStreamEvent.ToolResult(new ChatToolResultDto
-                    {
-                        Id = callId,
-                        Name = functionName,
-                        Success = toolResult.Success,
-                        Content = toolResult.Data,
-                        Message = toolResult.Message,
-                        Sources = toolResult.Sources
-                    });
-
                     // v1.6.0 (KI-086): собрать sources от инструмента (RAG-tools).
-                    // Дедупликация — в AddSourcesToAccumulator.
                     AddSourcesToAccumulator(accumulatedSources, seenSourceKeys, toolResult.Sources);
 
                     // v1.11.0 (KI-129): для code_agent_with_review сохраняем
-                    // sessionId в MetadataJson tool-сообщения. Это позволит
-                    // ChatController при F5 связать toolCallId → debate-сессия
-                    // и восстановить блок дебатов в UI.
-                    //
-                    // Данные приходят в ToolResult.Data.sessionId (возвращается
-                    // CodeAgentWithReviewTool при успехе).
-                    string toolMetadataJson = null;
+                    // sessionId в MetadataJson tool-сообщения — UI восстановит
+                    // блок дебатов при F5.
                     // v1.11.0 (KI-134): убрано условие toolResult.Success —
                     // при отмене (KI-135) CodeAgentWithReviewTool возвращает
-                    // Fail с Data.sessionId, и мы должны записать этот sessionId,
-                    // чтобы F5-восстановление показало блок с бейджем «Отменено».
+                    // Fail с Data.sessionId, и мы должны записать этот sessionId.
+                    string toolMetadataJson = null;
                     if (string.Equals(
                             functionName,
                             CodeAgentWithReviewToolName,
@@ -775,8 +756,6 @@ namespace IIChatTools.Services.Implementation
                         }
                         catch (Exception metaEx)
                         {
-                            // Не критично — при F5 блок дебатов не восстановится,
-                            // но сам tool-result сохранится.
                             _logger.LogWarning(metaEx,
                                 "Не удалось извлечь sessionId из tool_result " +
                                 "code_agent_with_review (callId={CallId})",
@@ -784,15 +763,22 @@ namespace IIChatTools.Services.Implementation
                         }
                     }
 
-                    // Сохраняем tool message в БД
+                    // v1.11.0 (KI-136): сохраняем tool message ДО yield ToolResult.
+                    //
+                    // Причина: при отмене SSE (F5/Stop) следующая строка
+                    // `yield return ChatStreamEvent.ToolResult(...)` вернёт
+                    // управление в ChatStreamController, который попытается
+                    // записать событие в закрытый Response → OperationCanceledException
+                    // → `IAsyncEnumerable` из StreamAsync будет disposed, и код
+                    // после yield **никогда не выполнится**. Tool-сообщение
+                    // потеряется полностью (не только debateSessionId).
+                    //
+                    // Сохранение до yield гарантирует, что вся ключевая БД-запись
+                    // выполнена вне зависимости от состояния SSE-соединения.
+                    // Используем CancellationToken.None — при F5/Stop
+                    // cancellationToken уже отменён (KI-134).
                     try
                     {
-                        // v1.11.0 (KI-134): сохраняем tool-сообщение с
-                        // CancellationToken.None. При отмене SSE (F5/Stop)
-                        // CancellationToken уже отменён — иначе AddMessageAsync
-                        // бросит OperationCanceledException, и вся история
-                        // tool-call'а потеряется. Fix также нужен для F5-восстановления
-                        // блоков дебатов (см. KI-129 Шаг 2).
                         await _chatService.AddMessageAsync(
                             request.ChatId, userId,
                             new ChatMessage
@@ -815,6 +801,19 @@ namespace IIChatTools.Services.Implementation
                     {
                         _logger.LogError(ex, "Ошибка сохранения tool message");
                     }
+
+                    // SSE-событие: tool_result
+                    // v1.6.0 (KI-086): проброс sources — UI покажет «Источники»
+                    // под ответом ассистента (Шаг 4) без F5.
+                    yield return ChatStreamEvent.ToolResult(new ChatToolResultDto
+                    {
+                        Id = callId,
+                        Name = functionName,
+                        Success = toolResult.Success,
+                        Content = toolResult.Data,
+                        Message = toolResult.Message,
+                        Sources = toolResult.Sources
+                    });
 
                     // Добавляем в messages для следующей итерации
                     messages.Add(new JObject

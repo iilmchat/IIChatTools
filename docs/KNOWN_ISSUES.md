@@ -2628,6 +2628,31 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-136 — Tool-сообщение не сохраняется в БД: yield ToolResult раньше AddMessageAsync
+
+- **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Обнаружено:** 2026-10-03 (smoke KI-129 Шаг 2, повторная проверка F5)
+- **Симптом:** при F5 (или Stop) в момент выполнения tool'а
+  tool-сообщение **полностью терялось** из БД. В истории чата оставался
+  только assistant с `tool_calls` без tool-result.
+  После F5 `d.data.messages.find(m => m.toolName === 'code_agent_with_review')`
+  возвращал `undefined`.
+- **Root cause:** `ChatStreamService.StreamAsync` сначала делал
+  `yield return ChatStreamEvent.ToolResult(...)`, и только **потом** —
+  `AddMessageAsync`. При отмене SSE (F5) следующая итерация `await foreach`
+  в `ChatStreamController` бросала `OperationCanceledException` при
+  попытке записи в закрытый `Response` → `IAsyncEnumerable` из
+  `StreamAsync` **dispose'ился** → код после `yield` **никогда не выполнялся**.
+  **KI-134/135** (CancellationToken.None, Data.sessionId в Fail) были
+  правильными, но **недостижимыми** — код до них не доходил.
+- **Fix:** в `ChatStreamService.StreamAsync` порядок операций изменён:
+  `AddSourcesToAccumulator` + `AddMessageAsync` (с `CancellationToken.None`)
+  выполняются **до** `yield return ToolResult(...)`. После yield остаётся
+  только `messages.Add(...)` (in-memory, безопасно).
+- **Связанные:** KI-129 (F5 persistence), KI-134, KI-135.
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -2656,7 +2681,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Fixed (v1.11.0) | 7 |              <!-- KI-126, KI-127, KI-130, KI-132, KI-133, KI-134, KI-135 -->
+| Fixed (v1.11.0) | 8 |              <!-- KI-126, KI-127, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
 | Planned | 5 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-129 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **88** |

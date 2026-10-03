@@ -19,6 +19,18 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.11.0 (KI-136)**: tool-сообщение **не сохранялось** в БД
+  при отмене SSE (F5 / Stop) — фактический root cause, не покрытый
+  KI-134/135.
+  **Причина:** `yield return ChatStreamEvent.ToolResult(...)` шёл **до**
+  `AddMessageAsync`. При F5 SSE-соединение закрыто → controller попытался
+  записать событие в aborted Response → `OperationCanceledException` →
+  `IAsyncEnumerable` из `StreamAsync` disposed → код после `yield` **никогда
+  не выполнялся**, tool-сообщение терялось полностью.
+  **Fix:** сохранение tool-сообщения и `AddSourcesToAccumulator` —
+  **до** `yield return ToolResult(...)`. После yield остаётся только
+  `messages.Add(...)` (in-memory, безопасно).
+
 - **v1.11.0 (KI-134)**: tool-сообщение **не сохранялось** в БД при
   отмене SSE-стрима (F5 / Stop).
   **Причина:** `ChatStreamService` вызывал `AddMessageAsync(...,
