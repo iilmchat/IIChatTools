@@ -19,6 +19,21 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Фаза 1)**: контракты и DTO.
+  `docs/development/v1.12/DESIGN_VISION_AGENT.md` v2.1 (Implemented, Фаза 1).
+  16 файлов в `IIChatTools.Services/DTO/VisionAgent/` (11 DTO) +
+  `IIChatTools.Services/Interfaces/` (5 интерфейсов):
+  - **Опции:** `VisionAgentOptions` (+ 4 вложенных: Limits / Whitelist /
+    ActionValidation / Privacy), `VisionBackendOptions` (+ 3 вложенных:
+    Local / Sandbox / RemoteVnc), `VisionLlmOptions`, `PlannerLlmOptions`.
+  - **Action/UI:** `VisionActionDto`, `VisionActionResult`,
+    `UiElementDto` (+ 2 вложенных), `ScreenDescriptionDto`.
+  - **Task/Step:** `VisionStepDto`, `VisionTaskRequest`, `VisionTaskResultDto`.
+  - **Интерфейсы:** `IVisionBackend`, `IVisionLlmClient`,
+    `IPlannerLlmClient`, `IVisionActionValidator`, `IVisionAgentService`.
+  - **KI-131** → In Progress (v1.12.0). Следующая фаза — Ф2
+    (`LocalHarnessVisionBackend`, ~8 ч).
+
 - **DESIGN v1.13 — Распознавание речи (KI-140, Draft)**:
   `docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md`. Офлайн-распознавание
   речи в чате через **Whisper.net** (whisper.cpp bindings, MIT). Локальная

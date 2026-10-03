@@ -2673,7 +2673,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ## v1.12.0 — Vision Agent (roadmap)
 
 ### KI-131 — Vision Agent (Vision LLM + Planner LLM + 3 backend'а)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.0
+- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.12.0
+- **Начало работы:** 2026-10-04 (Фаза 1 — контракты и DTO).
 - **Обнаружено:** 2026-10-03 (обсуждение с пользователем)
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
   (v2.1, Draft — ждёт согласования).
@@ -2884,7 +2885,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
-| Planned | 9 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-131, KI-137, KI-138, KI-139, KI-140 -->
+| Planned | 7 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139 -->
+| In Progress | 1 |                   <!-- KI-131 (Vision Agent, Фаза 1 — контракты и DTO) -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **93** |
 

@@ -2,7 +2,7 @@
 
 **Версия:** 2.1
 **Дата:** 2026-10-03
-**Статус:** Draft — ждёт согласования (Planned в v1.12.0)
+**Статус:** Implemented (Фаза 1 — контракты и DTO; 2026-10-04)
 **Связанные KI:** KI-131 (Vision Agent) · KI-137 (OCR fallback) ·
 KI-138 (PII masking) · KI-139 (External VL)
 **Целевой релиз:** v1.12.0 (local-harness + sandbox + remote-vnc, 3 модели)
