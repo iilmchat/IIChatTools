@@ -152,3 +152,9 @@ cookies.txt
 
 # Release notes (temporary, not for commit)
 .release-notes-*.md
+
+# v1.13.0 (KI-140): Whisper-модели (не коммитим бинарники, ~142-2900 MB)
+# Модель скачивается через scripts/setup/download-whisper-model.ps1.
+# Путь — внутри IIChatTools.API (ContentRootPath приложения).
+IIChatTools.API/tools/whisper/*.bin
+IIChatTools.API/tools/whisper/*.ggml
