@@ -1,9 +1,9 @@
 # DESIGN — Распознавание речи в чате (Whisper.net, офлайн)
 
-**Версия:** v1.13.0 (Draft)
-**Дата:** 2026-10-02
-**Статус:** Draft
-**Связанные документы:** [RULES.md](../../RULES.md) · [DESIGN v1.11 (Actor-Critic)](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) · [ARCHITECTURE.md](../../ARCHITECTURE.md) · KI-140
+**Версия:** v1.13.1
+**Дата:** 2026-10-04 (обновлено)
+**Статус:** MVP Released (v1.13.1, fix1-fix11)
+**Связанные документы:** [RULES.md](../../RULES.md) · [DESIGN v1.11 (Actor-Critic)](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) · [ARCHITECTURE.md](../../ARCHITECTURE.md) · KI-140 · KI-144 · KI-145 · KI-146
 
 ---
 
@@ -20,6 +20,29 @@
 - **Никаких внешних зависимостей** (ffmpeg / Python / NAudio) — только NuGet `Whisper.net` + native runtime.
 - **Приватность:** аудио не покидает сервер; нет утечек в Google / OpenAI / etc.
 - **Offline:** работает в РФ без VPN, без доступа к интернету.
+
+### v1.13.1 — изменения после MVP (fix1-fix11)
+
+MVP v1.13.0 прошёл реальные smoke-тесты (Chrome + Yandex Browser + Windows
++ Plantronics .Audio 478 USB), и в ходе них выявился ряд проблем в
+браузерных API и UX. Все исправления — v1.13.1:
+
+- **fix5-fix6:** захват PCM переписан с `MediaRecorder` + `ScriptProcessorNode`
+  на `MediaStreamTrackProcessor` (WebCodecs). Chrome pruning-ил граф
+  Web Audio даже с `destination` — `onaudioprocess` фирес, но буфер пустой.
+- **fix5:** фильтр служебных маркеров Whisper (`[BLANK_AUDIO]`, `[музыка]`),
+  `NoSpeechThreshold=0.85`, парсинг WAV-заголовка (`TryReadWavDurationMs`).
+- **fix7:** логирование `label` + `deviceId` устройства + сообщение об
+  ошибке с именем микрофона (диагностика virtual audio device).
+- **fix8 (KI-145):** device picker в `/profile → 🎤 Аудио` + сохранение
+  `deviceId` в `UserSettings` + fallback на системный default.
+- **fix9 (KI-144):** warning при выборе virtual audio device
+  (Steam Streaming / VB-Cable / VoiceMeeter / OBS Virtual Audio).
+- **fix10:** VAD (auto-stop по тишине) + хоткей `Ctrl+Shift+Space`.
+- **fix11:** VAD-параметры в `appsettings.json` + адаптивный порог тишины
+  (не работает на тихих микрофонах с фиксированным `SilenceRms`).
+
+Подробная таблица изменений — § 13.
 
 ---
 
@@ -165,7 +188,25 @@ ChatGPT / DeepSeek) значительно ускоряет работу и сн
   "Language": "auto",                     // dev — auto (проверка RU+EN)
   "MaxAudioSeconds": 60,
   "MaxFileSizeBytes": 10485760,           // 10 MB
-  "TimeoutSeconds": 60
+  "TimeoutSeconds": 60,
+
+  // v1.13.1-fix5: фильтр «галлюцинаций» Whisper на тишине
+  "NoSpeechThreshold": 0.85,              // было whisper.cpp default 0.6
+  "LogprobThreshold": -1.0,
+  "Temperature": 0.0,
+  "MinAudioDurationMs": 300,              // ранний выход на коротких записях
+
+  // v1.13.1-fix10/11: VAD (авто-остановка по тишине) + адаптивный порог
+  "Vad": {
+    "Enabled": true,
+    "AdaptiveEnabled": true,              // v1.13.1-fix11c
+    "SilenceRms": 0.015,                  // legacy (используется при AdaptiveEnabled=false)
+    "AbsoluteMinRms": 0.001,              // нижняя граница адаптивного порога
+    "NoiseMultiplier": 2.0,               // множитель над minObservedRms
+    "SilenceTimeoutMs": 2000,
+    "MinRecordingMs": 700,
+    "PollIntervalMs": 200
+  }
 }
 ```
 
@@ -361,6 +402,13 @@ namespace IIChatTools.Services.Implementation.Speech
                 ProcessingMs = sw.ElapsedMilliseconds
             };
         }
+
+        // v1.13.1-fix5: StripWhisperMarkers — удаляет служебные маркеры
+        // Whisper ([BLANK_AUDIO], [MUSIC], [музыка], …) из segment.Text.
+        // v1.13.1-fix5: TryReadWavDurationMs — парсинг WAV-заголовка для
+        // раннего выхода на файлах короче MinAudioDurationMs.
+        // Оба метода — private static в этом же классе (полный код см. в
+        // Implementation/Speech/WhisperNetTranscriptionService.cs).
 
         private async Task EnsureInitializedAsync(CancellationToken ct)
         {
@@ -560,229 +608,85 @@ services.AddSingleton<ISpeechRecognitionService, WhisperNetTranscriptionService>
 
 **Дополнительно во время записи:** показываем таймер `● 00:07` над полем ввода.
 
+**Дополнительно во время записи:** показываем таймер `● 00:07` над полем ввода.
+
+**v1.13.1-fix8/9 (KI-145):** карточка «🎤 Аудио» в `/profile`:
+
+```
+┌─ 🎤 Аудио ─────────────────────────────────────────────┐
+│ Микрофон для голосового ввода в /chat.                  │
+│                                                         │
+│ Разрешите доступ, чтобы выбрать устройство:             │
+│ [ Разрешить доступ к микрофону → ]                     │
+│                                                         │
+│ ───────────────────────────────────────────────────    │
+│ Микрофон: [ Системный по умолчанию ▾ ]                  │
+│           [ Протестировать ]                            │
+│                                                         │
+│ ⓘ Выбирайте физический микрофон. Steam Streaming /     │
+│   VB-Cable / VoiceMeeter / OBS Virtual Audio дают      │
+│   валидный трек, но нулевой сигнал.                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+Если пользователь не выбрал микрофон и Chrome отдаёт virtual device —
+`speech.js` показывает warning-toast со ссылкой на `/profile → Аудио` (fix9).
+
 ### § 4.2. `speech.js`
 
-**`wwwroot/js/modules/speech.js`** (новый модуль, ~200 строк):
+**`wwwroot/js/modules/speech.js`** — актуальная реализация (~800 строк),
+полностью переписана в v1.13.1 (fix5-fix11). Ниже — архитектура и публичный API.
+
+**Ключевые изменения v1.13.1:**
+
+| Аспект | v1.13.0 (MVP) | v1.13.1 |
+|:---|:---|:---|
+| **Захват PCM** | `MediaRecorder` + `decodeAudioData` | `MediaStreamTrackProcessor` (WebCodecs, fix6) |
+| **Fallback** | — | `ScriptProcessorNode` (Firefox < 128, старый Chromium) |
+| **Device selection** | Системный default | `AudioInputDeviceId` из `UserSettings` (fix8) |
+| **Auto-stop** | 60 сек (жёстко) | 60 сек из `Speech:MaxAudioSeconds` (fix11) + VAD по тишине (fix10) |
+| **Хоткей** | — | `Ctrl+Shift+Space` (fix10) |
+| **Диагностика** | — | `label` + `deviceId` в лог (fix7); warning при virtual device (fix9) |
+
+**Публичный API (не менялся с v1.13.0):**
 
 ```javascript
-/**
- * Модуль офлайн-распознавания речи (v1.13, KI-140).
- * Использует MediaRecorder + Web Audio API (для WAV-кодирования) + Whisper.net (backend).
- */
-
-let _mediaRecorder = null;
-let _audioChunks = [];
-let _stream = null;
-let _isRecording = false;
-let _recordingStartTime = 0;
-let _recordingTimer = null;
-
-/**
- * Привязывает кнопку 🎤 и настраивает обработчики.
- * @param {HTMLButtonElement} button
- * @param {HTMLTextAreaElement} textarea
- */
-export function initSpeechRecognition(button, textarea) {
-    if (!button || !textarea) return;
-
-    button.addEventListener('click', () => {
-        if (_isRecording) stopRecording(button, textarea);
-        else startRecording(button, textarea);
-    });
-}
-
-async function startRecording(button, textarea) {
-    if (!navigator.mediaDevices?.getUserMedia) {
-        showError(button, 'Браузер не поддерживает запись аудио');
-        return;
-    }
-
-    try {
-        _stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        _audioChunks = [];
-        _mediaRecorder = new MediaRecorder(_stream, { mimeType: 'audio/webm;codecs=opus' });
-
-        _mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) _audioChunks.push(e.data);
-        };
-        _mediaRecorder.onstop = () => onRecordingStop(button, textarea);
-        _mediaRecorder.start();
-
-        _isRecording = true;
-        _recordingStartTime = Date.now();
-        setRecordingUI(button, true);
-        startTimer(button, textarea);   // v1.13.0: textarea нужен для auto-stop
-    } catch (ex) {
-        showError(button, 'Нет доступа к микрофону');
-        console.error('[speech] getUserMedia failed:', ex);
-    }
-}
-
-function stopRecording(button, textarea) {
-    if (!_mediaRecorder) return;
-    _mediaRecorder.stop();
-    _stream?.getTracks().forEach(t => t.stop());
-    _stream = null;
-    _isRecording = false;
-    stopTimer();
-    setRecordingUI(button, false);
-    setTranscribingUI(button, true);
-}
-
-async function onRecordingStop(button, textarea) {
-    try {
-        const blob = new Blob(_audioChunks, { type: 'audio/webm' });
-        const wavBlob = await webmToWav(blob);
-
-        const fd = new FormData();
-        fd.append('file', wavBlob, 'audio.wav');
-
-        const response = await fetch('/api/speech/transcribe', {
-            method: 'POST',
-            credentials: 'same-origin',
-            body: fd,
-        });
-        const res = await response.json();
-
-        if (!res.success) {
-            showError(button, res.message || 'Ошибка распознавания');
-            return;
-        }
-
-        // Вставляем текст в textarea (в конец, если уже что-то есть).
-        const prefix = textarea.value.trim() ? textarea.value + ' ' : '';
-        textarea.value = prefix + res.data.text;
-        textarea.dispatchEvent(new Event('input'));  // для autoResizeTextarea
-        textarea.focus();
-    } catch (ex) {
-        console.error('[speech] transcribe failed:', ex);
-        showError(button, 'Ошибка обработки аудио');
-    } finally {
-        setTranscribingUI(button, false);
-    }
-}
-
-/**
- * Конвертирует WebM/Opus → WAV 16 kHz mono через Web Audio API.
- *
- * ВАЖНО: `new AudioContext({ sampleRate: 16000 })` — это hint, не гарантия.
- * Chrome игнорирует его для `decodeAudioData` — возвращает buffer в native rate
- * (обычно 48 kHz). Whisper.net ожидает WAV 16 kHz — поэтому делаем явный
- * ресемплинг через `OfflineAudioContext`.
- */
-async function webmToWav(blob) {
-    const arrayBuffer = await blob.arrayBuffer();
-
-    // 1. Декодируем во временный AudioContext (native sample rate).
-    const tempCtx = new AudioContext();
-    let audioBuffer;
-    try {
-        audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
-    } finally {
-        await tempCtx.close();
-    }
-
-    // 2. Ресемплим до 16 kHz mono через OfflineAudioContext.
-    //    Конструктор: (channels=1, length, sampleRate=16000).
-    const targetRate = 16000;
-    const length = Math.ceil(audioBuffer.duration * targetRate);
-    const offlineCtx = new OfflineAudioContext(1, length, targetRate);
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineCtx.destination);
-    source.start();
-    const resampled = await offlineCtx.startRendering();
-
-    return encodeWav(resampled);
-}
-
-function encodeWav(audioBuffer) {
-    const numChannels = 1;  // mono
-    const sampleRate = audioBuffer.sampleRate;
-    const samples = audioBuffer.getChannelData(0);  // уже mono
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);          // PCM
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * 2, true);  // byte rate
-    view.setUint16(32, numChannels * 2, true);               // block align
-    view.setUint16(34, 16, true);                            // bits per sample
-    writeString(view, 36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-
-    let offset = 44;
-    for (let i = 0; i < samples.length; i++, offset += 2) {
-        const s = Math.max(-1, Math.min(1, samples[i]));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    }
-
-    return new Blob([view], { type: 'audio/wav' });
-}
-
-function writeString(view, offset, str) {
-    for (let i = 0; i < str.length; i++)
-        view.setUint8(offset + i, str.charCodeAt(i));
-}
-
-// UI helpers
-function setRecordingUI(button, recording) {
-    button.classList.toggle('recording', recording);
-    button.setAttribute('aria-label', recording ? 'Остановить запись' : 'Голосовой ввод');
-}
-
-function setTranscribingUI(button, transcribing) {
-    button.classList.toggle('transcribing', transcribing);
-    button.disabled = transcribing;
-}
-
-/** Лимит длительности записи (мс). Enforced на клиенте (см. § 6, § 11.1). */
-const MAX_RECORDING_MS = 60_000;
-
-function startTimer(button, textarea) {
-    _recordingTimer = setInterval(() => {
-        const elapsedMs = Date.now() - _recordingStartTime;
-        const sec = Math.floor(elapsedMs / 1000);
-        const mm = String(Math.floor(sec / 60)).padStart(2, '0');
-        const ss = String(sec % 60).padStart(2, '0');
-        button.dataset.timer = `${mm}:${ss}`;
-
-        // Auto-stop: превысили 60 сек → останавливаем и транскрибируем.
-        // MAX_RECORDING_MS синхронизирован с Speech:MaxAudioSeconds (60).
-        if (elapsedMs >= MAX_RECORDING_MS && _isRecording) {
-            console.info('[speech] auto-stop: достигнут лимит 60 сек');
-            stopRecording(button, textarea);
-        }
-    }, 500);
-}
-
-function stopTimer() {
-    if (_recordingTimer) { clearInterval(_recordingTimer); _recordingTimer = null; }
-    delete document.getElementById('btn-speech')?.dataset.timer;
-}
-
-function showError(button, message) {
-    button.classList.add('error');
-    button.title = message;
-    setTimeout(() => {
-        button.classList.remove('error');
-        button.title = 'Голосовой ввод';
-    }, 3000);
-}
+export function initSpeechRecognition(button, textarea, container, enabledFlag);
+export function disposeSpeechRecognition();
 ```
+
+**Внутренние компоненты:**
+
+- **Загрузка конфига** — `_loadRuntimeConfig()` читает `data-speech-*`
+  на `#chat-messages` (RULES § 4.17): `MaxAudioSeconds`, `Vad:*`,
+  `SpeechVirtualDeviceWarning`.
+- **Device picker** — `_ensureAudioDeviceId()` (lazy fetch `/api/profile/settings`).
+- **Захват** — `_readMicrophoneLoop()` (WebCodecs) или `_setupWebAudioFallback()`.
+- **VAD** — `_startVad()` / `_vadTick()` / `_stopVad()` (fix10/11).
+  Опрос RMS через `AnalyserNode` каждые `Vad:PollIntervalMs` мс.
+  Адаптивный порог = `max(minObservedRms × NoiseMultiplier, AbsoluteMinRms)`.
+- **Hotkey** — `_onGlobalKeydown()` (fix10) — `Ctrl+Shift+Space`.
+- **Обработка** — `_processAndSend()`: сбор чанков → RMS → peak normalize →
+  resample 16 kHz → WAV 16-bit mono → POST `/api/speech/transcribe`.
+
+**Fallback-цепочки (defensive):**
+
+1. `deviceId: { exact: savedId }` → `NotFoundError`/`OverconstrainedError`
+   → retry с системным default + toast (fix8).
+2. `MediaStreamTrackProcessor` → `TypeError`/`ReferenceError`
+   → Web Audio + `ScriptProcessorNode` (fix6).
+3. `Vad:Enabled=false` или `AudioContext` недоступен → VAD молча
+   отключается, работает только manual stop + `MaxAudioSeconds` (fix10).
+4. `data-speech-*` отсутствуют (устаревший HTML) → встроенные константы (fix11).
+
+**Полный код:** `IIChatTools.API/wwwroot/js/modules/speech.js` (~800 строк).
 
 ### § 4.3. Правка `Index.cshtml`
 
-Добавить кнопку 🎤 **перед** 📎:
+Кнопка 🎤 **перед** 📎 + `data-speech-*` на `#chat-messages`:
 
 ```html
-<!-- v1.13 (KI-140): Голосовой ввод -->
+<!-- v1.13.1 (KI-140, fix11): Голосовой ввод -->
 <button id="btn-speech"
         type="button"
         class="chat-input-action chat-input-action-speech"
@@ -801,9 +705,27 @@ function showError(button, message) {
 </button>
 ```
 
-**Важно:** кнопка активируется только если `Speech:Enabled = true` (иначе остаётся `disabled`). Проверка — через data-атрибут на `#chat-messages` или отдельный endpoint `/api/speech/status`.
+### § 4.3.1. `data-speech-*` на `#chat-messages` (v1.13.1-fix11)
 
-**Проще:** инжект `data-speech-enabled="@((Configuration.GetValue<bool>("Speech:Enabled")) ? "true" : "false")"` на `#chat-messages`, `speech.js` читает и решает — активировать ли кнопку.
+Razor читает `Configuration.GetValue<T>()` и инжектит в `data-*`
+(RULES § 4.17 — никакого хардкода в JS):
+
+```razor
+data-speech-max-record-ms="@(Configuration.GetValue<int>("Speech:MaxAudioSeconds", 60) * 1000)"
+data-speech-vad-enabled="@(Configuration.GetValue<bool>("Speech:Vad:Enabled", true) ? "true" : "false")"
+data-speech-vad-silence-rms="@(Configuration.GetValue<double>("Speech:Vad:SilenceRms", 0.015).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+data-speech-vad-adaptive-enabled="@(Configuration.GetValue<bool>("Speech:Vad:AdaptiveEnabled", true) ? "true" : "false")"
+data-speech-vad-noise-multiplier="@(Configuration.GetValue<double>("Speech:Vad:NoiseMultiplier", 2.0).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+data-speech-vad-absolute-min-rms="@(Configuration.GetValue<double>("Speech:Vad:AbsoluteMinRms", 0.001).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+data-speech-vad-silence-timeout-ms="@(Configuration.GetValue<int>("Speech:Vad:SilenceTimeoutMs", 2000))"
+data-speech-vad-min-recording-ms="@(Configuration.GetValue<int>("Speech:Vad:MinRecordingMs", 700))"
+data-speech-vad-poll-interval-ms="@(Configuration.GetValue<int>("Speech:Vad:PollIntervalMs", 200))"
+```
+
+**Важно (fix11a):** `.ToString(CultureInfo.InvariantCulture)` для `double`.
+Без этого в ru-RU `0.015` → `"0,015"` → `parseFloat("0,015")` = **0** →
+VAD-порог = 0 → auto-stop не срабатывает (RMS всегда ≥ 0). Отдельная
+защита — в `speech.js:_loadRuntimeConfig.num()` (запятая → точка).
 
 ### § 4.4. CSS (`chat.css`)
 
@@ -864,7 +786,9 @@ function showError(button, message) {
 
 ### § 4.5. Локализация (RU + EN)
 
-Новые ключи в `SharedResources.resx` + `.ru.resx`:
+Новые ключи в `SharedResources.resx` + `.ru.resx`.
+
+**v1.13.0 (6 ключей):**
 
 | Ключ | RU | EN |
 |:---|:---|:---|
@@ -875,7 +799,70 @@ function showError(button, message) {
 | `SpeechErrorPermission` | Нет доступа к микрофону | Microphone access denied |
 | `SpeechErrorBrowser` | Браузер не поддерживает запись | Browser doesn't support recording |
 
----
+**v1.13.1-fix7/9 (диагностика виртуальных устройств):**
+
+| Ключ | RU | EN |
+|:---|:---|:---|
+| `SpeechDeviceFallback` | Сохранённый микрофон недоступен. Использован системный. Проверьте Профиль → Аудио. | Saved microphone is unavailable. Using system default. Check Profile → Audio. |
+| `SpeechVirtualDeviceWarning` | Выбран виртуальный микрофон — возможен нулевой сигнал. Выберите физический в Профиль → Аудио. | Virtual microphone detected — may produce zero signal. Choose a physical device in Profile → Audio. |
+
+**v1.13.1-fix8 (карточка 🎤 Аудио в /profile):**
+
+| Ключ | RU | EN |
+|:---|:---|:---|
+| `ProfileAudioSection` | Аудио | Audio |
+| `ProfileAudioHint` | Микрофон для голосового ввода в /chat. | Microphone for voice input in /chat. |
+| `ProfileAudioPermissionHint` | Чтобы увидеть список устройств, разрешите доступ. | To see the device list, allow access. |
+| `ProfileAudioRequestPermission` | Разрешить доступ к микрофону | Allow microphone access |
+| `ProfileAudioDeviceLabel` | Микрофон | Microphone |
+| `ProfileAudioDefaultOption` | Системный по умолчанию | System default |
+| `ProfileAudioTestButton` | Протестировать | Test |
+| `ProfileAudioTestRecording` | Идёт запись… | Recording… |
+| `ProfileAudioTestSuccess` | ✓ Работает · RMS: {0} · maxAbs: {1} | ✓ Working · RMS: {0} · maxAbs: {1} |
+| `ProfileAudioTestFailed` | ✗ Сигнал нулевой — микрофон не передаёт данные | ✗ Zero signal — microphone not transmitting |
+| `ProfileAudioVirtualWarning` | Выбирайте физический микрофон. Steam Streaming / VB-Cable / VoiceMeeter / OBS Virtual Audio дают валидный трек, но нулевой сигнал. | Choose a physical microphone. Steam Streaming / VB-Cable / VoiceMeeter / OBS Virtual Audio give a valid track but zero signal. |
+| `ProfileAudioSaveSuccess` | Микрофон сохранён | Microphone saved |
+| `ProfileAudioSaveError` | Не удалось сохранить настройку | Failed to save setting |
+| `ProfileAudioPermissionDenied` | Доступ к микрофону не разрешён | Microphone access denied |
+| `ProfileAudioPermissionGranted` | Доступ разрешён | Access granted |
+
+### § 4.6. `profile-audio.js` (v1.13.1-fix8, KI-145)
+
+**`wwwroot/js/modules/profile-audio.js`** (~350 строк) — модуль карточки
+🎤 Аудио в `/profile`. Публичный API:
+
+```javascript
+export function initProfileAudioCard();
+```
+
+**Функционал:**
+
+- `loadSavedDeviceId()` — fetch `/api/profile/settings`, читает `audioInputDeviceId`.
+- `hasMicrophonePermission()` — `navigator.permissions.query({name:'microphone'})`,
+  fallback на `enumerateDevices` с непустым `label`.
+- `onRequestPermission()` — `getUserMedia({audio:true})` → stop → `enumerateDevices()`.
+- `populateDevices()` — заполняет `<select>` + опция «Системный по умолчанию».
+- `onDeviceChanged()` — `PUT /api/profile/audio-device`.
+- `onTestDevice()` — 2 сек через `MediaStreamTrackProcessor` → `RMS` / `maxAbs`.
+
+Состояния UI: **A** (нет разрешения — кнопка «Разрешить доступ»),
+**B** (разрешение есть — `<select>` + «Протестировать»).
+
+### § 4.7. `chat.js` — `initSpeechRecognition()` (v1.13.1)
+
+В `initChatPage()` (после `bindEvents()`):
+
+```javascript
+const messagesEl = document.getElementById('chat-messages');
+initSpeechRecognition(
+    document.getElementById('btn-speech'),
+    document.getElementById('chat-input'),
+    messagesEl,
+    messagesEl?.dataset.speechEnabled || 'false');
+```
+
+Никаких изменений с v1.13.0 — добавлена только передача `container`
+для `data-*`-конфига (fix11).
 
 ## § 5. Модель и скрипт скачивания
 
@@ -984,6 +971,8 @@ tools/whisper/*.ggml
 | Метод | URL | Назначение |
 |:---|:---|:---|
 | `POST` | `/api/speech/transcribe` | Multipart WAV → `{ success, data: { text, language, processingMs } }` |
+| `GET` | `/api/profile/settings` | v1.13.1-fix8 — читает `audioInputDeviceId` (read-only поле в `UserSettingsDto`) |
+| `PUT` | `/api/profile/audio-device` | v1.13.1-fix8 — сохранить выбранный микрофон. **Отдельный endpoint** (не через `/api/profile/settings`: `AudioInputDeviceId=null` = «сбросить на default», а не «не трогать»). |
 
 **Формат ответа:**
 
@@ -1054,17 +1043,41 @@ tools/whisper/*.ggml
 
 **Итого MVP (Фазы 1-3):** ~3 ч.
 
+### § 8.5. Фаза 5 — fix1-fix11 (v1.13.1, ~6 ч)
+
+Серия исправлений после первого production smoke. Все — под тегом v1.13.1.
+
+| Fix | Проблема | Решение |
+|:---|:---|:---|
+| fix1-fix4 | `decodeAudioData` в Chromium возвращает занулённый AudioBuffer для WebM/Opus от MediaRecorder | Переход на прямой захват PCM (в финале — `MediaStreamTrackProcessor`) |
+| fix5 | Whisper галлюцинирует `[BLANK_AUDIO]` / `[музыка]` на тишине | `StripWhisperMarkers` + `NoSpeechThreshold=0.85` + `TryReadWavDurationMs` |
+| fix6 | Chrome pruning-ит `ScriptProcessorNode` даже с `destination` | `MediaStreamTrackProcessor` (WebCodecs) — основной путь; `ScriptProcessorNode` — fallback |
+| fix7 | Непонятно, какой микрофон используется | Лог `label` + `deviceId` + сообщение об ошибке с именем устройства |
+| fix8 | Нет UI для выбора микрофона (KI-145) | Карточка 🎤 Аудио в `/profile` + `PUT /api/profile/audio-device` + `AudioInputDeviceId` в `UserSettings` |
+| fix9 | Chrome выбирает virtual audio device по умолчанию (KI-144) | Warning-toast если `label` матчит `/(steam\|vb[-\s]?cable\|virtual\|voicemeeter\|obs)/i` и устройство не выбрано явно |
+| fix10 | Manual stop после каждой фразы | VAD (auto-stop по тишине) + хоткей `Ctrl+Shift+Space` |
+| fix11 | VAD-параметры хардкод; фиксированный порог не работает на тихих микрофонах (KI-146) | `Speech:Vad` в `appsettings.json` + `CultureInfo.InvariantCulture` + **адаптивный порог** |
+
+**Оценка:** ~6 ч. **Коммитов:** 5 (`fix5/6`, `fix7`, `fix8`, `fix9+KI-146`, `fix10+fix11`).
+
 ---
 
 ## § 9. Тестирование
 
 ### § 9.1. Unit
 
-- **`SpeechControllerTests`** (4 теста):
+- **`SpeechControllerTests`** (8 тестов, v1.13.1):
   - `TranscribeAsync_Disabled_ReturnsFail`
   - `TranscribeAsync_EmptyFile_ReturnsFail`
   - `TranscribeAsync_TooLargeFile_ReturnsFail`
   - `TranscribeAsync_ValidFile_ReturnsText` (mock `ISpeechRecognitionService`)
+  - `TranscribeAsync_EmptyResult_ReturnsFail`
+  - `TranscribeAsync_ModelNotFound_ReturnsFail`
+  - `TranscribeAsync_Cancelled_ReturnsFail`
+  - `TranscribeAsync_MinDuration_ReturnsEmpty`
+
+**Общий счёт (v1.13.1):** 1016/1016 (5 Skip — реальные внешние API
+DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini).
 
 - **`WhisperNetTranscriptionServiceTests`** (3 теста, требует модель):
   - `TranscribeAsync_ShortWav_ReturnsText` — 1-2 сек WAV "привет".
@@ -1120,14 +1133,48 @@ tools/whisper/*.ggml
 7. **`RequestSizeLimit`** — 20 MB hard cap (§ 3.5), реальный лимит —
    `Speech:MaxFileSizeBytes = 10 MB` (валидация в контроллере).
 
+### § 11.1a. Принятые решения (v1.13.1, 2026-10-04)
+
+8. **Захват PCM** — `MediaStreamTrackProcessor` (WebCodecs API,
+   Chromium 94+). Причина: Chrome pruning-ил `ScriptProcessorNode` даже
+   с `destination` — `onaudioprocess` фирес, буфер пустой. Fallback —
+   `ScriptProcessorNode` для Firefox < 128 / Safari / старого Chromium
+   (fix6).
+9. **Device picker в /profile → 🎤 Аудио.** Пользователь может явно
+   выбрать микрофон; `deviceId` сохраняется в `UserSettings`
+   (`Audio.InputDeviceId`). `speech.js` использует его в `getUserMedia`
+   (fix8, KI-145). Fallback при недоступности — системный default +
+   toast.
+10. **Warning при virtual audio device.** Если `label` трека матчит
+    `/(steam|vb[-\s]?cable|virtual|voicemeeter|obs)/i` и пользователь
+    не сделал явный выбор — один раз показываем toast со ссылкой на
+    `/profile → Аудио` (fix9, KI-144).
+11. **VAD на клиенте.** Auto-stop по тишине через `AnalyserNode`
+    (не требует backend). Параметры — `Speech:Vad` в `appsettings.json`
+    (fix10-fix11).
+12. **Адаптивный порог тишины.** По умолчанию
+    `Vad:AdaptiveEnabled=true` — порог = `max(minObservedRms × 2.0, 0.001)`.
+    Причина: фиксированный `SilenceRms=0.015` не работает на тихих
+    микрофонах (речь RMS 0.006–0.010) — VAD считал её тишиной и обрывал
+    запись через 2 сек (fix11c).
+13. **Хоткей `Ctrl+Shift+Space`** — toggle start/stop записи.
+    `preventDefault` (в textarea этот шорткат вводит `&nbsp;`). Не
+    конфликтует с `Ctrl+B/F/K` в `chat.js` (там без `shiftKey`) (fix10).
+14. **`CultureInfo.InvariantCulture` для `double` в Razor-`data-*`** —
+    ru-RU отдаёт `"0,015"`, `parseFloat` возвращает `0`. Fix11a.
+15. **Отдельный endpoint `PUT /api/profile/audio-device`** — не через
+    `PUT /api/profile/settings`. Причина: `AudioInputDeviceId=null` =
+    «сбросить на default», а `RetentionDays=null` = «использовать
+    глобальный». Разная семантика `null`.
+
 ### § 11.2. Отложенные вопросы (Phase 4, опционально)
 
-1. **VAD** (auto-stop по тишине) — реализуется на клиенте через
-   `AnalyserNode`. Не требует backend. Приоритет: высокий.
-2. **Хоткей `Ctrl+Shift+Space`** — низкая сложность.
+1. ~~**VAD** (auto-stop по тишине)~~ — **Done (v1.13.1, fix10/11)**.
+2. ~~**Хоткей `Ctrl+Shift+Space`**~~ — **Done (v1.13.1, fix10)**.
 3. **GPU** (`Whisper.net.Runtime.Cuda`) — зависит от железа.
 4. **Streaming** (промежуточная транскрибация) — требует переделки API.
    Приоритет: низкий.
+5. **Fallback-полировка + дедупликация** — KI-146 (Planned).
 
 ### § 11.3. Технический долг (не блокер MVP)
 
@@ -1150,10 +1197,42 @@ tools/whisper/*.ggml
 - [Whisper.net GitHub](https://github.com/sandrohanea/whisper.net)
 - [whisper.cpp GitHub](https://github.com/ggerganov/whisper.cpp)
 - [Whisper models (HuggingFace)](https://huggingface.co/ggerganov/whisper.cpp)
+- [MediaStreamTrackProcessor (WebCodecs)](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrackProcessor)
 - [Web Audio API — decodeAudioData](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData)
 - [MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)
-- [KI-140](../KNOWN_ISSUES.md#ki-140) — запись в реестре
+- [KI-140](../KNOWN_ISSUES.md#ki-140) — Speech Recognition
+- [KI-144](../KNOWN_ISSUES.md#ki-144) — virtual audio device
+- [KI-145](../KNOWN_ISSUES.md#ki-145) — device picker
+- [KI-146](../KNOWN_ISSUES.md#ki-146) — fallback + дедупликация
 
 ---
 
-**© 2026 RuChating (iilmchat) · IIChatTools v1.11.0**
+## § 13. История v1.13.1 (fix1-fix11)
+
+| Fix | Дата | Файлы | Суть |
+|:---|:---|:---|:---|
+| fix1-fix4 | 2026-10-04 | `speech.js` | `decodeAudioData` в Chromium возвращает занулённый буфер для WebM/Opus → прямой захват PCM |
+| fix5 | 2026-10-04 | `WhisperNetTranscriptionService.cs`, `SpeechOptions.cs` | Фильтр `[BLANK_AUDIO]` / `[музыка]` + `NoSpeechThreshold=0.85` + `TryReadWavDurationMs` |
+| fix6 | 2026-10-04 | `speech.js` | Chrome pruning `ScriptProcessorNode` → `MediaStreamTrackProcessor` (WebCodecs) |
+| fix7 | 2026-10-04 | `speech.js` | Лог `label` + `deviceId` + сообщение об ошибке с именем микрофона. **KI-144** (Documented) |
+| fix8 | 2026-10-04 | `speech.js`, `ProfileController.cs`, `UserSettingsDto.cs`, `AudioDeviceUpdateRequest.cs`, `Views/Profile/Index.cshtml`, `profile-audio.js`, `.resx` ×2 | Device picker в `/profile → 🎤 Аудио` + `PUT /api/profile/audio-device`. **KI-145** (Fixed) |
+| fix9 | 2026-10-04 | `speech.js`, `Views/Chat/Index.cshtml`, `.resx` ×2 | Warning при выборе virtual audio device. **KI-146** (Planned) |
+| fix10 | 2026-10-04 | `speech.js` | VAD + хоткей `Ctrl+Shift+Space` |
+| fix11 | 2026-10-04 | `speech.js`, `SpeechOptions.cs`, `appsettings*.json`, `Views/Chat/Index.cshtml` | VAD-параметры в `appsettings.json` + адаптивный порог + `CultureInfo.InvariantCulture` для `double` в Razor-`data-*` |
+
+**Тесты:** 1011 → **1016** (+5: `SpeechControllerTests`).
+**CI:** ✅ green. **Docker:** ✅ `ghcr.io/iilmchat/iichattools:v1.13.1`.
+
+**Известные ограничения v1.13.1:**
+
+- `deviceId` меняется при переподключении USB → сохранённое значение
+  может стать невалидным (fallback → default + toast). См. KI-146.
+- Fallback через `getUserMedia({audio})` может снова вернуть virtual
+  device (Steam Streaming) — toast показывается, запись будет тихой.
+  См. KI-146.
+- Chrome может показать одно физическое устройство как 3 разных
+  `deviceId` с префиксами в label. См. KI-146.
+
+---
+
+**© 2026 RuChating (iilmchat) · IIChatTools v1.13.1**

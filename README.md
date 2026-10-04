@@ -1,10 +1,10 @@
-# IIChatTools v1.12.0
+# IIChatTools v1.13.1
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.12.0
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.1
 
 ---
 
@@ -36,6 +36,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **✉️ Mail Agent (v1.8.0)**: почтовый агент (IMAP/SMTP через MailKit 4.8.0). 7 инструментов: `send_email` (approval), `list_emails`, `read_email`, `search_emails`, `delete_email` (approval), `move_email` (approval), `mark_as_read`. Rate limiting 20 писем/час, 30 чтений/мин. Privacy-first (без PII в логах). Вложения в `mail-attachments/{uid}/`, ≤ 10 MB. Дизайн — [docs/development/v1.8/DESIGN_MAIL_AGENT.md](docs/development/v1.8/DESIGN_MAIL_AGENT.md).
 - **✅ RAG / Knowledge Base (v1.5.0)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. 4 индекса (project_docs, my_rag_docs, chat_history, workspace), 3 tool для LLM (search_knowledge_base, search_chat_history, search_workspace), auto-inject top-K из attached-чанков в system prompt. UI: 📎-вложения в чате, админка /admin → База знаний, opt-in в /profile → Workspace index. Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
 - **👁 Vision Agent (v1.12.0, KI-131)**: управление компьютером через визуальные подсказки (Computer Use pattern). Top-level `vision_agent` + 12 actions (`run_task`, `describe`, `screenshot`, `click`, `type`, ...). Оркестрация трёх моделей (Chat + Planner + Vision LLM). Backend `local-harness` (Chrome fresh profile + whitelist процессов). 5 уровней безопасности. Дизайн — [docs/development/v1.12/DESIGN_VISION_AGENT.md](docs/development/v1.12/DESIGN_VISION_AGENT.md).
+- **🎤 Голосовой ввод (v1.13.0 → v1.13.1, KI-140)**: офлайн-распознавание речи через **Whisper.net** (whisper.cpp, MIT). Кнопка 🎤 → `MediaStreamTrackProcessor` (WebCodecs) → WAV 16 kHz mono → `POST /api/speech/transcribe`. Локальная модель `ggml-base.bin` (~142 MB). **Аудио не покидает сервер**, работает в РФ без VPN. **VAD** — auto-stop по тишине (адаптивный порог). **Хоткей** `Ctrl+Shift+Space`. **Device picker** — выбор микрофона в `/profile → 🎤 Аудио`, `deviceId` сохраняется в `UserSettings`. Дизайн — [docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md](docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md).
 - **Логотип (KI-081):** фирменный знак IIChatTools (шестиугольник с переплетением) — в navbar, на главной (hero), на страницах входа/регистрации и в empty state чата. Favicon — SVG + PNG (16/32) + apple-touch-icon. Файлы: `wwwroot/images/logo-icon.svg`, `logo-full.svg`, `site.webmanifest`.
 
 ---
@@ -451,6 +452,7 @@ dotnet run --project IIChatTools.API
 - ⬇️ **ChatGPT-style скроллинг** — кнопка «↓ Вниз», автоскролл отключается при ручной прокрутке вверх.
 - 💾 **Enter** — отправка, **Shift+Enter** — новая строка, автоувеличение textarea.
 - 🎨 **DeepSeek-style поле ввода** (KI-080) — закруглённое поле на всю ширину, круглые SVG-кнопки Send/Stop внутри.
+- 🎤 **Голосовой ввод** (v1.13.0, KI-140) — кнопка 🎤 в поле ввода. Офлайн-распознавание через Whisper.net (аудио не покидает сервер). Хоткей `Ctrl+Shift+Space`. VAD — auto-stop по тишине (v1.13.1). Выбор микрофона — в `/profile → 🎤 Аудио` (v1.13.1, KI-145), `deviceId` сохраняется в `UserSettings`.
 - 🌐 **Локализация RU/EN**.
 
 **Точки входа:**
@@ -1123,9 +1125,9 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.12.0
-    docker pull ghcr.io/iilmchat/iichattools:1.12.0
-    docker pull ghcr.io/iilmchat/iichattools:1.12
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.1
+    docker pull ghcr.io/iilmchat/iichattools:1.13.1
+    docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 
 ### Развёртывание (Docker)
@@ -1232,7 +1234,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 1011/1011 тестов проходят (unit + integration), 5 Skip (реальные
+**Статус**: 1016/1016 тестов проходят (unit + integration), 5 Skip (реальные
 провайдеры — DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini).
 
 ---

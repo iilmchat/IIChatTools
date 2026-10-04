@@ -21,11 +21,66 @@
 
 ---
 
-## § 1a. Известные ограничения релиза v1.11.0
+## § 1a. Известные ограничения релиза v1.13.1
 
 > **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные
-> долги. Они **не блокируют** выпуск v1.11.0, но должны быть учтены
+> долги. Они **не блокируют** выпуск v1.13.1, но должны быть учтены
 > при развёртывании.
+
+### Новое в v1.13.1 (fix1-fix11)
+
+**Speech Recognition — серия исправлений после MVP v1.13.0.**
+
+- **Требуется `Speech:Enabled = true`** (в dev — default; в prod — включается
+  осознанно админом).
+- **Модель Whisper `ggml-base.bin` (~142 MB)** — **не в git**. Скачать:
+  `pwsh -ExecutionPolicy Bypass -File scripts/setup/download-whisper-model.ps1`.
+  В Docker-образе модель **не встроена** — монтируется через volume.
+- **Native runtime Whisper.net** (~5 MB) — в образе.
+- **Хоткей `Ctrl+Shift+Space`** — на `/chat` toggle start/stop записи.
+  Не конфликтует с `Ctrl+B/F/K`.
+- **Device picker** в `/profile → 🎤 Аудио` — выбор микрофона. `deviceId`
+  сохраняется в `UserSettings` (`Audio.InputDeviceId`).
+- **Chrome может выбрать virtual audio device** по умолчанию (Steam
+  Streaming / VB-Cable / VoiceMeeter / OBS Virtual Audio) — валидный
+  `MediaStreamTrack`, но `maxAbs=0` (**KI-144**). Warning-toast со ссылкой
+  на `/profile → Аудио` (fix9).
+- **KI-146 (Planned, v1.13.x)** — fallback-полировка + дедупликация label:
+  fallback через `getUserMedia({audio})` может снова вернуть virtual device;
+  Chrome показывает одно физическое устройство как 3 `deviceId` с префиксами
+  в label.
+- **VAD** (auto-stop по тишине) — параметры в `Speech:Vad`. Адаптивный порог
+  (`Vad:AdaptiveEnabled=true`, `max(minObservedRms × 2.0, 0.001)`) — работает
+  на тихих микрофонах (fix11c).
+
+### Новое в v1.13.0
+
+**Speech Recognition — офлайн STT (KI-140).**
+
+- **Whisper.net 1.8.1** + `Whisper.net.Runtime` (~5 MB native libs) — в образе.
+- **Модель `ggml-base.bin`** (~142 MB) — **не в git**. Скрипт скачивания:
+  `scripts/setup/download-whisper-model.ps1`.
+- `.gitignore`: `tools/whisper/*.bin` (не коммитим).
+- **Приватность:** аудио не покидает сервер (in-process Whisper).
+- **`POST /api/speech/transcribe`** — multipart WAV 16 kHz mono.
+- **Кнопка 🎤** в `.chat-input-box`.
+
+### Новое в v1.12.0
+
+**Vision Agent — Computer Use pattern (KI-131, MVP).**
+
+- **Только `local-harness` backend** (Windows 10/11). Sandbox (Ф3) и
+  RemoteVnc (Ф4) — **отложены** в v1.12.x.
+- **Требует `VisionAgent:Enabled = true`** (в prod — default `false`).
+- **`System.Drawing.Common` 10.0.0** — Windows-only в рантайме. На Linux
+  `ScreenshotAsync` бросит `PlatformNotSupportedException`.
+- **Нет on-screen indicator** — заглушка `NoopVisionOverlayLauncher`.
+  См. **KI-142** (WPF overlay, Planned, v1.12.x).
+- **Whitelist процессов** — действие отменяется, если фокус ушёл на
+  неразрешённый процесс.
+- **VL-модель должна быть мультимодальной** (`ministral-3-3b-instruct-2512`).
+- **Planner должен уметь tool calling** (`qwen3-coder-30b-a3b-instruct`).
+- **`vision_agent` — top-level `ITool`** — Chat видит **16 инструментов**.
 
 ### Новое в v1.11.0
 

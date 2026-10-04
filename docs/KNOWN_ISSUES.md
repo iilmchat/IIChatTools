@@ -3140,6 +3140,50 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-147 — ARCHITECTURE.md устарел (v1.7.0 → v1.13.1)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-04 (при релизе v1.13.1).
+- **Файлы:** `docs/development/ARCHITECTURE.md`.
+- **Описание:** Документ описывает состояние проекта на **v1.7.0**
+  (2026-09-29). Отстаёт на **7 релизов**: v1.8.0 (Mail Agent),
+  v1.8.1 (External-LLM), v1.9.0 (Anthropic), v1.10.0 (Gemini),
+  v1.10.1 (темы UI), v1.11.0 (Actor-Critic), v1.12.0 (Vision Agent),
+  v1.13.x (Speech Recognition + VAD + device picker).
+- **Что нужно обновить:**
+  - **§ 1 Обзор** — +5 разделов: Mail Agent (v1.8.0), External-LLM
+    (v1.8.1 + Anthropic v1.9.0 + Gemini v1.10.0), Actor-Critic (v1.11.0),
+    Vision Agent (v1.12.0), Speech Recognition (v1.13.x).
+  - **§ 2 Слои** — 50 → **61 инструмент**; +Speech (WhisperNet) и
+    +VisionAgent сервисы; обновить ES-модули (`speech`, `profile-audio`,
+    `theme`).
+  - **§ 3 Схема БД** — +`AgentDebateSession`, +`AgentDebateRound` (v1.11.0);
+    уточнить `UserSetting` (уже v1.4, но в схеме указан кратко).
+  - **§ 3.5 Миграции** — +`AddChatMessageMetadata` (v1.6.0),
+    +`AddAgentDebateSessions` (v1.11.0).
+  - **§ 4 DI** — +Whisper (Singleton), +External-LLM (4 Singleton),
+    +VisionAgent (Scoped backend + Singleton клиенты), +Speech
+    (Singleton), +VisionRateLimiter (Singleton), +VisionRetentionService
+    (HostedService).
+  - **§ 5 Поток Chat** — +debate SSE (`debate_started` / `debate_round` /
+    `debate_escalated` / `debate_completed`).
+  - **§ 6 Инструменты** — 50 → **61** (Chat видит **16**).
+  - **§ 7 Внешние** — +Whisper.net 1.8.1, +MailKit 4.18.1, +PdfPig 0.1.9,
+    +OpenXml 3.1.0, +System.Drawing.Common 10.0.0, +Microsoft.Data.Sqlite
+    / SqlClient (уже v1.7, но +).
+  - **§ 8 ADR** — +10 ADR (v1.8-v1.13): `ProviderFormat` switch
+    (ExternalLlmClient), Whisper Singleton с ленивой загрузкой, VisionAgent
+    `Func<T>` для Auto* клиентов, `System.Drawing.Common` + CA1416
+    suppression, `MediaStreamTrackProcessor` (WebCodecs) вместо Web Audio,
+    device picker через `UserSettings`, адаптивный VAD, RULES 4.51
+    (`Func<IToolRegistry>`), VAD-параметры в `data-*`, Razor
+    `CultureInfo.InvariantCulture`.
+  - **§ 9 Ссылки** — +DESIGN v1.8/v1.9/v1.10/v1.11/v1.12/v1.13.
+- **Оценка:** ~2-2.5 ч (полная ревизия, не быстрая правка).
+- **Связанные:** KI-087 (первый ARCHITECTURE.md, v1.5.x).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -3170,11 +3214,11 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
 | Fixed (v1.12.0) | 1 |              <!-- KI-131 (Vision Agent, MVP: LocalHarness + vision_agent) -->
 | Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
-| Planned | 11 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-142, KI-143, KI-146 -->
+| Planned | 12 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-142, KI-143, KI-146, KI-147 -->
 | In Progress | 0 |                   <!-- — -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **98** |
+| **Всего** | **99** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

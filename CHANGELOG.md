@@ -18,7 +18,20 @@
 
 ## [Unreleased]
 
-### Changed
+---
+
+## [1.13.1] — 2026-10-04
+
+**Speech Recognition — серия исправлений после MVP v1.13.0 (fix1-fix11).**
+Первый production smoke (Chrome + Yandex Browser + Plantronics .Audio 478 USB
++ Windows) выявил проблемы в браузерных API и UX. Все исправления собраны
+под тегом v1.13.1: миграция на `MediaStreamTrackProcessor` (WebCodecs),
+фильтр галлюцинаций Whisper, VAD + хоткей, device picker в `/profile`,
+warning при виртуальных устройствах.
+
+**Тесты:** 1011 → **1016** (+5: `SpeechControllerTests`).
+
+### Added
 - **v1.13.1-fix11 (KI-140)**: VAD-параметры и `MAX_RECORDING_MS` вынесены
   из хардкода в `appsettings.json` + **адаптивный VAD**.
   - **Fix11**: вместо `const` в `speech.js` — секция `Speech:Vad` в

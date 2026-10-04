@@ -167,7 +167,7 @@
 
 См. [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — полный реестр.
 
-**Краткая выжимка Open/Deferred/Documented (после релиза v1.11.0):**
+**Краткая выжимка Open/Deferred/Documented (после релиза v1.13.1):**
 
 | KI | Приоритет | Статус | Суть | План |
 |----|-----------|--------|------|------|
@@ -194,14 +194,29 @@
 | KI-137 | 🟢 | Planned | Vision Agent: OCR-fallback для мелкого текста | v1.12.x |
 | KI-138 | 🟢 | Planned | Vision Agent: маскирование PII на скриншотах | v1.12.x |
 | KI-139 | 🟢 | Planned | Vision Agent: внешние VL (Claude Computer Use / OpenAI CUA) | v1.12.x |
+| KI-140 | 🟢 | **Fixed (v1.13.0)** | Speech Recognition — офлайн STT (Whisper.net) | — |
+| KI-144 | 🟢 | Documented | Chrome может выбрать virtual audio device (Steam Streaming, `maxAbs=0`) | — |
+| KI-145 | 🟡 | **Fixed (v1.13.1)** | Device picker в `/profile → 🎤 Аудио` | — |
+| KI-146 | 🟢 | Planned | Device picker: fallback-полировка + дедупликация label | v1.13.x |
+| KI-147 | 🟢 | Planned | ARCHITECTURE.md устарел (v1.7.0 → v1.13.1) | v1.13.x |
 
 **Fixed в v1.7.0:** KI-097 (Database Agent), KI-098 (Admin UI whitelist), KI-101 (per-action approval), KI-102 (Admin UI локализация).
 
 **Fixed в v1.11.0:** KI-126 (Actor-Critic Ф1), KI-127 (`code_agent_with_review` выбор), KI-129 (F5 persistence), KI-130 (code_agent + вложения), KI-132 (tool_result раздут), KI-133 (Skip feedback), KI-134 (tool-сообщение при отмене SSE), KI-135 (orphaned sessionId), KI-136 (порядок yield).
 
+**Fixed в v1.12.0:** KI-131 (Vision Agent, MVP: `local-harness` + `vision_agent`).
+
+**Fixed в v1.13.0:** KI-140 (Speech Recognition, Whisper.net).
+
+**Fixed в v1.13.1:** KI-145 (Device picker в `/profile → 🎤 Аудио`).
+
+**Documented в v1.13.1:** KI-144 (Chrome virtual audio device).
+
+**Planned (v1.13.x+):** KI-146 (fallback-полировка + дедупликация), KI-147 (ARCHITECTURE.md).
+
 **Implemented в v1.7.0:** KI-088 (`docs/TESTING.md`).
 
-**Всего в реестре:** 92 KI. **Fixed/Resolved:** ~85 (v1.0.x–v1.11.0). **Deferred:** 5. **Documented:** 12. **Planned:** 8.
+**Всего в реестре:** ~99 KI. **Fixed/Resolved:** ~88. **Deferred:** 5. **Documented:** 13. **Planned:** ~12. **Partially Fixed:** 1 (`KI-057`).
 
 > **KI-068** (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
 >
