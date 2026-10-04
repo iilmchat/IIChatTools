@@ -48,6 +48,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -940,21 +941,48 @@ namespace IIChatTools.API
                 };
             });
 
-            // Ф5.1 (KI-131): Vision LLM — по умолчанию LmStudio.
-            // Ф5.3: ExternalVisionClient (скелет, NotSupportedException).
-            // Выбор Provider (lmstudio/external/auto) — в Ф5.4 (AutoVisionClient).
+            // Ф5.1-Ф5.4 (KI-131): конкретные клиенты + Auto* + выбор по Provider.
+            // Регистрируем все 3 уровня: LmStudio / External / Auto.
+            // Финальный IVisionLlmClient / IPlannerLlmClient резолвится через
+            // switch по VisionAgent:{VisionLlm,PlannerLlm}:Provider (Ф5.4).
             services.AddSingleton<LmStudioVisionClient>();
             services.AddSingleton<ExternalVisionClient>();
-            services.AddSingleton<IVisionLlmClient>(sp =>
-                sp.GetRequiredService<LmStudioVisionClient>());
+            services.AddSingleton<AutoVisionClient>(sp => new AutoVisionClient(
+                sp.GetRequiredService<IOptions<VisionAgentOptions>>(),
+                () => sp.GetRequiredService<LmStudioVisionClient>(),
+                () => sp.GetRequiredService<ExternalVisionClient>(),
+                sp.GetRequiredService<ILogger<AutoVisionClient>>()));
 
-            // Ф5.2 (KI-131): Planner LLM — по умолчанию LmStudio.
-            // Ф5.3: ExternalPlannerClient — text-only через IExternalLlmClient.
-            // Выбор Provider (lmstudio/external/auto) — в Ф5.4 (AutoPlannerClient).
             services.AddSingleton<LmStudioPlannerClient>();
             services.AddSingleton<ExternalPlannerClient>();
+            services.AddSingleton<AutoPlannerClient>(sp => new AutoPlannerClient(
+                sp.GetRequiredService<IOptions<VisionAgentOptions>>(),
+                () => sp.GetRequiredService<LmStudioPlannerClient>(),
+                () => sp.GetRequiredService<ExternalPlannerClient>(),
+                sp.GetRequiredService<ILogger<AutoPlannerClient>>()));
+
+            // Выбор по Provider: "lmstudio" (default) / "external" / "auto".
+            services.AddSingleton<IVisionLlmClient>(sp =>
+            {
+                var provider = configuration["VisionAgent:VisionLlm:Provider"] ?? "lmstudio";
+                return provider.ToLowerInvariant() switch
+                {
+                    "external" => sp.GetRequiredService<ExternalVisionClient>(),
+                    "auto" => sp.GetRequiredService<AutoVisionClient>(),
+                    _ => sp.GetRequiredService<LmStudioVisionClient>()
+                };
+            });
+
             services.AddSingleton<IPlannerLlmClient>(sp =>
-                sp.GetRequiredService<LmStudioPlannerClient>());
+            {
+                var provider = configuration["VisionAgent:PlannerLlm:Provider"] ?? "lmstudio";
+                return provider.ToLowerInvariant() switch
+                {
+                    "external" => sp.GetRequiredService<ExternalPlannerClient>(),
+                    "auto" => sp.GetRequiredService<AutoPlannerClient>(),
+                    _ => sp.GetRequiredService<LmStudioPlannerClient>()
+                };
+            });
 #pragma warning restore CA1416
         }
 

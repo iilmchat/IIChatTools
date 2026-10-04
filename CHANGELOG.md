@@ -19,6 +19,28 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф5.4)**: Auto-клиенты с fallback chain.
+  - **AutoVisionClient.cs** (Singleton, `IVisionLlmClient`): перебор
+    `VisionLlm.FallbackChain`. Резолв по `Func<IVisionLlmClient>` (ADR-002),
+    lazy-кеш в поле. Критерий успеха: непустое `Description` или непустой
+    `UiElements`. `NotSupportedException` от External → следующий в цепочке.
+    Все не-ready / все упали → `InvalidOperationException`.
+  - **AutoPlannerClient.cs** (Singleton, `IPlannerLlmClient`): аналогично,
+    но критерий успеха — `action != "fail"`. Все fail → возвращает последний
+    fail. Все не-ready / все упали → `fail`-действие с reason.
+  - **`Func<IVisionLlmClient>` / `Func<IPlannerLlmClient>`** вместо конкретных
+    типов — паттерн ADR-002, позволяет тестировать Auto* через fake-фабрики
+    (Moq без IHttpClientFactory mock).
+  - **DI:** в `RegisterVisionAgentTools` регистрируются все 3 уровня
+    (`LmStudioVisionClient` / `ExternalVisionClient` / `AutoVisionClient`).
+    Финальный `IVisionLlmClient` / `IPlannerLlmClient` резолвится через
+    `switch` по `VisionAgent:{VisionLlm,PlannerLlm}:Provider` —
+    `"lmstudio"` (default) / `"external"` / `"auto"`.
+  - **Тесты:** `AutoVisionClientTests` (+~11) + `AutoPlannerClientTests` (+~11).
+  - **🎉 Ф5 закрыта.** 4 клиента (Vision+Planner × LmStudio+External) + 2 Auto*
+    с fallback. Vision Agent готов к Ф6 (loop + overlay).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6 (`VisionAgentService` loop).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф5.3)**: External Planner + Vision skeleton.
   - **VisionPlannerPayloadBuilder.cs** (public static): общий helper для
     формирования user-message (task / history / screen / plan) — устраняет
