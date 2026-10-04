@@ -940,13 +940,21 @@ namespace IIChatTools.API
                 };
             });
 
-            // Ф5.1 (KI-131): Vision LLM — Singleton.
-            // Пока только LmStudio; External/Auto — Ф5.3/Ф5.4.
-            services.AddSingleton<IVisionLlmClient, LmStudioVisionClient>();
+            // Ф5.1 (KI-131): Vision LLM — по умолчанию LmStudio.
+            // Ф5.3: ExternalVisionClient (скелет, NotSupportedException).
+            // Выбор Provider (lmstudio/external/auto) — в Ф5.4 (AutoVisionClient).
+            services.AddSingleton<LmStudioVisionClient>();
+            services.AddSingleton<ExternalVisionClient>();
+            services.AddSingleton<IVisionLlmClient>(sp =>
+                sp.GetRequiredService<LmStudioVisionClient>());
 
-            // Ф5.2 (KI-131): Planner LLM — Singleton.
-            // Пока только LmStudio; External/Auto — Ф5.3/Ф5.4.
-            services.AddSingleton<IPlannerLlmClient, LmStudioPlannerClient>();
+            // Ф5.2 (KI-131): Planner LLM — по умолчанию LmStudio.
+            // Ф5.3: ExternalPlannerClient — text-only через IExternalLlmClient.
+            // Выбор Provider (lmstudio/external/auto) — в Ф5.4 (AutoPlannerClient).
+            services.AddSingleton<LmStudioPlannerClient>();
+            services.AddSingleton<ExternalPlannerClient>();
+            services.AddSingleton<IPlannerLlmClient>(sp =>
+                sp.GetRequiredService<LmStudioPlannerClient>());
 #pragma warning restore CA1416
         }
 

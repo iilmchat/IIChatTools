@@ -24,7 +24,11 @@ namespace IIChatTools.Services.Interfaces
         /// </param>
         /// <param name="screen">Описание текущего экрана от Vision LLM.</param>
         /// <param name="plan">
-        /// Текущий список подзадач (может быть пустым или перепланирован LLM).
+        /// Текущий список подзадач (может быть пустым или перепланирован LLM). 
+        /// </param>
+        /// <param name="userId">
+        /// Пользователь-инициатор (для External-провайдеров — budget tracker).
+        /// <c>0</c> для локальных моделей (LM Studio) и одиночных сценариев.
         /// </param>
         /// <param name="cancellationToken">Токен отмены.</param>
         /// <returns>
@@ -36,6 +40,7 @@ namespace IIChatTools.Services.Interfaces
             IReadOnlyList<VisionStepDto> history,
             ScreenDescriptionDto screen,
             IReadOnlyList<string> plan,
+            int userId = 0,
             CancellationToken cancellationToken = default);
 
         /// <summary>

@@ -19,6 +19,34 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф5.3)**: External Planner + Vision skeleton.
+  - **VisionPlannerPayloadBuilder.cs** (public static): общий helper для
+    формирования user-message (task / history / screen / plan) — устраняет
+    дублирование между LmStudio и External Planner-клиентами.
+  - **ExternalPlannerClient.cs** (Singleton, `IPlannerLlmClient`):
+    text-only вызов внешнего провайдера через `IExternalLlmClient`
+    (v1.8.1, KI-109). Провайдер резолвится из `PlannerLlm.FallbackChain`
+    (первый `external:{name}`), иначе — `IExternalProviderRegistry.DefaultProvider`.
+    Парсинг ответа — через общий `VisionActionParser`. `IncludeContext = false`
+    (privacy). `userId` передаётся в `CompleteAsync` (budget tracker KI-109).
+  - **ExternalVisionClient.cs** (Singleton, `IVisionLlmClient`, **скелет**):
+    `IsReady = false`, `DescribeAsync` бросает `NotSupportedException`.
+    Причина: `IExternalLlmClient` (v1.8.1) — text-only; multimodal требует
+    расширения ядра KI-109 тремя разными формат-билдерами (OpenAI / Claude /
+    Gemini). Заведён **KI-141** (Planned, v1.12.x).
+  - **`IPlannerLlmClient.PlanNextAsync`** — добавлен опциональный
+    `int userId = 0` перед `CancellationToken` (для External budget tracker).
+    `LmStudioPlannerClient` принимает, игнорирует (LM Studio — локально,
+    без budget). Breaking change для Ф1, но затронут только 1 имплементатор.
+  - **DI:** регистрация через конкретные классы
+    (`AddSingleton<LmStudioVisionClient>` / `AddSingleton<ExternalVisionClient>`
+    / `AddSingleton<LmStudioPlannerClient>` / `AddSingleton<ExternalPlannerClient>`)
+    + фабрика для `IVisionLlmClient` / `IPlannerLlmClient` (по умолчанию LmStudio).
+    Выбор Provider (lmstudio/external/auto) — в Ф5.4 (Auto*).
+  - **Тесты:** `ExternalVisionClientTests` (+2), `ExternalPlannerClientTests` (+6).
+  - **KI-141** (Planned, v1.12.x) — External VL providers (multimodal images).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф5.4 (Auto* fallback chain).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф5.2)**: LmStudioPlannerClient
   + VisionActionParser.
   - **VisionActionParser.cs** (public static, устойчивый парсер):

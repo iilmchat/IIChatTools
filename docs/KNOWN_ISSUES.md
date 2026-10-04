@@ -2808,6 +2808,41 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+## v1.12.x — Vision Agent (roadmap)
+
+### KI-141 — External VL providers: multimodal image support
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-04 (Ф5.3 KI-131).
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 3.2.
+- **Описание:** В v1.12.0 Vision Agent использует **локальную VL-модель**
+  (LM Studio + Ministral-3B) для описания скриншотов. Внешние VL
+  (OpenAI GPT-4o, Anthropic Claude 3.5 Sonnet, Google Gemini 1.5 Flash)
+  могли бы дать:
+  - более точное распознавание сложного UI (canvas, shadow-DOM, антибот);
+  - fallback, когда локальная Ministral-3B ошибается;
+  - работу на слабом железе (без GPU).
+
+  **Ограничение:** `IExternalLlmClient` (v1.8.1, KI-109) — **text-only**.
+  Требуется:
+  1. Расширить `ExternalLlmRequest` — nullable поле `ImageBase64DataUrl`
+     (или `Images[]`).
+  2. Добавить в `ExternalLlmClient` **3 разных формат-билдера** для
+     multimodal content:
+     - OpenAI — `content: [{type: "text"}, {type: "image_url", image_url: {url: "data:..."}}]`;
+     - Anthropic — `content: [{type: "text"}, {type: "image", source: {type: "base64", media_type, data}}]`;
+     - Gemini — `parts: [{text}, {inlineData: {mimeType, data}}]`.
+  3. Флаг `SupportsVision` в `ExternalProviderOptions` (true для
+     `gpt-4o`, `claude-3.5-sonnet`, `gemini-1.5-flash`).
+  4. Полная реализация `ExternalVisionClient.DescribeAsync`.
+  5. Обновить `AutoVisionClient` (Ф5.4) — добавить external в цепочку.
+- **Оценка:** ~5-8 ч.
+- **Связанные:** KI-131 (Vision Agent), KI-109 (External-LLM Agent — база),
+  KI-110a (Anthropic), KI-110b (Gemini), KI-139 (External VL для GUI — дублирует
+  часть scope, консолидировать при старте).
+
+---
+
 ## v1.13.0 — Speech Recognition (roadmap)
 
 ### KI-140 — Голосовой ввод в чате (офлайн-распознавание речи, Whisper.net)

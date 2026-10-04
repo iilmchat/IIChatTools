@@ -37,15 +37,6 @@ namespace IIChatTools.Services.Implementation.VisionAgent
     /// </remarks>
     public sealed class LmStudioPlannerClient : IPlannerLlmClient
     {
-        /// <summary>Настройки сериализации: camelCase, без null.</summary>
-        private static readonly JsonSerializerSettings PayloadSettings =
-            new JsonSerializerSettings
-            {
-                ContractResolver = new CamelCasePropertyNamesContractResolver(),
-                Formatting = Formatting.Indented,
-                NullValueHandling = NullValueHandling.Ignore
-            };
-
         private readonly PlannerLlmOptions _plannerOptions;
         private readonly string _lmStudioBaseUrl;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -85,6 +76,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             IReadOnlyList<VisionStepDto> history,
             ScreenDescriptionDto screen,
             IReadOnlyList<string> plan,
+            int userId = 0,                                        // v1.12.0 (KI-131, Ф5.3): не используется локально.
             CancellationToken cancellationToken = default)
         {
             if (!IsReady)
@@ -100,7 +92,8 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 : (history?.ToList() ?? new List<VisionStepDto>());
 
             // 2. Формируем user-message (task + history + screen + plan).
-            var userMessage = BuildUserMessage(task, trimmedHistory, screen, plan);
+            var userMessage = VisionPlannerPayloadBuilder.Build(
+                task, trimmedHistory, screen, plan);
 
             // 3. Тело запроса.
             var body = new JObject
@@ -189,25 +182,6 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
                 return action;
             }
-        }
-
-        /// <summary>
-        /// Формирует user-message с сериализованным контекстом (camelCase).
-        /// </summary>
-        private static string BuildUserMessage(
-            string task,
-            IReadOnlyList<VisionStepDto> history,
-            ScreenDescriptionDto screen,
-            IReadOnlyList<string> plan)
-        {
-            var payload = new
-            {
-                task = task ?? string.Empty,
-                history = history ?? new List<VisionStepDto>(),
-                screen = screen ?? new ScreenDescriptionDto(),
-                plan = plan ?? new List<string>()
-            };
-            return JsonConvert.SerializeObject(payload, PayloadSettings);
         }
 
         /// <summary>
