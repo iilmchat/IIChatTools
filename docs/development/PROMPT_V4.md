@@ -37,25 +37,13 @@
 - **Текущий релиз:** v1.13.1 (2026-10-04). Tag + GitHub Release созданы.
 - **В работе:** v1.12.x roadmap.
 
-### 🚨 Pending work (разобраться в начале сессии)
+### История коммитов после релиза v1.13.1
 
-**Не критично, но стоит закоммитить:**
-
-После `release: v1.13.1` (который не состоялся из-за ошибки PowerShell) изменения в **рабочем дереве** остались **незакоммиченными**:
-
-- `docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md` (v1.13.0 → v1.13.1)
-- `README.md` (v1.12.0 → v1.13.1, +🎤 пункт)
-- `Directory.Build.props` (`<Version>1.13.0 → 1.13.1`)
-- `CHANGELOG.md` (`[Unreleased] → [1.13.1] — 2026-10-04`)
-
-Tag `v1.13.1` указывает на `4af0b50` (fix11), а не на release-commit.
-
-**Опции:**
-1. Оформить как `chore(v1.13.1): sync design/readme/changelog docs` — отдельным коммитом. Tag можно переставить (`git tag -f` + `git push origin --force --tags`).
-2. Оставить как есть (Release создан, версия в коде v1.13.1). Отложить до следующего релиза.
-
-**Первое действие в новой сессии:** `git status --short` → посмотреть, что в дереве. Если DESIGN/README/CHANGELOG/Directory.Build.props — не закоммичены, решить, что делать (по согласованию с пользователем).
-
+- `41c48d2` — `docs: sync v1.13.1 release + RELEASES §1a + RULES §7 + KI-147`
+  (docs-only, CI + Docker — зелёные).
+- `4af0b50` — `feat(speech): configurable VAD + adaptive threshold (fix11)`.
+  Tag `v1.13.1` указывает на этот коммит.
+  
 ---
 
 ## § 2. Правила оформления (ОБЯЗАТЕЛЬНО)

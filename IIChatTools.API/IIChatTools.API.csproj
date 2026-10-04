@@ -20,7 +20,36 @@
     <!-- Ссылки на слои -->
     <ProjectReference Include="..\IIChatTools.Data\IIChatTools.Data.csproj" />
     <ProjectReference Include="..\IIChatTools.Services\IIChatTools.Services.csproj" />
+
+    <!--
+      v1.12.0 (KI-131, Ф6.7): overlay — отдельный WinExe (net10.0-windows),
+      не библиотека. ReferenceOutputAssembly=false — не тянем его DLL как
+      compile-reference (у него другой TFM, своих DTO мы не шарим).
+      Нужен только для порядка сборки: overlay билдится до API.
+    -->
+    <ProjectReference Include="..\IIChatTools.VisionOverlay\IIChatTools.VisionOverlay.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+      <Private>false</Private>
+    </ProjectReference>
   </ItemGroup>
+
+  <!--
+    v1.12.0 (KI-131, Ф6.7): копируем overlay в подпапку VisionOverlay/
+    рядом с API-бинарём. WpfVisionOverlayLauncher.ResolveOverlayExePath
+    ищет exe именно там (см. Implementation/VisionAgent/WpfVisionOverlayLauncher.cs).
+    Копируем всё содержимое bin-папки overlay (exe + WPF-DLL'ки + .json),
+    включая рекурсивно — на случай runtime-зависимостей.
+  -->
+  <Target Name="CopyVisionOverlayToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <VisionOverlayFiles Include="$(MSBuildThisFileDirectory)..\IIChatTools.VisionOverlay\bin\$(Configuration)\net10.0-windows\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VisionOverlayFiles)"
+          DestinationFiles="@(VisionOverlayFiles->'$(OutDir)VisionOverlay\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(VisionOverlayFiles)' != ''" />
+  </Target>
 
   <ItemGroup>
     <!-- JWT аутентификация -->

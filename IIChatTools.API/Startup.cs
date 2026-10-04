@@ -1003,10 +1003,24 @@ namespace IIChatTools.API
             services.AddScoped<IVisionScreenshotCleaner, VisionScreenshotCleaner>();
             services.AddHostedService<VisionRetentionService>();
 
-            // Ф6.8 (KI-131): overlay launcher (on-screen indicator).
-            // Сейчас Noop (IsAvailable = false), WPF — отдельный под-этап Ф6.7.
-            // Singleton — stateless.
-            services.AddSingleton<IVisionOverlayLauncher, NoopVisionOverlayLauncher>();
+            // Ф6.7 (KI-131): overlay launcher (on-screen indicator).
+            // Оба класса регистрируются как Singleton (stateless). Runtime-switch:
+            //   - WpfVisionOverlayLauncher.IsAvailable = true (Windows + exe найден)
+            //     → WPF overlay (реальный on-screen indicator с STOP-кнопкой).
+            //   - иначе → Noop (Linux, отсутствует exe — degraded mode).
+            //
+            // WpfVisionOverlayLauncher сам по себе [SupportedOSPlatform("windows")]? Нет —
+            // IsAvailable проверяет OperatingSystem.IsWindows() внутри, поэтому
+            // регистрация безопасна и на Linux.
+            services.AddSingleton<NoopVisionOverlayLauncher>();
+            services.AddSingleton<WpfVisionOverlayLauncher>();
+            services.AddSingleton<IVisionOverlayLauncher>(sp =>
+            {
+                var wpf = sp.GetRequiredService<WpfVisionOverlayLauncher>();
+                return wpf.IsAvailable
+                    ? (IVisionOverlayLauncher)wpf
+                    : sp.GetRequiredService<NoopVisionOverlayLauncher>();
+            });
 
             // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
             // Scoped — зависит от Scoped IVisionBackend + IVisionScreenshotStore.

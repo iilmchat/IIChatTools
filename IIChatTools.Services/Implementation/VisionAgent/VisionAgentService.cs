@@ -178,6 +178,13 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 }
             }
 
+            // Ф6.7 (KI-131): STOP от overlay (кнопка / ESC) — отдельный канал отмены.
+            // Связываем его с timeoutCts: любая из причин отменяет loop.
+            // Приоритет STOP над timeout: см. catch-блоки ниже — STOP проверяется первым.
+            var overlayStopToken = overlayHandle?.StopToken ?? CancellationToken.None;
+            using var effectiveCts = CancellationTokenSource.CreateLinkedTokenSource(
+                timeoutCts.Token, overlayStopToken);
+
             try
             {
                 // 3. Открыть стартовый URL (если задан).
@@ -185,7 +192,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 {
                     try
                     {
-                        await _backend.OpenAsync(request.Url, timeoutCts.Token).ConfigureAwait(false);
+                        await _backend.OpenAsync(request.Url, effectiveCts.Token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -202,7 +209,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 var plan = new List<string>();   // пока пустой; LLM может сам планировать.
                 for (int step = 1; step <= maxSteps; step++)
                 {
-                    timeoutCts.Token.ThrowIfCancellationRequested();
+                    effectiveCts.Token.ThrowIfCancellationRequested();
 
                     // Ф6.8: прогресс в overlay (если включён).
                     try
@@ -215,7 +222,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     byte[] png;
                     try
                     {
-                        png = await _backend.ScreenshotAsync(timeoutCts.Token).ConfigureAwait(false);
+                        png = await _backend.ScreenshotAsync(effectiveCts.Token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -229,7 +236,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     try
                     {
                         var savedPath = await _screenshotStore.SaveAsync(
-                                userId, taskId, step, png, timeoutCts.Token)
+                                userId, taskId, step, png, effectiveCts.Token)
                             .ConfigureAwait(false);
                         if (!string.IsNullOrEmpty(savedPath))
                         {
@@ -251,7 +258,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     ScreenDescriptionDto screen;
                     try
                     {
-                        screen = await _visionLlm.DescribeAsync(png, timeoutCts.Token)
+                        screen = await _visionLlm.DescribeAsync(png, effectiveCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -266,7 +273,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     try
                     {
                         action = await _plannerLlm.PlanNextAsync(
-                            request.Task, history, screen, plan, userId, timeoutCts.Token)
+                            request.Task, history, screen, plan, userId, effectiveCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -330,7 +337,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     string stepError = null;
                     try
                     {
-                        await ExecuteActionAsync(_backend, actionType, effectiveAction, screen, timeoutCts.Token)
+                        await ExecuteActionAsync(_backend, actionType, effectiveAction, screen, effectiveCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
@@ -362,7 +369,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     var delayMs = Math.Max(0, _options.Limits.ActionDelayMs);
                     if (delayMs > 0)
                     {
-                        await Task.Delay(delayMs, timeoutCts.Token).ConfigureAwait(false);
+                        await Task.Delay(delayMs, effectiveCts.Token).ConfigureAwait(false);
                     }
                 }
 
@@ -373,6 +380,19 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     _logger.LogWarning(
                         "VisionAgent[{TaskId}]: maxSteps={MaxSteps} исчерпан", taskId, maxSteps);
                 }
+            }
+            catch (OperationCanceledException) when (overlayStopToken.IsCancellationRequested
+                                                     && !cancellationToken.IsCancellationRequested)
+            {
+                // Ф6.7 (KI-131): STOP от overlay (кнопка / ESC) — плановая остановка.
+                // Возвращаем результат — НЕ throw (пользователь сам остановил задачу,
+                // это не «отмена стрима», а «отмена tool-call'а»).
+                // Проверяется ПЕРВЫМ: если STOP и timeout сработали одновременно,
+                // приоритет — у активного действия пользователя.
+                result.Error = "Отменено пользователем (STOP в overlay).";
+                _logger.LogInformation(
+                    "VisionAgent[{TaskId}]: STOP от overlay, steps={Steps}",
+                    taskId, history.Count);
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested
                                                      && !cancellationToken.IsCancellationRequested)
@@ -406,9 +426,16 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 {
                     try
                     {
+                        // Ф6.7: различаем «Готово» / «Отменено пользователем (STOP)» / «Ошибка».
+                        // STOP показываем нейтрально (не красным как ошибку), хотя Success=false.
                         var summary = result.Success
                             ? "Готово"
-                            : (string.IsNullOrEmpty(result.Error) ? "Отменено" : "Ошибка");
+                            : overlayStopToken.IsCancellationRequested
+                                ? "Отменено"
+                                : (string.IsNullOrEmpty(result.Error) ? "Отменено" : "Ошибка");
+
+                        // Success для STOP — тоже false (задача не выполнена),
+                        // но overlay сам отрисует нейтральный цвет по факту закрытия.
                         overlayHandle.SetFinalStatus(summary, result.Success);
                     }
                     catch { /* overlay не критичен */ }

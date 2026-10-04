@@ -2875,8 +2875,23 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-142 — WPF overlay для Vision Agent (реальный on-screen indicator)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x (Ф6.7)
 - **Обнаружено:** 2026-10-04 (при релизе v1.12.0 — MVP-компромисс).
+- **Реализовано:** 2026-10-05. Отдельный проект `IIChatTools.VisionOverlay`
+  (WPF, `net10.0-windows`, WinExe) + `WpfVisionOverlayLauncher` /
+  `WpfVisionOverlayHandle` в `Services/Implementation/VisionAgent/`. IPC —
+  NamedPipe `iichattools-vision-overlay-{taskId}` (JSON, разделитель `\n`).
+  Расширен контракт: `IVisionOverlayHandle.StopToken` (CancellationToken,
+  связан с `timeoutCts` через `CreateLinkedTokenSource`). STOP-overlay →
+  плановая остановка (`result.Error = "Отменено пользователем..."`),
+  не `throw`. DI-switch в `Startup.RegisterVisionAgentTools` по
+  `Wpf.IsAvailable` (Windows + exe рядом с API). Копирование overlay в
+  `$(OutDir)VisionOverlay/` — Target `CopyVisionOverlayToOutput` в
+  `IIChatTools.API.csproj`. Smoke-проверено: overlay появляется,
+  прогресс отображается, кнопка STOP отменяет задачу.
+- **Известные ограничения** (отдельные KI, v1.12.x): **KI-148** (фокус
+  Chrome после `OpenAsync`), **KI-149** (overlay перехватывает фокус),
+  **KI-150** (downscale — только байты), **KI-151** (удаление temp-профиля).
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
   § 4.6, § 6.4, § 7.6 (Ф6.7).
 - **Описание:** В v1.12.0 on-screen indicator — заглушка
@@ -3181,6 +3196,89 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **§ 9 Ссылки** — +DESIGN v1.8/v1.9/v1.10/v1.11/v1.12/v1.13.
 - **Оценка:** ~2-2.5 ч (полная ревизия, не быстрая правка).
 - **Связанные:** KI-087 (первый ARCHITECTURE.md, v1.5.x).
+
+---
+
+### KI-148 — Vision Agent: Chrome остаётся без фокуса после `OpenAsync`
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `LocalHarnessVisionBackend.cs` (`OpenAsync`), `Win32Interop.cs`.
+- **Описание:** После `Process.Start(chrome.exe) + Task.Delay(2s)` главное
+  окно Chrome может **не получить фокус** — фокус остаётся на `explorer.exe`
+  (проводник) или другом приложении, которое было активно до запуска. Это
+  приводит к отказу первого mutation-действия: whitelist процессов
+  (`EnsureForegroundProcessAllowed`) видит `explorer` и отклоняет `type` /
+  `click`. Наблюдалось на smoke: шаг 1 (`type`) упал с
+  `Процесс «explorer» не в whitelist`.
+- **Возможные решения:**
+  1. После `Process.Start` — дождаться `_chromeProcess.MainWindowHandle != 0`
+     (цикл с паузами, до 10 сек).
+  2. Вызвать `SetForegroundWindow(hwnd)` + `ShowWindow(hwnd, SW_MAXIMIZE)`.
+  3. Проверить, что `GetForegroundWindow` = окно Chrome (retry 3-5 раз,
+     при отказе — `InvalidOperationException`).
+- **Обходной путь (dev):** `VisionAgent:Backend:Local:AllowNonBrowserProcesses = true`
+  в `appsettings.Development.json` — отключает whitelist процессов.
+- **Связанные:** KI-142 (Ф6.7), KI-149.
+
+---
+
+### KI-149 — WPF overlay перехватывает фокус при клике (WS_EX_NOACTIVATE)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `IIChatTools.VisionOverlay/MainWindow.xaml`, `MainWindow.xaml.cs`.
+- **Описание:** Клик по кнопке STOP (или просто по overlay) переводит
+  фокус на WPF-окно `IIChatTools.VisionOverlay`. На следующем шаге
+  `EnsureForegroundProcessAllowed` видит процесс `IIChatTools.VisionOverlay`
+  и отклоняет действие. Наблюдалось на smoke: шаг 4 (`click`) упал с
+  `Процесс «IIChatTools.VisionOverlay» не в whitelist`.
+- **Возможные решения:**
+  1. Установить стиль окна `WS_EX_NOACTIVATE` (`GetWindowLong` /
+     `SetWindowLong` в `SourceInitialized`).
+  2. Добавить `ShowActivated="False"` в XAML `<Window>`.
+  3. Дополнительно — `Focusable="False"` на root-элемент.
+- **Связанные:** KI-142 (Ф6.7), KI-148.
+
+---
+
+### KI-150 — Vision Agent: downscale уменьшает байты, но не разрешение
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `VisionImageResizer.cs`, `LocalHarnessVisionBackend.ScreenshotAsync`.
+- **Описание:** В логе после `ScreenshotAsync`:
+  `downscale 186749 → 152539 байт` (PNG-байты уменьшились), но размер
+  остаётся `1920×1080`. `VisionImageResizer.Resize` **не применяет**
+  целевой размер (`MaxImageWidth=1024` / `MaxImageHeight=768`).
+  Дополнительно: `pngBytes.Length != beforeBytes` — условие для логирования
+  сработало, значит `Resize` вернул **другой** массив, но размер тот же
+  (визуально 1920×1080). Эффект: base64 в LLM на ~30% больше необходимого,
+  prompt processing ~2.5-3 сек вместо ~1.5.
+- **Возможные решения:** проверить `VisionImageResizer.Resize` — куда уходит
+  результат `Bitmap.Save`; проверить `CalculateTargetSize` (не возвращает
+  ли `(origW, origH)` при `MaxImageWidth < origW`). Плюс — тесты на
+  изменение размеров (сейчас, вероятно, проверяют только байты).
+- **Связанные:** KI-142 (Ф6.7).
+
+---
+
+### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `LocalHarnessVisionBackend.CloseBrowser`.
+- **Описание:** При `Directory.Delete(_chromeProfileDir, recursive: true)`
+  после kill Chrome — падает с `UnauthorizedAccessException: Access to the
+  path 'BrowserMetrics-6AC2C85B-904C.pma' is denied`. Chrome держит
+  метрик-файл через memory-mapped file ещё ~100-500 мс после kill.
+  Temp-профиль `vision-profile-{instanceId}` остаётся в `%TEMP%`.
+- **Возможные решения:**
+  1. Пауза ~500 мс после `Kill` + `WaitForExit`, затем удаление.
+  2. Retry-loop с backoff (3-5 попыток × 200 мс).
+  3. Best-effort: подавлять ошибку (уже так), но с `LogDebug` вместо
+     `LogWarning`, т.к. это ожидаемая ситуация.
+- **Связанные:** KI-142 (Ф6.7).
 
 ---
 

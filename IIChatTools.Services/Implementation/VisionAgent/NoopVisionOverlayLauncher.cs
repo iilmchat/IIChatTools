@@ -37,6 +37,16 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <inheritdoc />
         public bool IsAvailable => false;
 
+        /// <summary>
+        /// Возвращает no-op handle для случаев, когда вызывающий класс
+        /// (например, <see cref="WpfVisionOverlayLauncher"/>) не смог запустить
+        /// реальный overlay и хочет откатиться на пустышку без создания
+        /// второго экземпляра launcher'а.
+        /// </summary>
+        /// <returns>Singleton <see cref="NoopVisionOverlayHandle"/>.</returns>
+        public static IVisionOverlayHandle NoopHandleFactory() =>
+            NoopVisionOverlayHandle.Instance;
+
         /// <inheritdoc />
         public Task<IVisionOverlayHandle> StartAsync(
             string taskId,
@@ -58,6 +68,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 new NoopVisionOverlayHandle();
 
             private NoopVisionOverlayHandle() { }
+
+            /// <summary>
+            /// No-op не поддерживает обратную связь STOP — всегда
+            /// <see cref="CancellationToken.None"/> (KI-131, Ф6.7).
+            /// </summary>
+            public CancellationToken StopToken => CancellationToken.None;
 
             public void UpdateProgress(int stepIndex, int maxSteps, string action) { }
 

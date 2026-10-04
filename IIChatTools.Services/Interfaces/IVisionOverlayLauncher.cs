@@ -51,6 +51,24 @@ namespace IIChatTools.Services.Interfaces
     public interface IVisionOverlayHandle : IDisposable
     {
         /// <summary>
+        /// Токен отмены задачи по инициативе пользователя: срабатывает,
+        /// когда в overlay нажата кнопка STOP или ESC.
+        ///
+        /// <para>
+        /// Возвращает <see cref="CancellationToken.None"/> для backend'ов,
+        /// не поддерживающих обратную связь (<c>NoopVisionOverlayHandle</c>).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>v1.12.0 (KI-131, Ф6.7):</b> добавлено для реализации
+        /// DESIGN § 6.4 — «ESC / STOP → немедленная отмена».
+        /// <c>VisionAgentService</c> связывает этот токен с основным
+        /// <c>CancellationTokenSource</c> через <c>CreateLinkedTokenSource</c>.
+        /// </para>
+        /// </summary>
+        CancellationToken StopToken { get; }
+
+        /// <summary>
         /// Обновляет статус в overlay: «Шаг N из M — action».
         /// </summary>
         /// <param name="stepIndex">Номер текущего шага (1-based).</param>

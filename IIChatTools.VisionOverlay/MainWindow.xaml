@@ -1,0 +1,100 @@
+<Window x:Class="IIChatTools.VisionOverlay.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Vision Agent"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        SizeToContent="Height"
+        Width="320"
+        MinHeight="80">
+
+    <!--
+        Корневой Border — «карточка» overlay:
+          - скруглённые углы 8px;
+          - полупрозрачный тёмный фон (OverlayBackground);
+          - тень для визуального отделения от UI под ним.
+        Рамка перетаскивается (MouseLeftButtonDown на root).
+    -->
+    <Border CornerRadius="8"
+            Background="{StaticResource OverlayBackground}"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="1"
+            Padding="12"
+            MouseLeftButtonDown="OnRootMouseLeftButtonDown">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Opacity="0.5" BlurRadius="12" ShadowDepth="0" />
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />  <!-- header -->
+                <RowDefinition Height="Auto" />  <!-- progress -->
+                <RowDefinition Height="Auto" />  <!-- action -->
+            </Grid.RowDefinitions>
+
+            <!-- Header: значок + заголовок + STOP -->
+            <Grid Grid.Row="0" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="🤖"
+                           FontSize="16"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Vision Agent"
+                               Style="{StaticResource OverlayHeaderStyle}" />
+                    <TextBlock x:Name="TaskIdText"
+                               Style="{StaticResource OverlayTextStyle}"
+                               FontSize="10"
+                               Opacity="0.6" />
+                </StackPanel>
+
+                <Button Grid.Column="2"
+                        x:Name="StopButton"
+                        Content="STOP"
+                        Style="{StaticResource StopButtonStyle}"
+                        Click="OnStopClick"
+                        ToolTip="Остановить задачу (ESC)" />
+            </Grid>
+
+            <!-- Progress: «Шаг N из M» -->
+            <TextBlock Grid.Row="1"
+                       x:Name="ProgressText"
+                       Style="{StaticResource OverlayTextStyle}"
+                       Text="Ожидание…"
+                       Margin="0,0,0,4" />
+
+            <!-- Action: «Клик → Откуда» + status dot -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Status dot (цвет — от статуса) -->
+                <Ellipse Grid.Column="0"
+                         x:Name="StatusDot"
+                         Width="8" Height="8"
+                         Fill="{StaticResource OverlayAccent}"
+                         VerticalAlignment="Center"
+                         Margin="0,0,8,0" />
+
+                <TextBlock Grid.Column="1"
+                           x:Name="ActionText"
+                           Style="{StaticResource OverlayTextStyle}"
+                           Text="Инициализация…"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

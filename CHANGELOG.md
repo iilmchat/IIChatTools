@@ -18,6 +18,64 @@
 
 ## [Unreleased]
 
+### Added
+- **v1.12.x — WPF overlay для Vision Agent (KI-142, DESIGN § 4.6, § 6.4)**:
+  on-screen indicator теперь — реальное WPF-приложение
+  `IIChatTools.VisionOverlay.exe` (net10.0-windows, отдельный процесс).
+  Полупрозрачное always-on-top окно в правом верхнем углу (320px),
+  показывает прогресс «Шаг N из M», текущее действие, кнопку STOP.
+  ESC / кнопка STOP → немедленная отмена задачи (реализовано через
+  `IVisionOverlayHandle.StopToken` + `CreateLinkedTokenSource` в
+  `VisionAgentService`).
+  - **Новый проект:** `IIChatTools.VisionOverlay` (WPF, WinExe,
+    `net10.0-windows`, `app.manifest` с PerMonitorV2 DPI-awareness).
+    **Не наследует** `Directory.Build.props` (свои `Version` / `Copyright`).
+    Не ссылается на другие проекты решения — самодостаточен.
+  - **IPC:** NamedPipe `iichattools-vision-overlay-{taskId}`,
+    JSON-строки, разделитель `\n`. Overlay — сервер, API — клиент
+    (подтверждено архитектурно, DESIGN § 4.6). Команды:
+    `progress` / `final_status` / `close` / `stop`.
+  - **Клиент-сторона (в `IIChatTools.Services`):**
+    `WpfVisionOverlayLauncher` (Singleton) + `WpfVisionOverlayHandle`
+    (per-task, `IDisposable`). Retry-подключение к pipe: 5 сек,
+    шаг 100 мс. `Process.Start` — через `ArgumentList` (RULES § 1.10).
+  - **Расширение контракта:** `IVisionOverlayHandle.StopToken`
+    (`CancellationToken`). Noop-реализация возвращает
+    `CancellationToken.None`. `VisionAgentService` связывает его с
+    `timeoutCts` через `CreateLinkedTokenSource`; `catch`-блоки
+    различают STOP-overlay (`Отменено пользователем`) — проверяется
+    **первым**, чтобы пользовательское действие имело приоритет
+    над timeout.
+  - **DI-switch** (`Startup.RegisterVisionAgentTools`): регистрируются
+    оба launcher'а (Singleton), runtime-выбор по `Wpf.IsAvailable`
+    (Windows + exe найден) → WPF, иначе — Noop (degraded mode на Linux).
+  - **Копирование overlay в output API:** Target `CopyVisionOverlayToOutput`
+    в `IIChatTools.API.csproj` кладёт содержимое
+    `IIChatTools.VisionOverlay/bin/$(Configuration)/net10.0-windows/`
+    в `$(OutDir)VisionOverlay/`. `ProjectReference` с
+    `ReferenceOutputAssembly=false` — только для порядка сборки.
+  - **`IIChatTools.sln`:** добавлен проект `IIChatTools.VisionOverlay`.
+  - **Отложено (v1.12.x):** Sandbox backend (Ф3), RemoteVnc (Ф4),
+    smoke под `--no-build` при первом холодном старте (WPF overlay
+    может не успеть за 5 сек на медленных дисках — план: увеличить
+    retry до 8 сек + логировать фактическое время подключения).
+
+### Documented
+- **KI-148** (Planned, v1.12.x) — Vision Agent: Chrome остаётся без фокуса
+  после `OpenAsync` (фокус на `explorer.exe` → whitelist процессов
+  отклоняет первое mutation-действие). Решение: `SetForegroundWindow`
+  после `MainWindowHandle != 0`.
+- **KI-149** (Planned, v1.12.x) — WPF overlay перехватывает фокус при
+  клике (процесс `IIChatTools.VisionOverlay` в fóкусе → whitelist
+  процессов отклоняет следующее действие). Решение: `WS_EX_NOACTIVATE`
+  + `ShowActivated="False"`.
+- **KI-150** (Planned, v1.12.x) — Vision Agent: downscale уменьшает
+  PNG-байты, но не разрешение (`1920×1080` остаётся). Отдельный KI.
+- **KI-151** (Planned, v1.12.x) — Chrome temp-профиль не удаляется:
+  `BrowserMetrics-*.pma` заблокирован ~500 мс после kill. Отдельный KI.
+- **KI-142** (Fixed, v1.12.x, Ф6.7) — WPF overlay для Vision Agent.
+  Полная реализация (была заглушка `NoopVisionOverlayLauncher`).
+
 ---
 
 ## [1.13.1] — 2026-10-04

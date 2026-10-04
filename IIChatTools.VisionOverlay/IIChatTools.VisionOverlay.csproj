@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    IIChatTools.VisionOverlay — WPF-приложение «on-screen indicator» для Vision Agent.
+    Отдельный процесс (Design § 4.6, § 6.4). НЕ ссылается на другие проекты решения —
+    общается с IIChatTools.API по NamedPipe (iichattools-vision-overlay-{taskId}).
+
+    Запускается WpfVisionOverlayLauncher (IIChatTools.Services) с аргументами
+    командной строки: [task-id=vt_8f2a] и [max-steps=15].
+
+    © 2026 RuChating (iilmchat) · IIChatTools v1.13.1
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>IIChatTools.VisionOverlay</RootNamespace>
+    <AssemblyName>IIChatTools.VisionOverlay</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Не наследуем Directory.Build.props-версии: у overlay своя жизнь. -->
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.13.1</Copyright>
+  </PropertyGroup>
+
+  <!--
+    ВАЖНО: overlay НЕ ссылается ни на IIChatTools.Services, ни на .Data, ни на .API.
+    Он самодостаточен: принимает JSON-строки через NamedPipe, обновляет UI.
+
+    Причина: cross-TFM-ссылки (net10.0-windows ↔ net10.0) добавляют хрупкость.
+    Контракт IPC — «голый» JSON, а не общие DTO.
+  -->
+
+</Project>
