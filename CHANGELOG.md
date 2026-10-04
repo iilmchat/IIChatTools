@@ -19,6 +19,31 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф5.1)**: LmStudioVisionClient
+  + ScreenDescriptionParser + VisionSystemPrompt.
+  - **VisionSystemPrompt.cs** (public static): 2 константы —
+    `VisionUiDescribe` (описать UI в JSON формата `ScreenDescriptionDto`)
+    + `PlannerPlanNext` (выбрать действие в JSON формата `VisionActionDto`).
+  - **ScreenDescriptionParser.cs** (public static, устойчивый парсер):
+    снимает markdown-обёртки (` ```json ` / ` ``` `), извлекает JSON-объект
+    (текст до/после игнорируется), читает поля case-insensitive
+    (`description` / `Description` / `DESCRIPTION`), пропускает элементы без
+    `id`/`type`, безопасен к BOM, полностью невалидному JSON. При полном
+    провале — fallback: `Description = сырой текст`, `UiElements = []`.
+  - **LmStudioVisionClient.cs** (Singleton, `IVisionLlmClient`):
+    multimodal POST к LM Studio `/v1/chat/completions` — content-массив
+    `[text, image_url]`, PNG в base64 data-URL. Timeout через
+    `CancellationTokenSource.CancelAfter` (RULES § 4.48), не через
+    `HttpClient.Timeout`. Парсинг ответа: `choices[0].message.content`
+    (строка или массив текстовых блоков). На пустой content — возвращает
+    пустой DTO.
+  - **Тесты:** `ScreenDescriptionParserTests` (+~16 кейсов: clean / markdown /
+    text before/after / case-insensitive / missing fields / invalid elements /
+    free text / broken JSON / null / BOM).
+  - **DI:** `services.AddSingleton<IVisionLlmClient, LmStudioVisionClient>()`
+    внутри `RegisterVisionAgentTools`.
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф5.2 (PlannerLlmClient).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф2.9)**: whitelist процессов.
   - **Win32Interop.cs:** +`GetForegroundWindow()`,
     +`GetWindowThreadProcessId(hWnd, out pid)`.

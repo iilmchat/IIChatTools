@@ -924,6 +924,8 @@ namespace IIChatTools.API
             // Mode остаётся "local-harness" по дефолту → runtime-ошибка в ScreenshotAsync,
             // а не при сборке.
 #pragma warning disable CA1416
+            // Все три backend'а регистрируются как Scoped (DESIGN § 4.2).
+            // Пока только Local; Sandbox и VncMcp — Ф3, Ф4.
             services.AddScoped<LocalHarnessVisionBackend>();
 
             // Выбор backend'а по VisionAgent:Backend:Mode.
@@ -937,6 +939,10 @@ namespace IIChatTools.API
                     _ => sp.GetRequiredService<LocalHarnessVisionBackend>()
                 };
             });
+
+            // Ф5.1 (KI-131): Vision LLM — Singleton.
+            // Пока только LmStudio; External/Auto — Ф5.3/Ф5.4.
+            services.AddSingleton<IVisionLlmClient, LmStudioVisionClient>();
 #pragma warning restore CA1416
         }
 
