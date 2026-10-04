@@ -125,20 +125,25 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
             var store = CreateStore();
             var png = FakePng();
 
-            // "../etc/passwd" → ".._etc_passwd" → но "../" вызовет traversal — 
-            // PathHelper должен отклонить. Проверяем, что либо null, либо папка
-            // внутри workspace.
+            // "../etc/passwd" — опасный taskId. NormalizeTaskId через regex
+            // [^a-zA-Z0-9_-] заменяет '.' и '/' на '_' → безопасный "___etc_passwd".
+            // ВАЖНО: не проверяем File.Exists("/etc/passwd") — на Linux этот файл
+            // существует всегда как системный (cross-platform ловушка).
             var path = await store.SaveAsync(
                 1, "../etc/passwd", 1, png, CancellationToken.None);
 
-            // Проверяем, что файл вне workspace НЕ создан.
-            Assert.False(File.Exists("/etc/passwd"));
+            // Проверки только по формату относительного пути (без OS-специфики).
+            Assert.NotNull(path);
+            Assert.DoesNotContain("..", path);
+            Assert.DoesNotContain("/etc/", path);
+            Assert.StartsWith("screenshots/", path);
+            Assert.EndsWith("/step-001.png", path);
 
-            if (path != null)
-            {
-                // Если PathHelper пропустил — путь должен быть внутри _tempRoot.
-                Assert.DoesNotContain("..", path);
-            }
+            // Файл создан ВНУТРИ workspace (temp), а не вне.
+            var absolutePath = Path.Combine(_tempRoot,
+                path.Replace('/', Path.DirectorySeparatorChar));
+            Assert.True(File.Exists(absolutePath),
+                $"Ожидался файл внутри workspace: {absolutePath}");
         }
 
         [Fact]
