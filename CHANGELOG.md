@@ -19,6 +19,23 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.5)**: сохранение скриншотов.
+  - **`IVisionScreenshotStore.cs`**: `SaveAsync(userId, taskId, stepIndex, png, ct)`
+    → относительный путь; `GetTaskDirectoryAsync(userId, taskId)`.
+  - **`VisionScreenshotStore.cs`** (Scoped, `IWorkspaceResolver` + `IOptions`):
+    сохраняет PNG в <c>{workspace}/screenshots/{taskId}/step-NNN.png</c>.
+    Все пути — через `PathHelper.TryGetSafeFullPath` (RULES § 1.9). taskId
+    нормализуется regex-ом (`[a-zA-Z0-9_-]`, остальное → `_`). Резолвинг
+    workspace — через `IWorkspaceResolver.GetWorkspacePathAsync(userId)`.
+    Ошибки сохранения логируются, но не пробрасываются (best-effort).
+  - **`VisionAgentService.RunTaskAsync`**: после успешного `ScreenshotAsync`
+    каждого шага вызывается `_screenshotStore.SaveAsync`. `result.FinalScreenshotPath`
+    обновляется на путь последнего успешно сохранённого PNG. Ошибки сохранения
+    — Warning, loop продолжается.
+  - **DI:** `services.AddScoped<IVisionScreenshotStore, VisionScreenshotStore>()`.
+  - **Тесты:** `VisionScreenshotStoreTests` (+~10 кейсов).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6.6 (`VisionRetentionService`).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.4)**: InMemoryVisionRateLimiter.
   - **`VisionRateLimitResult.cs`** (DTO): `Allowed` / `RetryAfterSeconds` /
     `RemainingInWindow`.

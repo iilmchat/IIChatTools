@@ -45,6 +45,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         private readonly IPlannerLlmClient _plannerLlm;
         private readonly IVisionActionValidator _validator;
         private readonly IVisionRateLimiter _rateLimiter;
+        private readonly IVisionScreenshotStore _screenshotStore;
         private readonly VisionAgentOptions _options;
         private readonly ILogger<VisionAgentService> _logger;
 
@@ -56,6 +57,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <param name="plannerLlm">Planner LLM (следующее действие).</param>
         /// <param name="validator">Валидатор действий.</param>
         /// <param name="rateLimiter">Rate limiter (5 задач / 5 мин per-user).</param>
+        /// <param name="screenshotStore">Хранилище скриншотов (workspace).</param>
         /// <param name="options">Настройки Vision Agent.</param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если один из параметров null.</exception>
@@ -65,6 +67,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             IPlannerLlmClient plannerLlm,
             IVisionActionValidator validator,
             IVisionRateLimiter rateLimiter,
+            IVisionScreenshotStore screenshotStore,
             IOptions<VisionAgentOptions> options,
             ILogger<VisionAgentService> logger)
         {
@@ -73,6 +76,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             _plannerLlm = plannerLlm ?? throw new ArgumentNullException(nameof(plannerLlm));
             _validator = validator ?? throw new ArgumentNullException(nameof(validator));
             _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
+            _screenshotStore = screenshotStore ?? throw new ArgumentNullException(nameof(screenshotStore));
             if (options == null) throw new ArgumentNullException(nameof(options));
             _options = options.Value;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -185,6 +189,29 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         _logger.LogError(ex, "VisionAgent[{TaskId}]: ScreenshotAsync упал", taskId);
                         result.Error = $"Ошибка скриншота: {ex.Message}";
                         break;
+                    }
+
+                    // 4.1.1. Сохранить скриншот в workspace (Ф6.5).
+                    // Best-effort: ошибка сохранения не прерывает loop.
+                    try
+                    {
+                        var savedPath = await _screenshotStore.SaveAsync(
+                                userId, taskId, step, png, timeoutCts.Token)
+                            .ConfigureAwait(false);
+                        if (!string.IsNullOrEmpty(savedPath))
+                        {
+                            result.FinalScreenshotPath = savedPath;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "VisionAgent[{TaskId}]: сохранение скриншота шага {Step} упало",
+                            taskId, step);
                     }
 
                     // 4.2. Описание экрана.

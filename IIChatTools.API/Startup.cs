@@ -992,8 +992,12 @@ namespace IIChatTools.API
             // Singleton — in-memory state + Timer cleanup (по образцу KI-043).
             services.AddSingleton<IVisionRateLimiter, InMemoryVisionRateLimiter>();
 
+            // Ф6.5 (KI-131): хранилище скриншотов в workspace пользователя.
+            // Scoped — зависит от IWorkspaceResolver (Scoped).
+            services.AddScoped<IVisionScreenshotStore, VisionScreenshotStore>();
+
             // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
-            // Scoped — зависит от Scoped IVisionBackend (backend = Scoped).
+            // Scoped — зависит от Scoped IVisionBackend + IVisionScreenshotStore.
             services.AddScoped<IVisionAgentService, VisionAgentService>();
 #pragma warning restore CA1416
         }
