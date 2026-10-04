@@ -2673,8 +2673,11 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ## v1.12.0 — Vision Agent (roadmap)
 
 ### KI-131 — Vision Agent (Vision LLM + Planner LLM + 3 backend'а)
-- **Приоритет:** 🟡 Medium | **Статус:** In Progress | **Запланировано:** v1.12.0
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed (v1.12.0, MVP-scope) | **Запланировано:** v1.12.0
 - **Начало работы:** 2026-10-04 (Фаза 1 — контракты и DTO).
+- **MVP Released:** 2026-10-04 (v1.12.0). Scope: `LocalHarnessVisionBackend` +
+  `vision_agent` в Chat (16 инструментов). Отложено в v1.12.x: WPF overlay
+  (**KI-142**), Sandbox backend (Ф3), RemoteVnc backend (Ф4).
 - **Фаза 2 закрыта** (2026-10-04): `LocalHarnessVisionBackend` полностью
   реализован — 11 методов `IVisionBackend` + 5 защитных слоёв (whitelist
   доменов через `VisionWhitelistValidator`, whitelist процессов через
@@ -2872,6 +2875,33 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+## v1.12.x — Vision Agent (roadmap)
+
+### KI-142 — WPF overlay для Vision Agent (реальный on-screen indicator)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Обнаружено:** 2026-10-04 (при релизе v1.12.0 — MVP-компромисс).
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 4.6, § 6.4, § 7.6 (Ф6.7).
+- **Описание:** В v1.12.0 on-screen indicator — заглушка
+  (`NoopVisionOverlayLauncher`, `IsAvailable = false`). По DESIGN § 6.4
+  overlay **обязателен** для `local-harness` и `sandbox` — пользователь
+  должен видеть, что LLM управляет его машиной, и иметь возможность
+  остановить через ESC. Реального WPF-приложения пока нет.
+- **Что нужно:**
+  1. **Отдельный проект `IIChatTools.VisionOverlay`** (WPF, `net10.0-windows`).
+  2. **Прозрачное always-on-top окно** (`Topmost="True"`,
+     `AllowsTransparency="True"`, `IsHitTestVisible="False"` для всего,
+     кроме кнопки STOP).
+  3. **Содержимое:** «🤖 Vision Agent: шаг N из M», текущее действие,
+     статус, кнопка STOP.
+  4. **IPC через NamedPipe** (`iichattools-vision-overlay`).
+  5. **`WpfVisionOverlayLauncher : IVisionOverlayLauncher`** (запуск процесса).
+  6. **Регистрация в DI** вместо `NoopVisionOverlayLauncher`.
+- **Оценка:** ~4-6 ч.
+- **Связанные:** KI-131.
+
+---
+
 ## v1.13.0 — Speech Recognition (roadmap)
 
 ### KI-140 — Голосовой ввод в чате (офлайн-распознавание речи, Whisper.net)
@@ -2963,10 +2993,11 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
-| Planned | 7 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139 -->
-| In Progress | 1 |                   <!-- KI-131 (Vision Agent, Фаза 1 — контракты и DTO) -->
+| Fixed (v1.12.0) | 1 |              <!-- KI-131 (Vision Agent, MVP: LocalHarness + vision_agent) -->
+| Planned | 8 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-142 -->
+| In Progress | 0 |                   <!-- — -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **93** |
+| **Всего** | **94** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

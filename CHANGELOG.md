@@ -18,6 +18,29 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.12.0] — 2026-10-04
+
+**Vision Agent (KI-131, MVP: LocalHarness + vision_agent).**
+Управление компьютером через визуальные подсказки (Computer Use pattern):
+скриншот → анализ UI Vision-моделью → действие мышью/клавиатурой.
+Оркестрация трёх моделей (Chat LLM + Planner LLM + Vision LLM), три
+backend'а (Local / Sandbox / RemoteVnc), 5 уровней безопасности
+(изоляция + whitelist процессов + on-screen indicator + approval/бюджет
++ валидатор/audit).
+
+**Scope MVP v1.12.0:** `LocalHarnessVisionBackend` + `vision_agent` в Chat
+(**16 инструментов**, было 15).
+
+**Отложено в v1.12.x:** WPF overlay — реальный on-screen indicator
+(**KI-142**), Sandbox backend (Ф3), RemoteVnc backend (Ф4).
+
+**Тесты:** 654 → **1011** (+357, 5 Skip — реальные внешние провайдеры +
+Whisper).
+
 ### Added
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф7)**: `vision_agent` — top-level ITool в Chat.
   - **`VisionAgentTool : ITool`** (`Implementation/Tools/VisionAgent/`) — 12 actions:

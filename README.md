@@ -1,10 +1,10 @@
-# IIChatTools v1.11.0
+# IIChatTools v1.12.0
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.11.0
+© 2026 RuChating (iilmchat) · IIChatTools v1.12.0
 
 ---
 
@@ -35,6 +35,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **Offline-развёртывание**: сборка без доступа к интернету через `LocalPackages/`.
 - **✉️ Mail Agent (v1.8.0)**: почтовый агент (IMAP/SMTP через MailKit 4.8.0). 7 инструментов: `send_email` (approval), `list_emails`, `read_email`, `search_emails`, `delete_email` (approval), `move_email` (approval), `mark_as_read`. Rate limiting 20 писем/час, 30 чтений/мин. Privacy-first (без PII в логах). Вложения в `mail-attachments/{uid}/`, ≤ 10 MB. Дизайн — [docs/development/v1.8/DESIGN_MAIL_AGENT.md](docs/development/v1.8/DESIGN_MAIL_AGENT.md).
 - **✅ RAG / Knowledge Base (v1.5.0)**: семантический поиск по документам проекта, приложенным файлам и истории чатов. 4 индекса (project_docs, my_rag_docs, chat_history, workspace), 3 tool для LLM (search_knowledge_base, search_chat_history, search_workspace), auto-inject top-K из attached-чанков в system prompt. UI: 📎-вложения в чате, админка /admin → База знаний, opt-in в /profile → Workspace index. Дизайн — [docs/development/v1.5/DESIGN.md](docs/development/v1.5/DESIGN.md).
+- **👁 Vision Agent (v1.12.0, KI-131)**: управление компьютером через визуальные подсказки (Computer Use pattern). Top-level `vision_agent` + 12 actions (`run_task`, `describe`, `screenshot`, `click`, `type`, ...). Оркестрация трёх моделей (Chat + Planner + Vision LLM). Backend `local-harness` (Chrome fresh profile + whitelist процессов). 5 уровней безопасности. Дизайн — [docs/development/v1.12/DESIGN_VISION_AGENT.md](docs/development/v1.12/DESIGN_VISION_AGENT.md).
 - **Логотип (KI-081):** фирменный знак IIChatTools (шестиугольник с переплетением) — в navbar, на главной (hero), на страницах входа/регистрации и в empty state чата. Favicon — SVG + PNG (16/32) + apple-touch-icon. Файлы: `wwwroot/images/logo-icon.svg`, `logo-full.svg`, `site.webmanifest`.
 
 ---
@@ -400,16 +401,20 @@ dotnet run --project IIChatTools.API
 | **+ Database Agent (v1.7.0)** | **+1** | **✅** |
 | **+ Mail Agent (v1.8.0)** | **+7** | **3 (send/delete/move)** |
 | **+ External-LLM Agent (v1.8.1)** | **+3** | — |
-| **Итого (ToolRegistry)** | **60** | — |
+| **+ Vision Agent (v1.12.0)** | **+1** | **✅ (per-action)** |
+| **Итого (ToolRegistry)** | **61** | — |
 
-> **Примечание:** Chat видит **13 инструментов**:
-> **8 специализированных агентов** из `SubAgentRegistry` — `file_system_agent`,
-> `code_agent`, `web_agent`, `git_agent`, `github_agent`, `planner_agent`,
+> **Примечание:** Chat видит **16 инструментов**:
+> **9 специализированных агентов** из `SubAgentRegistry` — `file_system_agent`,
+> `code_agent`, `code_reviewer_agent` (v1.11.0, KI-126),
+> `web_agent`, `git_agent`, `github_agent`, `planner_agent`,
 > `mail_agent` (v1.8.0, KI-107), `external_llm_agent` (v1.8.1, KI-109);
 > **+ `consult_secondary_agent`** (универсальный fallback);
 > **+ 3 RAG-tool**: `search_knowledge_base`, `search_chat_history`, `search_workspace`
 > (v1.5.0, KI-083);
-> **+ `database_agent`** (v1.7.0, KI-097).
+> **+ `database_agent`** (v1.7.0, KI-097);
+> **+ `code_agent_with_review`** (v1.11.0, KI-126);
+> **+ `vision_agent`** (v1.12.0, KI-131).
 > Все «сырые» инструменты доступны **внутри** агентов.
 
 ---
@@ -1118,9 +1123,9 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.11.0
-    docker pull ghcr.io/iilmchat/iichattools:1.11.0
-    docker pull ghcr.io/iilmchat/iichattools:1.11
+    docker pull ghcr.io/iilmchat/iichattools:v1.12.0
+    docker pull ghcr.io/iilmchat/iichattools:1.12.0
+    docker pull ghcr.io/iilmchat/iichattools:1.12
     docker pull ghcr.io/iilmchat/iichattools:1
 
 ### Развёртывание (Docker)
@@ -1227,11 +1232,90 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 654/654 тестов проходят (unit + integration), 5 Skip (реальные провайдеры).
+**Статус**: 1011/1011 тестов проходят (unit + integration), 5 Skip (реальные
+провайдеры — DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini).
 
 ---
 
 ## Разработка
+
+### Вызов инструментов через DevTools Console
+
+Удобный способ отладки тулов **без Chat UI** и без approval-модалки.
+Cookie аутентификации отправляются автоматически (`credentials: 'same-origin'`).
+
+1. Открой любую страницу приложения (`/chat`, `/admin`, ...) — ты уже залогинен.
+2. `F12` → вкладка **Console**.
+3. Вставь обёртку:
+
+```javascript
+// Обёртка для удобного вызова инструментов через /api/tools/execute
+async function callTool(name, args = {}) {
+    const res = await fetch('/api/tools/execute', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toolName: name, arguments: args })
+    }).then(r => r.json());
+    console.log(`[${name}]`, res);
+    return res;
+}
+```
+
+4. Вызывай любые инструменты:
+
+```javascript
+// Vision Agent — describe (без approval, read-only)
+await callTool('vision_agent', { action: 'describe' });
+
+// Vision Agent — screenshot (вернёт path + base64)
+await callTool('vision_agent', { action: 'screenshot' });
+
+// Vision Agent — describe на конкретном URL
+await callTool('vision_agent', { action: 'describe', url: 'https://wikipedia.org' });
+
+// Vision Agent — клик по координатам
+await callTool('vision_agent', { action: 'click', x: 100, y: 200 });
+
+// Vision Agent — полный loop (run_task)
+await callTool('vision_agent', { action: 'run_task', task: 'Найди статью про Москву', url: 'https://wikipedia.org' });
+
+// Database Agent
+await callTool('database_agent', { action: 'list_tables' });
+
+// RAG
+await callTool('search_knowledge_base', { query: 'RULES §4.44' });
+```
+
+**Важно:**
+
+- `/api/tools/execute` **не спрашивает approval** — этот механизм работает
+  только в Chat (через SSE). В консоли ты вызываешь tool «в обход». Удобно
+  для отладки, но в проде так нельзя.
+- **`run_task` и все mutation-actions** (`click`, `type`, `press_key`, `hotkey`)
+  выполнятся **без approval**. Осторожно!
+- **Скриншот** можно сразу отобразить:
+
+```javascript
+const r = await callTool('vision_agent', { action: 'screenshot' });
+if (r.success) {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + r.data.base64;
+    img.style.cssText = 'position:fixed;top:10px;right:10px;border:2px solid red;z-index:9999;max-width:400px';
+    document.body.appendChild(img);
+}
+```
+
+- **Дамп истории чата** (что реально сохранилось в БД — включая tool-calls):
+
+```javascript
+const chatId = 25;  // из URL: ?chatId=25
+const d = await fetch(`/api/chats/${chatId}`).then(r => r.json());
+console.table(d.data.messages.map(m => ({
+    id: m.id, role: m.role, toolName: m.toolName || '—',
+    preview: (m.content || '').substring(0, 60)
+})));
+```
 
 ### Полезные сниппеты
 
@@ -1305,6 +1389,150 @@ sqlite3 IIChatTools.API\Data\iichattools-dev.db "SELECT Id, Role, TokensIn, Toke
 
 Для **offline-развёртывания** — скопируйте папку `publish/` вместе с `LocalPackages/`
 и `NuGet.Config` (если потребуется пересборка на целевой машине).
+
+---
+
+## Vision Agent (v1.12.0)
+
+Управление компьютером через **визуальные подсказки** (Computer Use pattern):
+скриншот → анализ UI Vision-моделью → действие мышью/клавиатурой.
+Работает с **любым** приложением (canvas, shadow-DOM, десктопные программы),
+в отличие от `browser_*` — только DOM.
+
+### Как работает
+
+1. **Screenshot** текущего экрана (PNG).
+2. **Vision LLM** описывает UI: `{ description, ui_elements[] }` (id, тип, label,
+   координаты центра).
+3. **Planner LLM** решает следующее действие: `{ action, target|text|keys, reason }`.
+4. **Валидатор** проверяет действие (blocked keys, границы координат, whitelist).
+5. **Backend** выполняет: клик / ввод / скролл / hotkey.
+6. Повтор, пока LLM не скажет `done` / `fail` или не исчерпан `MaxSteps`.
+
+### 12 действий `vision_agent`
+
+| Action | Назначение | Approval |
+|:---|:---|:---:|
+| `run_task` | Полный loop (screenshot → describe → plan → act) | ✅ |
+| `describe` | Описать текущий экран (`{ description, ui_elements[] }`) | — |
+| `screenshot` | Снять PNG, сохранить в workspace, вернуть `{ path, base64, sizeBytes }` | — |
+| `click` / `double_click` / `right_click` | Мышь (`target` или `x,y`) | ✅ |
+| `move_mouse` | Наведение (hover) | — |
+| `type` | Ввод текста в текущий фокус | ✅ |
+| `press_key` | Одиночная клавиша (Enter / Tab / Escape / ...) | ✅ |
+| `hotkey` | Комбинация (`["Ctrl","C"]`) | ✅ |
+| `scroll` | Прокрутка (+вниз, −вверх) | — |
+| `wait` | Пауза (мс, default 1000) | — |
+
+**Для одиночных действий с `target`:** сначала вызови `describe` — получишь
+`id` элементов UI. Либо укажи `x/y` напрямую (пиксели).
+
+**Примеры задач для Chat:**
+- «Открой `example.com` и скажи, что там написано.» → `vision_agent(action=describe)`
+- «Купи билет РЖД Москва→Камчатка, купе, нижняя полка.» → `vision_agent(action=run_task)`
+- «Заполни форму на сайте X.» → `vision_agent(action=run_task)`
+
+### Backend: `local-harness`
+
+**v1.12.0 — единственный активный backend.** Открывает **Chrome / Edge** с
+fresh-профилем (`--user-data-dir=%TEMP%\vision-profile-{id}`) — без сохранённых
+паролей, cookies, истории. Управляет мышью/клавиатурой через Win32 `SendInput`.
+
+**Whitelist процессов** (FlaUI / `GetForegroundWindow`): действие отменяется,
+если фокус ушёл на `notepad.exe` (не в `AllowedProcesses`).
+
+**Отложено в v1.12.x:**
+- `sandbox` backend — Windows Sandbox (Ф3);
+- `remote-vnc` backend — MCP-клиент для удалённой машины (Ф4);
+- **WPF overlay** — реальный on-screen indicator (**KI-142**). Сейчас —
+  заглушка `NoopVisionOverlayLauncher`, пользователь видит результат по
+  действиям Chrome и курсора.
+
+### Конфигурация (секция `VisionAgent` в `appsettings.json`)
+
+```jsonc
+"VisionAgent": {
+  "Enabled": true,
+  "Backend": {
+    "Mode": "local-harness",
+    "Local": {
+      "CaptureMode": "gdi",
+      "AllowedProcesses": [ "chrome", "msedge", "firefox" ],
+      "ChromeFreshProfile": true,
+      "ShowOverlay": true
+    }
+  },
+  "VisionLlm": {
+    "Provider": "lmstudio",
+    "Model": "ministral-3-3b-instruct-2512",
+    "MaxImageWidth": 1024,
+    "MaxImageHeight": 768
+  },
+  "PlannerLlm": {
+    "Provider": "lmstudio",
+    "Model": "qwen3-coder-30b-a3b-instruct"
+  },
+  "Limits": {
+    "MaxSteps": 30,
+    "MaxTaskSeconds": 300,
+    "MaxTasksPerUserPer5Min": 5,
+    "ActionDelayMs": 500
+  },
+  "Whitelist": {
+    "Domains": [ "rzd.ru", "*.rzd.ru", "wikipedia.org", "*.wikipedia.org" ],
+    "DeniedDomains": [ "*.bank*", "*.sberbank.ru" ],
+    "AllowAnyDomain": false
+  },
+  "ActionValidation": {
+    "BlockedKeys": [ "F12", "Ctrl+Shift+I", "Alt+F4", "Ctrl+W" ],
+    "BlockedHotkeys": [ [ "Ctrl", "Alt", "Delete" ], [ "Alt", "Tab" ], [ "Meta", "L" ] ],
+    "MaxTextLength": 2000,
+    "MaxScrollDelta": 2000
+  },
+  "Privacy": {
+    "PersistScreenshots": false,
+    "SaveToWorkspace": true,
+    "WorkspaceRetentionHours": 1,
+    "MaskUrlBar": true
+  }
+}
+```
+
+### Требования
+
+- **Windows 10/11** (GDI + SendInput).
+- **Chrome или Edge** в `PATH` / стандартной установке.
+- **LM Studio** с двумя моделями:
+  - Vision LLM: `ministral-3-3b-instruct-2512` (мультимодальная).
+  - Planner LLM: `qwen3-coder-30b-a3b-instruct` (или любая tool-calling-совместимая).
+- **LM Studio Context Length ≥ 16384** для обеих моделей (KI-117).
+
+### Безопасность
+
+| # | Уровень | Что защищает |
+|---|---|---|
+| 1 | **Изоляция backend'а** | Chrome fresh profile, whitelist процессов |
+| 2 | **Whitelist доменов** | LLM не заходит на фишинговые сайты |
+| 3 | **Валидатор** | Блокирует F12, Ctrl+Alt+Del, Alt+Tab |
+| 4 | **Approval + бюджет** | `run_task` + mutation-actions, MaxSteps, MaxTaskSeconds, rate limit 5/5 мин |
+| 5 | **Audit** | Каждый `run_task` — в AuditLogs (без task text, без скриншотов) |
+
+**Отложено:** WPF overlay (KI-142), PII masking (KI-138), OCR fallback (KI-137),
+External VL providers (KI-139, KI-141).
+
+### Ограничения MVP
+
+- **Только `local-harness`** (Windows). Sandbox (Ф3) и RemoteVnc (Ф4) — v1.12.x.
+- **Нет on-screen indicator** — заглушка `NoopVisionOverlayLauncher`. См. KI-142.
+- **Скриншоты не сохраняются** в `ChatMessage.MetadataJson`
+  (`PersistScreenshots = false`). В workspace — на 1 ч (`WorkspaceRetentionHours = 1`).
+- **VL-модель должна быть мультимодальной.** Обычный `qwen3-4b` не подойдёт.
+- **Планер должен уметь tool calling** (для `VisionActionParser`).
+
+### Дизайн
+
+[`docs/development/v1.12/DESIGN_VISION_AGENT.md`](docs/development/v1.12/DESIGN_VISION_AGENT.md)
+(v2.1, MVP Released).
 
 ---
 
