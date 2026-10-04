@@ -110,9 +110,17 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
             var requestSw = Stopwatch.StartNew();
 
+            // Ф6.3 (KI-131): общий timeout на всю задачу.
+            // RULES § 4.48 — CancellationTokenSource.CancelAfter, а не HttpClient.Timeout.
+            // Различаем: timeoutCts (внутренний) vs cancellationToken (внешний Stop).
+            var maxSeconds = Math.Max(1, _options.Limits.MaxTaskSeconds);
+            using var timeoutCts = CancellationTokenSource
+                .CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(maxSeconds));
+
             _logger.LogInformation(
-                "VisionAgent[{TaskId}]: старт задачи (user={UserId}, maxSteps={MaxSteps}, url={Url}): {Task}",
-                taskId, userId, maxSteps, request.Url ?? "(нет)", request.Task);
+                "VisionAgent[{TaskId}]: старт задачи (user={UserId}, maxSteps={MaxSteps}, timeout={Timeout}s, url={Url}): {Task}",
+                taskId, userId, maxSteps, maxSeconds, request.Url ?? "(нет)", request.Task);
 
             try
             {
@@ -121,7 +129,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 {
                     try
                     {
-                        await _backend.OpenAsync(request.Url, cancellationToken).ConfigureAwait(false);
+                        await _backend.OpenAsync(request.Url, timeoutCts.Token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -138,13 +146,13 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 var plan = new List<string>();   // пока пустой; LLM может сам планировать.
                 for (int step = 1; step <= maxSteps; step++)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    timeoutCts.Token.ThrowIfCancellationRequested();
 
                     // 4.1. Скриншот.
                     byte[] png;
                     try
                     {
-                        png = await _backend.ScreenshotAsync(cancellationToken).ConfigureAwait(false);
+                        png = await _backend.ScreenshotAsync(timeoutCts.Token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -157,7 +165,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     ScreenDescriptionDto screen;
                     try
                     {
-                        screen = await _visionLlm.DescribeAsync(png, cancellationToken)
+                        screen = await _visionLlm.DescribeAsync(png, timeoutCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -172,7 +180,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     try
                     {
                         action = await _plannerLlm.PlanNextAsync(
-                            request.Task, history, screen, plan, userId, cancellationToken)
+                            request.Task, history, screen, plan, userId, timeoutCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -236,7 +244,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     string stepError = null;
                     try
                     {
-                        await ExecuteActionAsync(_backend, actionType, effectiveAction, screen, cancellationToken)
+                        await ExecuteActionAsync(_backend, actionType, effectiveAction, screen, timeoutCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
@@ -268,7 +276,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     var delayMs = Math.Max(0, _options.Limits.ActionDelayMs);
                     if (delayMs > 0)
                     {
-                        await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(delayMs, timeoutCts.Token).ConfigureAwait(false);
                     }
                 }
 
@@ -280,11 +288,22 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         "VisionAgent[{TaskId}]: maxSteps={MaxSteps} исчерпан", taskId, maxSteps);
                 }
             }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested
+                                                     && !cancellationToken.IsCancellationRequested)
+            {
+                // Ф6.3: сработал ВНУТРЕННИЙ timeout (MaxTaskSeconds).
+                // Возвращаем результат — НЕ throw (это плановая остановка задачи).
+                result.Error = $"Превышен лимит времени задачи ({maxSeconds} с).";
+                _logger.LogWarning(
+                    "VisionAgent[{TaskId}]: timeout {Timeout}s, steps={Steps}",
+                    taskId, maxSeconds, history.Count);
+            }
             catch (OperationCanceledException)
             {
+                // Внешняя отмена (Stop в чате / HTTP abort) — пробрасываем.
                 result.Error = "Задача отменена.";
                 _logger.LogInformation("VisionAgent[{TaskId}]: отменена", taskId);
-                throw;   // прокидываем — вызывающая сторона (Ф7) обработает.
+                throw;
             }
             catch (Exception ex)
             {

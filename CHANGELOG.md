@@ -19,6 +19,21 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.3)**: timeout `MaxTaskSeconds`.
+  - **`VisionAgentService.RunTaskAsync`**: main loop обёрнут в
+    `CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)` +
+    `CancelAfter(Limits.MaxTaskSeconds)` (RULES § 4.48 — не `HttpClient.Timeout`).
+    Все await внутри loop (OpenAsync, ScreenshotAsync, DescribeAsync,
+    PlanNextAsync, ExecuteActionAsync, Task.Delay) получают `timeoutCts.Token`.
+  - **Различение отмены** через `catch when`:
+    - **Timeout** (внутренний CTS сработал, внешний не отменён) →
+      `result.Error = "Превышен лимит времени задачи (N с)."`, **не throw**
+      (плановая остановка).
+    - **Внешняя отмена** (Stop в чате / HTTP abort) → throw (как было).
+  - **Log:** при старте задачи — `timeout=Ns`; при timeout — Warning с
+    реальным числом шагов.
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6.4 (`InMemoryVisionRateLimiter`).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.2)**: VisionAgentService loop.
   - **VisionAgentService.cs** (Scoped, `IVisionAgentService`): оркестратор
     loop'а `screenshot → describe → plan → validate → act → repeat`.
