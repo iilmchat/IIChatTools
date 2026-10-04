@@ -988,6 +988,10 @@ namespace IIChatTools.API
             // clamp text/deltaY, проверка target в ui_elements).
             services.AddSingleton<IVisionActionValidator, VisionActionValidator>();
 
+            // Ф6.4 (KI-131): rate limiter (5 задач / 5 мин per-user).
+            // Singleton — in-memory state + Timer cleanup (по образцу KI-043).
+            services.AddSingleton<IVisionRateLimiter, InMemoryVisionRateLimiter>();
+
             // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
             // Scoped — зависит от Scoped IVisionBackend (backend = Scoped).
             services.AddScoped<IVisionAgentService, VisionAgentService>();

@@ -19,6 +19,25 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.4)**: InMemoryVisionRateLimiter.
+  - **`VisionRateLimitResult.cs`** (DTO): `Allowed` / `RetryAfterSeconds` /
+    `RemainingInWindow`.
+  - **`IVisionRateLimiter.cs`**: `TryAcquire(userId)` → `VisionRateLimitResult`.
+  - **`InMemoryVisionRateLimiter.cs`** (Singleton, `IDisposable`): fixed-window
+    `MaxTasksPerUserPer5Min` (default 5, clamp [1, 100]). `ConcurrentDictionary` +
+    per-user `lock`. Cleanup Timer каждые 5 мин (удаляет окна без активности
+    > 10 мин, по образцу KI-043). TryAcquire инкрементирует счётчик только
+    при успехе (отказ не тратит слот).
+  - **`VisionAgentService.RunTaskAsync`**: +rate-check в начале (после
+    валидации request, до main loop). При отказе — `VisionTaskResultDto`
+    с `Error = "Превышен лимит запусков Vision Agent (5 задач / 5 минут).
+    Попробуйте через N с."` (без throw).
+  - **DI:** `services.AddSingleton<IVisionRateLimiter, InMemoryVisionRateLimiter>()`
+    в `RegisterVisionAgentTools`.
+  - **Тесты:** `InMemoryVisionRateLimiterTests` (+~9 кейсов: first/within/over,
+    per-user isolation, invalid userId, decreasing remaining, clamps, dispose).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6.5 (сохранение скриншотов).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.3)**: timeout `MaxTaskSeconds`.
   - **`VisionAgentService.RunTaskAsync`**: main loop обёрнут в
     `CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)` +

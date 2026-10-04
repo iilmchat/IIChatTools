@@ -44,6 +44,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         private readonly IVisionLlmClient _visionLlm;
         private readonly IPlannerLlmClient _plannerLlm;
         private readonly IVisionActionValidator _validator;
+        private readonly IVisionRateLimiter _rateLimiter;
         private readonly VisionAgentOptions _options;
         private readonly ILogger<VisionAgentService> _logger;
 
@@ -54,6 +55,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <param name="visionLlm">Vision LLM (описание UI).</param>
         /// <param name="plannerLlm">Planner LLM (следующее действие).</param>
         /// <param name="validator">Валидатор действий.</param>
+        /// <param name="rateLimiter">Rate limiter (5 задач / 5 мин per-user).</param>
         /// <param name="options">Настройки Vision Agent.</param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если один из параметров null.</exception>
@@ -62,6 +64,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             IVisionLlmClient visionLlm,
             IPlannerLlmClient plannerLlm,
             IVisionActionValidator validator,
+            IVisionRateLimiter rateLimiter,
             IOptions<VisionAgentOptions> options,
             ILogger<VisionAgentService> logger)
         {
@@ -69,6 +72,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             _visionLlm = visionLlm ?? throw new ArgumentNullException(nameof(visionLlm));
             _plannerLlm = plannerLlm ?? throw new ArgumentNullException(nameof(plannerLlm));
             _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+            _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
             if (options == null) throw new ArgumentNullException(nameof(options));
             _options = options.Value;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -94,6 +98,28 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             var taskId = string.IsNullOrWhiteSpace(request.TaskId)
                 ? "vt_" + Guid.NewGuid().ToString("N").Substring(0, 8)
                 : request.TaskId;
+
+            // 2.1. Rate limit (Ф6.4): 5 задач / 5 мин per-user.
+            var rateCheck = _rateLimiter.TryAcquire(userId);
+            if (!rateCheck.Allowed)
+            {
+                _logger.LogWarning(
+                    "VisionAgent[{TaskId}]: rate limit для user={UserId}, retry через {Sec}с",
+                    taskId, userId, rateCheck.RetryAfterSeconds);
+
+                var retryMsg = rateCheck.RetryAfterSeconds > 0
+                    ? $" Попробуйте через {rateCheck.RetryAfterSeconds} с."
+                    : string.Empty;
+
+                return new VisionTaskResultDto
+                {
+                    Task = request.Task,
+                    Backend = _backend.Name,
+                    Success = false,
+                    Error = "Превышен лимит запусков Vision Agent (5 задач / 5 минут)." + retryMsg,
+                    Steps = new List<VisionStepDto>()
+                };
+            }
 
             var maxSteps = request.MaxSteps.HasValue && request.MaxSteps.Value > 0
                 ? Math.Min(request.MaxSteps.Value, _options.Limits.MaxSteps)
