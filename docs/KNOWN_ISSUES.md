@@ -2689,6 +2689,22 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   MVP достигается на Ф7. Sandbox на dev-машине **Disabled**
   (`Containers-DisposableClientVM`, Windows Pro — включение требует
   admin + перезагрузка). См. `DESIGN_VISION_AGENT.md` § 7.
+- **Фазы 5-6 закрыты** (2026-10-04):
+  - **Ф5** (`d4ec1fb` → `98a0d9a`): 4 клиента (LmStudio + External ×
+    Vision + Planner) + 2 Auto* с fallback chain через `Func<>`
+    (ADR-002). `ScreenDescriptionParser` / `VisionActionParser` —
+    устойчивые парсеры JSON с markdown-обёрткой.
+  - **Ф6** (`1a63c3f` → `5408ecd`): `VisionActionValidator` (blocked keys,
+    clamp), `VisionAgentService` loop
+    `screenshot → describe → plan → validate → act → repeat`,
+    timeout через `CancelAfter`, `InMemoryVisionRateLimiter` (5/5мин),
+    `VisionScreenshotStore` + `VisionRetentionService` (TTL 1ч),
+    `NoopVisionOverlayLauncher` (WPF overlay — Ф6.7 отдельно).
+  - **Отложено:** Ф6.7 (WPF overlay), Ф3 (Sandbox), Ф4 (RemoteVnc).
+    Не блокируют MVP.
+  - **Тесты:** 666 → 958 (+292).
+- **KI-141** (Planned, v1.12.x) — External VL providers: multimodal image
+  support. См. отдельную запись.
 - **Обнаружено:** 2026-10-03 (обсуждение с пользователем)
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
   (v2.1, Draft — ждёт согласования).

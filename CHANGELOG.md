@@ -19,6 +19,21 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.9)**: тесты VisionAgentService.
+  - **Fakes/**: `FakeVisionBackend` (управляемые ошибки + call log),
+    `FakeVisionLlmClient` (queue responses), `FakePlannerLlmClient`
+    (queue actions + userId tracking), `FakeVisionScreenshotStore`.
+  - **`VisionAgentServiceTests`** (+15 кейсов): null/empty request,
+    rate-limit exceeded, happy done, fail action, maxSteps exhausted,
+    screenshot/describe/plan failures, backend action fail (step error,
+    loop продолжается), target not found (validator reject), все 11 actions
+    forwarded, URL → OpenAsync, screenshots saved each step, external
+    cancellation, userId propagation.
+  - **🎉 Ф6 закрыта** (кроме 6.7 overlay — отдельный под-этап позже).
+    Loop `screenshot → describe → plan → validate → act` работает
+    end-to-end с rate-limit + timeout + retention + screenshots.
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф7 (`VisionAgentTool` → Chat).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.8)**: overlay launcher (no-op).
   - **`IVisionOverlayLauncher.cs`** (в одном файле с `IVisionOverlayHandle`):
     `IsAvailable` + `StartAsync(taskId, maxSteps, ct)` → handle.
