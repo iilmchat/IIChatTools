@@ -996,6 +996,12 @@ namespace IIChatTools.API
             // Scoped — зависит от IWorkspaceResolver (Scoped).
             services.AddScoped<IVisionScreenshotStore, VisionScreenshotStore>();
 
+            // Ф6.6 (KI-131): очистка устаревших скриншотов (TTL 1 ч).
+            // Cleaner — Scoped (AppDbContext + IWorkspaceResolver).
+            // RetentionService — HostedService (тонкая обёртка по таймеру).
+            services.AddScoped<IVisionScreenshotCleaner, VisionScreenshotCleaner>();
+            services.AddHostedService<VisionRetentionService>();
+
             // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
             // Scoped — зависит от Scoped IVisionBackend + IVisionScreenshotStore.
             services.AddScoped<IVisionAgentService, VisionAgentService>();

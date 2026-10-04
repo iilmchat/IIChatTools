@@ -19,6 +19,26 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.6)**: очистка скриншотов (TTL).
+  - **`VisionScreenshotCleanupResult.cs`** (DTO): DeletedTaskFolders / DeletedFiles
+    / FreedBytes / ErrorCount / DurationMs.
+  - **`IVisionScreenshotCleaner.cs`**: `CleanupAsync(ct)`.
+  - **`VisionScreenshotCleaner.cs`** (Scoped): обходит
+    <c>{userWorkspace}/screenshots/*</c> всех пользователей (userIds из
+    <c>AppDbContext.Users</c>), удаляет папки с <c>LastWriteTimeUtc &lt; now -
+    RetentionHours</c>. Retention clamp [1, 168] ч. Ошибки на уровне одной
+    папки не прерывают остальные. Метрики: папки, файлы, байты, ошибки.
+  - **`VisionRetentionService.cs`** (HostedService): периодический вызов
+    <c>IVisionScreenshotCleaner</c> через <c>IServiceScopeFactory</c>. Первый
+    прогон через 5 мин, далее каждые 30 мин. Отключается при
+    <c>VisionAgent:Enabled = false</c> или <c>Privacy:SaveToWorkspace = false</c>.
+    По образцу <c>AuditRetentionService</c> / <c>ChatRetentionService</c>.
+  - **DI:** <c>AddScoped&lt;IVisionScreenshotCleaner, VisionScreenshotCleaner&gt;</c>
+    + <c>AddHostedService&lt;VisionRetentionService&gt;</c>.
+  - **Тесты:** <c>VisionScreenshotCleanerTests</c> (+~8 кейсов: old/fresh/boundary,
+    multiple folders, multiple users, save-disabled, no folder, no users).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6.8 (launcher stub).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.5)**: сохранение скриншотов.
   - **`IVisionScreenshotStore.cs`**: `SaveAsync(userId, taskId, stepIndex, png, ct)`
     → относительный путь; `GetTaskDirectoryAsync(userId, taskId)`.
