@@ -893,4 +893,7 @@
   <data name="SpeechDeviceFallback" xml:space="preserve">
     <value>Saved microphone is unavailable. Using system default. Check Profile → Audio.</value>
   </data>
+  <data name="SpeechVirtualDeviceWarning" xml:space="preserve">
+    <value>Virtual microphone detected — may produce zero signal. Choose a physical device in Profile → Audio.</value>
+  </data>
 </root>

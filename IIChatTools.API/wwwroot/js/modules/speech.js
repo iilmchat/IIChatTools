@@ -45,6 +45,14 @@ const NORMALIZE_MIN_PEAK = 1e-4;
 /** Максимальный gain при нормализации (10× ≈ +20 дБ). */
 const NORMALIZE_MAX_GAIN = 10.0;
 
+/**
+ * Паттерн «виртуальных» audio-устройств (v1.13.1-fix9, KI-140-fix).
+ * Такие устройства дают валидный MediaStreamTrack, но нулевой сигнал
+ * (см. KI-144). Если пользователь не выбрал микрофон явно, а трек
+ * матчит паттерн — один раз предупреждаем в UI.
+ */
+const VIRTUAL_DEVICE_PATTERN = /(steam|vb[-\s]?cable|virtual|voicemeeter|obs)/i;
+
 // ============ Состояние ============
 
 let _stream = null;
@@ -81,6 +89,9 @@ let _audioDeviceIdLoading = null;    // Promise, если идёт загруз�
 
 // Флаг: уже показывали toast про fallback на default в этой сессии.
 let _deviceFallbackToastShown = false;
+
+// v1.13.1-fix9 (KI-140-fix): флаг — уже предупреждали о «виртуальном» микрофоне.
+let _virtualDeviceToastShown = false;
 
 // ============ Публичное API ============
 
@@ -122,9 +133,10 @@ export function disposeSpeechRecognition() {
     _stopStream();
     _isRecording = false;
 
-    // v1.13.1-fix8 (KI-145): сбросить флаг toast — при повторной инициализации
-    // пользователь снова увидит предупреждение (актуально для SPA).
+    // v1.13.1-fix8 (KI-145): сбросить флаги toast — при повторной инициализации
+    // пользователь снова увидит предупреждения (актуально для SPA).
     _deviceFallbackToastShown = false;
+    _virtualDeviceToastShown = false;   // v1.13.1-fix9
 }
 
 // ============ Обработчики ============
@@ -180,6 +192,43 @@ function _showDeviceFallbackToastOnce() {
     const msg = _getLabel(
         'labelSpeechDeviceFallback',
         'Сохранённый микрофон недоступен. Использован системный. Проверьте Профиль → Аудио.');
+
+    try {
+        toast(msg, 'warning');
+    } catch (ex) {
+        console.warn('[speech] toast failed:', ex);
+    }
+}
+
+/**
+ * v1.13.1-fix9 (KI-140-fix): если пользователь не выбрал микрофон явно,
+ * а браузер отдал «виртуальное» устройство (Steam Streaming / VB-Cable /
+ * VoiceMeeter / OBS Virtual Audio) — оно даст нулевой сигнал. Один раз
+ * за сессию предупреждаем со ссылкой на /profile → Аудио.
+ *
+ * <para>
+ * Показываем только когда <c>_audioDeviceId === null</c> (пользователь
+ * не выбрал в /profile). Если выбрано явно — доверяем выбору.
+ * </para>
+ *
+ * @param {string|null} trackLabel — <c>MediaStreamTrack.label</c>.
+ */
+function _maybeWarnAboutVirtualDevice(trackLabel) {
+    if (_virtualDeviceToastShown) return;
+    if (_audioDeviceId) return;                      // явный выбор — уважаем
+    if (!trackLabel || trackLabel.length === 0) return;
+
+    if (!VIRTUAL_DEVICE_PATTERN.test(trackLabel)) return;
+
+    _virtualDeviceToastShown = true;
+
+    const msg = _getLabel(
+        'labelSpeechVirtualDeviceWarning',
+        'Выбран виртуальный микрофон — возможен нулевой сигнал. Профиль → Аудио.');
+
+    console.warn(
+        '[speech] Виртуальный микрофон «%s» — рекомендуем выбрать физический в Профиль → Аудио',
+        trackLabel);
 
     try {
         toast(msg, 'warning');
@@ -250,6 +299,10 @@ async function _startRecording() {
             muted: track?.muted,
             enabled: track?.enabled,
         });
+
+        // v1.13.1-fix9 (KI-140-fix): если трек — virtual device, а выбор
+        // в /profile не сделан — предупреждаем один раз (см. KI-144).
+        _maybeWarnAboutVirtualDevice(track?.label);
 
         _pcmChunks = [];
         _isRecording = true;

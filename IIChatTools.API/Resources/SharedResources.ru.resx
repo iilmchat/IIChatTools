@@ -893,4 +893,7 @@
   <data name="SpeechDeviceFallback" xml:space="preserve">
     <value>Сохранённый микрофон недоступен. Использован системный. Проверьте Профиль → Аудио.</value>
   </data>
+  <data name="SpeechVirtualDeviceWarning" xml:space="preserve">
+    <value>Выбран виртуальный микрофон — возможен нулевой сигнал. Выберите физический в Профиль → Аудио.</value>
+  </data>
 </root>
