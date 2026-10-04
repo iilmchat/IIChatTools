@@ -46,6 +46,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         private readonly IVisionActionValidator _validator;
         private readonly IVisionRateLimiter _rateLimiter;
         private readonly IVisionScreenshotStore _screenshotStore;
+        private readonly IVisionOverlayLauncher _overlayLauncher;
         private readonly VisionAgentOptions _options;
         private readonly ILogger<VisionAgentService> _logger;
 
@@ -58,6 +59,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <param name="validator">Валидатор действий.</param>
         /// <param name="rateLimiter">Rate limiter (5 задач / 5 мин per-user).</param>
         /// <param name="screenshotStore">Хранилище скриншотов (workspace).</param>
+        /// <param name="overlayLauncher">Launcher on-screen indicator'а (Ф6.8: Noop).</param>
         /// <param name="options">Настройки Vision Agent.</param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если один из параметров null.</exception>
@@ -68,6 +70,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             IVisionActionValidator validator,
             IVisionRateLimiter rateLimiter,
             IVisionScreenshotStore screenshotStore,
+            IVisionOverlayLauncher overlayLauncher,
             IOptions<VisionAgentOptions> options,
             ILogger<VisionAgentService> logger)
         {
@@ -77,6 +80,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             _validator = validator ?? throw new ArgumentNullException(nameof(validator));
             _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
             _screenshotStore = screenshotStore ?? throw new ArgumentNullException(nameof(screenshotStore));
+            _overlayLauncher = overlayLauncher ?? throw new ArgumentNullException(nameof(overlayLauncher));
             if (options == null) throw new ArgumentNullException(nameof(options));
             _options = options.Value;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -152,6 +156,28 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 "VisionAgent[{TaskId}]: старт задачи (user={UserId}, maxSteps={MaxSteps}, timeout={Timeout}s, url={Url}): {Task}",
                 taskId, userId, maxSteps, maxSeconds, request.Url ?? "(нет)", request.Task);
 
+            // Ф6.8 (KI-131): overlay для on-screen indicator.
+            // Noop-заглушка сейчас, WPF — в Ф6.7. Отключается, если:
+            //  - overlay недоступен (IsAvailable = false)
+            //  - в локальных настройках ShowOverlay = false
+            var showOverlay = _overlayLauncher.IsAvailable &&
+                              (_options.Backend?.Local?.ShowOverlay ?? false);
+            IVisionOverlayHandle overlayHandle = null;
+            if (showOverlay)
+            {
+                try
+                {
+                    overlayHandle = await _overlayLauncher.StartAsync(taskId, maxSteps, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "VisionAgent[{TaskId}]: не удалось запустить overlay", taskId);
+                    overlayHandle = null;
+                }
+            }
+
             try
             {
                 // 3. Открыть стартовый URL (если задан).
@@ -177,6 +203,13 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 for (int step = 1; step <= maxSteps; step++)
                 {
                     timeoutCts.Token.ThrowIfCancellationRequested();
+
+                    // Ф6.8: прогресс в overlay (если включён).
+                    try
+                    {
+                        overlayHandle?.UpdateProgress(step, maxSteps, "screenshot");
+                    }
+                    catch { /* overlay не критичен */ }
 
                     // 4.1. Скриншот.
                     byte[] png;
@@ -367,6 +400,23 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             {
                 requestSw.Stop();
                 result.TotalDurationMs = requestSw.ElapsedMilliseconds;
+
+                // Ф6.8: финальное состояние overlay + закрытие.
+                if (overlayHandle != null)
+                {
+                    try
+                    {
+                        var summary = result.Success
+                            ? "Готово"
+                            : (string.IsNullOrEmpty(result.Error) ? "Отменено" : "Ошибка");
+                        overlayHandle.SetFinalStatus(summary, result.Success);
+                    }
+                    catch { /* overlay не критичен */ }
+
+                    try { overlayHandle.Dispose(); }
+                    catch { /* overlay не критичен */ }
+                }
+
                 _logger.LogInformation(
                     "VisionAgent[{TaskId}]: завершено (success={Success}, steps={Steps}, ms={Ms}): {Error}",
                     taskId, result.Success, history.Count, result.TotalDurationMs,

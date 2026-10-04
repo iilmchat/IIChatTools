@@ -19,6 +19,23 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.8)**: overlay launcher (no-op).
+  - **`IVisionOverlayLauncher.cs`** (в одном файле с `IVisionOverlayHandle`):
+    `IsAvailable` + `StartAsync(taskId, maxSteps, ct)` → handle.
+    Handle: `UpdateProgress(step, maxSteps, action)` + `SetFinalStatus(summary,
+    success)` + `IDisposable`.
+  - **`NoopVisionOverlayLauncher.cs`** (Singleton, `IDisposable`-handle): сейчас
+    `IsAvailable = false`, все методы — no-op. Используется до реализации
+    WPF overlay'я в **Ф6.7** (отдельный проект `IIChatTools.VisionOverlay`).
+  - **`VisionAgentService.RunTaskAsync`**: стартует overlay при
+    `_overlayLauncher.IsAvailable && Backend.Local.ShowOverlay`, эмитит
+    `UpdateProgress(step, maxSteps, "screenshot")` перед каждым скриншотом,
+    `SetFinalStatus("Готово"/"Ошибка", success)` + `Dispose()` в `finally`.
+    Ошибки overlay логируются, но не прерывают loop.
+  - **DI:** `services.AddSingleton<IVisionOverlayLauncher, NoopVisionOverlayLauncher>()`.
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6.9 (тесты сервиса).
+  - **Отложено:** Ф6.7 (реальный WPF overlay) — отдельный проект, перед Ф7.
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.6)**: очистка скриншотов (TTL).
   - **`VisionScreenshotCleanupResult.cs`** (DTO): DeletedTaskFolders / DeletedFiles
     / FreedBytes / ErrorCount / DurationMs.

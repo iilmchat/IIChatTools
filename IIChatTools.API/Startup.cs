@@ -1002,6 +1002,11 @@ namespace IIChatTools.API
             services.AddScoped<IVisionScreenshotCleaner, VisionScreenshotCleaner>();
             services.AddHostedService<VisionRetentionService>();
 
+            // Ф6.8 (KI-131): overlay launcher (on-screen indicator).
+            // Сейчас Noop (IsAvailable = false), WPF — отдельный под-этап Ф6.7.
+            // Singleton — stateless.
+            services.AddSingleton<IVisionOverlayLauncher, NoopVisionOverlayLauncher>();
+
             // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
             // Scoped — зависит от Scoped IVisionBackend + IVisionScreenshotStore.
             services.AddScoped<IVisionAgentService, VisionAgentService>();
