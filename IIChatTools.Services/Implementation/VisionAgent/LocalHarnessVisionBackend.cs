@@ -152,6 +152,124 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             // + win-title). Пока — консервативная пауза.
             var waitMs = Math.Max(1000, _options.Limits.PageStabilityCheckMs * 4);
             await Task.Delay(waitMs, cancellationToken).ConfigureAwait(false);
+
+            // 7. KI-148: форсировать фокус на окно Chrome.
+            // Без этого фокус может остаться на explorer.exe (или другом приложении,
+            // которое было активно до запуска) → первое mutation-действие упадёт
+            // на whitelist-проверке процессов (`EnsureForegroundProcessAllowed`).
+            await TryFocusChromeAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// KI-148 (v1.12.x): устанавливает фокус на главное окно Chrome.
+        /// <list type="number">
+        ///   <item>Ждёт появления <c>MainWindowHandle</c> (до 10 сек, шаг 200 мс).</item>
+        ///   <item>Combo: <c>ShowWindow(SW_MAXIMIZE)</c> + <c>SetForegroundWindow</c>
+        ///     с <c>AttachThreadInput</c> — временно «присоединяется» к input-очереди
+        ///     текущего foreground-потока, чтобы Windows разрешила foreground-stealing.
+        ///     3 попытки × 300 мс.</item>
+        ///   <item>Fallback: та же комбинация без <c>AttachThreadInput</c> (на случай,
+        ///     если уже в foreground — Microsoft может блокировать и attachment).</item>
+        /// </list>
+        /// <b>KI-148-fix:</b> без <c>AttachThreadInput</c> Windows игнорирует
+        /// <c>SetForegroundWindow</c> из фонового процесса. Если и с attachment не
+        /// удалось — бросаем <see cref="InvalidOperationException"/> с явной
+        /// инструкцией пользователю (кликнуть по Chrome и повторить), чтобы не
+        /// «залипать» в ошибке «explorer не в whitelist».
+        /// </summary>
+        private async Task TryFocusChromeAsync(CancellationToken cancellationToken)
+        {
+            if (_chromeProcess == null || _chromeProcess.HasExited)
+            {
+                return;
+            }
+
+            // 1. Ожидание MainWindowHandle.
+            const int waitHandleTotalMs = 10_000;
+            const int waitHandleStepMs = 200;
+            var waited = 0;
+            while (waited < waitHandleTotalMs)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try { _chromeProcess.Refresh(); } catch { /* ignore */ }
+
+                if (_chromeProcess.MainWindowHandle != IntPtr.Zero) break;
+
+                await Task.Delay(waitHandleStepMs, cancellationToken).ConfigureAwait(false);
+                waited += waitHandleStepMs;
+            }
+
+            var hwnd = _chromeProcess.MainWindowHandle;
+            if (hwnd == IntPtr.Zero)
+            {
+                throw new InvalidOperationException(
+                    $"Chrome не открыл главное окно за {waitHandleTotalMs / 1000} сек. " +
+                    "Проверьте, что браузер запущен и не заблокирован антивирусом.");
+            }
+
+            const int focusRetryCount = 3;
+            const int focusRetryStepMs = 300;
+
+            for (int attempt = 1; attempt <= focusRetryCount; attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // 2. AttachThreadInput: присоединяемся к input-очереди
+                //    текущего foreground-потока — иначе SetForegroundWindow
+                //    игнорируется Windows.
+                var fgHwnd = Win32Interop.GetForegroundWindow();
+                var fgThreadId = fgHwnd != IntPtr.Zero
+                    ? Win32Interop.GetWindowThreadProcessId(fgHwnd, out _)
+                    : 0;
+                var ourThreadId = Win32Interop.GetCurrentThreadId();
+                var attached = false;
+
+                try
+                {
+                    if (fgThreadId != 0 && fgThreadId != ourThreadId)
+                    {
+                        attached = Win32Interop.AttachThreadInput(
+                            ourThreadId, fgThreadId, true);
+                    }
+
+                    Win32Interop.ShowWindow(hwnd, Win32Interop.SW_MAXIMIZE);
+                    Win32Interop.BringWindowToTop(hwnd);
+                    Win32Interop.SetForegroundWindow(hwnd);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "VisionAgent: ошибка ShowWindow/SetForegroundWindow (attempt {N})",
+                        attempt);
+                }
+                finally
+                {
+                    if (attached)
+                    {
+                        try
+                        {
+                            Win32Interop.AttachThreadInput(
+                                ourThreadId, fgThreadId, false);
+                        }
+                        catch { /* ignore */ }
+                    }
+                }
+
+                await Task.Delay(focusRetryStepMs, cancellationToken).ConfigureAwait(false);
+
+                if (Win32Interop.GetForegroundWindow() == hwnd)
+                {
+                    _logger.LogDebug(
+                        "VisionAgent: фокус на Chrome установлен (attempt {N})", attempt);
+                    return;
+                }
+            }
+
+            // 3. Не удалось даже с AttachThreadInput.
+            throw new InvalidOperationException(
+                "Chrome запущен, но Windows не даёт перевести на него фокус " +
+                "из фонового сервиса. Кликните по окну Chrome и повторите задачу.");
         }
 
         // ============================================================

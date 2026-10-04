@@ -3201,43 +3201,42 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-148 — Vision Agent: Chrome остаётся без фокуса после `OpenAsync`
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
-- **Файлы:** `LocalHarnessVisionBackend.cs` (`OpenAsync`), `Win32Interop.cs`.
-- **Описание:** После `Process.Start(chrome.exe) + Task.Delay(2s)` главное
-  окно Chrome может **не получить фокус** — фокус остаётся на `explorer.exe`
-  (проводник) или другом приложении, которое было активно до запуска. Это
-  приводит к отказу первого mutation-действия: whitelist процессов
-  (`EnsureForegroundProcessAllowed`) видит `explorer` и отклоняет `type` /
-  `click`. Наблюдалось на smoke: шаг 1 (`type`) упал с
-  `Процесс «explorer» не в whitelist`.
-- **Возможные решения:**
-  1. После `Process.Start` — дождаться `_chromeProcess.MainWindowHandle != 0`
-     (цикл с паузами, до 10 сек).
-  2. Вызвать `SetForegroundWindow(hwnd)` + `ShowWindow(hwnd, SW_MAXIMIZE)`.
-  3. Проверить, что `GetForegroundWindow` = окно Chrome (retry 3-5 раз,
-     при отказе — `InvalidOperationException`).
-- **Обходной путь (dev):** `VisionAgent:Backend:Local:AllowNonBrowserProcesses = true`
-  в `appsettings.Development.json` — отключает whitelist процессов.
+- **Файлы:** `LocalHarnessVisionBackend.cs` (`TryFocusChromeAsync`),
+  `Win32Interop.cs`.
+- **Описание:** После `Process.Start(chrome.exe)` главное окно Chrome
+  может не получить фокус — фокус остаётся на `explorer.exe` или
+  другом приложении. Первое mutation-действие падает на whitelist
+  (`EnsureForegroundProcessAllowed` → `Процесс «explorer» не в whitelist`).
+- **Решение (v1.12.x):** `TryFocusChromeAsync` после старта Chrome:
+  ожидание `MainWindowHandle` (до 10 сек, шаг 200 мс) +
+  `AttachThreadInput(ourThreadId, fgThreadId, true)` +
+  `ShowWindow(SW_MAXIMIZE)` + `BringWindowToTop` + `SetForegroundWindow`
+  + `AttachThreadInput(..., false)`. Retry 3 × 300 мс.
+  **Ключ:** без `AttachThreadInput` Windows игнорирует
+  `SetForegroundWindow` из фонового процесса (foreground-stealing block).
+  При 3 неудачах — `InvalidOperationException` с инструкцией
+  «кликните по Chrome и повторите задачу».
+- **Smoke (2026-10-05):** `фокус на Chrome установлен (attempt 1)` ✓
 - **Связанные:** KI-142 (Ф6.7), KI-149.
 
 ---
 
 ### KI-149 — WPF overlay перехватывает фокус при клике (WS_EX_NOACTIVATE)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
-- **Файлы:** `IIChatTools.VisionOverlay/MainWindow.xaml`, `MainWindow.xaml.cs`.
-- **Описание:** Клик по кнопке STOP (или просто по overlay) переводит
+- **Файлы:** `IIChatTools.VisionOverlay/OverlayWin32.cs` (новый),
+  `MainWindow.xaml.cs` (`OnSourceInitialized`), `MainWindow.xaml`.
+- **Описание:** Клик по кнопке STOP (или просто по overlay) переводил
   фокус на WPF-окно `IIChatTools.VisionOverlay`. На следующем шаге
-  `EnsureForegroundProcessAllowed` видит процесс `IIChatTools.VisionOverlay`
-  и отклоняет действие. Наблюдалось на smoke: шаг 4 (`click`) упал с
-  `Процесс «IIChatTools.VisionOverlay» не в whitelist`.
-- **Возможные решения:**
-  1. Установить стиль окна `WS_EX_NOACTIVATE` (`GetWindowLong` /
-     `SetWindowLong` в `SourceInitialized`).
-  2. Добавить `ShowActivated="False"` в XAML `<Window>`.
-  3. Дополнительно — `Focusable="False"` на root-элемент.
+  `EnsureForegroundProcessAllowed` видел процесс `IIChatTools.VisionOverlay`
+  и отклонял действие (`Процесс ... не в whitelist`).
+- **Решение (v1.12.x):** `MainWindow.OnSourceInitialized` устанавливает
+  extended window style `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` через
+  `OverlayWin32.SetWindowLongPtr(GWL_EXSTYLE)`. Плюс `ShowActivated="False"`
+  в XAML `<Window>`. Клик по overlay больше не отбирает фокус у Chrome.
 - **Связанные:** KI-142 (Ф6.7), KI-148.
 
 ---
@@ -3260,6 +3259,28 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   ли `(origW, origH)` при `MaxImageWidth < origW`). Плюс — тесты на
   изменение размеров (сейчас, вероятно, проверяют только байты).
 - **Связанные:** KI-142 (Ф6.7).
+
+---
+
+### KI-152 — Vision Agent: timeout не различается от ошибки в локальном catch
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke KI-148/149).
+- **Файлы:** `VisionAgentService.cs` (внутренний loop, 3 локальных catch).
+- **Описание:** `timeoutCts` (MaxTaskSeconds) срабатывает → `HttpClient`
+  бросает `TaskCanceledException` (наследник `OperationCanceledException`).
+  Но внешний `catch (OperationCanceledException)` в `RunTaskAsync` не
+  вызывался — его перехватывал локальный `catch (Exception ex)` вокруг
+  `ScreenshotAsync` / `DescribeAsync` / `PlanNextAsync` и превращал отмену
+  в `result.Error = "Ошибка описания экрана: The operation was canceled"` +
+  `break`. Все 3 внешних catch-блока (`overlayStopToken` / `timeoutCts` /
+  `cancellationToken`) — были мёртвым кодом.
+- **Решение (v1.12.x):** в каждый локальный `try`-блок добавлен
+  `catch (OperationCanceledException) { throw; }` перед `catch (Exception ex)`
+  — отмена пробрасывается наверх. Плюс — внутри loop используются
+  `effectiveCts.Token` (связан с `timeoutCts` **и** `overlayStopToken`),
+  а не `timeoutCts.Token` — иначе overlay-STOP терялся.
+- **Связанные:** KI-142 (Ф6.7), KI-148, KI-149.
 
 ---
 
@@ -3312,6 +3333,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
 | Fixed (v1.12.0) | 1 |              <!-- KI-131 (Vision Agent, MVP: LocalHarness + vision_agent) -->
 | Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
+| Fixed (v1.12.x) | 3 |             <!-- KI-142, KI-148, KI-149, KI-152-->
 | Planned | 12 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-142, KI-143, KI-146, KI-147 -->
 | In Progress | 0 |                   <!-- — -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->

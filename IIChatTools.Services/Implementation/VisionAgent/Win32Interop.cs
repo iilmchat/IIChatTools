@@ -95,6 +95,71 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             out uint lpdwProcessId);
 
         // ============================================================
+        // SetForegroundWindow / ShowWindow (v1.12.x, KI-148)
+        // ============================================================
+
+        /// <summary>ShowWindow: активировать и показать окно в исходном размере.</summary>
+        public const int SW_SHOW = 5;
+
+        /// <summary>ShowWindow: активировать и восстановить (если свёрнуто).</summary>
+        public const int SW_RESTORE = 9;
+
+        /// <summary>ShowWindow: активировать и развернуть на весь экран.</summary>
+        public const int SW_MAXIMIZE = 3;
+
+        /// <summary>
+        /// Переводит окно в фокус (foreground). Возвращает <c>false</c>,
+        /// если Windows отказала (например, наш процесс сам не в фокусе —
+        /// Windows специально ограничивает foreground stealing).
+        /// </summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        /// <summary>
+        /// Управляет показом / размером окна. Возвращает <c>false</c>,
+        /// если окно было скрыто до вызова (некоторые программы).
+        /// </summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        // ============================================================
+        // AttachThreadInput (v1.12.x, KI-148-fix)
+        // ============================================================
+
+        /// <summary>
+        /// Возвращает ID текущего потока.
+        /// </summary>
+        [DllImport("kernel32.dll")]
+        public static extern uint GetCurrentThreadId();
+
+        /// <summary>
+        /// Присоединяет input-очередь текущего потока к input-очереди
+        /// потока-владельца окна. Пока присоединены — Windows считает их
+        /// «одним потоком», разрешая <c>SetForegroundWindow</c> через
+        /// <c>AttachThreadInput</c> + <c>SetForegroundWindow</c>.
+        /// <para>
+        /// <b>Зачем:</b> Windows блокирует foreground-stealing из фоновых
+        /// процессов. Присоединение к foreground-потоку обходит это
+        /// ограничение (best-effort — Microsoft ужесточает политику).
+        /// </para>
+        /// </summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool AttachThreadInput(
+            uint idAttach,
+            uint idAttachTo,
+            [MarshalAs(UnmanagedType.Bool)] bool fAttach);
+
+        /// <summary>
+        /// Поднимает окно в Z-порядке (поверх остальных).
+        /// </summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool BringWindowToTop(IntPtr hWnd);
+
+        // ============================================================
         // Struct definitions (для SendInput)
         // ============================================================
 

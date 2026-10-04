@@ -10,7 +10,8 @@
         ResizeMode="NoResize"
         SizeToContent="Height"
         Width="320"
-        MinHeight="80">
+        MinHeight="80"
+        ShowActivated="False">
 
     <!--
         Корневой Border — «карточка» overlay:

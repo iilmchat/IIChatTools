@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace IIChatTools.VisionOverlay
@@ -49,6 +50,43 @@ namespace IIChatTools.VisionOverlay
 
             // Позиция: правый верхний угол рабочей области.
             Loaded += OnLoaded;
+        }
+
+        /// <summary>
+        /// KI-149 (v1.12.x): устанавливает extended window style
+        /// <c>WS_EX_NOACTIVATE</c> + <c>WS_EX_TOOLWINDOW</c>.
+        /// <para>
+        /// Overlay не должен перехватывать фокус при клике по кнопке STOP —
+        /// иначе whitelist процессов в API отклоняет следующее действие
+        /// (процесс <c>IIChatTools.VisionOverlay</c> не в списке разрешённых).
+        /// </para>
+        /// <para>
+        /// <c>ShowActivated="False"</c> в XAML + <c>WS_EX_NOACTIVATE</c> здесь
+        /// дают двойную защиту: окно не активируется ни при старте, ни при клике.
+        /// </para>
+        /// </summary>
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+
+            try
+            {
+                var hwnd = new WindowInteropHelper(this).Handle;
+                if (hwnd == IntPtr.Zero)
+                {
+                    return;
+                }
+
+                var exStyle = OverlayWin32.GetWindowLongPtr(hwnd, OverlayWin32.GWL_EXSTYLE);
+                exStyle |= OverlayWin32.WS_EX_NOACTIVATE | OverlayWin32.WS_EX_TOOLWINDOW;
+                OverlayWin32.SetWindowLongPtr(hwnd, OverlayWin32.GWL_EXSTYLE, exStyle);
+            }
+            catch (Exception ex)
+            {
+                // Не критично: overlay продолжит работать, но может перехватывать фокус
+                // при клике → whitelist-проверка в API отклонит следующее действие.
+                Console.WriteLine($"[overlay] WS_EX_NOACTIVATE не установлен: {ex.Message}");
+            }
         }
 
         /// <summary>

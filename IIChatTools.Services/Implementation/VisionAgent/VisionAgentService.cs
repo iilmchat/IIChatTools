@@ -224,6 +224,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     {
                         png = await _backend.ScreenshotAsync(effectiveCts.Token).ConfigureAwait(false);
                     }
+                    catch (OperationCanceledException)
+                    {
+                        // KI-152: пробрасываем отмену наверх — внешний catch разберётся,
+                        // это timeout / overlay-STOP / внешний cancel.
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "VisionAgent[{TaskId}]: ScreenshotAsync упал", taskId);
@@ -261,6 +267,11 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         screen = await _visionLlm.DescribeAsync(png, effectiveCts.Token)
                             .ConfigureAwait(false);
                     }
+                    catch (OperationCanceledException)
+                    {
+                        // KI-152: пробрасываем отмену наверх.
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "VisionAgent[{TaskId}]: DescribeAsync упал", taskId);
@@ -275,6 +286,11 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         action = await _plannerLlm.PlanNextAsync(
                             request.Task, history, screen, plan, userId, effectiveCts.Token)
                             .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // KI-152: пробрасываем отмену наверх.
+                        throw;
                     }
                     catch (Exception ex)
                     {
