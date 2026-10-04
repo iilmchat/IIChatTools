@@ -19,6 +19,20 @@
 ## [Unreleased]
 
 ### Added
+- **v1.13.1-fix10 (KI-140)**: VAD (Voice Activity Detection) — авто-остановка
+  записи по тишине + хоткей `Ctrl+Shift+Space`.
+  - **VAD:** параллельно с записью запускается `AudioContext` + `AnalyserNode`
+    поверх того же `_stream`. Опрос RMS каждые 200 мс. Если RMS < 0.015
+    держится ≥ 2000 мс (и запись идёт уже ≥ 700 мс) — auto-stop. Некритичен:
+    если `AudioContext` недоступен, VAD молча отключается (manual / 60-сек
+    auto-stop продолжают работать). Не создаёт ресурсов, если `_stream` не
+    получен.
+  - **Хоткей:** `Ctrl+Shift+Space` на `/chat` — toggle start/stop записи.
+    `preventDefault()` (в textarea этот шорткат вводит `&nbsp;`). Не
+    конфликтует с `Ctrl+B` / `Ctrl+F` / `Ctrl+K` (`chat.js` — без `shiftKey`).
+  - **Файлы:** `speech.js` (+4 константы, +7 переменных состояния,
+    +3 функции VAD, +1 hotkey-функция, правки `init`/`dispose`/`_startRecording`).
+
 - **v1.13.1-fix9 (KI-140-fix, follow-up KI-144/KI-145)**: warning при выборе
   «виртуального» микрофона. Если пользователь не выбрал микрофон в
   `/profile → Аудио`, а браузер отдал трек, чей `label` матчит паттерн

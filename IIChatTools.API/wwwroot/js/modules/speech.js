@@ -53,6 +53,33 @@ const NORMALIZE_MAX_GAIN = 10.0;
  */
 const VIRTUAL_DEVICE_PATTERN = /(steam|vb[-\s]?cable|virtual|voicemeeter|obs)/i;
 
+// ============ VAD (Voice Activity Detection, v1.13.1-fix10, KI-140) ============
+
+/**
+ * Порог RMS для определения «тишины». Значения ниже этого считаются
+ * фоновым шумом. Типично: тихая комната — 0.001-0.005; шумная — 0.01-0.03;
+ * речь — 0.05-0.30.
+ */
+const VAD_SILENCE_RMS = 0.015;
+
+/**
+ * Длительность тишины для auto-stop (мс).
+ * Если RMS < {@link VAD_SILENCE_RMS} непрерывно N мс — останавливаем запись
+ * и отправляем на распознавание. 2000 мс — баланс между «пользователь
+ * закончил фразу» и «пользователь думает».
+ */
+const VAD_SILENCE_TIMEOUT_MS = 2000;
+
+/**
+ * Минимальная длительность записи до разрешения auto-stop (мс).
+ * Даёт пользователю время начать говорить. Если запись короче —
+ * VAD не сработает, даже если RMS = 0.
+ */
+const VAD_MIN_RECORDING_MS = 700;
+
+/** Интервал проверки VAD (мс). 200 — компромисс между отзывчивостью и CPU. */
+const VAD_POLL_INTERVAL_MS = 200;
+
 // ============ Состояние ============
 
 let _stream = null;
@@ -93,6 +120,15 @@ let _deviceFallbackToastShown = false;
 // v1.13.1-fix9 (KI-140-fix): флаг — уже предупреждали о «виртуальном» микрофоне.
 let _virtualDeviceToastShown = false;
 
+// v1.13.1-fix10 (KI-140): VAD — auto-stop по тишине через AnalyserNode.
+let _vadCtx = null;          // AudioContext для VAD
+let _vadSource = null;       // MediaStreamAudioSourceNode
+let _vadAnalyser = null;     // AnalyserNode
+let _vadTimer = null;        // setInterval-таймер опроса
+let _vadBuffer = null;       // Float32Array для getFloatTimeDomainData
+let _vadStartedAt = 0;       // Date.now() старта VAD
+let _vadLastVoiceTs = 0;     // Date.now() последнего «громкого» фрейма
+
 // ============ Публичное API ============
 
 /**
@@ -119,6 +155,9 @@ export function initSpeechRecognition(button, textarea, container, enabledFlag) 
     button.disabled = false;
     button.addEventListener('click', _onButtonClick);
 
+    // v1.13.1-fix10 (KI-140): глобальный хоткей Ctrl+Shift+Space.
+    document.addEventListener('keydown', _onGlobalKeydown);
+
     button.title = _getLabel('labelSpeechTooltip', 'Голосовой ввод');
     button.setAttribute('aria-label', button.title);
 }
@@ -128,6 +167,10 @@ export function initSpeechRecognition(button, textarea, container, enabledFlag) 
  */
 export function disposeSpeechRecognition() {
     if (_buttonEl) _buttonEl.removeEventListener('click', _onButtonClick);
+
+    // v1.13.1-fix10 (KI-140): снять глобальный хоткей.
+    document.removeEventListener('keydown', _onGlobalKeydown);
+
     _releaseAudioResources();
     _stopTimer();
     _stopStream();
@@ -144,6 +187,28 @@ export function disposeSpeechRecognition() {
 function _onButtonClick() {
     if (_isRecording) _stopRecording();
     else _startRecording();
+}
+
+/**
+ * v1.13.1-fix10 (KI-140): глобальный хоткей Ctrl+Shift+Space — start/stop
+ * голосового ввода. Работает на всей странице /chat, включая фокус
+ * в textarea (в этом случае Ctrl+Shift+Space обычно вводит &nbsp; —
+ * перехватываем через preventDefault).
+ *
+ * @param {KeyboardEvent} e
+ */
+function _onGlobalKeydown(e) {
+    // Только Ctrl+Shift+Space, без Alt/Meta (не пересекается с Ctrl+B/F/K
+    // в chat.js — там нет shiftKey).
+    if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return;
+
+    // Разные браузеры по-разному отдают Space: e.code='Space', e.key=' '.
+    const isSpace = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
+    if (!isSpace) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    _onButtonClick();
 }
 
 /**
@@ -310,6 +375,10 @@ async function _startRecording() {
         _setRecordingUI(true);
         _startTimer();
 
+        // v1.13.1-fix10 (KI-140): VAD — параллельный детектор тишины.
+        // Запускается поверх _stream, независимо от основного пути чтения.
+        _startVad();
+
         // v1.13.1-fix6: MediaStreamTrackProcessor (WebCodecs API) — основной путь.
         // Работает во всех Chromium 94+. Не подвержен pruning'у Web Audio.
         if (typeof MediaStreamTrackProcessor !== 'undefined') {
@@ -443,10 +512,126 @@ function _stopRecording() {
     _processAndSend(chunks);
 }
 
+// ============ VAD: Voice Activity Detection (v1.13.1-fix10, KI-140) ============
+
+/**
+ * Запускает VAD-детектор тишины параллельно с основной записью.
+ *
+ * <para>
+ * Использует отдельный <c>AudioContext</c> + <c>AnalyserNode</c> поверх
+ * того же <see cref="_stream"/>. Опрос RMS каждые {@link VAD_POLL_INTERVAL_MS} мс;
+ * если тишина держится ≥ {@link VAD_SILENCE_TIMEOUT_MS} — вызывается
+ * {@link _stopRecording}.
+ * </para>
+ *
+ * <para>
+ * Не критично для записи: если AudioContext недоступен, VAD молча
+ * отключается (manual stop / 60-секундный auto-stop продолжат работать).
+ * </para>
+ */
+function _startVad() {
+    try {
+        if (!_stream) return;
+
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) {
+            console.info('[speech] VAD: AudioContext недоступен — пропускаем');
+            return;
+        }
+
+        _vadCtx = new Ctx();
+        _vadSource = _vadCtx.createMediaStreamSource(_stream);
+        _vadAnalyser = _vadCtx.createAnalyser();
+        _vadAnalyser.fftSize = 1024;    // ~23 мс окно при 44.1 kHz
+        _vadAnalyser.smoothingTimeConstant = 0;
+        _vadSource.connect(_vadAnalyser);
+
+        _vadBuffer = new Float32Array(_vadAnalyser.fftSize);
+        _vadStartedAt = Date.now();
+        _vadLastVoiceTs = _vadStartedAt;
+
+        _vadTimer = setInterval(_vadTick, VAD_POLL_INTERVAL_MS);
+
+        console.info(
+            '[speech] VAD: запущен (порог=%s, тишина=%d мс, min=%d мс)',
+            VAD_SILENCE_RMS, VAD_SILENCE_TIMEOUT_MS, VAD_MIN_RECORDING_MS);
+    } catch (ex) {
+        console.warn('[speech] VAD не запустился:', ex);
+        _stopVad();
+    }
+}
+
+/**
+ * Периодический тик VAD. Читает RMS, обновляет `_vadLastVoiceTs`,
+ * при длительной тишине вызывает `_stopRecording`.
+ */
+function _vadTick() {
+    if (!_isRecording || !_vadAnalyser || !_vadBuffer) return;
+
+    try {
+        _vadAnalyser.getFloatTimeDomainData(_vadBuffer);
+    } catch {
+        return;
+    }
+
+    let sumSq = 0;
+    for (let i = 0; i < _vadBuffer.length; i++) {
+        sumSq += _vadBuffer[i] * _vadBuffer[i];
+    }
+    const rms = Math.sqrt(sumSq / _vadBuffer.length);
+
+    const now = Date.now();
+
+    if (rms >= VAD_SILENCE_RMS) {
+        // Голос/шум выше порога — продлеваем таймаут.
+        _vadLastVoiceTs = now;
+        return;
+    }
+
+    // Тишина.
+    const recordingMs = now - _vadStartedAt;
+    if (recordingMs < VAD_MIN_RECORDING_MS) return;
+
+    const silenceMs = now - _vadLastVoiceTs;
+    if (silenceMs >= VAD_SILENCE_TIMEOUT_MS) {
+        console.info(
+            '[speech] VAD: auto-stop — тишина %d мс (RMS < %s)',
+            silenceMs, VAD_SILENCE_RMS);
+        _stopRecording();
+    }
+}
+
+/**
+ * Останавливает VAD: таймер, source, analyser, AudioContext.
+ * Идемпотентно — безопасно вызывать повторно.
+ */
+function _stopVad() {
+    if (_vadTimer) {
+        clearInterval(_vadTimer);
+        _vadTimer = null;
+    }
+    if (_vadSource) {
+        try { _vadSource.disconnect(); } catch { /* ignore */ }
+        _vadSource = null;
+    }
+    if (_vadAnalyser) {
+        try { _vadAnalyser.disconnect(); } catch { /* ignore */ }
+        _vadAnalyser = null;
+    }
+    if (_vadCtx) {
+        try { _vadCtx.close(); } catch { /* ignore */ }
+        _vadCtx = null;
+    }
+    _vadBuffer = null;
+}
+
 /**
  * Освобождает ресурсы: MediaStreamTrackProcessor reader + Web Audio API.
  */
 function _releaseAudioResources() {
+    // v1.13.1-fix10 (KI-140): остановить VAD первым — он использует _stream.
+    _stopVad();
+
     // WebCodecs track processor
     if (_trackReader) {
         try { _trackReader.cancel(); } catch {}
