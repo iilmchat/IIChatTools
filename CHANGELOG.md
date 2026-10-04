@@ -54,7 +54,10 @@
     `IIChatTools.VisionOverlay/bin/$(Configuration)/net10.0-windows/`
     в `$(OutDir)VisionOverlay/`. `ProjectReference` с
     `ReferenceOutputAssembly=false` — только для порядка сборки.
-  - **`IIChatTools.sln`:** добавлен проект `IIChatTools.VisionOverlay`.
+  - **`IIChatTools.sln`:** overlay **не добавлен намеренно** — WPF не
+    собирается на Linux (NETSDK1100). Windows-only проект. Сборка на
+    Windows — через Target `BuildAndCopyVisionOverlay` в
+    `IIChatTools.API.csproj` (AfterTargets=Build, Condition=Windows).
   - **Отложено (v1.12.x):** Sandbox backend (Ф3), RemoteVnc (Ф4),
     smoke под `--no-build` при первом холодном старте (WPF overlay
     может не успеть за 5 сек на медленных дисках — план: увеличить

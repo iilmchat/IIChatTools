@@ -24,6 +24,11 @@ COPY IIChatTools.API/IIChatTools.API.csproj           IIChatTools.API/
 COPY IIChatTools.Data/IIChatTools.Data.csproj         IIChatTools.Data/
 COPY IIChatTools.Services/IIChatTools.Services.csproj IIChatTools.Services/
 COPY IIChatTools.Tests/IIChatTools.Tests.csproj       IIChatTools.Tests/
+# ВАЖНО (v1.12.0, KI-142): IIChatTools.VisionOverlay НЕ копируется — это
+# Windows-only WPF-проект (net10.0-windows). В Linux Docker он не нужен.
+# Если overlay вызывается через WpfVisionOverlayLauncher в Docker-контейнере —
+# IsAvailable = false (нет exe) → fallback на Noop, Vision Agent работает
+# без on-screen indicator (degraded mode).
 
 # Временный NuGet.Config с nuget.org.
 # Корневой NuGet.Config репозитория ссылается на LocalPackages (offline),

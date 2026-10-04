@@ -20,30 +20,34 @@
     <!-- Ссылки на слои -->
     <ProjectReference Include="..\IIChatTools.Data\IIChatTools.Data.csproj" />
     <ProjectReference Include="..\IIChatTools.Services\IIChatTools.Services.csproj" />
-
-    <!--
-      v1.12.0 (KI-131, Ф6.7): overlay — отдельный WinExe (net10.0-windows),
-      не библиотека. ReferenceOutputAssembly=false — не тянем его DLL как
-      compile-reference (у него другой TFM, своих DTO мы не шарим).
-      Нужен только для порядка сборки: overlay билдится до API.
-    -->
-    <ProjectReference Include="..\IIChatTools.VisionOverlay\IIChatTools.VisionOverlay.csproj">
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
-      <Private>false</Private>
-    </ProjectReference>
   </ItemGroup>
 
   <!--
-    v1.12.0 (KI-131, Ф6.7): копируем overlay в подпапку VisionOverlay/
-    рядом с API-бинарём. WpfVisionOverlayLauncher.ResolveOverlayExePath
-    ищет exe именно там (см. Implementation/VisionAgent/WpfVisionOverlayLauncher.cs).
-    Копируем всё содержимое bin-папки overlay (exe + WPF-DLL'ки + .json),
-    включая рекурсивно — на случай runtime-зависимостей.
+    v1.12.0 (KI-131, Ф6.7): overlay — отдельный WinExe (net10.0-windows, WPF),
+    Windows-only. НЕ включён в .sln (иначе Linux CI/Docker падают:
+    NETSDK1100 / MSB3202 — WPF требует Windows SDK, которого на Linux нет).
+    Сборка overlay — через Target ниже, только на Windows.
   -->
-  <Target Name="CopyVisionOverlayToOutput" AfterTargets="Build">
+  <PropertyGroup>
+    <VisionOverlayProjectPath>$(MSBuildThisFileDirectory)..\IIChatTools.VisionOverlay\IIChatTools.VisionOverlay.csproj</VisionOverlayProjectPath>
+    <VisionOverlayOutputPath>$(MSBuildThisFileDirectory)..\IIChatTools.VisionOverlay\bin\$(Configuration)\net10.0-windows</VisionOverlayOutputPath>
+  </PropertyGroup>
+
+  <!--
+    Windows: собрать overlay (если exe отсутствует) и скопировать содержимое
+    bin в $(OutDir)VisionOverlay/. Linux/macOS: Target пропускается — overlay
+    там не работает (WPF + Win32 SendInput).
+  -->
+  <Target Name="BuildAndCopyVisionOverlay"
+          AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT'">
+    <MSBuild Projects="$(VisionOverlayProjectPath)"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             Condition="!Exists('$(VisionOverlayOutputPath)\IIChatTools.VisionOverlay.exe')" />
+
     <ItemGroup>
-      <VisionOverlayFiles Include="$(MSBuildThisFileDirectory)..\IIChatTools.VisionOverlay\bin\$(Configuration)\net10.0-windows\**\*.*" />
+      <VisionOverlayFiles Include="$(VisionOverlayOutputPath)\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(VisionOverlayFiles)"
           DestinationFiles="@(VisionOverlayFiles->'$(OutDir)VisionOverlay\%(RecursiveDir)%(Filename)%(Extension)')"
