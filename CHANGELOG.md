@@ -19,6 +19,25 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф7)**: `vision_agent` — top-level ITool в Chat.
+  - **`VisionAgentTool : ITool`** (`Implementation/Tools/VisionAgent/`) — 12 actions:
+    - `run_task` — полный loop через `IVisionAgentService` (approval).
+    - `describe` / `screenshot` — read-only (screenshot + Vision LLM).
+    - `click` / `double_click` / `right_click` / `move_mouse` — мышь;
+      target резолвится через describe, x/y — напрямую.
+    - `type` / `press_key` / `hotkey` / `scroll` / `wait` — клавиатура / пауза.
+  - **Per-action approval** (KI-101): read-only (`describe`, `screenshot`,
+    `move_mouse`, `scroll`, `wait`) — без approval; mutation + `run_task` — с approval.
+  - **DI:** `services.AddScoped<ITool, VisionAgentTool>()` в `RegisterVisionAgentTools`
+    (при `VisionAgent:Enabled = true`).
+  - **RULES § 4.44:** `vision_agent` добавлен в `allowedNames` в
+    `ChatStreamService.StreamAsync`. Chat видит **16 инструментов** (было 15).
+  - **Безопасность:** валидация через `IVisionActionValidator` (blocked keys F12,
+    Ctrl+Alt+Del, Alt+Tab), `target` сверяется с `ui_elements`, координаты — из
+    `describe` или x/y.
+  - **Тесты:** `VisionAgentToolTests` (+~24: structural, approval, handlers).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф8 (интеграционные тесты) / Ф3/Ф4.
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.9)**: тесты VisionAgentService.
   - **Fakes/**: `FakeVisionBackend` (управляемые ошибки + call log),
     `FakeVisionLlmClient` (queue responses), `FakePlannerLlmClient`

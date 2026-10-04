@@ -34,6 +34,7 @@ using IIChatTools.Services.Implementation.Tools.Rag;
 using IIChatTools.Services.Implementation.Tools.SqlAgent;   // v1.7.0 (KI-097): DatabaseAgentTool
 using IIChatTools.Services.Implementation.Tools.SubAgent;
 using IIChatTools.Services.Implementation.Tools.Utils;
+using IIChatTools.Services.Implementation.Tools.VisionAgent; // v1.12.0 (KI-131, Ф7): VisionAgentTool
 using IIChatTools.Services.Implementation.Tools.Web;
 using IIChatTools.API.Extensions;
 using IIChatTools.Services.Interfaces;
@@ -1010,6 +1011,13 @@ namespace IIChatTools.API
             // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
             // Scoped — зависит от Scoped IVisionBackend + IVisionScreenshotStore.
             services.AddScoped<IVisionAgentService, VisionAgentService>();
+
+            // Ф7 (KI-131): top-level ITool vision_agent.
+            // НЕ наследник AgentToolBase (DESIGN § 4.1) — собственный loop
+            // через IVisionAgentService + прямой доступ к IVisionBackend для
+            // одиночных действий. RULES § 4.44: обязательно добавить в
+            // allowedNames в ChatStreamService (см. ниже).
+            services.AddScoped<ITool, VisionAgentTool>();
 #pragma warning restore CA1416
         }
 

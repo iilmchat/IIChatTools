@@ -91,6 +91,15 @@ namespace IIChatTools.Services.Implementation
         /// </summary>
         private const string CodeAgentWithReviewToolName = "code_agent_with_review";
 
+        /// <summary>
+        /// v1.12.0 (KI-131, Ф7): имя Vision Agent tool.
+        /// Явно добавляется в <c>allowedNames</c> при построении <c>tools[]</c>
+        /// для Chat (RULES § 4.44). Если <c>VisionAgent:Enabled = false</c>,
+        /// tool не зарегистрирован в DI — фильтр по имени в
+        /// <see cref="ToolDefinitionsBuilder.Build"/> его пропустит.
+        /// </summary>
+        private const string VisionAgentToolName = "vision_agent";
+
         /// <summary>Сколько top-K чанков вставлять в system prompt (по умолчанию).</summary>
         private const int DefaultAutoInjectTopK = 5;
 
@@ -404,6 +413,13 @@ namespace IIChatTools.Services.Implementation
                 if (!allowedNames.Contains(CodeAgentWithReviewToolName, StringComparer.OrdinalIgnoreCase))
                 {
                     allowedNames.Add(CodeAgentWithReviewToolName);
+                }
+
+                // v1.12.0 (KI-131, Ф7): Vision Agent (top-level ITool).
+                // RULES § 4.44 — обязательно в allowedNames.
+                if (!allowedNames.Contains(VisionAgentToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(VisionAgentToolName);
                 }
 
                 tools = ToolDefinitionsBuilder.Build(

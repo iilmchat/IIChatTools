@@ -2703,6 +2703,19 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Отложено:** Ф6.7 (WPF overlay), Ф3 (Sandbox), Ф4 (RemoteVnc).
     Не блокируют MVP.
   - **Тесты:** 666 → 958 (+292).
+- **Ф7 закрыта** (2026-10-04): `vision_agent` — top-level `ITool` в Chat.
+  - `VisionAgentTool` (12 actions: `run_task`, `describe`, `screenshot`,
+    `click`, `double_click`, `right_click`, `move_mouse`, `type`,
+    `press_key`, `hotkey`, `scroll`, `wait`).
+  - Per-action approval (KI-101): read-only — без approval; mutation +
+    `run_task` — с approval.
+  - DI: `services.AddScoped<ITool, VisionAgentTool>()` +
+    `vision_agent` в `allowedNames` (`ChatStreamService`, RULES § 4.44).
+  - Chat видит **16 инструментов** (было 15).
+  - **Тесты:** 958 → ~982 (+~24).
+  - **Отложено (не блокирует MVP):** Ф6.7 (WPF overlay — реальный
+    on-screen indicator), Ф3 (Sandbox), Ф4 (RemoteVnc).
+  - **Следующая:** Ф8 (интеграционные тесты) / Ф9 (документация + релиз).
 - **KI-141** (Planned, v1.12.x) — External VL providers: multimodal image
   support. См. отдельную запись.
 - **Обнаружено:** 2026-10-03 (обсуждение с пользователем)
