@@ -18,6 +18,21 @@
 
 ## [Unreleased]
 
+### Added
+- **v1.13.1-fix8 (KI-145)**: выбор микрофона в `/profile → 🎤 Аудио`.
+  - Кнопка «Разрешить доступ к микрофону» — триггерит запрос разрешения,
+    затем `enumerateDevices()` возвращает реальные label'ы устройств.
+  - `<select>` со списком `audioinput` + опция «Системный по умолчанию».
+  - Кнопка «Протестировать» — записывает 2 сек через `MediaStreamTrackProcessor`,
+    показывает `RMS` / `maxAbs` (зелёный = работает, красный = нулевой сигнал).
+  - Выбор сохраняется в `UserSettings` (ключ `Audio.InputDeviceId`).
+  - `speech.js` использует сохранённый `deviceId` в `getUserMedia`;
+    при недоступности — тихий fallback на системный default + один toast
+    «Сохранённый микрофон недоступен... Проверьте Профиль → Аудио.»
+  - Новый endpoint `PUT /api/profile/audio-device` (отделён от
+    `/api/profile/settings`, чтобы не задевать retention-поля).
+  - Локализация RU + EN (15 ключей × 2). **Файлов:** 11.
+
 ### Fixed
 - **v1.13.1-fix7 (KI-140-fix)**: Chrome может выбрать по умолчанию
   **виртуальное** audio-устройство (Steam Streaming Microphone / VB-Cable /

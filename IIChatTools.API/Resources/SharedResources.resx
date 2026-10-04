@@ -842,5 +842,55 @@
   </data>
   <data name="SpeechDisabled" xml:space="preserve">
     <value>Voice input disabled</value>
-  </data>  
+  </data>
+
+  <!-- ===== v1.13.1-fix8 (KI-145): microphone selection in /profile ===== -->
+  <data name="ProfileAudioSection" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="ProfileAudioHint" xml:space="preserve">
+    <value>Microphone for voice input in /chat. If nothing is selected, system default is used.</value>
+  </data>
+  <data name="ProfileAudioPermissionHint" xml:space="preserve">
+    <value>To see the device list, allow access. This is a one-time action — the browser remembers your choice.</value>
+  </data>
+  <data name="ProfileAudioRequestPermission" xml:space="preserve">
+    <value>Allow microphone access</value>
+  </data>
+  <data name="ProfileAudioDeviceLabel" xml:space="preserve">
+    <value>Microphone</value>
+  </data>
+  <data name="ProfileAudioDefaultOption" xml:space="preserve">
+    <value>System default</value>
+  </data>
+  <data name="ProfileAudioTestButton" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="ProfileAudioTestRecording" xml:space="preserve">
+    <value>Recording…</value>
+  </data>
+  <data name="ProfileAudioTestSuccess" xml:space="preserve">
+    <value>✓ Working · RMS: {0} · maxAbs: {1}</value>
+  </data>
+  <data name="ProfileAudioTestFailed" xml:space="preserve">
+    <value>✗ Zero signal — microphone not transmitting</value>
+  </data>
+  <data name="ProfileAudioVirtualWarning" xml:space="preserve">
+    <value>Choose a physical microphone. Steam Streaming / VB-Cable / VoiceMeeter / OBS Virtual Audio give a valid track but zero signal.</value>
+  </data>
+  <data name="ProfileAudioSaveSuccess" xml:space="preserve">
+    <value>Microphone saved</value>
+  </data>
+  <data name="ProfileAudioSaveError" xml:space="preserve">
+    <value>Failed to save setting</value>
+  </data>
+  <data name="ProfileAudioPermissionDenied" xml:space="preserve">
+    <value>Microphone access denied</value>
+  </data>
+  <data name="ProfileAudioPermissionGranted" xml:space="preserve">
+    <value>Access granted</value>
+  </data>
+  <data name="SpeechDeviceFallback" xml:space="preserve">
+    <value>Saved microphone is unavailable. Using system default. Check Profile → Audio.</value>
+  </data>
 </root>

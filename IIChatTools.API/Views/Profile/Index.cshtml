@@ -103,6 +103,60 @@
                     </button>
                 </div>
             </div>
+
+            <!-- v1.13.1-fix8 (KI-145): выбор микрофона для голосового ввода -->
+            <div class="card shadow-sm mt-3"
+                 id="profile-audio-card"
+                 data-label-device-default="@Localizer["ProfileAudioDefaultOption"]"
+                 data-label-test-recording="@Localizer["ProfileAudioTestRecording"]"
+                 data-label-test-success="@Localizer["ProfileAudioTestSuccess"]"
+                 data-label-test-failed="@Localizer["ProfileAudioTestFailed"]"
+                 data-label-save-success="@Localizer["ProfileAudioSaveSuccess"]"
+                 data-label-save-error="@Localizer["ProfileAudioSaveError"]"
+                 data-label-permission-denied="@Localizer["ProfileAudioPermissionDenied"]"
+                 data-label-permission-granted="@Localizer["ProfileAudioPermissionGranted"]">
+                <div class="card-header">
+                    <h5 class="mb-0">🎤 @Localizer["ProfileAudioSection"]</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Состояние A: разрешение не выдано -->
+                    <div id="profile-audio-permission-state">
+                        <p class="text-muted small mb-2">@Localizer["ProfileAudioHint"]</p>
+                        <p class="text-muted small mb-3">@Localizer["ProfileAudioPermissionHint"]</p>
+                        <button id="btn-profile-audio-request-permission"
+                                type="button"
+                                class="btn btn-primary">
+                            @Localizer["ProfileAudioRequestPermission"]
+                        </button>
+                        <span id="profile-audio-permission-status" class="ms-2 small"></span>
+                    </div>
+
+                    <!-- Состояние B: разрешение выдано -->
+                    <div id="profile-audio-device-state" hidden>
+                        <p class="text-muted small mb-3">@Localizer["ProfileAudioHint"]</p>
+
+                        <div class="mb-3">
+                            <label for="profile-audio-device" class="form-label">
+                                @Localizer["ProfileAudioDeviceLabel"]
+                            </label>
+                            <select id="profile-audio-device" class="form-select"></select>
+                        </div>
+
+                        <div class="mb-3">
+                            <button id="btn-profile-audio-test"
+                                    type="button"
+                                    class="btn btn-outline-secondary btn-sm">
+                                @Localizer["ProfileAudioTestButton"]
+                            </button>
+                            <span id="profile-audio-test-result" class="ms-2 small"></span>
+                        </div>
+
+                        <div class="alert alert-info py-2 px-3 small mb-0">
+                            ⓘ @Localizer["ProfileAudioVirtualWarning"]
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -111,7 +165,9 @@
     <script type="module">
         import { initProfilePage } from '/js/modules/profile.js';
         import { initProfileWorkspaceCard } from '/js/modules/profile-workspace.js';
+        import { initProfileAudioCard } from '/js/modules/profile-audio.js';
         initProfilePage();
         initProfileWorkspaceCard();
+        initProfileAudioCard();
     </script>
 }

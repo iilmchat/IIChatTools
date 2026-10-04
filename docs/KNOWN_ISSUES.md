@@ -3074,6 +3074,45 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-145 — Выбор микрофона в /profile (device picker)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.1
+- **Обнаружено:** 2026-10-04 (после KI-144 — virtual audio device в Chrome)
+- **DESCRIPTION:** KI-144 показал проблему: Chrome по умолчанию выбирает
+  «виртуальное» устройство (Steam Streaming Microphone), которое даёт
+  валидный `MediaStreamTrack` с нулевым сигналом. Warning в UI (KI-144)
+  помогал диагностировать, но не решал: пользователь не мог выбрать
+  микрофон из UI, а `chrome://settings/content/microphone` недоступен из JS.
+- **Решение (v1.13.1-fix8):**
+  - Новая карточка «🎤 Аудио» на `/profile` с выбором устройства.
+  - Кнопка «Разрешить доступ к микрофону» — триггерит запрос разрешения
+    (`getUserMedia({ audio: true })` + stop), затем `enumerateDevices()`
+    возвращает реальные label'ы.
+  - `<select>` со списком `audioinput` + опция «Системный по умолчанию».
+  - Кнопка «Протестировать» — записывает 2 сек через `MediaStreamTrackProcessor`
+    и показывает `RMS` / `maxAbs` (зелёный = работает, красный = нулевой сигнал).
+  - Сохранение `deviceId` в `UserSettings` (ключ `Audio.InputDeviceId`).
+  - **`speech.js`** читает сохранённый `deviceId` из `/api/profile/settings`
+    (один раз за сессию) и использует `deviceId: { exact: savedId }` в
+    `getUserMedia`.
+  - **Fallback:** если сохранённое устройство недоступно (`NotFoundError` /
+    `OverconstrainedError` / `NotReadableError` / `AbortError`), `speech.js`
+    тихо использует системный default + показывает один toast:
+    «Сохранённый микрофон недоступен. Использован системный. Проверьте
+    Профиль → Аудио.»
+- **Новый endpoint:** `PUT /api/profile/audio-device` — отдельный от
+  `PUT /api/profile/settings` (чтобы не задевать retention-поля; у
+  `AudioInputDeviceId` семантика `null` другая: «сбросить на default»,
+  а не «не трогать»).
+- **Файлы:** `ProfileController.cs`, `UserSettingsDto.cs` (+1 поле),
+  `AudioDeviceUpdateRequest.cs` (новый), `Views/Profile/Index.cshtml`
+  (карточка), `profile-audio.js` (новый модуль), `speech.js` (+6 правок),
+  `SharedResources*.resx` (+15 ключей × 2), `Views/Chat/Index.cshtml`
+  (+1 `data-*`).
+- **Связанные:** KI-144 (диагностика virtual device в Chrome).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |

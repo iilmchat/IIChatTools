@@ -36,5 +36,23 @@ namespace IIChatTools.Services.DTO.Admin
         /// Для UI-валидации.
         /// </summary>
         public int MaxRetentionDays { get; set; }
+
+        /// <summary>
+        /// ID микрофона, выбранного пользователем в /profile → Аудио
+        /// (v1.13.1-fix8, KI-145).
+        ///
+        /// <para>
+        /// Значение <c>MediaDeviceInfo.deviceId</c>. <c>null</c> = использовать
+        /// системный default (браузер сам выберет устройство).
+        /// </para>
+        ///
+        /// <para>
+        /// Заполняется сервером в ответе GET. При PUT
+        /// <c>/api/profile/settings</c> — <b>игнорируется</b>: для изменения
+        /// этого поля используйте отдельный endpoint
+        /// <c>PUT /api/profile/audio-device</c>.
+        /// </para>
+        /// </summary>
+        public string AudioInputDeviceId { get; set; }
     }
 }

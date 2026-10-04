@@ -20,6 +20,8 @@
  * © 2026 RuChating (iilmchat) · IIChatTools v1.13.1
  */
 
+import { toast } from './ui.js';   // v1.13.1-fix8 (KI-145): fallback-toast
+
 // ============ Константы ============
 
 /** Лимит длительности записи (мс). Синхронизировано со Speech:MaxAudioSeconds (60). */
@@ -71,6 +73,15 @@ let _buttonEl = null;
 let _textareaEl = null;
 let _containerEl = null;
 
+// v1.13.1-fix8 (KI-145): сохранённый пользователем микрофон (из /profile → Аудио).
+// Ленивая загрузка при первом клике 🎤; кэш на время жизни страницы.
+let _audioDeviceId = null;           // null = системный default
+let _audioDeviceIdLoaded = false;
+let _audioDeviceIdLoading = null;    // Promise, если идёт загрузка
+
+// Флаг: уже показывали toast про fallback на default в этой сессии.
+let _deviceFallbackToastShown = false;
+
 // ============ Публичное API ============
 
 /**
@@ -110,6 +121,10 @@ export function disposeSpeechRecognition() {
     _stopTimer();
     _stopStream();
     _isRecording = false;
+
+    // v1.13.1-fix8 (KI-145): сбросить флаг toast — при повторной инициализации
+    // пользователь снова увидит предупреждение (актуально для SPA).
+    _deviceFallbackToastShown = false;
 }
 
 // ============ Обработчики ============
@@ -117,6 +132,60 @@ export function disposeSpeechRecognition() {
 function _onButtonClick() {
     if (_isRecording) _stopRecording();
     else _startRecording();
+}
+
+/**
+ * Ленивая загрузка выбранного пользователем микрофона из /api/profile/settings
+ * (v1.13.1-fix8, KI-145). Кэшируется на время жизни страницы.
+ *
+ * @returns {Promise<string|null>} deviceId или null (= системный default)
+ */
+async function _ensureAudioDeviceId() {
+    if (_audioDeviceIdLoaded) return _audioDeviceId;
+    if (_audioDeviceIdLoading) return _audioDeviceIdLoading;
+
+    _audioDeviceIdLoading = (async () => {
+        try {
+            const res = await fetch('/api/profile/settings', {
+                credentials: 'same-origin'
+            }).then(r => r.json());
+
+            if (res?.success && typeof res.data?.audioInputDeviceId === 'string') {
+                const id = res.data.audioInputDeviceId.trim();
+                _audioDeviceId = id.length > 0 ? id : null;
+            } else {
+                _audioDeviceId = null;
+            }
+        } catch (ex) {
+            console.warn('[speech] Не удалось загрузить AudioInputDeviceId:', ex);
+            _audioDeviceId = null;
+        } finally {
+            _audioDeviceIdLoaded = true;
+            _audioDeviceIdLoading = null;
+        }
+        return _audioDeviceId;
+    })();
+
+    return _audioDeviceIdLoading;
+}
+
+/**
+ * Показывает один раз за сессию toast о fallback на системный микрофон
+ * (v1.13.1-fix8, KI-145).
+ */
+function _showDeviceFallbackToastOnce() {
+    if (_deviceFallbackToastShown) return;
+    _deviceFallbackToastShown = true;
+
+    const msg = _getLabel(
+        'labelSpeechDeviceFallback',
+        'Сохранённый микрофон недоступен. Использован системный. Проверьте Профиль → Аудио.');
+
+    try {
+        toast(msg, 'warning');
+    } catch (ex) {
+        console.warn('[speech] toast failed:', ex);
+    }
 }
 
 async function _startRecording() {
@@ -127,14 +196,42 @@ async function _startRecording() {
     }
 
     try {
-        _stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false,
-                channelCount: 1,
-            }
-        });
+        // v1.13.1-fix8 (KI-145): использовать сохранённый пользователем микрофон
+        // (если задан в /profile → Аудио). Иначе — системный default.
+        const savedDeviceId = await _ensureAudioDeviceId();
+
+        const baseConstraints = {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            channelCount: 1,
+        };
+
+        try {
+            const audioConstraints = savedDeviceId
+                ? { ...baseConstraints, deviceId: { exact: savedDeviceId } }
+                : baseConstraints;
+
+            _stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        } catch (ex) {
+            // Fallback: сохранённое устройство недоступно (USB выдернули, драйвер обновили).
+            // Различаем только типичные «device not available»-ошибки — отказ в разрешении
+            // и прочие ошибки пробрасываем наружу как обычно.
+            const isDeviceError = savedDeviceId && (
+                ex.name === 'NotFoundError'
+                || ex.name === 'OverconstrainedError'
+                || ex.name === 'NotReadableError'
+                || ex.name === 'AbortError');
+
+            if (!isDeviceError) throw ex;
+
+            console.warn(
+                '[speech] Сохранённый микрофон недоступен (%s), используем системный default',
+                ex.name);
+            _showDeviceFallbackToastOnce();
+
+            _stream = await navigator.mediaDevices.getUserMedia({ audio: baseConstraints });
+        }
 
         const track = _stream.getAudioTracks()[0];
         _lastTrackLabel = track?.label || null;        

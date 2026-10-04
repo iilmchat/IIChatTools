@@ -842,5 +842,55 @@
   </data>
   <data name="SpeechDisabled" xml:space="preserve">
     <value>Голосовой ввод отключён</value>
-  </data>    
+  </data>
+
+  <!-- ===== v1.13.1-fix8 (KI-145): выбор микрофона в /profile ===== -->
+  <data name="ProfileAudioSection" xml:space="preserve">
+    <value>Аудио</value>
+  </data>
+  <data name="ProfileAudioHint" xml:space="preserve">
+    <value>Микрофон для голосового ввода в /chat. Если ничего не выбрано — используется системный по умолчанию.</value>
+  </data>
+  <data name="ProfileAudioPermissionHint" xml:space="preserve">
+    <value>Чтобы увидеть список устройств, разрешите доступ. Это одноразовое действие — браузер запомнит выбор.</value>
+  </data>
+  <data name="ProfileAudioRequestPermission" xml:space="preserve">
+    <value>Разрешить доступ к микрофону</value>
+  </data>
+  <data name="ProfileAudioDeviceLabel" xml:space="preserve">
+    <value>Микрофон</value>
+  </data>
+  <data name="ProfileAudioDefaultOption" xml:space="preserve">
+    <value>Системный по умолчанию</value>
+  </data>
+  <data name="ProfileAudioTestButton" xml:space="preserve">
+    <value>Протестировать</value>
+  </data>
+  <data name="ProfileAudioTestRecording" xml:space="preserve">
+    <value>Идёт запись…</value>
+  </data>
+  <data name="ProfileAudioTestSuccess" xml:space="preserve">
+    <value>✓ Работает · RMS: {0} · maxAbs: {1}</value>
+  </data>
+  <data name="ProfileAudioTestFailed" xml:space="preserve">
+    <value>✗ Сигнал нулевой — микрофон не передаёт данные</value>
+  </data>
+  <data name="ProfileAudioVirtualWarning" xml:space="preserve">
+    <value>Выбирайте физический микрофон. Steam Streaming / VB-Cable / VoiceMeeter / OBS Virtual Audio дают валидный трек, но нулевой сигнал.</value>
+  </data>
+  <data name="ProfileAudioSaveSuccess" xml:space="preserve">
+    <value>Микрофон сохранён</value>
+  </data>
+  <data name="ProfileAudioSaveError" xml:space="preserve">
+    <value>Не удалось сохранить настройку</value>
+  </data>
+  <data name="ProfileAudioPermissionDenied" xml:space="preserve">
+    <value>Доступ к микрофону не разрешён</value>
+  </data>
+  <data name="ProfileAudioPermissionGranted" xml:space="preserve">
+    <value>Доступ разрешён</value>
+  </data>
+  <data name="SpeechDeviceFallback" xml:space="preserve">
+    <value>Сохранённый микрофон недоступен. Использован системный. Проверьте Профиль → Аудио.</value>
+  </data>
 </root>

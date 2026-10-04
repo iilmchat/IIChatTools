@@ -126,6 +126,53 @@ namespace IIChatTools.API.Controllers
         }
 
         /// <summary>
+        /// Обновляет выбранный пользователем микрофон для голосового ввода
+        /// (v1.13.1-fix8, KI-145).
+        /// </summary>
+        /// <param name="request">ID устройства (<c>null</c> или пусто = системный default)</param>
+        /// <remarks>
+        /// Отдельный endpoint от <see cref="UpdateSettingsAsync"/> —
+        /// чтобы PUT не задевал retention-настройки (у <c>AudioInputDeviceId</c>
+        /// семантика <c>null</c> другая: «сбросить на default», а не «не трогать»).
+        /// </remarks>
+        [HttpPut("/api/profile/audio-device")]
+        public async Task<IActionResult> UpdateAudioDeviceAsync([FromBody] AudioDeviceUpdateRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    return Ok(new { success = false, message = _localizer["Некорректные данные запроса."].Value });
+
+                var userId = GetCurrentUserId();
+                var deviceId = request.AudioInputDeviceId?.Trim();
+
+                if (string.IsNullOrEmpty(deviceId))
+                {
+                    // Сброс на системный default — удаляем настройку.
+                    await _userSettingsService.DeleteAsync(userId, "Audio.InputDeviceId");
+                }
+                else
+                {
+                    if (deviceId.Length > 200)
+                        return Ok(new { success = false, message = "AudioInputDeviceId слишком длинный." });
+
+                    await _userSettingsService.SetAsync(userId, "Audio.InputDeviceId", deviceId, "string");
+                }
+
+                _logger.LogInformation(
+                    "Профиль: пользователь {UserId} обновил микрофон (deviceId={HasDevice})",
+                    userId, string.IsNullOrEmpty(deviceId) ? "default" : "custom");
+
+                return Ok(new { success = true, data = new { audioInputDeviceId = deviceId } });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка сохранения выбранного микрофона");
+                return Ok(new { success = false, message = _localizer["Внутренняя ошибка сервера."].Value });
+            }
+        }
+
+        /// <summary>
         /// Собирает <see cref="UserSettingsDto"/> из per-user настроек.
         /// </summary>
         private async Task<UserSettingsDto> BuildUserSettingsDtoAsync(int userId)
@@ -134,6 +181,7 @@ namespace IIChatTools.API.Controllers
 
             int? retentionDays = null;
             var doNotDelete = false;
+            string audioInputDeviceId = null;
 
             foreach (var s in settings)
             {
@@ -147,6 +195,12 @@ namespace IIChatTools.API.Controllers
                 {
                     doNotDelete = true;
                 }
+                else if (string.Equals(s.Key, "Audio.InputDeviceId", StringComparison.Ordinal)
+                         && !string.IsNullOrWhiteSpace(s.Value))
+                {
+                    // v1.13.1-fix8 (KI-145): выбранный пользователем микрофон.
+                    audioInputDeviceId = s.Value;
+                }
             }
 
             return new UserSettingsDto
@@ -154,7 +208,8 @@ namespace IIChatTools.API.Controllers
                 RetentionDays = retentionDays,
                 DoNotDelete = doNotDelete,
                 GlobalRetentionDays = _configuration.GetValue<int>("Chat:Retention:DefaultDays", 30),
-                MaxRetentionDays = _configuration.GetValue<int>("Chat:Retention:MaxDays", 365)
+                MaxRetentionDays = _configuration.GetValue<int>("Chat:Retention:MaxDays", 365),
+                AudioInputDeviceId = audioInputDeviceId
             };
         }
 
