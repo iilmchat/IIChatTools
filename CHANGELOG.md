@@ -19,6 +19,27 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.1)**: VisionActionValidator.
+  - **VisionActionValidator.cs** (Singleton, `IVisionActionValidator`):
+    7 правил валидации перед backend-выполнением:
+    1. Null / пустой action → reject.
+    2. Whitelist 11 actions (совпадает с `VisionActionParser.KnownActions`).
+    3. `done` / `fail` — без доп. проверок.
+    4. `type` — clamp `Text` до `ActionValidation.MaxTextLength`.
+    5. `scroll` — clamp `DeltaY` до `ActionValidation.MaxScrollDelta`.
+    6. `press_key` — блок клавиш из `BlockedKeys`.
+    7. `hotkey` — блок одиночных клавиш из `BlockedKeys` + комбинаций из
+       `BlockedHotkeys` (нормализация: sorted lowercase через «+», порядок
+       не важен).
+    8. `target` (если задан) — существование в `screen.ui_elements[].id`.
+    9. `x` / `y` — неотрицательность (верхняя граница — backend'ом,
+       `VisionMouseCoordinates`).
+  - **Sanitization:** если был clamp длины / deltaY — возвращает
+    `Success = true` + `SanitizedAction` (с обрезанным / clamped значением).
+    Backend должен использовать `SanitizedAction`, если он не null.
+  - **Тесты:** `VisionActionValidatorTests` (+~22 кейса).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6.2 (`VisionAgentService` loop).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф5.4)**: Auto-клиенты с fallback chain.
   - **AutoVisionClient.cs** (Singleton, `IVisionLlmClient`): перебор
     `VisionLlm.FallbackChain`. Резолв по `Func<IVisionLlmClient>` (ADR-002),

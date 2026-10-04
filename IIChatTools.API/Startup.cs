@@ -983,6 +983,10 @@ namespace IIChatTools.API
                     _ => sp.GetRequiredService<LmStudioPlannerClient>()
                 };
             });
+
+            // Ф6.1 (KI-131): валидатор действий (blocked keys / hotkeys,
+            // clamp text/deltaY, проверка target в ui_elements).
+            services.AddSingleton<IVisionActionValidator, VisionActionValidator>();
 #pragma warning restore CA1416
         }
 
