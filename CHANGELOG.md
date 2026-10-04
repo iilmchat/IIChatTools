@@ -18,7 +18,129 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Fixed
+- **v1.13.1-fix7 (KI-140-fix)**: Chrome может выбрать по умолчанию
+  **виртуальное** audio-устройство (Steam Streaming Microphone / VB-Cable /
+  OBS Virtual Audio / VoiceMeeter) — оно возвращает валидный
+  `MediaStreamTrack`, но **все сэмплы = 0** (`maxAbs=0.000000`).
+  Yandex Browser ведёт себя иначе — тот же код работал.
+  **Fix:** `speech.js` логирует `label` + `deviceId` при старте записи;
+  сообщение об ошибке при нулевом сигнале содержит имя устройства + ссылку
+  на `chrome://settings/content/microphone`. **KI-144** — Documented.
+
+- **v1.13.1-fix6 (KI-140-fix)**: Chrome (Chromium) pruning-ит
+  `ScriptProcessorNode` даже с прямым подключением к `destination` —
+  `ScriptProcessorNode` даже с прямым подключением к `destination` —
+  `onaudioprocess` фирес, но `inputBuffer` занулён. Yandex Browser
+  ведёт себя мягче (реально тянет данные).
+  **Fix:** основной путь — `MediaStreamTrackProcessor` (WebCodecs API,
+  Chromium 94+, 2021). Читает PCM из `MediaStreamTrack` напрямую, без
+  Web Audio. Web Audio + ScriptProcessorNode — fallback для Firefox < 128
+  / Safari / старого Chromium. Плюс диагностика `track.getSettings()`
+  (`muted`, `enabled`). **Файл:** `speech.js` (полная замена).
+
+- **v1.13.1-fix5 (KI-140-fix)**: Chromium pruning-ит граф
+  `processor → MediaStreamAudioDestinationNode` без читателя `.stream` —
+  `onaudioprocess` не вызывается реально (все сэмплы = 0). Yandex
+  Browser ведёт себя мягче и всё равно тянет данные.
+  **Fix:** `_processor.connect(_audioCtx.destination)` вместо sink'а —
+  ScriptProcessor по умолчанию не копирует input → output, поэтому на
+  выходе тишина (нет feedback), но граф живой. Плюс явное
+  `outputBuffer.fill(0)` (защита от auto-copy).
+  **Проверено:** Yandex ✅, Chrome ✅ (после фикса). **Файл:** `speech.js`.
+
+- **v1.13.1-fix5 (KI-140-fix)**: Chromium pruning-ит аудио-граф до
+  `GainNode.gain = 0` → `ScriptProcessorNode.onaudioprocess` фирес,
+  но `inputBuffer` пустой (все сэмплы = 0). WAV получался валидного
+  размера (252 KB), но с нулями → Whisper галлюцинировал.
+  **Fix:** `GainNode(gain=0) → destination` → `MediaStreamAudioDestinationNode`
+  (sink, не выводящий звук в колонки, но держащий граф живым). Плюс
+  `await _audioCtx.resume()` (autoplay policy) + диагностический лог
+  `maxAbs` в первых 3 чанках + ранний выход при `RMS < 1e-5` (защита
+  от галлюцинаций на нулевом входе). **Файл:** `speech.js`.
+
+- **v1.13.1-fix4 (KI-140-fix)**: `decodeAudioData` в Chromium (Chrome /
+  Yandex Browser) иногда возвращает AudioBuffer с занулёнными каналами
+  для WebM/Opus от MediaRecorder — duration и sampleRate корректные,
+  но все сэмплы = 0. Whisper на таком входе выдаёт классические
+  галлюцинации: «Редактор субтитров А.Семкин Корректор А.Егорова»,
+  «[музыка]», «[шум]».
+  **Fix:** переход с `MediaRecorder` + `decodeAudioData` на прямой
+  захват PCM через `AudioContext` + `ScriptProcessorNode`. Плюс
+  peak-normalization (boost тихих записей ×N до peak 0.7, N ≤ 10).
+  **Файл:** `speech.js` (полная замена).
+
+---
+
+## [1.13.0] — 2026-10-04
+
+**Speech Recognition — офлайн-распознавание речи в Chat UI (KI-140).**
+Офлайн-распознавание речи через **Whisper.net** (whisper.cpp bindings, MIT).
+Кнопка 🎤 в `.chat-input-box` (слева от 📎) → MediaRecorder (WebM/Opus) →
+WAV 16 kHz mono (Web Audio API + `OfflineAudioContext`) → `POST /api/speech/transcribe`
+→ Whisper.net (Singleton, ленивая загрузка модели `ggml-base.bin` ~142 MB).
+
+**Вся обработка — локально**, аудио не покидает сервер. Работает в РФ без VPN.
+Приватность: аудио не отправляется в облако (в отличие от Web Speech API / OpenAI Whisper API).
+
+**Тесты:** 1011 → **1016** (+5: `SpeechControllerTests`).
+
+### Added
+- **DESIGN v1.13 — Распознавание речи (KI-140, Draft)**:
+  `docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md`. Офлайн-распознавание
+  речи в чате через **Whisper.net** (whisper.cpp bindings, MIT). Локальная
+  модель `ggml-base.bin` (~142 MB). Клиент кодирует WAV 16 kHz mono через
+  Web Audio API + MediaRecorder. Без Python / ffmpeg / внешних CLI.
+  Приватность: аудио не покидает сервер. Работает в РФ без VPN.
+  План Ф1-Ф3 (MVP, ~3 ч): Backend (`SpeechController` + Singleton
+  `WhisperNetTranscriptionService`) → Frontend (`speech.js` + кнопка 🎤)
+  → Скрипт скачивания + smoke. Фаза 4 (опционально): hotkey, VAD,
+  streaming, GPU. **KI-140** → Planned (v1.13.0). Сводка: 92 → 93 KI.
+
+- **Speech Recognition — Whisper.net (KI-140, Ф1–Ф3.6)**: офлайн-распознавание
+  речи в Chat UI. Кнопка 🎤 в `.chat-input-box` (слева от 📎) → MediaRecorder →
+  WAV 16 kHz mono (Web Audio API + `OfflineAudioContext`) → `POST /api/speech/transcribe`
+  → Whisper.net (Singleton, ленивая загрузка модели `ggml-base.bin` ~142 MB).
+  - **Ф1** (`cc02339`): backend — `ISpeechRecognitionService` +
+    `WhisperNetTranscriptionService` + `SpeechController` + DI + 2 config-файла.
+  - **Ф2** (`ecc2628`): frontend — `speech.js` + кнопка 🎤 + CSS (idle/recording/
+    transcribing/error) + 7 ключей `.resx` (RU+EN).
+  - **Ф3** (`ca6da86`): скрипт `scripts/setup/download-whisper-model.ps1`
+    (tiny|base|small|medium|large-v3) + `.gitignore`.
+  - **Ф3.5** (`8867c96`): fix `[BLANK_AUDIO]` — фильтр 20+ служебных маркеров
+    Whisper + `NoSpeechThreshold=0.8` + `TryReadWavDurationMs()` (парсинг
+    WAV-заголовка — закрывает техдолг § 11.3 DESIGN).
+  - **Ф3.6**: `SpeechControllerTests` (8 unit-тестов:
+    Disabled / NullFile / ZeroLength / TooLarge / Valid / EmptyResult /
+    ModelNotFound / Cancelled).
+  - **Приватность:** аудио не покидает сервер, работает в РФ без VPN.
+  - **Docs-only доработки:** DESIGN_SPEECH_RECOGNITION.md v1.13.0 (7 правок
+    после ревью — OfflineAudioContext, auto-stop 60 сек, RequestSizeLimit 20 MB,
+    Language auto/ru, VAD priority).
+  - **KI-140** → Fixed (v1.13.0).
+
+### Changed
+- **DESIGN v1.13 (KI-140) — уточнения после ревью (2026-10-03)**:
+  - **Ресемплинг WAV** — `OfflineAudioContext` вместо `AudioContext({sampleRate:16000})`
+    (Chrome игнорирует hint; native rate обычно 48 kHz). § 4.2.
+  - **Auto-stop 60 сек** — enforced на клиенте (`MAX_RECORDING_MS` в `speech.js`,
+    синхронизировано с `Speech:MaxAudioSeconds`). § 4.2, § 6.
+  - **`RequestSizeLimit`** — 20 MB hard cap (было 11 MB); реальный лимит —
+    `Speech:MaxFileSizeBytes = 10 MB` (валидация в контроллере). § 3.5.
+  - **Language** — `"auto"` в `appsettings.Development.json`, `"ru"` в prod.
+    § 3.2.
+  - **VAD** (Phase 4) — на клиенте через `AnalyserNode`, не требует backend.
+    Приоритет Ф4: VAD > hotkey > GPU > streaming. § 8.4.
+  - § 11 переименован в «Принятые решения и отложенные вопросы»:
+    7 решений + 4 отложенных + 3 пункта технического долга.
+
+### Fixed
+- **v1.13.0 (KI-140, Ф3.5)**: `[BLANK_AUDIO]` — Whisper на тишине/шуме
+  выдавал служебные маркеры как текст. Фильтр 20+ маркеров
+  (`[BLANK_AUDIO]`, `[MUSIC]`, `[SOUND]`, …) + `NoSpeechThreshold = 0.8`
+  (было whisper.cpp default 0.6) + `TryReadWavDurationMs()` (парсинг
+  WAV-заголовка; `MinAudioDurationMs = 300` — ранний выход на коротких
+  записях). Закрывает техдолг § 11.3 DESIGN.
 
 ---
 
@@ -472,65 +594,7 @@ Whisper).
   - **KI-131** → In Progress (v1.12.0). Следующая фаза — Ф2
     (`LocalHarnessVisionBackend`, ~8 ч).
 
-- **DESIGN v1.13 — Распознавание речи (KI-140, Draft)**:
-  `docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md`. Офлайн-распознавание
-  речи в чате через **Whisper.net** (whisper.cpp bindings, MIT). Локальная
-  модель `ggml-base.bin` (~142 MB). Клиент кодирует WAV 16 kHz mono через
-  Web Audio API + MediaRecorder. Без Python / ffmpeg / внешних CLI.
-  Приватность: аудио не покидает сервер. Работает в РФ без VPN.
-  План Ф1-Ф3 (MVP, ~3 ч): Backend (`SpeechController` + Singleton
-  `WhisperNetTranscriptionService`) → Frontend (`speech.js` + кнопка 🎤)
-  → Скрипт скачивания + smoke. Фаза 4 (опционально): hotkey, VAD,
-  streaming, GPU. **KI-140** → Planned (v1.13.0). Сводка: 92 → 93 KI.
-
-### Added
-- **Speech Recognition — Whisper.net (KI-140, Ф1–Ф3.6)**: офлайн-распознавание
-  речи в Chat UI. Кнопка 🎤 в `.chat-input-box` (слева от 📎) → MediaRecorder →
-  WAV 16 kHz mono (Web Audio API + `OfflineAudioContext`) → `POST /api/speech/transcribe`
-  → Whisper.net (Singleton, ленивая загрузка модели `ggml-base.bin` ~142 MB).
-  - **Ф1** (`cc02339`): backend — `ISpeechRecognitionService` +
-    `WhisperNetTranscriptionService` + `SpeechController` + DI + 2 config-файла.
-  - **Ф2** (`ecc2628`): frontend — `speech.js` + кнопка 🎤 + CSS (idle/recording/
-    transcribing/error) + 7 ключей `.resx` (RU+EN).
-  - **Ф3** (`ca6da86`): скрипт `scripts/setup/download-whisper-model.ps1`
-    (tiny|base|small|medium|large-v3) + `.gitignore`.
-  - **Ф3.5** (`8867c96`): fix `[BLANK_AUDIO]` — фильтр 20+ служебных маркеров
-    Whisper + `NoSpeechThreshold=0.8` + `TryReadWavDurationMs()` (парсинг
-    WAV-заголовка — закрывает техдолг § 11.3 DESIGN).
-  - **Ф3.6** (`<текущий>`): `SpeechControllerTests` (8 unit-тестов:
-    Disabled / NullFile / ZeroLength / TooLarge / Valid / EmptyResult /
-    ModelNotFound / Cancelled). Тесты: 658 → **666**.
-  - **Приватность:** аудио не покидает сервер, работает в РФ без VPN.
-  - **Docs-only доработки:** DESIGN_SPEECH_RECOGNITION.md v1.13.0 (7 правок
-    после ревью — OfflineAudioContext, auto-stop 60 сек, RequestSizeLimit 20 MB,
-    Language auto/ru, VAD priority).
-  - **KI-140** → Planned (v1.13.0). Сводка: 92 → 93 KI.
-
-### Changed
-- **DESIGN v1.13 (KI-140) — уточнения после ревью (2026-10-03)**:
-  - **Ресемплинг WAV** — `OfflineAudioContext` вместо `AudioContext({sampleRate:16000})`
-    (Chrome игнорирует hint; native rate обычно 48 kHz). § 4.2.
-  - **Auto-stop 60 сек** — enforced на клиенте (`MAX_RECORDING_MS` в `speech.js`,
-    синхронизировано с `Speech:MaxAudioSeconds`). § 4.2, § 6.
-  - **`RequestSizeLimit`** — 20 MB hard cap (было 11 MB); реальный лимит —
-    `Speech:MaxFileSizeBytes = 10 MB` (валидация в контроллере). § 3.5.
-  - **Language** — `"auto"` в `appsettings.Development.json`, `"ru"` в prod.
-    § 3.2.
-  - **VAD** (Phase 4) — на клиенте через `AnalyserNode`, не требует backend.
-    Приоритет Ф4: VAD > hotkey > GPU > streaming. § 8.4.
-  - § 11 переименован в «Принятые решения и отложенные вопросы»:
-    7 решений + 4 отложенных + 3 пункта технического долга.
-
-### Fixed
-- **v1.13.0 (KI-140, Ф3.5)**: `[BLANK_AUDIO]` — Whisper на тишине/шуме
-  выдавал служебные маркеры как текст. Фильтр 20+ маркеров
-  (`[BLANK_AUDIO]`, `[MUSIC]`, `[SOUND]`, …) + `NoSpeechThreshold = 0.8`
-  (было whisper.cpp default 0.6) + `TryReadWavDurationMs()` (парсинг
-  WAV-заголовка; `MinAudioDurationMs = 300` — ранний выход на коротких
-  записях). Закрывает техдолг § 11.3 DESIGN.
-
-- **v1.11.0 (KI-136)**: tool-сообщение **не сохранялось** в БД
-  при отмене SSE (F5 / Stop) — фактический root cause, не покрытый
+- **v1.11.0 (KI-136)**: tool-сообщение **не сохранялось** в БД  при отмене SSE (F5 / Stop) — фактический root cause, не покрытый
   KI-134/135.
   **Причина:** `yield return ChatStreamEvent.ToolResult(...)` шёл **до**
   `AddMessageAsync`. При F5 SSE-соединение закрыто → controller попытался

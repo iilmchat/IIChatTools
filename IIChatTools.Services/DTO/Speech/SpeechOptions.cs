@@ -47,13 +47,24 @@ namespace IIChatTools.Services.DTO.Speech
         /// </summary>
         public int TimeoutSeconds { get; set; } = 60;
 
-        /// <summary>
-        /// Порог «no-speech» для Whisper.net (0.0..1.0). По умолчанию — 0.8
-        /// (выше, чем whisper.cpp default 0.6). Чем выше — тем чаще модель
-        /// считает вход тишиной/шумом и не выдаёт галлюцинации
-        /// типа <c>[BLANK_AUDIO]</c>, <c>[MUSIC]</c>.
-        /// </summary>
+        /// <summary>Порог «no-speech»: вероятность, выше которой сегмент считается
+        /// неречью (для фильтрации галлюцинаций на тишине). Default 0.8.</summary>
         public float NoSpeechThreshold { get; set; } = 0.8f;
+
+        /// <summary>
+        /// v1.13.1 (KI-140-fix): начальная temperature Whisper.
+        /// <c>0.0</c> — детерминированный вывод (не «фантазирует»).
+        /// Default 0.0. Диапазон: 0.0–1.0.
+        /// </summary>
+        public float Temperature { get; set; } = 0.0f;
+
+        /// <summary>
+        /// v1.13.1 (KI-140-fix): LogProb threshold. Сегменты с лог-вероятностью
+        /// ниже этого значения отбрасываются как «неуверенные»
+        /// (защита от галлюцинаций). Default <c>-1.0</c>
+        /// (= whisper.cpp default, но применяется явно).
+        /// </summary>
+        public float LogprobThreshold { get; set; } = -1.0f;
 
         /// <summary>
         /// Минимальная длительность аудио (мс). Короче — сразу возвращаем

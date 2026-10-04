@@ -115,6 +115,27 @@ namespace IIChatTools.Services.Implementation.Speech
             //      классифицирует тишину как «не речь» и возвращает пустоту.
             builder = builder.WithNoSpeechThreshold(_options.NoSpeechThreshold);
 
+            // 3.3. v1.13.1-fix2 (KI-140-fix): возвращаем temperature-fallback.
+            //
+            //      РЕГРЕССИЯ v1.13.1: мы отключили fallback через
+            //      WithTemperatureInc(0.0f) — думали, он «вытаскивает»
+            //      галлюцинации. На самом деле всё наоборот: fallback —
+            //      механизм СПАСЕНИЯ. Если основная попытка на t=0.0 даёт
+            //      мусор (низкий logprob), Whisper пробует на t=0.2, 0.4…
+            //      Без него — модель остаётся на «плохом» результате.
+            //
+            //      Также убираем WithNoContext() — для одноразовой
+            //      транскрипции он вреден (модель хуже понимает короткие
+            //      фразы без контекста).
+            //
+            //      Оставляем только:
+            //      - Temperature (initial) = 0.0;
+            //      - LogProbThreshold = -1.0 (whisper.cpp default).
+            //      Fallback TInc = 0.2 (whisper.cpp default) — НЕ трогаем.
+            builder = builder
+                .WithTemperature(_options.Temperature)
+                .WithLogProbThreshold(_options.LogprobThreshold);
+
             using var processor = builder.Build();
 
             var sb = new StringBuilder();
@@ -167,6 +188,20 @@ namespace IIChatTools.Services.Implementation.Speech
             "[LAUGHTER]", "[laughter]",
             "[APPLAUSE]", "[applause]",
             "[Sighs]", "[sighs]",
+
+            // v1.13.1-fix2 (KI-140-fix): Whisper при Language=ru выдаёт
+            // маркеры на РУССКОМ (в квадратных скобках).
+            // Пример: пользователь сказал «Расскажи, как дела?»,
+            // Whisper вернул "[музыка]" — пропущен → улетел в UI.
+            "[музыка]", "[Музыка]", "[МУЗЫКА]",
+            "[шум]",    "[Шум]",    "[ШУМ]",
+            "[тишина]", "[Тишина]", "[ТИШИНА]",
+            "[неразборчиво]", "[Неразборчиво]",
+            "[смех]",   "[Смех]",
+            "[аплодисменты]", "[Аплодисменты]",
+            "[звонок]", "[Звонок]",
+
+            // Круглые скобки (уже были — оставляем).
             "(тишина)", "(музыка)", "(шум)",
         };
 

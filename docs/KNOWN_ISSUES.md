@@ -2873,15 +2873,12 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   KI-110a (Anthropic), KI-110b (Gemini), KI-139 (External VL для GUI — дублирует
   часть scope, консолидировать при старте).
 
----
-
-## v1.12.x — Vision Agent (roadmap)
-
 ### KI-142 — WPF overlay для Vision Agent (реальный on-screen indicator)
 
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
 - **Обнаружено:** 2026-10-04 (при релизе v1.12.0 — MVP-компромисс).
-- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 4.6, § 6.4, § 7.6 (Ф6.7).
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
+  § 4.6, § 6.4, § 7.6 (Ф6.7).
 - **Описание:** В v1.12.0 on-screen indicator — заглушка
   (`NoopVisionOverlayLauncher`, `IsAvailable = false`). По DESIGN § 6.4
   overlay **обязателен** для `local-harness` и `sandbox` — пользователь
@@ -2893,23 +2890,105 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      `AllowsTransparency="True"`, `IsHitTestVisible="False"` для всего,
      кроме кнопки STOP).
   3. **Содержимое:** «🤖 Vision Agent: шаг N из M», текущее действие,
-     статус, кнопка STOP.
-  4. **IPC через NamedPipe** (`iichattools-vision-overlay`).
-  5. **`WpfVisionOverlayLauncher : IVisionOverlayLauncher`** (запуск процесса).
-  6. **Регистрация в DI** вместо `NoopVisionOverlayLauncher`.
-- **Оценка:** ~4-6 ч.
-- **Связанные:** KI-131.
+     статус (зелёный / жёлтый / красный), кнопка STOP.
+  4. **IPC через NamedPipe** (`iichattools-vision-overlay`): основное
+     приложение → `UpdateProgress(step, action)`; overlay → `StopRequested`.
+  5. **Реализация `WpfVisionOverlayLauncher : IVisionOverlayLauncher`**
+     (запуск процесса, подключение к pipe).
+  6. **Регистрация в DI** вместо `NoopVisionOverlayLauncher` при наличии
+     `VisionOverlay.exe` рядом с основным.
+- **Оценка:** ~4-6 ч (по DESIGN § 7.6, Шаг 6.7 — 4 ч + интеграция).
+- **Связанные:** KI-131 (Vision Agent), KI-143 (Avalonia — cross-platform
+  альтернатива).
+
+### KI-143 — Cross-platform overlay на Avalonia (альтернатива KI-142)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14.x
+- **Обнаружено:** 2026-10-04 (обсуждение WPF vs Avalonia).
+- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
+  § 4.6, § 6.4 (расширение).
+- **Описание:** В v1.12.0 on-screen indicator — заглушка. План — WPF overlay
+  (**KI-142**). Однако WPF — **Windows-only**. Проект в будущем может
+  потребовать cross-platform (Linux X11/Wayland, macOS). **Avalonia** —
+  современный cross-platform XAML-фреймворк (.NET 8+):
+  - Windows / Linux / macOS / WASM / Mobile из одного проекта.
+  - `net10.0` (не `net10.0-windows`) — не привязан к Windows SDK.
+  - XAML-диалект ~80% совместим с WPF (переиспользуем опыт).
+  - Нативные backend'ы: Win32 (Windows), X11 / Wayland (Linux), Metal (macOS).
+  - `TransparencyLevelHint` (перечень уровней: `Transparent` / `AcrylicBlur` /
+    `Blur` / `None`) + `Topmost = true`.
+- **Что нужно:**
+  1. **Отдельный проект `IIChatTools.VisionOverlay`** на Avalonia
+     (`net10.0`, `<OutputType>WinExe</OutputType>`).
+  2. **Прозрачное always-on-top окно**:
+     `TransparencyLevelHint = [WindowTransparencyLevel.Transparent]`,
+     `Topmost = true`, `CanResize = false`,
+     `IsHitTestVisible = false` для всего, кроме кнопки STOP.
+  3. **Содержимое** — как в KI-142 (🤖 Vision Agent: шаг N из M, действие,
+     статус, кнопка STOP).
+  4. **IPC через NamedPipe** — тот же контракт, что в KI-142
+     (`iichattools-vision-overlay`). Кроссплатформенный:
+     на Windows — `NamedPipeServerStream`, на Linux/macOS — Unix Domain
+     Socket (тот же API, разные пути).
+  5. **`AvaloniaVisionOverlayLauncher : IVisionOverlayLauncher`** — реализация
+     интерфейса. На старте — выбор launcher'а по ОС:
+     - Windows → `WpfVisionOverlayLauncher` (KI-142) или Avalonia.
+     - Linux / macOS → `AvaloniaVisionOverlayLauncher`.
+     - **Долгосрочно:** единый Avalonia на всех ОС (упрощение поддержки).
+- **Рекомендация (принята 2026-10-04):**
+  - **Путь A → B:** сначала WPF (KI-142) — для скорости; Avalonia — когда
+    появится первое реальное требование cross-platform (v1.14+).
+  - **Альтернатива (не выбрана):** сразу Avalonia (перепрыгнуть KI-142).
+    Плюс — один проект на все ОС; минус — меньше примеров online.
+- **Оценка:** ~6-8 ч (по образцу KI-142 + изучение Avalonia-специфики).
+- **Связанные:** KI-131 (Vision Agent), KI-142 (WPF overlay — базовая
+  реализация).
 
 ---
 
 ## v1.13.0 — Speech Recognition (roadmap)
 
+### KI-144 — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone)
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-10-04 (smoke Speech Recognition, Chrome)
+- **Файлы:** клиентская конфигурация браузера + Windows.
+- **Описание:** На машинах с установленным Steam / VB-Cable / OBS Virtual Audio /
+  VoiceMeeter Chrome может выбрать по умолчанию **виртуальное** audio-устройство
+  (например, «Микрофон (Steam Streaming Microphone)»). Такое устройство
+  возвращает валидный `MediaStreamTrack` через `getUserMedia`, но **все сэмплы
+  = 0** (`maxAbs=0.000000`) — оно не связано с реальным железом.
+  Симптом: `[speech] track.read() #N: ... maxAbs=0.000000`, ранний выход
+  `Входной сигнал полностью нулевой`, Whisper не вызывается.
+  Yandex Browser ведёт себя иначе (либо игнорирует virtual, либо использует
+  другой default) — тот же код работает.
+- **Не баг приложения:** `speech.js` корректен, диагностика (maxAbs в первых
+  3 чанках + ранний выход при `RMS < 1e-5`) сработала, Whisper не
+  сгаллюцинировал на нулевом входе. Проблема в конфигурации браузера + Windows.
+- **Решение (для пользователя):**
+  1. `chrome://settings/content/microphone` → найти `localhost:5001` (или свой
+     домен) → в выпадающем списке выбрать **физический** микрофон
+     (не Steam Streaming / VB-Cable / Virtual Audio / VoiceMeeter).
+  2. Проверить `Параметры Windows → Конфиденциальность → Микрофон` —
+     Chrome должен иметь разрешение.
+- **Профилактика (v1.13.1-fix7):**
+  - `speech.js` логирует `label` и `deviceId` устройства при старте записи.
+  - Сообщение об ошибке при нулевом сигнале содержит имя устройства + ссылку
+    на `chrome://settings/content/microphone`.
+- **Связанные:** KI-140 (Speech Recognition).
+
+---
+
 ### KI-140 — Голосовой ввод в чате (офлайн-распознавание речи, Whisper.net)
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.0
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.0
+- **Реализовано:** 2026-10-04. Backend (`WhisperNetTranscriptionService` +
+  `SpeechController`) + frontend (`speech.js` + кнопка 🎤) + скрипт
+  скачивания модели. Модель `ggml-base.bin` (~142 MB), WAV 16 kHz mono,
+  всё офлайн. Отложено в v1.13.x (Phase 4): VAD, hotkey, streaming, GPU.
 - **Обнаружено:** 2026-10-03 (запрос пользователя)
 - **DESIGN:** [`docs/development/v1.13/DESIGN_SPEECH_RECOGNITION.md`](development/v1.13/DESIGN_SPEECH_RECOGNITION.md)
-  (v1.13.0, Draft).
+  (v1.13.0, MVP Released).
 - **Описание:** Кнопка 🎤 в `.chat-input-box` для голосового ввода. Требования:
   - **Офлайн** — не зависит от интернета (в т.ч. в РФ без VPN).
   - **Приватность** — аудио не покидает сервер.
@@ -2964,6 +3043,37 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-144 — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone)
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-10-04 (smoke Speech Recognition, Chrome — 3 скрина + логи).
+- **Файлы:** клиентская конфигурация браузера + Windows.
+- **Описание:** На машинах с установленным Steam / VB-Cable / OBS Virtual Audio /
+  VoiceMeeter Chrome может выбрать по умолчанию **виртуальное** audio-устройство
+  (например, «Микрофон (Steam Streaming Microphone)»). Такое устройство
+  возвращает валидный `MediaStreamTrack` через `getUserMedia`, но **все сэмплы
+  = 0** (`maxAbs=0.000000`) — оно не связано с реальным железом.
+  Симптом: `[speech] track.read() #N: ... maxAbs=0.000000`, ранний выход
+  `Входной сигнал полностью нулевой`, Whisper не вызывается.
+  Yandex Browser ведёт себя иначе (либо игнорирует virtual, либо использует
+  другой default) — тот же код работает.
+- **Не баг приложения:** `speech.js` корректен, диагностика (maxAbs в первых
+  3 чанках + ранний выход при `RMS < 1e-5`) сработала, Whisper не
+  сгаллюцинировал на нулевом входе. Проблема в конфигурации браузера + Windows.
+- **Решение (для пользователя):**
+  1. `chrome://settings/content/microphone` → найти `localhost:5001` (или свой
+     домен) → в выпадающем списке выбрать **физический** микрофон
+     (не Steam Streaming / VB-Cable / Virtual Audio / VoiceMeeter).
+  2. Проверить `Параметры Windows → Конфиденциальность → Микрофон` —
+     Chrome должен иметь разрешение.
+- **Профилактика (v1.13.1-fix7):**
+  - `speech.js` логирует `label` и `deviceId` устройства при старте записи.
+  - Сообщение об ошибке при нулевом сигнале содержит имя устройства + ссылку
+    на `chrome://settings/content/microphone`.
+- **Связанные:** KI-140 (Speech Recognition).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -2989,15 +3099,16 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.10.1) | 2 | <!-- KI-122 (темы UI), KI-092 (Bootstrap aria-hidden warning — попутно) -->
 | Deferred  | 5 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
 | Documented | 12 | <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
-| In Progress | 0 |                   <!-- — -->
 | Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
 | Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
 | Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
 | Fixed (v1.12.0) | 1 |              <!-- KI-131 (Vision Agent, MVP: LocalHarness + vision_agent) -->
-| Planned | 8 |                       <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-142 -->
+| Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
+| Planned | 10 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-142, KI-143 -->
 | In Progress | 0 |                   <!-- — -->
+| Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **94** |
+| **Всего** | **97** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

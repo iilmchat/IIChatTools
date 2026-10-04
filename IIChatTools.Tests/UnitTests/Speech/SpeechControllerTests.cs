@@ -13,7 +13,7 @@ using Moq;
 using Newtonsoft.Json.Linq;
 using Xunit;
 
-namespace IIChatTools.Tests.UnitTests.Controllers
+namespace IIChatTools.Tests.UnitTests.Speech
 {
     /// <summary>
     /// Unit-тесты для <see cref="SpeechController"/> (v1.13.0, KI-140, Ф3.6).
