@@ -2683,6 +2683,12 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   downscale PNG через `VisionImageResizer`). Помощники: `Win32Interop`
   (P/Invoke SendInput + GetSystemMetrics + GetForegroundWindow),
   `VisionKeyMapper` (VK-маппинг). Тесты: 666 → 825 (+159).
+- **Порядок фаз изменён** (2026-10-04): Ф5 (VL + Planner клиенты) →
+  Ф6 (VisionAgentService loop) → Ф7 (VisionAgentTool) → **потом** Ф3
+  (Sandbox) / Ф4 (VncMcp). Причина: Local backend (Ф2) уже реализован,
+  MVP достигается на Ф7. Sandbox на dev-машине **Disabled**
+  (`Containers-DisposableClientVM`, Windows Pro — включение требует
+  admin + перезагрузка). См. `DESIGN_VISION_AGENT.md` § 7.
 - **Обнаружено:** 2026-10-03 (обсуждение с пользователем)
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
   (v2.1, Draft — ждёт согласования).

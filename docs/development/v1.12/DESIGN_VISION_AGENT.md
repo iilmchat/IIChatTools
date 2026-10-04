@@ -744,18 +744,31 @@ dotnet user-secrets set "ExternalLlm:DeepSeek:ApiKey" "sk-…"
 
 **Итого:** ~62 ч (≈8 рабочих дней).
 
-| Фаза | Что | Оценка | Зависимости |
-|---|---|---|---|
-| 0 | DESIGN (этот документ) | — | ✅ Done |
-| 1 | Контракты + DTO + интерфейсы | 4 ч | Фаза 0 |
-| 2 | `LocalHarnessVisionBackend` (SystemHarness) | 8 ч | Фаза 1 |
-| 3 | `SandboxVisionBackend` (.wsb + noVNC) | 10 ч | Фаза 2 |
-| 4 | `VncMcpVisionBackend` (MCP-клиент) | 8 ч | Фаза 1 |
-| 5 | `IVisionLlmClient` + `IPlannerLlmClient` | 10 ч | Фаза 1 |
-| 6 | `VisionAgentService` loop + `VisionOverlay.exe` | 8 ч | Фазы 2-5 |
-| 7 | `VisionAgentTool` + Chat-интеграция | 4 ч | Фаза 6 |
-| 8 | Тесты (unit + integration) | 6 ч | Фазы 1-7 |
-| 9 | Документация + релиз v1.12.0 | 4 ч | Фазы 1-8 |
+| Фаза | Что | Оценка | Зависимости | Порядок |
+|---|---|---|---|---|
+| 0 | DESIGN (этот документ) | — | ✅ Done | ✅ Done |
+| 1 | Контракты + DTO + интерфейсы | 4 ч | Фаза 0 | ✅ Done |
+| 2 | `LocalHarnessVisionBackend` (GDI + SendInput) | 8 ч | Фаза 1 | ✅ Done |
+| 5 | `IVisionLlmClient` + `IPlannerLlmClient` | 10 ч | Фаза 2 | **3-я** |
+| 6 | `VisionAgentService` loop + `VisionOverlay.exe` | 8 ч | Фазы 2, 5 | **4-я** |
+| 7 | `VisionAgentTool` + Chat-интеграция | 4 ч | Фаза 6 | **5-я** |
+| 3 | `SandboxVisionBackend` (.wsb + VNC) | 10 ч | Фаза 2 | **6-я** *(opt)* |
+| 4 | `VncMcpVisionBackend` (MCP-клиент) | 8 ч | Фаза 1 | **7-я** *(opt)* |
+| 8 | Тесты (unit + integration) | 6 ч | Фазы 1-7 | 8-я |
+| 9 | Документация + релиз v1.12.0 | 4 ч | Фазы 1-8 | 9-я |
+
+> **Порядок фаз изменён 2026-10-04** (пользователь + ассистент, после закрытия
+> Фазы 2). Обоснование:
+> - `LocalHarnessVisionBackend` (Ф2) уже реализован — 11 методов
+>   `IVisionBackend` + 5 защитных слоёв. Базовая функциональность есть.
+> - Ф5 / Ф6 / Ф7 — **ядро loop'а Vision Agent** (VL + Planner + orchestration
+>   + tool). Без них Agent не работает. **MVP достигается на Ф7.**
+> - Ф3 (`SandboxVisionBackend`) и Ф4 (`VncMcpVisionBackend`) — дополнительные
+>   уровни изоляции. Sandbox на dev-машине **Disabled** (`Containers-DisposableClientVM`,
+>   Windows Pro / Enterprise — есть, но выключен), VncMcp требует отдельного
+>   VNC-сервера. Не блокируют MVP.
+> - **Ф3 и Ф4 остаются в scope v1.12.0**, выполняются после Ф7 как
+>   усиление изоляции. Если времени не хватит — переносятся в v1.12.x.
 
 ### § 7.1. Фаза 1 — Контракты + DTO (4 ч)
 
