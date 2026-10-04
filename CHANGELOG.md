@@ -19,6 +19,35 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф6.2)**: VisionAgentService loop.
+  - **VisionAgentService.cs** (Scoped, `IVisionAgentService`): оркестратор
+    loop'а `screenshot → describe → plan → validate → act → repeat`.
+    - Main loop до `MaxSteps` (clamp из `request.MaxSteps` или
+      `Limits.MaxSteps`).
+    - Стартовый `backend.OpenAsync(url)` при заданном `url`.
+    - На каждом шаге: `ScreenshotAsync` → `DescribeAsync` (VL) →
+      `PlanNextAsync` (Planner, с `userId`) → `Validate` (валидатор) →
+      `ExecuteActionAsync` (backend).
+    - `done` → `Success = true` + `Summary`; `fail` → `Success = false`
+      + `Error`.
+    - Ошибки валидации → шаг с `Error` (loop продолжается, LLM перепланирует).
+    - Ошибки backend'а → шаг с `Error` (loop продолжается).
+    - `OperationCanceledException` → `throw` (отмена пробрасывается).
+    - Заполняет `VisionTaskResultDto` (Steps, Summary, Error,
+      TotalDurationMs).
+  - **`ResolveCoordinates`** (private static): если задан `target` —
+    ищет элемент в `screen.UiElements` и берёт `Center.X/Y` (fallback —
+    `Bounds`). Если target нет — использует `x` / `y`. Это единственный
+    способ «перевести» семантические id LLM в пиксели backend'а.
+  - **`ExecuteActionAsync`** (private static): switch по `actionType` →
+    вызов соответствующего метода `IVisionBackend` (11 действий).
+  - **DI:** `services.AddScoped<IVisionAgentService, VisionAgentService>()`
+    в `RegisterVisionAgentTools`.
+  - **Отложено (следующие подшаги Ф6):** timeout `MaxTaskSeconds` (Ф6.3),
+    rate limiter (Ф6.4), сохранение скриншотов (Ф6.5), retention (Ф6.6),
+    overlay (Ф6.7), тесты сервиса (Ф6.9).
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф6.3 (timeout + MaxSteps).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф6.1)**: VisionActionValidator.
   - **VisionActionValidator.cs** (Singleton, `IVisionActionValidator`):
     7 правил валидации перед backend-выполнением:

@@ -987,6 +987,10 @@ namespace IIChatTools.API
             // Ф6.1 (KI-131): валидатор действий (blocked keys / hotkeys,
             // clamp text/deltaY, проверка target в ui_elements).
             services.AddSingleton<IVisionActionValidator, VisionActionValidator>();
+
+            // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
+            // Scoped — зависит от Scoped IVisionBackend (backend = Scoped).
+            services.AddScoped<IVisionAgentService, VisionAgentService>();
 #pragma warning restore CA1416
         }
 
