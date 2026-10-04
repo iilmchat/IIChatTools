@@ -943,6 +943,10 @@ namespace IIChatTools.API
             // Ф5.1 (KI-131): Vision LLM — Singleton.
             // Пока только LmStudio; External/Auto — Ф5.3/Ф5.4.
             services.AddSingleton<IVisionLlmClient, LmStudioVisionClient>();
+
+            // Ф5.2 (KI-131): Planner LLM — Singleton.
+            // Пока только LmStudio; External/Auto — Ф5.3/Ф5.4.
+            services.AddSingleton<IPlannerLlmClient, LmStudioPlannerClient>();
 #pragma warning restore CA1416
         }
 

@@ -19,6 +19,31 @@
 ## [Unreleased]
 
 ### Added
+- **DESIGN v1.12 — Vision Agent (KI-131, Ф5.2)**: LmStudioPlannerClient
+  + VisionActionParser.
+  - **VisionActionParser.cs** (public static, устойчивый парсер):
+    markdown-обёртки, case-insensitive, отрезание текста до/после JSON.
+    Whitelist из 11 actions (`click`, `double_click`, `right_click`,
+    `move_mouse`, `type`, `press_key`, `hotkey`, `scroll`, `wait`,
+    `done`, `fail`). Нормализация action к lowercase. Извлечение полей:
+    `target` / `x` / `y` / `text` / `key` / `keys[]` / `deltaY` / `reason`.
+    При любой ошибке (невалидный JSON, отсутствие `action`, неизвестный
+    action) — fallback: `action = "fail"` + reason с деталями.
+  - **LmStudioPlannerClient.cs** (Singleton, `IPlannerLlmClient`):
+    text-only POST к LM Studio `/v1/chat/completions`. System-prompt =
+    `VisionSystemPrompt.PlannerPlanNext`. User-message — JSON c полями
+    `task`, `history`, `screen`, `plan` (camelCase, без null). `history`
+    обрезается до `PlannerLlmOptions.MaxHistorySteps` (default 20) —
+    защита от переполнения контекста. Timeout через
+    `CancellationTokenSource.CancelAfter` (RULES § 4.48).
+  - **Тесты:** `VisionActionParserTests` (+~19 кейсов: clean для каждого
+    action / coords / markdown / case-insensitive / text-before-after /
+    unknown action / missing action / broken JSON / null/empty / free text).
+  - **DI:** `services.AddSingleton<IPlannerLlmClient, LmStudioPlannerClient>()`
+    внутри `RegisterVisionAgentTools`.
+  - **KI-131** — In Progress (v1.12.0). Следующая — Ф5.3
+    (`ExternalVisionClient` + `ExternalPlannerClient` через `IExternalLlmClient`).
+
 - **DESIGN v1.12 — Vision Agent (KI-131, Ф5.1)**: LmStudioVisionClient
   + ScreenDescriptionParser + VisionSystemPrompt.
   - **VisionSystemPrompt.cs** (public static): 2 константы —
