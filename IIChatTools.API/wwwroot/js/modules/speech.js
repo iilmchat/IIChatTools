@@ -24,10 +24,13 @@ import { toast } from './ui.js';   // v1.13.1-fix8 (KI-145): fallback-toast
 
 // ============ Константы ============
 
-/** Лимит длительности записи (мс). Синхронизировано со Speech:MaxAudioSeconds (60). */
-const MAX_RECORDING_MS = 60_000;
+/**
+ * Лимит длительности записи (мс). Читается из `Speech:MaxAudioSeconds` (× 1000).
+ * Default = 60 000 (60 сек) — v1.13.1-fix11 (KI-140).
+ */
+let MAX_RECORDING_MS = 60_000;
 
-/** Интервал обновления таймера в UI (мс). */
+/** Интервал обновления таймера в UI (мс). Не конфигурируется (UI-only). */
 const TIMER_INTERVAL_MS = 500;
 
 /** Целевая частота дискретизации WAV для Whisper.net. */
@@ -53,32 +56,46 @@ const NORMALIZE_MAX_GAIN = 10.0;
  */
 const VIRTUAL_DEVICE_PATTERN = /(steam|vb[-\s]?cable|virtual|voicemeeter|obs)/i;
 
-// ============ VAD (Voice Activity Detection, v1.13.1-fix10, KI-140) ============
+// ============ VAD (Voice Activity Detection, v1.13.1-fix10/11, KI-140) ============
+// Все параметры читаются из data-* на #chat-messages (RULES § 4.17).
+// Defaults — fallback, если data-* отсутствуют (старый Razor-шаблон).
+
+/** Включён ли VAD. Default: true. */
+let VAD_ENABLED = true;
 
 /**
- * Порог RMS для определения «тишины». Значения ниже этого считаются
- * фоновым шумом. Типично: тихая комната — 0.001-0.005; шумная — 0.01-0.03;
- * речь — 0.05-0.30.
+ * Порог RMS для определения «тишины» (legacy, если adaptive выключен).
+ * Типично: тихая комната — 0.001–0.005; шумная — 0.01–0.03; речь — 0.05–0.30.
+ * Default: 0.015.
  */
-const VAD_SILENCE_RMS = 0.015;
+let VAD_SILENCE_RMS = 0.015;
 
 /**
- * Длительность тишины для auto-stop (мс).
- * Если RMS < {@link VAD_SILENCE_RMS} непрерывно N мс — останавливаем запись
- * и отправляем на распознавание. 2000 мс — баланс между «пользователь
- * закончил фразу» и «пользователь думает».
+ * v1.13.1-fix11c (KI-140): адаптивный VAD.
+ * При включении порог вычисляется как max(minObservedRms × NoiseMultiplier, AbsoluteMinRms).
+ * Это спасает тихие микрофоны (RMS речи < 0.015) — иначе VAD считает речь тишиной.
+ * Default: true.
  */
-const VAD_SILENCE_TIMEOUT_MS = 2000;
+let VAD_ADAPTIVE_ENABLED = true;
+
+/** Множитель для адаптивного порога. Default: 2.0. */
+let VAD_NOISE_MULTIPLIER = 2.0;
+
+/** Абсолютный минимум порога RMS. Default: 0.001. */
+let VAD_ABSOLUTE_MIN_RMS = 0.001;
 
 /**
- * Минимальная длительность записи до разрешения auto-stop (мс).
- * Даёт пользователю время начать говорить. Если запись короче —
- * VAD не сработает, даже если RMS = 0.
+ * Длительность непрерывной тишины для auto-stop (мс). Default: 2000.
  */
-const VAD_MIN_RECORDING_MS = 700;
+let VAD_SILENCE_TIMEOUT_MS = 2000;
 
-/** Интервал проверки VAD (мс). 200 — компромисс между отзывчивостью и CPU. */
-const VAD_POLL_INTERVAL_MS = 200;
+/**
+ * Минимальная длительность записи до разрешения auto-stop (мс). Default: 700.
+ */
+let VAD_MIN_RECORDING_MS = 700;
+
+/** Интервал опроса VAD (мс). Default: 200. */
+let VAD_POLL_INTERVAL_MS = 200;
 
 // ============ Состояние ============
 
@@ -129,6 +146,70 @@ let _vadBuffer = null;       // Float32Array для getFloatTimeDomainData
 let _vadStartedAt = 0;       // Date.now() старта VAD
 let _vadLastVoiceTs = 0;     // Date.now() последнего «громкого» фрейма
 
+// v1.13.1-fix11c (KI-140): минимум RMS, наблюдавшийся с начала записи.
+// Только уменьшается. Определяет адаптивный порог тишины.
+// Infinity — до первого тика. Сбрасывается в _startVad.
+let _vadObservedMinRms = Infinity;
+
+// ============ Загрузка конфигурации из data-* (v1.13.1-fix11, KI-140) ============
+
+/**
+ * Читает конфигурацию голосового ввода из `data-*` на `#chat-messages`.
+ * Вызывается один раз в `initSpeechRecognition` (RULES § 4.17).
+ *
+ * <para>
+ * Параметры: MAX_RECORDING_MS, VAD_ENABLED, VAD_SILENCE_RMS,
+ * VAD_SILENCE_TIMEOUT_MS, VAD_MIN_RECORDING_MS, VAD_POLL_INTERVAL_MS.
+ * </para>
+ *
+ * <para>
+ * Если атрибут отсутствует — константа-фолбэк остаётся как есть. Это
+ * нормальный сценарий при первом деплое нового Razor-шаблона с устаревшим
+ * закэшированным HTML.
+ * </para>
+ */
+function _loadRuntimeConfig() {
+    const el = _containerEl || document.getElementById('chat-messages');
+    if (!el) return;
+
+    const num = (raw, fallback) => {
+        if (raw === undefined || raw === null || raw === '') return fallback;
+        // v1.13.1-fix11a (KI-140): защита от ru-RU локали.
+        // Razor с CultureInfo.CurrentCulture может отдать "0,015" — parseFloat
+        // останавливается на запятой и возвращает 0. Нормализуем к "0.015".
+        // (Правильный fix — .ToString(InvariantCulture) в Razor; это — страховка.)
+        const normalized = String(raw).replace(',', '.');
+        const n = parseFloat(normalized);
+        return Number.isFinite(n) ? n : fallback;
+    };
+    const bool = (raw, fallback) => {
+        if (raw === undefined || raw === null) return fallback;
+        return raw === 'true' || raw === true;
+    };
+
+    MAX_RECORDING_MS = num(el.dataset.speechMaxRecordMs, MAX_RECORDING_MS);
+    VAD_ENABLED = bool(el.dataset.speechVadEnabled, VAD_ENABLED);
+    VAD_SILENCE_RMS = num(el.dataset.speechVadSilenceRms, VAD_SILENCE_RMS);
+    VAD_ADAPTIVE_ENABLED = bool(el.dataset.speechVadAdaptiveEnabled, VAD_ADAPTIVE_ENABLED);
+    VAD_NOISE_MULTIPLIER = num(el.dataset.speechVadNoiseMultiplier, VAD_NOISE_MULTIPLIER);
+    VAD_ABSOLUTE_MIN_RMS = num(el.dataset.speechVadAbsoluteMinRms, VAD_ABSOLUTE_MIN_RMS);
+    VAD_SILENCE_TIMEOUT_MS = num(el.dataset.speechVadSilenceTimeoutMs, VAD_SILENCE_TIMEOUT_MS);
+    VAD_MIN_RECORDING_MS = num(el.dataset.speechVadMinRecordingMs, VAD_MIN_RECORDING_MS);
+    VAD_POLL_INTERVAL_MS = num(el.dataset.speechVadPollIntervalMs, VAD_POLL_INTERVAL_MS);
+
+    console.info('[speech] Конфигурация из data-*:', {
+        maxRecordingMs: MAX_RECORDING_MS,
+        vadEnabled: VAD_ENABLED,
+        vadAdaptiveEnabled: VAD_ADAPTIVE_ENABLED,
+        vadSilenceRms: VAD_SILENCE_RMS,
+        vadNoiseMultiplier: VAD_NOISE_MULTIPLIER,
+        vadAbsoluteMinRms: VAD_ABSOLUTE_MIN_RMS,
+        vadSilenceTimeoutMs: VAD_SILENCE_TIMEOUT_MS,
+        vadMinRecordingMs: VAD_MIN_RECORDING_MS,
+        vadPollIntervalMs: VAD_POLL_INTERVAL_MS,
+    });
+}
+
 // ============ Публичное API ============
 
 /**
@@ -145,6 +226,9 @@ export function initSpeechRecognition(button, textarea, container, enabledFlag) 
     _buttonEl = button;
     _textareaEl = textarea;
     _containerEl = container;
+
+    // v1.13.1-fix11 (KI-140): загрузить конфиг VAD + MAX_RECORDING_MS из data-*.
+    _loadRuntimeConfig();
 
     if (enabledFlag !== 'true') {
         button.disabled = true;
@@ -530,6 +614,11 @@ function _stopRecording() {
  * </para>
  */
 function _startVad() {
+    if (!VAD_ENABLED) {
+        console.info('[speech] VAD отключён в конфигурации (Speech:Vad:Enabled=false)');
+        return;
+    }
+
     try {
         if (!_stream) return;
 
@@ -549,12 +638,14 @@ function _startVad() {
         _vadBuffer = new Float32Array(_vadAnalyser.fftSize);
         _vadStartedAt = Date.now();
         _vadLastVoiceTs = _vadStartedAt;
+        _vadObservedMinRms = Infinity;   // v1.13.1-fix11c: сброс для новой записи
 
         _vadTimer = setInterval(_vadTick, VAD_POLL_INTERVAL_MS);
 
         console.info(
-            '[speech] VAD: запущен (порог=%s, тишина=%d мс, min=%d мс)',
-            VAD_SILENCE_RMS, VAD_SILENCE_TIMEOUT_MS, VAD_MIN_RECORDING_MS);
+            '[speech] VAD: запущен (adaptive=%s, порог=%s, множитель=%s, absMin=%s, тишина=%d мс, min=%d мс)',
+            VAD_ADAPTIVE_ENABLED, VAD_SILENCE_RMS, VAD_NOISE_MULTIPLIER,
+            VAD_ABSOLUTE_MIN_RMS, VAD_SILENCE_TIMEOUT_MS, VAD_MIN_RECORDING_MS);
     } catch (ex) {
         console.warn('[speech] VAD не запустился:', ex);
         _stopVad();
@@ -580,9 +671,30 @@ function _vadTick() {
     }
     const rms = Math.sqrt(sumSq / _vadBuffer.length);
 
+    // v1.13.1-fix11c (KI-140): обновляем наблюдаемый минимум RMS
+    // (только в сторону уменьшения). Определяет адаптивный порог.
+    if (rms < _vadObservedMinRms) {
+        _vadObservedMinRms = rms;
+    }
+
+    // Эффективный порог тишины:
+    //   adaptive = true: max(minRms × multiplier, absoluteMin)
+    //   adaptive = false: silenceRms (legacy)
+    // Первый тик (minRms = Infinity) — порог = Infinity, всегда «тишина»;
+    // но это безопасно, т.к. VAD_MIN_RECORDING_MS = 700 мс — окно
+    // «набора» минимального RMS.
+    let effectiveThreshold;
+    if (VAD_ADAPTIVE_ENABLED) {
+        effectiveThreshold = Math.max(
+            _vadObservedMinRms * VAD_NOISE_MULTIPLIER,
+            VAD_ABSOLUTE_MIN_RMS);
+    } else {
+        effectiveThreshold = VAD_SILENCE_RMS;
+    }
+
     const now = Date.now();
 
-    if (rms >= VAD_SILENCE_RMS) {
+    if (rms >= effectiveThreshold) {
         // Голос/шум выше порога — продлеваем таймаут.
         _vadLastVoiceTs = now;
         return;
@@ -595,8 +707,10 @@ function _vadTick() {
     const silenceMs = now - _vadLastVoiceTs;
     if (silenceMs >= VAD_SILENCE_TIMEOUT_MS) {
         console.info(
-            '[speech] VAD: auto-stop — тишина %d мс (RMS < %s)',
-            silenceMs, VAD_SILENCE_RMS);
+            '[speech] VAD: auto-stop — тишина %d мс (RMS < %s, min=%s, mode=%s)',
+            silenceMs, effectiveThreshold.toFixed(5),
+            _vadObservedMinRms.toFixed(5),
+            VAD_ADAPTIVE_ENABLED ? 'adaptive' : 'fixed');
         _stopRecording();
     }
 }

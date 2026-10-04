@@ -18,6 +18,30 @@
 
 ## [Unreleased]
 
+### Changed
+- **v1.13.1-fix11 (KI-140)**: VAD-параметры и `MAX_RECORDING_MS` вынесены
+  из хардкода в `appsettings.json` + **адаптивный VAD**.
+  - **Fix11**: вместо `const` в `speech.js` — секция `Speech:Vad` в
+    `appsettings.json` / `.Development.json`; значения инжектятся через
+    `data-speech-vad-*` + `data-speech-max-record-ms` на `#chat-messages`
+    (RULES § 4.17); `speech.js` читает их через `_loadRuntimeConfig()`.
+  - **Fix11a**: `CultureInfo.InvariantCulture` для `double` в Razor-`data-*`
+    (ru-RU отдавала `0,015` → `parseFloat` = 0). Плюс защита в
+    `_loadRuntimeConfig.num()` (запятая → точка).
+  - **Fix11c**: адаптивный VAD. Раньше фиксированный порог `SilenceRms=0.015`
+    работал только на микрофонах с RMS речи > 0.015. На тихих микрофонах
+    (RMS речи ~0.006–0.010) VAD считал речь тишиной и обрывал запись через
+    2 сек. Теперь при `Vad:AdaptiveEnabled=true` (default) порог вычисляется
+    как `max(minObservedRms × NoiseMultiplier, AbsoluteMinRms)` — динамически
+    подстраивается под уровень микрофона. Новые параметры:
+    `AdaptiveEnabled=true`, `NoiseMultiplier=2.0`, `AbsoluteMinRms=0.001`.
+    Авто-stop-лог содержит `min` (наблюдаемый минимум) и `mode` для
+    диагностики.
+  - **Файлы:** `SpeechOptions.cs` (+`SpeechVadOptions` + 3 поля),
+    `appsettings*.json` (+`Speech:Vad` + 3 ключа), `Views/Chat/Index.cshtml`
+    (+9 `data-*`), `speech.js` (`const` → `let`, +`_loadRuntimeConfig`,
+    +адаптивный расчёт порога).
+
 ### Added
 - **v1.13.1-fix10 (KI-140)**: VAD (Voice Activity Detection) — авто-остановка
   записи по тишине + хоткей `Ctrl+Shift+Space`.
