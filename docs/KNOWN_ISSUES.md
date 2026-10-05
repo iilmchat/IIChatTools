@@ -1818,7 +1818,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-114 — `AgentToolBase` возвращает `ToolResult.Ok` при `Completed=false`
-- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-09-29 (smoke Mail Agent)
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`
 (строка после `var result = await subAgent.ExecuteTaskAsync(context, request);`).
@@ -1844,6 +1844,15 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Практический эффект (smoke #3, 2026-10-05):** `file_system_agent` не завершил
   задачу (path-traversal) → Chat LLM получила `success: false` вместо
   «success: true» — больше не сможет слепо «верить» агенту.
+- **Дополнение (2026-10-05, smoke #3):** первая версия фикса
+  (`Completed == false → Fail`) дала **ложные негативы**: SubAgent создал
+  файл, но упёрся в `MaxSteps` до финального ответа → `Completed = false`,
+  хотя задача выполнена. Пользователь видел «❌ code_agent не завершил
+  задачу», файл при этом существовал.
+- **Уточнённый fix (v1.13.x, 2026-10-05):** Fail только если
+  `UsedTools.Count == 0` (агент вообще не вызывал инструменты — реальный
+  провал). Если хотя бы один tool вызван → `Ok` с полными данными.
+  LLM в Chat сама решит по `finalAnswer`, отвечать ли «успех».
 - **Связанные:** KI-113 (галлюцинация успеха), KI-167 (smoke #3),
   DESIGN v1.4 § 3.3.
 

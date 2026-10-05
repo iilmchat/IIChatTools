@@ -219,22 +219,38 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
                     usedTools = result.UsedTools
                 };
 
-                if (result.Completed)
+                // v1.13.x (KI-114-fix, 2026-10-05): смягчение критерия Fail.
+                //
+                // Раньше: Completed == false → всегда Fail. Это давало ложные
+                // негативы: SubAgent создал файл, но упёрся в MaxSteps до
+                // финального ответа — LLM в Chat видела «success: false»,
+                // хотя задача фактически выполнена (smoke #3, 2026-10-05).
+                //
+                // Теперь: Fail только если агент вообще НЕ вызывал инструменты
+                // (UsedTools.Count == 0) — значит, он реально не справился
+                // (не нашёл путь, ошибка LM Studio, таймаут до первого tool call).
+                // Если хотя бы один инструмент вызван — Ok с полными данными,
+                // а LLM в Chat сама решит по finalAnswer, отвечать ли «успех».
+                //
+                // <para>
+                // v1.6.1 (KI-086-post): sources от inner-инструментов
+                // (wikipedia_search, search_knowledge_base, ...) пробрасываются
+                // наружу через ToolResult.Sources.
+                // </para>
+                var usedAnyTool = result.UsedTools != null && result.UsedTools.Count > 0;
+
+                if (result.Completed || usedAnyTool)
                 {
-                    // v1.6.1 (KI-086-post): проброс sources от inner-инструментов
-                    // агента (wikipedia_search, search_knowledge_base, ...) в Chat.
-                    // Далее ChatStreamService accumulator (Шаг 3 v1.6.0) подхватит
-                    // и отдаст в SSE done → UI-блок «📚 Источники».
                     return ToolResult.Ok(
                         resultData,
                         message: null,
                         sources: result.Sources);
                 }
 
-                // Агент не завершил задачу — Fail с сохранением result-данных
-                // (sessionId, steps, finalAnswer — для аудита и UI).
+                // Агент не завершил задачу И не вызвал ни одного инструмента —
+                // реальный провал.
                 var failMessage = string.IsNullOrWhiteSpace(result.FinalAnswer)
-                    ? $"Агент '{AgentName}' не завершил задачу (шагов: {result.Steps})."
+                    ? $"Агент '{AgentName}' не завершил задачу (шагов: {result.Steps}, инструментов: 0)."
                     : $"Агент '{AgentName}' не завершил задачу: {result.FinalAnswer}";
 
                 return ToolResult.Fail(failMessage, resultData);

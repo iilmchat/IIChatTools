@@ -33,7 +33,7 @@ IIChatTools. Каждый сценарий — конкретная задача
 |---|---|---|---|---|
 | **1** | **DeepSeek API** — открыть сайт, создать чат, задать вопрос, выделить и скопировать ответ | ⚪ Not started | — | — |
 | **2** | **Начало дня** — меню Windows, запустить VS Code, Total Commander, Task Manager | ⚪ Not started | taskbar-icon detection | KI-166 |
-| **3** | **Запуск скрипта** — создать `c:\projects\test\script.bat` с `echo "Hello World"` | 🟡 Partial (fix ready) | path-traversal + tool-selection + hallucination — **fix в v1.13.x, ждёт ре-smoke** | KI-114, KI-167, KI-168 |
+| **3** | **Запуск скрипта** — создать `c:\projects\test\script.bat` с `echo "Hello World"` | 🟢 Passed (оба варианта) | SubAgent упёрся в MaxSteps (5) — задача выполнена, `Completed=false`. Смягчено в KI-114-fix. | KI-114 (Partial), KI-167, KI-168, KI-170, KI-171 |
 | **4** | **Отчёт о проделанной работе** — notepad → сохранить в `c:\projects\test\` | ⚪ Not started | path-traversal (та же, что #3) | KI-167 |
 | **5** | **Котик** — нарисовать HTML/CSS котика, открыть в браузере, отредактировать по замечаниям | 🕒 Deferred | path-traversal, `file://` в whitelist, anti-loop | KI-160, KI-167, KI-168 |
 
@@ -100,6 +100,18 @@ IIChatTools. Каждый сценарий — конкретная задача
 - **KI-167** — галлюцинация успеха (рецидив KI-113 + усилитель KI-114).
 - **KI-168** — LLM выбирает `file_system_agent` для путей вне workspace. Правильный инструмент — `execute_command` или `code_agent`.
 - `c:\projects\test\` — вне workspace, `PathHelper` отклоняет (RULES § 1.9).
+
+**Результат smoke #3 (2026-10-05):**
+- ✅ **Вариант A (внутри workspace):** `C:\Projects\AI\Workspace\users\1\test\script.bat`
+  создан. LLM → `code_agent` → `run_python`. SubAgent: 5 шагов (лимит).
+- ✅ **Вариант B (`c:\projects\test\`, вне workspace):** `Test-Path` → `True`,
+  содержимое — `echo "Hello World"`. LLM → `code_agent` — **правило 8 сработало**
+  (не `file_system_agent`).
+- 🟡 **Известные ограничения:**
+  - SubAgent упёрся в `MaxSteps=5` в обоих прогонах — задача выполнена, но
+    `Completed = false`. См. KI-114-fix (смягчён критерий Fail).
+  - `code_agent` потратил 4 шага на «разведку» путей (KI-170).
+  - `code_agent` вызвал `run_python` 5 раз для создания одного файла (KI-171).
 
 **Fix-план (выполнено 2026-10-05):**
 - ✅ **KI-114:** `AgentToolBase` → `Fail` при `Completed=false`.

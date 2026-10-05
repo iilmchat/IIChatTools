@@ -21,10 +21,14 @@
 ### Fixed
 - **v1.13.x (KI-114, KI-167, KI-168) — smoke #3 «Запуск скрипта»:
   tool-selection + ложный успех агента.**
-  - **KI-114:** `AgentToolBase.ExecuteAsync` — если `result.Completed == false`
-    → `ToolResult.Fail` (данные агента передаются в `data`). Раньше всегда
-    возвращался `Ok` — LLM в Chat видела «success: true» даже при провале
-    SubAgent, и это усиливало KI-113 (галлюцинация успеха).
+  - **KI-114 (уточнён 2026-10-05 по итогам smoke #3):**
+    `AgentToolBase.ExecuteAsync` — Fail только если `result.Completed == false`
+    **И** `UsedTools.Count == 0` (агент вообще ничего не сделал — реальный
+    провал). Раньше всегда возвращался `Ok` — LLM в Chat видела
+    «success: true» даже при провале SubAgent (усиливало KI-113).
+    Первая версия фикса (Fail при любом `Completed == false`) давала
+    **ложные негативы**: задача выполнена, но SubAgent упёрся в `MaxSteps`
+    до финального ответа. Файлы: `AgentToolBase.cs`.
   - **KI-167:** `SystemPrompt` `file_system_agent` (dev + prod) — добавлены
     правила 4 (жёсткий запрет внешних путей + честный Fail), 5 (не врать
     про успех), 6 (перечислить частичный результат). `Description`
