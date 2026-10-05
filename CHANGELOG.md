@@ -64,6 +64,15 @@
     retry до 8 сек + логировать фактическое время подключения).
 
 ### Fixed
+- **v1.12.x — Vision Agent: рабочий smoke на Qwen2.5-VL-7B (KI-131, KI-157, KI-160)**:
+  - Qwen2.5-VL-7B-Instruct как Vision LLM по умолчанию (dev + prod).
+  - `MaxTokens: 2048`, `MaxSteps: 15`, `MaxTaskSeconds: 500` (dev).
+  - Anti-loop правила в `VisionSystemPrompt.PlannerPlanNext`
+    (few-shot + запрет повторять одно действие > 2 раз).
+  - Дедупликация `ui_elements` + hard cap 8 + отсечение id из цифр
+    в `ScreenDescriptionParser` (KI-160).
+  - Проверено: 3 успешных smoke-прогона подряд (`success: true`,
+    4 шага, ~250 с).
 - **KI-148** (Fixed, v1.12.x) — Vision Agent: Chrome остаётся без фокуса
   после `OpenAsync`. `TryFocusChromeAsync` в
   `LocalHarnessVisionBackend`: ожидание `MainWindowHandle` +

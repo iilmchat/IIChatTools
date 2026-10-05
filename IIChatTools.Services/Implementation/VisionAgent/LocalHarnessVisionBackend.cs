@@ -57,6 +57,40 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         private string _chromeProfileDir;
 
         /// <summary>
+        /// HWND главного окна Chrome (сохраняется при <see cref="OpenAsync"/>).
+        /// Используется <see cref="TryRefocusChrome"/> для возврата фокуса перед
+        /// каждым mutation-действием (KI-155): фокус может «улететь» на другое
+        /// окно между шагами (LM Studio, пользовательский Alt+Tab).
+        /// <see cref="IntPtr.Zero"/> — Chrome не открыт.
+        /// </summary>
+        private IntPtr _chromeHwnd = IntPtr.Zero;
+
+        /// <summary>
+        /// KI-157 (v1.12.x): коэффициент масштабирования при downscale скриншота.
+        /// <para>
+        /// VL-модель видит уменьшенный PNG (<c>MaxImageWidth × MaxImageHeight</c>)
+        /// и возвращает координаты **в масштабе этого PNG**. Но <c>ClickAsync(x, y)</c>
+        /// работает в **реальных пикселях экрана**. Без пересчёта клик уходит мимо.
+        /// </para>
+        /// <para>
+        /// Формула: <c>x_real = x_llm × _screenshotScaleX</c>. Значение
+        /// обновляется в <see cref="ScreenshotAsync"/> после каждого downscale.
+        /// 1.0 = без масштабирования (скриншот не уменьшался).
+        /// </para>
+        /// </summary>
+        private double _screenshotScaleX = 1.0;
+        private double _screenshotScaleY = 1.0;
+
+        /// <summary>
+        /// KI-158 (v1.12.x): координаты и размер области overlay для маскировки
+        /// на скриншоте (в реальных пикселях экрана). Overlay располагается
+        /// в правом верхнем углу: 320 px ширина + 16 px margin = 336.
+        /// Высота ~120 px + margin.
+        /// </summary>
+        private const int OverlayMaskWidth = 360;
+        private const int OverlayMaskHeight = 160;
+
+        /// <summary>
         /// Создаёт backend.
         /// </summary>
         /// <param name="options">Настройки Vision Agent (секция <c>VisionAgent</c>).</param>
@@ -158,6 +192,73 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             // которое было активно до запуска) → первое mutation-действие упадёт
             // на whitelist-проверке процессов (`EnsureForegroundProcessAllowed`).
             await TryFocusChromeAsync(cancellationToken).ConfigureAwait(false);
+
+            // KI-155: запомнить HWND Chrome для refocus перед каждым действием.
+            // (Фокус может «улететь» между шагами — LM Studio, Alt+Tab, анимации.)
+            try { _chromeProcess.Refresh(); } catch { /* ignore */ }
+            _chromeHwnd = _chromeProcess?.MainWindowHandle ?? IntPtr.Zero;
+        }
+
+        /// <summary>
+        /// KI-155 (v1.12.x): возвращает фокус на окно Chrome, если оно открыто.
+        /// <list type="number">
+        ///   <item>Если <see cref="_chromeHwnd"/> = <c>Zero</c> — Chrome не был
+        ///     открыт через <see cref="OpenAsync"/>, возвращаем <c>false</c>.</item>
+        ///   <item>Если Chrome уже в фокусе — <c>true</c> без действий.</item>
+        ///   <item>Иначе — <c>AttachThreadInput</c> + <c>SetForegroundWindow</c>
+        ///     (как в <see cref="TryFocusChromeAsync"/>) + пауза 100 мс +
+        ///     проверка результата.</item>
+        /// </list>
+        /// </summary>
+        /// <returns>true, если Chrome в фокусе (после попытки refocus).</returns>
+        private bool TryRefocusChrome()
+        {
+            if (_chromeHwnd == IntPtr.Zero) return false;
+            if (_chromeProcess == null || _chromeProcess.HasExited) return false;
+
+            // Уже в фокусе — ничего не делаем.
+            if (Win32Interop.GetForegroundWindow() == _chromeHwnd) return true;
+
+            var fgHwnd = Win32Interop.GetForegroundWindow();
+            var fgThreadId = fgHwnd != IntPtr.Zero
+                ? Win32Interop.GetWindowThreadProcessId(fgHwnd, out _)
+                : 0;
+            var ourThreadId = Win32Interop.GetCurrentThreadId();
+            var attached = false;
+
+            try
+            {
+                if (fgThreadId != 0 && fgThreadId != ourThreadId)
+                {
+                    attached = Win32Interop.AttachThreadInput(
+                        ourThreadId, fgThreadId, true);
+                }
+
+                Win32Interop.ShowWindow(_chromeHwnd, Win32Interop.SW_MAXIMIZE);
+                Win32Interop.BringWindowToTop(_chromeHwnd);
+                Win32Interop.SetForegroundWindow(_chromeHwnd);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "VisionAgent: refocus Chrome упал");
+            }
+            finally
+            {
+                if (attached)
+                {
+                    try
+                    {
+                        Win32Interop.AttachThreadInput(
+                            ourThreadId, fgThreadId, false);
+                    }
+                    catch { /* ignore */ }
+                }
+            }
+
+            // Windows обрабатывает SetForegroundWindow асинхронно — короткая пауза.
+            Thread.Sleep(100);
+
+            return Win32Interop.GetForegroundWindow() == _chromeHwnd;
         }
 
         /// <summary>
@@ -325,12 +426,38 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 _options.VisionLlm.MaxImageWidth,
                 _options.VisionLlm.MaxImageHeight);
 
+            // KI-157: запомнить коэффициент масштабирования — VL-модель будет
+            // возвращать координаты В МАСШТАБЕ downscale'нутого PNG, а Click/Type
+            // работают в реальных пикселях экрана.
+            var (targetW, targetH) = VisionImageResizer.CalculateTargetSize(
+                width, height,
+                _options.VisionLlm.MaxImageWidth,
+                _options.VisionLlm.MaxImageHeight);
+
+            _screenshotScaleX = targetW > 0 ? (double)width / targetW : 1.0;
+            _screenshotScaleY = targetH > 0 ? (double)height / targetH : 1.0;
+
             if (pngBytes.Length != beforeBytes)
             {
                 _logger.LogDebug(
-                    "VisionAgent: downscale {Before} → {After} байт",
-                    beforeBytes, pngBytes.Length);
+                    "VisionAgent: downscale {Before} → {After} байт, " +
+                    "scale=({Sx:F3}, {Sy:F3})",
+                    beforeBytes, pngBytes.Length,
+                    _screenshotScaleX, _screenshotScaleY);
             }
+
+            // KI-158: закрасить правый верхний угол (там — наш WPF overlay).
+            // Иначе VL-модель видит overlay-кнопки и путает их с UI страницы.
+            //
+            // KI-150-diagnostic (временно): маска может путать VL-модель при grounding.
+            // Раскомментировать для отката.
+            // pngBytes = MaskOverlayRegion(pngBytes);
+
+            // KI-159: координатная сетка — ОТКАЧЕНО.
+            // Vision LLM принимала числа сетки за «Excel-таблицу» и путала их с UI:
+            //   "Открыто окно с таблицей Excel-типа, столбцы 100-900, строки 100-600"
+            // Planner отвечал fail: "Невозможно найти статью про Москву в Excel-таблице".
+            // См. KI-159 (Won't Fix).
 
             // 5. Проверка лимита (после downscale — на всякий случай).
             if (pngBytes.Length > _options.Limits.MaxScreenshotBytes)
@@ -340,9 +467,17 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     $"{_options.Limits.MaxScreenshotBytes} байт даже после downscale.");
             }
 
+            // KI-150-fix (v1.12.x): логируем РЕАЛЬНЫЙ размер PNG после downscale,
+            // а не исходный экран. Раньше в логе было 1920×1200 (экран), а модель
+            // получала 1024×640 — это вводило в заблуждение при диагностике.
+            var (logW, logH) = VisionImageResizer.CalculateTargetSize(
+                width, height,
+                _options.VisionLlm.MaxImageWidth,
+                _options.VisionLlm.MaxImageHeight);
+
             _logger.LogDebug(
-                "VisionAgent: скриншот {W}×{H}, {Bytes} байт",
-                width, height, pngBytes.Length);
+                "VisionAgent: скриншот {SrcW}×{SrcH} → {NewW}×{NewH}, {Bytes} байт",
+                width, height, logW, logH, pngBytes.Length);
 
             return Task.FromResult(pngBytes);
         }
@@ -395,6 +530,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             finally
             {
                 _chromeProfileDir = null;
+                _chromeHwnd = IntPtr.Zero;
             }
         }
 
@@ -410,7 +546,10 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <param name="rightClick">Правая кнопка (контекстное меню) или левая.</param>
         private void SendMouseClick(int x, int y, bool rightClick)
         {
-            var (nx, ny) = NormalizeCoordinates(x, y);
+            // KI-157: сконвертировать логические координаты скриншота
+            // (в масштабе VL-модели) в реальные пиксели экрана.
+            var (rx, ry) = ScaleToScreen(x, y);
+            var (nx, ny) = NormalizeCoordinates(rx, ry);
 
             var downFlag = rightClick
                 ? Win32Interop.MOUSEEVENTF_RIGHTDOWN
@@ -435,7 +574,9 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// </summary>
         private void SendMouseMove(int x, int y)
         {
-            var (nx, ny) = NormalizeCoordinates(x, y);
+            // KI-157: то же масштабирование.
+            var (rx, ry) = ScaleToScreen(x, y);
+            var (nx, ny) = NormalizeCoordinates(rx, ry);
             var inputs = new[]
             {
                 MakeMouseInput(nx, ny, Win32Interop.MOUSEEVENTF_MOVE | Win32Interop.MOUSEEVENTF_ABSOLUTE)
@@ -488,6 +629,86 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         }
 
         /// <summary>
+        /// KI-158 (v1.12.x): закрашивает область WPF overlay на скриншоте
+        /// светло-серым цветом. Иначе VL-модель видит кнопки overlay
+        /// (<c>STOP</c>, индикатор прогресса) и путает их с UI страницы.
+        /// <para>
+        /// Регион: правый верхний угол, <see cref="OverlayMaskWidth"/> ×
+        /// <see cref="OverlayMaskHeight"/> в реальных пикселях,
+        /// пересчитанных в масштаб downscale'нутого PNG.
+        /// </para>
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        private byte[] MaskOverlayRegion(byte[] pngBytes)
+        {
+            if (pngBytes == null || pngBytes.Length == 0) return pngBytes;
+
+            try
+            {
+                using var input = new MemoryStream(pngBytes);
+                using var bmp = new Bitmap(input);
+
+                // Размер маски в масштабе downscale'нутого PNG.
+                var maskW = _screenshotScaleX > 0
+                    ? (int)Math.Ceiling(OverlayMaskWidth / _screenshotScaleX)
+                    : OverlayMaskWidth;
+                var maskH = _screenshotScaleY > 0
+                    ? (int)Math.Ceiling(OverlayMaskHeight / _screenshotScaleY)
+                    : OverlayMaskHeight;
+
+                if (maskW <= 0 || maskH <= 0 || maskW >= bmp.Width || maskH >= bmp.Height)
+                {
+                    return pngBytes;   // область не помещается — не маскируем.
+                }
+
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    // Светло-серый (#F5F5F5) — нейтральный фон, VL-модель
+                    // не примет за UI-элемент.
+                    using var brush = new SolidBrush(Color.FromArgb(245, 245, 245));
+                    g.FillRectangle(brush, new Rectangle(
+                        bmp.Width - maskW, 0, maskW, maskH));
+                }
+
+                using var output = new MemoryStream();
+                bmp.Save(output, ImageFormat.Png);
+                return output.ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "VisionAgent: маскирование overlay упало (не критично)");
+                return pngBytes;
+            }
+        }
+
+        /// <summary>
+        /// KI-157 (v1.12.x): конвертирует координаты из системы отсчёта VL-модели
+        /// (масштаб downscale'нутого PNG) в реальные пиксели экрана.
+        /// </summary>
+        /// <param name="x">X в масштабе скриншота.</param>
+        /// <param name="y">Y в масштабе скриншота.</param>
+        /// <returns>Координаты в пикселях экрана.</returns>
+        private (int x, int y) ScaleToScreen(int x, int y)
+        {
+            if (Math.Abs(_screenshotScaleX - 1.0) < 0.001 &&
+                Math.Abs(_screenshotScaleY - 1.0) < 0.001)
+            {
+                return (x, y);   // без масштабирования
+            }
+
+            var rx = (int)Math.Round(x * _screenshotScaleX);
+            var ry = (int)Math.Round(y * _screenshotScaleY);
+
+            // Clamp к границам экрана (защита от галлюцинаций VL-модели).
+            var screenW = Win32Interop.GetSystemMetrics(Win32Interop.SM_CXSCREEN);
+            var screenH = Win32Interop.GetSystemMetrics(Win32Interop.SM_CYSCREEN);
+            rx = Math.Max(0, Math.Min(screenW - 1, rx));
+            ry = Math.Max(0, Math.Min(screenH - 1, ry));
+
+            return (rx, ry);
+        }
+
+        /// <summary>
         /// Нормализует пиксельные координаты в 0..65535 для Win32 SendInput.
         /// </summary>
         private static (int nx, int ny) NormalizeCoordinates(int x, int y)
@@ -526,6 +747,17 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             // Dev-bypass: AllowNonBrowserProcesses = true → игнорируем whitelist.
             var localOptions = _options.Backend?.Local;
             if (localOptions != null && localOptions.AllowNonBrowserProcesses)
+            {
+                return;
+            }
+
+            // KI-155 (v1.12.x): сначала пробуем вернуть фокус на Chrome —
+            // это ЦЕЛЕВОЕ окно задачи (его открыл OpenAsync). Фокус мог улететь
+            // на LM Studio / Explorer / другое окно за ~30 сек между шагами.
+            //
+            // Если refocus удался — пропускаем whitelist (мы знаем, что Chrome
+            // в whitelist по определению — он и был запущен OpenAsync).
+            if (TryRefocusChrome())
             {
                 return;
             }

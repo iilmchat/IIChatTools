@@ -75,15 +75,29 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             // 5. Извлечь description (case-insensitive).
             var description = GetStringIgnoreCase(root, "description") ?? string.Empty;
 
-            // 6. Извлечь ui_elements.
+            // 6. Извлечь ui_elements с дедупликацией и cap.
+            // KI-160 (v1.12.x): слабые VL-модели (3B) зацикливаются, генерируя
+            // десятки копий одного элемента с одинаковым id → max_tokens
+            // обрезает JSON на середине массива → парсер получает битый JSON
+            // → ui_elements = [] → Planner видит «пустой экран» → fail.
+            const int MaxElements = 8;
+            const int MaxIdLength = 40;
+
             var elements = new List<UiElementDto>();
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var elementsToken = GetTokenIgnoreCase(root, "ui_elements");
             if (elementsToken is JArray array)
             {
                 foreach (var item in array)
                 {
+                    if (elements.Count >= MaxElements) break;
+
                     var element = ParseUiElement(item as JObject);
-                    if (element != null) elements.Add(element);
+                    if (element == null) continue;
+                    if (element.Id.Length > MaxIdLength) continue;
+                    if (!seenIds.Add(element.Id)) continue;
+
+                    elements.Add(element);
                 }
             }
 
@@ -169,6 +183,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(type))
             {
                 return null;   // без id/type элемент бесполезен.
+            }
+
+            // KI-160: id только из цифр (10000000000...) — галлюцинация.
+            if (id.Length >= 8 && id.All(c => char.IsDigit(c)))
+            {
+                return null;
             }
 
             var element = new UiElementDto

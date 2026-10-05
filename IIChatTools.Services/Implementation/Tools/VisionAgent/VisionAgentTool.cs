@@ -82,6 +82,15 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
         /// <summary>Пауза по умолчанию для <c>action=wait</c> (мс).</summary>
         private const int DefaultWaitMs = 1000;
 
+        /// <summary>
+        /// KI-158 (v1.12.x): координаты и размер области overlay для маскировки
+        /// на скриншоте (в реальных пикселях экрана). Overlay располагается
+        /// в правом верхнем углу: 320 px ширина + 16 px margin = 336.
+        /// Высота ~120 px + margin.
+        /// </summary>
+        private const int OverlayMaskWidth = 360;
+        private const int OverlayMaskHeight = 160;
+
         // ============ Зависимости ============
 
         private readonly IVisionAgentService _visionAgentService;

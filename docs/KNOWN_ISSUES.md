@@ -3262,6 +3262,41 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-160 — Vision Agent: слабые VL-модели зацикливаются, JSON обрезается
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Qwen2.5-VL-3B / 7B).
+- **Файлы:** `ScreenDescriptionParser.cs`, `VisionSystemPrompt.cs`.
+- **Симптом:** 3B и 7B VL-модели при `Context Length = 2048` генерировали
+  десятки копий одного `ui_elements[]` с одинаковым `id`, упирались в
+  `max_tokens`, ответ приходил обрезанным на середине массива →
+  парсер не мог распарсить JSON → `ui_elements: []` → Planner видел
+  «пустой экран» → `wait` / `fail` / зацикливание `type search_input`.
+- **Fix:** (а) дедупликация `ui_elements` по `id` + hard cap 8 в
+  `ScreenDescriptionParser.Parse`; (б) отсечение мусорных id (только
+  цифры, длина > 8); (в) anti-loop правила в `PlannerPlanNext`
+  (few-shot примеры + запрет повторять одно действие > 2 раз);
+  (г) в LM Studio Context Length = 8192 (требование, не код).
+- **Связанные:** KI-131 (Vision Agent), KI-150, KI-157.
+
+---
+
+### KI-159 — Vision Agent: координатная сетка на скриншоте (Won't Fix)
+
+- **Приоритет:** 🟢 Low | **Статус:** Won't Fix | **Обнаружено:** 2026-10-05.
+- **Файлы:** `LocalHarnessVisionBackend.DrawCoordinateGrid` (удалён).
+- **Попытка:** нарисовать сетку с числами каждые 100 px поверх скриншота,
+  чтобы VL-модель точнее указывала центр элементов.
+- **Результат:** **стало хуже.** Vision LLM принимала числа сетки за
+  содержимое UI: `"Открыто окно с таблицей Excel-типа, столбцы 100-900"`.
+  Planner отвечал `fail`: `"Невозможно найти статью про Москву в Excel-таблице"`.
+- **Откат:** `DrawCoordinateGrid` удалён, вызов из `ScreenshotAsync` убран.
+  `using System.Drawing.Drawing2D` снят.
+- **Вывод:** `mistralai/ministral-3-3b` не отличает наложенную графику от
+  контента. Для повышения точности нужна либо более мощная VL-модель
+  (`qwen/qwen3-vl-4b`), либо другой подход (Set-Of-Mark на UI-элементах
+  через CDP, но это уже не vision-подход).
+
 ### KI-152 — Vision Agent: timeout не различается от ошибки в локальном catch
 
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.12.x
@@ -3281,8 +3316,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `effectiveCts.Token` (связан с `timeoutCts` **и** `overlayStopToken`),
   а не `timeoutCts.Token` — иначе overlay-STOP терялся.
 - **Связанные:** KI-142 (Ф6.7), KI-148, KI-149.
-
----
 
 ### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
 

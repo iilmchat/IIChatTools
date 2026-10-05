@@ -27,6 +27,15 @@
   </PropertyGroup>
 
   <!--
+    KI-156 (v1.12.x): фирменный логотип IIChatTools как WPF-Resource.
+    Источник: IIChatTools.API/wwwroot/images/web-app-manifest-192x192.png
+    (скопирован в Resources/logo.png).
+  -->
+  <ItemGroup>
+    <Resource Include="Resources\logo.png" />
+  </ItemGroup>
+
+  <!--
     ВАЖНО: overlay НЕ ссылается ни на IIChatTools.Services, ни на .Data, ни на .API.
     Он самодостаточен: принимает JSON-строки через NamedPipe, обновляет UI.
 

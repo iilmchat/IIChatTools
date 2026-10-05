@@ -45,11 +45,12 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0"
-                           Text="🤖"
-                           FontSize="16"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0" />
+                <Image Grid.Column="0"
+                       Source="pack://application:,,,/Resources/logo.png"
+                       Width="22" Height="22"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="Vision Agent"

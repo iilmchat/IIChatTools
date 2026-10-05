@@ -156,6 +156,18 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 "VisionAgent[{TaskId}]: старт задачи (user={UserId}, maxSteps={MaxSteps}, timeout={Timeout}s, url={Url}): {Task}",
                 taskId, userId, maxSteps, maxSeconds, request.Url ?? "(нет)", request.Task);
 
+            // KI-153 (v1.12.x): предупреждаем, если run_task запущен без URL.
+            // Loop работает на ТЕКУЩЕМ экране — если фокус не на whitelisted
+            // процессе, все mutation-действия упадут на EnsureForegroundProcessAllowed.
+            if (string.IsNullOrWhiteSpace(request.Url))
+            {
+                _logger.LogWarning(
+                    "VisionAgent[{TaskId}]: run_task без url — loop будет работать " +
+                    "на текущем экране. Убедитесь, что фокус на whitelisted-процессе " +
+                    "(Chrome / Edge / Firefox).",
+                    taskId);
+            }
+
             // Ф6.8 (KI-131): overlay для on-screen indicator.
             // Noop-заглушка сейчас, WPF — в Ф6.7. Отключается, если:
             //  - overlay недоступен (IsAvailable = false)
