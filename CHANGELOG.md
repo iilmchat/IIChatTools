@@ -64,6 +64,32 @@
     retry до 8 сек + логировать фактическое время подключения).
 
 ### Fixed
+- **v1.12.x — Vision Agent: рабочий smoke на Qwen2.5-VL-7B (KI-131, KI-150, KI-155–160)**:
+  - `VisionLlm.Model` = `qwen2.5-vl-7b-instruct` (dev + prod) вместо
+    `ministral-3-3b-instruct-2512`, который падал с HTTP 400 (mmproj не загружен).
+  - `VisionLlm.MaxTokens` = `2048`, `Limits.MaxSteps` = `15`,
+    `Limits.MaxTaskSeconds` = `500` (dev).
+  - `PlannerPlanNext`: anti-loop правила — few-shot примеры + запрет
+    повторять одно действие > 2 раз (KI-160).
+  - `ScreenDescriptionParser`: дедупликация `ui_elements` по `id` +
+    hard cap 8 + отсечение id из цифр (KI-160).
+  - KI-150 (downscale), KI-155 (refocus Chrome), KI-156 (логотип overlay),
+    KI-157 (scale координат), KI-158 (mask overlay) — подтверждены в smoke.
+  - **Требования:** LM Studio **Context Length ≥ 8192**,
+    **GPU Offload ≤ 20** (Qwen2.5-VL-7B ≈ 6 GB).
+  - **Проверено:** 3 успешных smoke-прогона подряд (`success: true`,
+    4 шага, ~250 с).
+
+### Won't Fix
+- **KI-159 — Vision Agent: координатная сетка на скриншоте**.
+  Нарисованная сетка сбивает VL-модель (`mistralai/ministral-3-3b`
+  принимал числа за «Excel-таблицу»). Откачено. См. KI-159.
+
+### Documented
+- **KI-144** — Chrome использует virtual audio device по умолчанию
+  (Steam Streaming Microphone) → `maxAbs=0`. Решение — device picker
+  в `/profile → 🎤 Аудио` (KI-145).
+  
 - **v1.12.x — Vision Agent: рабочий smoke на Qwen2.5-VL-7B (KI-131, KI-157, KI-160)**:
   - Qwen2.5-VL-7B-Instruct как Vision LLM по умолчанию (dev + prod).
   - `MaxTokens: 2048`, `MaxSteps: 15`, `MaxTaskSeconds: 500` (dev).

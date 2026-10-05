@@ -3262,11 +3262,58 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-161 — Vision Agent: PuppeteerSharp DOM+Vision (точные координаты для browser)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05.
+- **Файлы (план):** `LocalHarnessVisionBackend`, новый
+  `PuppeteerSharpCoordinateProvider : ICoordinateProvider`.
+- **Идея:** для browser-задач подключаться к **уже запущенному** Chrome
+  через CDP (`--remote-debugging-port=9222`). Перед SendInput-кликом
+  искать DOM-элемент по эвристике (`button:has-text("Найти")`) →
+  `elementHandle.BoundingBoxAsync()` → точные координаты. Fallback на
+  VL-координаты, если DOM не нашёл (canvas / WebGL / shadow-DOM).
+- **Даёт:** 0 px ошибки для DOM-элементов. Не работает для desktop / canvas.
+- **Оценка:** ~3-4 ч.
+- **Связанные:** KI-131, KI-137, KI-162.
+
+---
+
+### KI-162 — Vision Agent: Coordinate-then-Verify
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05.
+- **Идея:** VL вернула `center: {x, y}`. Снимаем crop 100×100 вокруг
+  точки, спрашиваем VL «Это кнопка `search_btn`?». Если нет —
+  перезапросить планирование. Ловит промахи **до** клика.
+- **Даёт:** −80% «клик мимо» на сложных UI.
+- **Минусы:** +1 VL-вызов на шаг (3-10 сек).
+- **Оценка:** ~2 ч.
+- **Связанные:** KI-131, KI-161.
+
+---
+
+### KI-163 — Vision Agent: Set-of-Mark (упрощённый, Tesseract-based)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14.x
+- **Обнаружено:** 2026-10-05.
+- **Идея:** нарисовать нумерованные метки (1, 2, 3, …) поверх скриншота
+  на кандидатах-элементах. VL-модель отвечает «click 5» (номер), а не
+  координатами — устраняет **все** ошибки геометрии.
+- **Кандидаты-элементы:** Tesseract OCR блоки (текст) + эвристика
+  (иконки = пустые bbox с высоким contrast).
+- **Минусы:** нужен детектор. Полный SAM / object detection — тяжёлый.
+- **Оценка:** ~6-8 ч.
+- **Связанные:** KI-131, KI-137, KI-162.
+
+---
+
 ### KI-160 — Vision Agent: слабые VL-модели зацикливаются, JSON обрезается
 
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Qwen2.5-VL-3B / 7B).
-- **Файлы:** `ScreenDescriptionParser.cs`, `VisionSystemPrompt.cs`.
+- **Файлы:** `ScreenDescriptionParser.cs`, `VisionSystemPrompt.cs`,
+  `appsettings.Development.json`.
 - **Симптом:** 3B и 7B VL-модели при `Context Length = 2048` генерировали
   десятки копий одного `ui_elements[]` с одинаковым `id`, упирались в
   `max_tokens`, ответ приходил обрезанным на середине массива →
@@ -3276,8 +3323,11 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `ScreenDescriptionParser.Parse`; (б) отсечение мусорных id (только
   цифры, длина > 8); (в) anti-loop правила в `PlannerPlanNext`
   (few-shot примеры + запрет повторять одно действие > 2 раз);
-  (г) в LM Studio Context Length = 8192 (требование, не код).
-- **Связанные:** KI-131 (Vision Agent), KI-150, KI-157.
+  (г) в LM Studio **Context Length = 8192** (внешняя настройка, не код);
+  (д) `MaxTokens: 2048`, `MaxSteps: 15`, `MaxTaskSeconds: 500` (dev).
+- **Результат:** 3 успешных smoke-прогона подряд (`success: true`,
+  4 шага, ~250 с).
+- **Связанные:** KI-131, KI-150, KI-157, KI-159.
 
 ---
 
@@ -3296,6 +3346,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   контента. Для повышения точности нужна либо более мощная VL-модель
   (`qwen/qwen3-vl-4b`), либо другой подход (Set-Of-Mark на UI-элементах
   через CDP, но это уже не vision-подход).
+
+---
 
 ### KI-152 — Vision Agent: timeout не различается от ошибки в локальном catch
 
@@ -3316,6 +3368,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `effectiveCts.Token` (связан с `timeoutCts` **и** `overlayStopToken`),
   а не `timeoutCts.Token` — иначе overlay-STOP терялся.
 - **Связанные:** KI-142 (Ф6.7), KI-148, KI-149.
+
+---
 
 ### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
 
