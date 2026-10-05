@@ -3243,22 +3243,19 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-150 — Vision Agent: downscale уменьшает байты, но не разрешение
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `VisionImageResizer.cs`, `LocalHarnessVisionBackend.ScreenshotAsync`.
-- **Описание:** В логе после `ScreenshotAsync`:
+- **Симптом:** В логе после `ScreenshotAsync`:
   `downscale 186749 → 152539 байт` (PNG-байты уменьшились), но размер
-  остаётся `1920×1080`. `VisionImageResizer.Resize` **не применяет**
-  целевой размер (`MaxImageWidth=1024` / `MaxImageHeight=768`).
-  Дополнительно: `pngBytes.Length != beforeBytes` — условие для логирования
-  сработало, значит `Resize` вернул **другой** массив, но размер тот же
-  (визуально 1920×1080). Эффект: base64 в LLM на ~30% больше необходимого,
-  prompt processing ~2.5-3 сек вместо ~1.5.
-- **Возможные решения:** проверить `VisionImageResizer.Resize` — куда уходит
-  результат `Bitmap.Save`; проверить `CalculateTargetSize` (не возвращает
-  ли `(origW, origH)` при `MaxImageWidth < origW`). Плюс — тесты на
-  изменение размеров (сейчас, вероятно, проверяют только байты).
-- **Связанные:** KI-142 (Ф6.7).
+  оставался `1920×1080`. `VisionImageResizer.Resize` не применял целевой
+  размер (`MaxImageWidth=1024` / `MaxImageHeight=768`). Base64 в LLM на
+  ~30% больше необходимого, prompt processing ~2.5-3 сек вместо ~1.5.
+- **Fix (v1.12.x):** `VisionImageResizer.Resize` — применён
+  `Bitmap.Save` с целевыми размерами; `CalculateTargetSize` возвращает
+  корректные `(targetW, targetH)` при `MaxImageWidth < origW`. Подтверждено
+  в smoke-логе `7557b8a`: downscale 1920×1200 → 1024×640.
+- **Связанные:** KI-142 (Ф6.7), KI-155, KI-157, KI-158.
 
 ---
 
@@ -3368,6 +3365,60 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `effectiveCts.Token` (связан с `timeoutCts` **и** `overlayStopToken`),
   а не `timeoutCts.Token` — иначе overlay-STOP терялся.
 - **Связанные:** KI-142 (Ф6.7), KI-148, KI-149.
+
+---
+
+### KI-155 — Vision Agent: Chrome остаётся без фокуса после `OpenAsync` (v1.12.x)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `LocalHarnessVisionBackend.TryRefocusChromeAsync`, `Win32Interop.cs`.
+- **Симптом:** Перед mutation-действием (`ClickAsync` / `TypeAsync` /
+  `PressKeyAsync` / `HotkeyAsync`) фокус мог уйти с Chrome на другое окно
+  (browser popup, второй Chrome-инстанс). Whitelist процессов отклонял
+  действие с `Процесс «…» не в whitelist`.
+- **Fix (v1.12.x):** `TryRefocusChromeAsync` вызывается перед каждым
+  mutation-действием (retry 3 × 300 мс). При неудаче — `InvalidOperationException`.
+- **Связанные:** KI-142, KI-148, KI-149.
+
+### KI-156 — Vision Agent: логотип IIChatTools в overlay вместо эмодзи (v1.12.x)
+
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `IIChatTools.VisionOverlay/MainWindow.xaml`, `Resources/…`.
+- **Симптом:** Overlay показывал эмодзи 🤖 в шапке — визуально не
+  соответствовал фирменному стилю IIChatTools (KI-081).
+- **Fix (v1.12.x):** заменён на логотип-иконку IIChatTools (SVG + PNG,
+  из KI-081).
+- **Связанные:** KI-142, KI-081.
+
+### KI-157 — Vision Agent: scale координат VL-модели ×1.875 (v1.12.x)
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `LocalHarnessVisionBackend`, `VisionAgentService.ResolveCoordinates`.
+- **Симптом:** VL-модель (Qwen2.5-VL-7B) возвращала координаты в
+  системе `MaxImageWidth=1024` / `MaxImageHeight=768`, а SendInput работал
+  в физических пикселях экрана (`1920×1200`). Клик уходил «мимо» в ~2 раза
+  левее-выше целевого.
+- **Fix (v1.12.x):** при резолве координат применён коэффициент ×1.875
+  (= 1920/1024 = 1200/768 — пропорциональный scale). `ResolveCoordinates`
+  масштабирует центр элемента перед передачей в backend.
+- **Связанные:** KI-142, KI-150, KI-160.
+
+### KI-158 — Vision Agent: маска overlay на скриншоте (v1.12.x)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
+- **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
+- **Файлы:** `LocalHarnessVisionBackend.ScreenshotAsync`,
+  `VisionAgentOptions.Privacy.DisableOverlayMask`.
+- **Симптом:** WPF overlay (KI-142) попадал в GDI-скриншот, который
+  отправлялся VL-модели. Модель видела логотип + прогресс-строку как
+  часть UI и пыталась с ними взаимодействовать (`click` по номеру шага).
+- **Fix (v1.12.x):** overlay-регион маскируется перед отправкой в VL
+  (заливка фоном). В dev-режиме отключается через
+  `Privacy:DisableOverlayMask = true`.
+- **Связанные:** KI-142, KI-149, KI-156.
 
 ---
 

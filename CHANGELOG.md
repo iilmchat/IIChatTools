@@ -64,7 +64,8 @@
     retry до 8 сек + логировать фактическое время подключения).
 
 ### Fixed
-- **v1.12.x — Vision Agent: рабочий smoke на Qwen2.5-VL-7B (KI-131, KI-150, KI-155–160)**:
+- **v1.12.x — Vision Agent: рабочий smoke на Qwen2.5-VL-7B
+  (KI-131, KI-150, KI-155, KI-156, KI-157, KI-158, KI-160)**:
   - `VisionLlm.Model` = `qwen2.5-vl-7b-instruct` (dev + prod) вместо
     `ministral-3-3b-instruct-2512`, который падал с HTTP 400 (mmproj не загружен).
   - `VisionLlm.MaxTokens` = `2048`, `Limits.MaxSteps` = `15`,
@@ -73,12 +74,40 @@
     повторять одно действие > 2 раз (KI-160).
   - `ScreenDescriptionParser`: дедупликация `ui_elements` по `id` +
     hard cap 8 + отсечение id из цифр (KI-160).
-  - KI-150 (downscale), KI-155 (refocus Chrome), KI-156 (логотип overlay),
-    KI-157 (scale координат), KI-158 (mask overlay) — подтверждены в smoke.
+  - **KI-150** (downscale 1920×1200 → 1024×640),
+    **KI-155** (TryRefocusChrome перед mutation-действиями),
+    **KI-156** (логотип IIChatTools в overlay),
+    **KI-157** (scale координат VL-модели ×1.875),
+    **KI-158** (маска overlay на скриншоте) — подтверждены в smoke.
   - **Требования:** LM Studio **Context Length ≥ 8192**,
     **GPU Offload ≤ 20** (Qwen2.5-VL-7B ≈ 6 GB).
   - **Проверено:** 3 успешных smoke-прогона подряд (`success: true`,
     4 шага, ~250 с).
+
+- **KI-148** (v1.12.x) — Vision Agent: Chrome остаётся без фокуса после
+  `OpenAsync`. `TryFocusChromeAsync` в `LocalHarnessVisionBackend`:
+  ожидание `MainWindowHandle` + `AttachThreadInput` + `ShowWindow(SW_MAXIMIZE)`
+  + `BringWindowToTop` + `SetForegroundWindow` (retry 3 × 300 мс).
+  Без `AttachThreadInput` Windows игнорирует foreground-stealing из
+  фонового процесса. `Win32Interop.cs`: +`SetForegroundWindow`,
+  `ShowWindow`, `BringWindowToTop`, `AttachThreadInput`,
+  `GetCurrentThreadId`, `SW_SHOW/SW_RESTORE/SW_MAXIMIZE`.
+
+- **KI-149** (v1.12.x) — WPF overlay перехватывал фокус при клике.
+  `MainWindow.OnSourceInitialized`: `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`
+  через новый `OverlayWin32.cs` + `ShowActivated="False"` в XAML.
+  Клик по overlay не отбирает фокус у Chrome.
+
+- **KI-152** (v1.12.x) — Vision Agent: timeout не различался от ошибки
+  в локальном catch. В 3 локальных `try`-блоках loop
+  (`ScreenshotAsync` / `DescribeAsync` / `PlanNextAsync`) добавлен
+  `catch (OperationCanceledException) { throw; }` перед `catch (Exception)`.
+  Внутри loop используется `effectiveCts.Token` (связан с timeout и
+  overlay-STOP), а не `timeoutCts.Token`.
+
+- **KI-142** (v1.12.x, Ф6.7) — WPF overlay для Vision Agent.
+  Полная реализация (была заглушка `NoopVisionOverlayLauncher`).
+  См. `### Added` выше.
 
 ### Won't Fix
 - **KI-159 — Vision Agent: координатная сетка на скриншоте**.
@@ -89,41 +118,7 @@
 - **KI-144** — Chrome использует virtual audio device по умолчанию
   (Steam Streaming Microphone) → `maxAbs=0`. Решение — device picker
   в `/profile → 🎤 Аудио` (KI-145).
-  
-- **v1.12.x — Vision Agent: рабочий smoke на Qwen2.5-VL-7B (KI-131, KI-157, KI-160)**:
-  - Qwen2.5-VL-7B-Instruct как Vision LLM по умолчанию (dev + prod).
-  - `MaxTokens: 2048`, `MaxSteps: 15`, `MaxTaskSeconds: 500` (dev).
-  - Anti-loop правила в `VisionSystemPrompt.PlannerPlanNext`
-    (few-shot + запрет повторять одно действие > 2 раз).
-  - Дедупликация `ui_elements` + hard cap 8 + отсечение id из цифр
-    в `ScreenDescriptionParser` (KI-160).
-  - Проверено: 3 успешных smoke-прогона подряд (`success: true`,
-    4 шага, ~250 с).
-- **KI-148** (Fixed, v1.12.x) — Vision Agent: Chrome остаётся без фокуса
-  после `OpenAsync`. `TryFocusChromeAsync` в
-  `LocalHarnessVisionBackend`: ожидание `MainWindowHandle` +
-  `AttachThreadInput` + `ShowWindow(SW_MAXIMIZE)` + `BringWindowToTop`
-  + `SetForegroundWindow` (retry 3 × 300 мс). Без `AttachThreadInput`
-  Windows игнорирует foreground-stealing из фонового процесса.
-  `Win32Interop.cs`: +`SetForegroundWindow`, `ShowWindow`,
-  `BringWindowToTop`, `AttachThreadInput`, `GetCurrentThreadId`,
-  `SW_SHOW/SW_RESTORE/SW_MAXIMIZE`.
-- **KI-149** (Fixed, v1.12.x) — WPF overlay перехватывал фокус при
-  клике. `MainWindow.OnSourceInitialized`: `WS_EX_NOACTIVATE |
-  WS_EX_TOOLWINDOW` через новый `OverlayWin32.cs` + `ShowActivated="False"`
-  в XAML. Клик по overlay не отбирает фокус у Chrome.
-- **KI-152** (Fixed, v1.12.x) — Vision Agent: timeout не различался от
-  ошибки в локальном catch. В 3 локальных `try`-блоках loop
-  (`ScreenshotAsync` / `DescribeAsync` / `PlanNextAsync`) добавлен
-  `catch (OperationCanceledException) { throw; }` перед `catch (Exception)`.
-  Внутри loop используется `effectiveCts.Token` (связан с timeout и
-  overlay-STOP), а не `timeoutCts.Token`.
-- **KI-142** (Fixed, v1.12.x, Ф6.7) — WPF overlay для Vision Agent.
-  Полная реализация (была заглушка `NoopVisionOverlayLauncher`).
 
-### Documented
-- **KI-150** (Planned, v1.12.x) — Vision Agent: downscale уменьшает
-  PNG-байты, но не разрешение (`1920×1080` остаётся). Отдельный KI.
 - **KI-151** (Planned, v1.12.x) — Chrome temp-профиль не удаляется:
   `BrowserMetrics-*.pma` заблокирован ~500 мс после kill. Отдельный KI.
 
