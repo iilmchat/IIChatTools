@@ -110,6 +110,33 @@ headless-браузеры.
 | `browser_screenshot` | Скриншот **без** управления | Нет click / type / scroll |
 | `web_search` | Поиск через DuckDuckGo | Не подходит для интерактивных сайтов |
 
+---
+
+### § 2.4. Критерии выбора: `browser_*` vs `vision_agent`
+
+`browser_*` (PuppeteerSharp) и `vision_agent` — **дополняют друг друга**,
+не заменяют. Выбор — по типу задачи и стабильности DOM.
+
+| Сценарий | Инструмент | Причина |
+|---|---|---|
+| DOM-элементы (формы, кнопки, ссылки) со **стабильными** селекторами | `browser_*` | Точные координаты (`getBoundingClientRect`), 0 px ошибки, ниже latency |
+| Canvas / WebGL / shadow-DOM | `vision_agent` | DOM-элемент недоступен для PuppeteerSharp |
+| Антибот-защита (Cloudflare Turnstile, DataDome, hCaptcha) | `vision_agent` | Headless-Chrome детектится, физический клик через SendInput — нет |
+| Десктопные приложения (Outlook, Excel, 1С) | `vision_agent` | `browser_*` работает только с Chromium |
+| Динамический UI, нестабильные селекторы | `vision_agent` | VL-модель находит элемент визуально |
+| Многошаговые browser-задачи с **предсказуемым** DOM | `browser_*` | Быстрее и надёжнее, чем VLM-loop (3-10 сек на шаг) |
+
+**Правило выбора:** для browser-задач — сначала пробуй `browser_*`. Если
+селекторы нестабильны, DOM недоступен (canvas / shadow-DOM), или срабатывает
+антибот — переключайся на `vision_agent`.
+
+**Планируется (v1.13.x):** **KI-161** (PuppeteerSharp DOM+Vision) — гибрид:
+`vision_agent` для browser-задач подключается к уже запущенному Chrome через
+CDP (`--remote-debugging-port=9222`), ищет DOM-элемент по эвристике,
+использует `elementHandle.BoundingBoxAsync()` для точных координат. Даёт
+0 px ошибки для DOM-элементов, fallback на VL-координаты — для canvas /
+WebGL / shadow-DOM. См. § 9.1.
+
 Vision Agent закрывает пробел: **«визуальное управление компьютером»**.
 
 ---
@@ -990,6 +1017,12 @@ Sandbox закрывается.
   (детекция credit card / email через VL-модель).
 - **KI-139** (Planned, v1.12.x) — Vision Agent: поддержка внешних VL
   (Claude Computer Use / OpenAI CUA).
+- **KI-161** (Planned, v1.13.x) — Vision Agent: PuppeteerSharp DOM+Vision
+  (точные координаты для browser через CDP). См. § 2.4.
+- **KI-162** (Planned, v1.13.x) — Vision Agent: Coordinate-then-Verify
+  (crop 100×100 + VL-проверка перед кликом).
+- **KI-163** (Planned, v1.14.x) — Vision Agent: Set-of-Mark (упрощённый,
+  Tesseract-based).
 
 ### § 9.2. Правила (RULES.md)
 

@@ -1531,6 +1531,23 @@ External VL providers (KI-139, KI-141).
 - **VL-модель должна быть мультимодальной.** Обычный `qwen3-4b` не подойдёт.
 - **Планер должен уметь tool calling** (для `VisionActionParser`).
 
+### Критерии выбора: `browser_*` vs `vision_agent`
+
+`browser_*` (PuppeteerSharp) и `vision_agent` — **дополняют друг друга**, не заменяют.
+
+| Сценарий | Инструмент | Почему |
+|---|---|---|
+| DOM-элементы (формы, кнопки, ссылки) со **стабильными** селекторами | `browser_*` | Точные координаты (`getBoundingClientRect`), 0 px ошибки, ниже latency |
+| Canvas / WebGL / shadow-DOM | `vision_agent` | DOM-элемента нет — PuppeteerSharp его не найдёт |
+| Антибот-защита (Cloudflare Turnstile, DataDome) | `vision_agent` | Headless-Chrome детектится, физический SendInput-клик — нет |
+| Десктопные приложения (Outlook, Excel, 1С) | `vision_agent` | `browser_*` работает только с Chromium |
+| Динамический UI с нестабильными селекторами | `vision_agent` | VL-модель находит элемент визуально |
+| Многошаговые browser-задачи с предсказуемым DOM | `browser_*` | Быстрее и надёжнее VLM-loop (3-10 сек / шаг) |
+
+**Правило:** для browser-задач сначала пробуй `browser_*`. Если селекторы нестабильны, DOM недоступен (canvas / shadow-DOM), или срабатывает антибот — переключайся на `vision_agent`.
+
+**Планируется (v1.13.x):** **KI-161** — гибрид DOM+Vision: `vision_agent` подключится к уже запущенному Chrome через CDP (`--remote-debugging-port=9222`) и будет использовать DOM-координаты (`elementHandle.BoundingBoxAsync`) с fallback на VL — 0 px ошибки для DOM-элементов.
+
 ### Дизайн
 
 [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](docs/development/v1.12/DESIGN_VISION_AGENT.md)
