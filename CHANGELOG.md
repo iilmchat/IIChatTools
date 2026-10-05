@@ -157,6 +157,23 @@
     (например, `%USERPROFILE%\IIChatToolsWorkspace\test\`) — тогда
     `file_system_agent` сможет сработать, и smoke будет чистым.
 
+### Documented
+- **v1.13.x (KI-167/168/169) — smoke #3 «Запуск скрипта»: провал
+  tool-selection + ложный успех агента.**
+  - **KI-167** (Planned): `file_system_agent` галлюцинирует успех вне
+    workspace (рецидив KI-113 + усилитель KI-114). Проверено: `c:\projects\test\`
+    и `script.bat` не существуют; AuditLogs `agent.file_system_agent | Status=Success`.
+  - **KI-168** (Planned): Chat LLM выбирает `file_system_agent` для задач
+    вне workspace. Нужно правило 8 в `DefaultSystemPrompt` + уточнение Description.
+  - **KI-169** (Documented): SubAgent не аудирует внутренние tool-вызовы —
+    видно только статус агента целиком. Снижает observability при разборе.
+  - **Реестр сценариев:** создан `docs/development/v1.13/SMOKE_SCENARIOS.md`
+    (5 пользовательских DoD, порядок прохождения, форматы запуска).
+  - **Вывод по smoke #3:** для чистого tool-selection сценарий лучше
+    писать с путём **внутри workspace** (например,
+    `%USERPROFILE%\IIChatToolsWorkspace\test\`) — тогда `file_system_agent`
+    сможет сработать.
+
 - **KI-144** — Chrome использует virtual audio device по умолчанию
   (Steam Streaming Microphone) → `maxAbs=0`. Решение — device picker
   в `/profile → 🎤 Аудио` (KI-145).
