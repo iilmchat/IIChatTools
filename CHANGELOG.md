@@ -19,6 +19,22 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.13.x (KI-176) — base64 в history ломает чат (Critical)**:
+  - **Симптом:** после `vision_agent(action=screenshot)` любой следующий
+    запрос в чате падает с `400: request (260605 tokens) exceeds the
+    available context size (16384 tokens)`.
+  - **Root cause:** `vision_agent(screenshot)` возвращает
+    `{ path, base64: "...", sizeBytes }` (~344 KB base64). ChatStreamService
+    сохранял tool-сообщение в БД **с base64** и передавал в LM Studio
+    **с base64** → 260k токенов → 400.
+  - **Fix:** новый helper `SanitizeToolResultForLlm(object data)` —
+    рекурсивно клонирует JSON, удаляет поля `base64` и
+    `imageBase64DataUrl`. Применяется **только** к:
+    (а) `Content` tool-сообщения для БД; (б) `messages.Add(...)`
+    tool-сообщения для LLM. В SSE-событии `tool_result` base64
+    **остаётся** (UI рендерит PNG).
+  - **Файлы:** `ChatStreamService.cs` (2 правки + 2 helper-метода).
+
 - **v1.13.x (KI-173, KI-174) — Vision Agent: tool-selection + timeout**:
   - **KI-173:** Chat LLM не передавала `url` отдельным аргументом в
     `vision_agent(action=run_task)`, а кладла его в текст `task` → loop

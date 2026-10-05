@@ -3736,6 +3736,44 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-176 — base64 в history ломает чат (Critical)
+
+- **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-05 (smoke #1, chatId=29).
+- **Файлы:** `ChatStreamService.cs` (`SanitizeToolResultForLlm` +
+  `RemoveBase64Fields`).
+- **Симптом:** после `vision_agent(action=screenshot)` любой следующий
+  запрос в чате падает с `400: request (260605 tokens) exceeds the
+  available context size (16384 tokens)`.
+- **Root cause:** `vision_agent(screenshot)` возвращает
+  `ToolResult.Data = { path, base64: "iVBOR...", sizeBytes }` (~344 KB
+  base64). `ChatStreamService` сохранял tool-сообщение в БД как
+  `JsonConvert.SerializeObject({success, data, message})` — **с base64**.
+  При следующем запросе это сообщение уходило в LM Studio → 260k токенов
+  → 400. Чат после первого screenshot становится неработоспособным.
+- **Fix (v1.13.x):**
+  1. Новый helper `SanitizeToolResultForLlm(object data)` — рекурсивно
+     клонирует JSON, удаляет поля `base64` и `imageBase64DataUrl`.
+  2. Применяется **только** к: (а) `Content` tool-сообщения для БД;
+     (б) `messages.Add(...)` tool-сообщения для LLM.
+  3. В SSE-событии `tool_result` base64 **остаётся** — UI рендерит PNG.
+- **Связанные:** KI-131 (Vision Agent), KI-175 (рендер PNG в UI).
+
+---
+
+### KI-175 — Скриншот не рендерится в Chat UI
+
+- **Приоритет:** 🟡 High | **Статус:** Planned | **Запланировано:** v1.13.x (Commit B)
+- **Обнаружено:** 2026-10-05 (smoke #1, chatId=29).
+- **Файлы:** `wwwroot/js/modules/chat.js` (обработчик `tool_result`).
+- **Симптом:** в чате tool-block показывает `Screenshot получен и сохранён
+  (258306 байт)` — **без картинки**. В `/test` — рендерится.
+- **Fix (Commit B):** в `chat.js` при `tool_result` — если `data.base64`
+  есть, добавить `<img src="data:image/png;base64,...">` в tool-block.
+- **Связанные:** KI-176 (base64 в history).
+
+---
+
 ### KI-173 — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout
 
 - **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x

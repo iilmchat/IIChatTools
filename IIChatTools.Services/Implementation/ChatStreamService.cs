@@ -828,6 +828,10 @@ namespace IIChatTools.Services.Implementation
                     // выполнена вне зависимости от состояния SSE-соединения.
                     // Используем CancellationToken.None — при F5/Stop
                     // cancellationToken уже отменён (KI-134).
+                    // KI-176: санитизируем data — убираем base64 / imageBase64DataUrl.
+                    // Оригинал остаётся в SSE-событии tool_result (UI рендерит PNG).
+                    var sanitizedDataForLlm = SanitizeToolResultForLlm(toolResult.Data);
+
                     try
                     {
                         await _chatService.AddMessageAsync(
@@ -838,7 +842,7 @@ namespace IIChatTools.Services.Implementation
                                 Content = JsonConvert.SerializeObject(new
                                 {
                                     success = toolResult.Success,
-                                    data = toolResult.Data,
+                                    data = sanitizedDataForLlm,
                                     message = toolResult.Message
                                 }),
                                 ToolCallId = callId,
@@ -866,7 +870,10 @@ namespace IIChatTools.Services.Implementation
                         Sources = toolResult.Sources
                     });
 
-                    // Добавляем в messages для следующей итерации
+                    // Добавляем в messages для следующей итерации.
+                    // KI-176: используем sanitizedDataForLlm (без base64) —
+                    // именно этот JObject уходит в LM Studio, и именно он
+                    // вызывал 400 exceed_context_size_error.
                     messages.Add(new JObject
                     {
                         ["role"] = RoleTool,
@@ -874,7 +881,7 @@ namespace IIChatTools.Services.Implementation
                         ["content"] = JsonConvert.SerializeObject(new
                         {
                             success = toolResult.Success,
-                            data = toolResult.Data,
+                            data = sanitizedDataForLlm,
                             message = toolResult.Message
                         })
                     });
@@ -1342,6 +1349,85 @@ namespace IIChatTools.Services.Implementation
                 return null;
 
             return JsonConvert.SerializeObject(new { sources }, MetadataJsonSettings);
+        }
+
+        /// <summary>
+        /// KI-176: создаёт «безопасную» копию данных tool-результата для БД и LLM —
+        /// без полей <c>base64</c> / <c>imageBase64DataUrl</c>. Оригинальный объект
+        /// не мутируется.
+        ///
+        /// <para>
+        /// <b>Проблема:</b> <c>vision_agent(action='screenshot')</c> возвращает
+        /// <c>{ path, base64: "iVBOR...", sizeBytes }</c> (~344 KB base64).
+        /// При сохранении в <c>ChatMessage.Content</c> и передаче в LM Studio
+        /// контекст раздувается до ~260k токенов → 400
+        /// <c>exceed_context_size_error</c>.
+        /// </para>
+        ///
+        /// <para>
+        /// В SSE-событии <c>tool_result</c> base64 <b>остаётся</b> — UI рендерит PNG.
+        /// Убираем только из БД и из сообщений для LLM.
+        /// </para>
+        /// </summary>
+        /// <param name="data">
+        /// Данные tool-результата. Может быть <c>null</c>, <see cref="JToken"/>,
+        /// анонимный объект или DTO.
+        /// </param>
+        /// <returns>Копия без base64-полей, либо <c>null</c>.</returns>
+        private static object SanitizeToolResultForLlm(object data)
+        {
+            if (data == null) return null;
+
+            JToken json;
+            try
+            {
+                json = data as JToken ?? JToken.FromObject(data);
+            }
+            catch
+            {
+                // Не удалось сериализовать — возвращаем как есть (лучше грязный
+                // result, чем падение).
+                return data;
+            }
+
+            var clone = json.DeepClone();
+            RemoveBase64Fields(clone);
+            return clone;
+        }
+
+        /// <summary>
+        /// KI-176: рекурсивно удаляет из JSON-дерева поля с именами
+        /// <c>base64</c> и <c>imageBase64DataUrl</c> (case-insensitive).
+        /// </summary>
+        /// <param name="token">Корень JSON-дерева (мутируется).</param>
+        private static void RemoveBase64Fields(JToken token)
+        {
+            if (token is JObject obj)
+            {
+                var toRemove = obj.Properties()
+                    .Where(p =>
+                        string.Equals(p.Name, "base64", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.Name, "imageBase64DataUrl", StringComparison.OrdinalIgnoreCase))
+                    .Select(p => p.Name)
+                    .ToList();
+
+                foreach (var name in toRemove)
+                {
+                    obj.Remove(name);
+                }
+
+                foreach (var prop in obj.Properties().ToList())
+                {
+                    RemoveBase64Fields(prop.Value);
+                }
+            }
+            else if (token is JArray arr)
+            {
+                foreach (var item in arr)
+                {
+                    RemoveBase64Fields(item);
+                }
+            }
         }
 
         /// <summary>
