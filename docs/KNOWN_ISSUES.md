@@ -3501,6 +3501,89 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-167 — `file_system_agent` галлюцинирует успех вне workspace (рецидив KI-113)
+
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`,
+  `IIChatTools.Services/Implementation/SubAgentService.cs`,
+  `appsettings.Development.json` (`SubAgents:file_system_agent:SystemPrompt`).
+- **Симптом:** Задача «Создай папку `c:\projects\test\` и положи файл
+  `script.bat` с `echo "Hello World"`».
+  - LLM → `file_system_agent`.
+  - Внутри агента: `list_directory` → `make_directory` → `save_file`.
+  - `make_directory` / `save_file` **провалились** (path-traversal — RULES § 1.9,
+    `PathHelper.TryGetSafeFullPath` отклоняет `c:\projects\test\` — вне workspace).
+  - Но агент вернул финальный ответ: «Папка `c:\projects\test\` успешно создана
+    и в неё помещён файл `script.bat`».
+  - **Реальность (проверено):** ни `c:\projects\test\`, ни `script.bat` не существует.
+- **Диагностика (2026-10-05):**
+  - `Test-Path 'c:\projects\test\'` → `False` (файла нет).
+  - `AuditLogs`: `agent.file_system_agent | Status=Success | {completed:true, steps:4, usedToolsCount:3}`.
+  - Файл не найден ни в workspace, ни в `bin/Debug/net10.0`.
+- **Корни (2 связанных):**
+  1. **KI-113** — qwen3-4b предпочитает «мягкий» успех вместо честного «не смогла».
+  2. **KI-114** — `AgentToolBase` возвращает `ToolResult.Ok` даже при `Completed=false`.
+- **Возможные решения:**
+  1. **KI-114 (главное):** `AgentToolBase.ExecuteAsync` — если `result.Completed == false`,
+     возвращать `ToolResult.Fail` (сообщение с `finalAnswer`).
+  2. **Усилить SystemPrompt** `file_system_agent`: правило «если `make_directory`
+     не создал путь или `save_file` вернул Fail — **НЕ говори “успешно”**.
+     Скажи: “не удалось, путь вне workspace”».
+  3. **Few-shot** в `SystemPrompt` — показать правильный ответ при path-traversal.
+- **Связанные:** KI-113, KI-114, KI-168 (tool-selection), KI-169 (audit gap).
+
+### KI-168 — Chat LLM выбирает `file_system_agent` для задач вне workspace
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
+- **Файлы:** `IIChatTools.Services/Implementation/ChatTools/ChatStreamService.cs`
+  (`DefaultSystemPrompt`), `appsettings.Development.json`
+  (`SubAgents:file_system_agent:Description`).
+- **Симптом:** Задача с путём **вне workspace** (`c:\projects\test\`) →
+  Chat LLM выбирает `file_system_agent` (который не может писать вне workspace),
+  а не `code_agent` / `execute_command` (которые могут).
+- **Причина:** `DefaultSystemPrompt` не разграничивает «внутри workspace →
+  `file_system_agent`» / «вне workspace → `execute_command`». `Description`
+  у `file_system_agent` упоминает workspace, но LLM не связывает это с
+  конкретным путём в задаче.
+- **Возможные решения:**
+  1. **Правило 8 в `DefaultSystemPrompt`:** «Если задача требует записи в путь
+     вне workspace (`c:\...`, `/usr/...`) — используй `execute_command`
+     (`cmd /c mkdir ...`, `echo ... > file`) или `code_agent`. НЕ используй
+     `file_system_agent` — он работает только в workspace».
+  2. **Уточнить `Description`** `file_system_agent`: явно указать «работает
+     ТОЛЬКО в workspace; для внешних путей — `execute_command`».
+  3. **Проверить `execute_command` whitelist** — в `appsettings.json`
+     `Tools:Whitelist: []` (пусто). Проверить `ExecuteCommandTool` — что
+     реально блокируется (`EnableShellCommands = true`).
+- **Связанные:** KI-167 (галлюцинация — следствие), KI-118, KI-120, KI-127
+  (аналогичные проблемы tool-selection у qwen3-4b).
+
+### KI-169 — SubAgent: внутренние tool-вызовы не попадают в AuditLogs
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-10-05 (smoke #3 — при диагностике KI-167).
+- **Файлы:** `IIChatTools.Services/Implementation/SubAgentService.cs`,
+  `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`.
+- **Описание:** В `AuditLogs` пишется **одна запись на весь агент**
+  (`agent.file_system_agent`), но **внутренние tool-вызовы** SubAgent'а
+  (`list_directory`, `make_directory`, `save_file`) отдельными записями
+  **не фиксируются**. Из-за этого при отладке KI-167 нельзя было точно
+  определить, что вернул `save_file` — Success или Fail.
+- **Влияние:** снижает наблюдаемость (observability) при разборе инцидентов
+  с SubAgent. Видно только финальный `Status` агента.
+- **Не баг:** by design (агент — единица аудита). Но при расследовании
+  конкретных сбоев этого недостаточно.
+- **Возможные решения:**
+  1. Логировать каждый внутренний tool-вызов в `AuditLogs` с
+     `ToolName = "agent.{AgentName}.{InnerTool}"` — отдельная категория.
+  2. Логировать в `ILogger` на уровне Debug (частично делается — в
+     `ToolRegistry` есть «Выполнение инструмента X», но без `ResultJson`).
+- **Связанные:** KI-167, KI-076 (AgentStats — использует AuditLogs).
+
+---
+
 ### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
