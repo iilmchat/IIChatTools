@@ -3422,6 +3422,79 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-164 — Vision Agent: drag-select (выделение текста мышью)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «DeepSeek API»).
+- **Файлы (план):** `IVisionBackend` (+`DragAsync`), `LocalHarnessVisionBackend`,
+  `VisionAgentTool` (+ action `drag`), `VisionActionValidator`.
+- **Симптом:** Для сценария «выделить ответ LLM → скопировать в буфер»
+  у `IVisionBackend` нет действия drag-select. Существующие действия
+  (`click`, `double_click`, `right_click`, `move_mouse`, `scroll`)
+  не покрывают выделение текста или блока элементов.
+- **Возможное решение:** `DragAsync(fromX, fromY, toX, toY)` —
+  `SendInput` с `MOUSEEVENTF_LEFTDOWN` → серия `MOUSEEVENTF_MOVE`
+  (с интерполяцией, чтобы ОС распознала drag, а не два клика) →
+  `MOUSEEVENTF_LEFTUP`. Плюс action `drag` в `VisionAgentTool` +
+  валидация (`from`/`to` в границах экрана, `from != to`).
+- **Оценка:** ~1 ч.
+- **Связанные:** KI-131 (Vision Agent), KI-165 (read clipboard).
+
+### KI-165 — Vision Agent: чтение буфера обмена (read clipboard)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «DeepSeek API»).
+- **Файлы (план):** `IIChatTools.Services/Implementation/Tools/VisionAgent/ReadClipboardTool.cs` (новый),
+  `Startup.cs` (регистрация `ITool`).
+- **Симптом:** После `press_key(["Ctrl","C"])` на выделенном тексте (KI-164)
+  нет способа **прочитать** буфер обмена. Скопированный текст недоступен
+  LLM в Chat.
+- **Возможное решение:** отдельный `ITool` `read_clipboard` в
+  `IIChatTools.Services/Implementation/Tools/VisionAgent/`:
+  - Windows: `powershell.exe Get-Clipboard` через `ProcessStartInfo.ArgumentList`
+    (RULES § 1.10).
+  - Лимит: 100 KB (защита от «залипшего» буфера с мегабайтами).
+  - Read-only — `RequiresApprovalByDefault = false`.
+  - Возможно, расширить `ToolResult` флагом `mayContainPii = true` для audit
+    (в буфере может быть что угодно).
+- **Альтернатива:** добавить в `vision_agent` action `read_clipboard` — но
+  это не vision-action, логичнее отдельный tool.
+- **Оценка:** ~30 мин.
+- **Связанные:** KI-131 (Vision Agent), KI-164 (drag-select).
+
+### KI-166 — Vision Agent: детекция иконок в taskbar (Win+1, crop, fallback)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «Начало дня»).
+- **Файлы (план):** `VisionSystemPrompt.PlannerPlanNext` (few-shot),
+  `LocalHarnessVisionBackend` (+`DetectTaskbarIcons`), `appsettings.json`
+  (`VisionAgent:Taskbar`).
+- **Симптом:** В сценарии «Запусти Total Commander из панели задач»
+  VL-модель должна найти 16-32 px иконку. После downscale 1920×1200 → 1024×640
+  (KI-150) иконка становится ~10×10 px — VL её либо не видит, либо путает
+  с соседней.
+- **Возможные решения (3 варианта, по возрастанию сложности):**
+
+  **(A) Anchor-clicks (рекомендуется):** научить Planner использовать
+  `hotkey(["Win","1"])` … `hotkey(["Win","9"])` — открывает приложение
+  по позиции в taskbar. Детерминированно, 0 px ошибки. Требует: (а) правила
+  в `PlannerPlanNext`; (б) пользователь должен знать порядок иконок
+  (или использовать Win+1…Win+9 последовательно).
+
+  **(B) Crop + upscale:** при `ScreenshotAsync` вырезать нижние 48 px экрана
+  (taskbar), upscale ×3, отдельный VL-prompt «перечисли иконки слева направо».
+  +1 VL-вызов на задачу, +возможность ошибиться на похожих иконках.
+
+  **(C) Fallback `execute_command`:** `start "" "C:\totalcmd\TOTALCMD64.EXE"`
+  — не vision, но **гарантированно**. Годится как «последний шанс», если
+  A и B не сработали.
+
+- **Оценка:** (A) ~1 ч, (B) ~2 ч, (C) ~15 мин.
+- **Связанные:** KI-131 (Vision Agent), KI-150 (downscale), KI-160
+  (anti-loop — taskbar иконки могут зациклить).
+
+---
+
 ### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
