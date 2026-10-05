@@ -1,6 +1,6 @@
 # Архитектура IIChatTools
 
-**Версия:** 1.7.0 (обновлено 2026-09-29)
+**Версия:** 1.13.1 (обновлено 2026-10-05)
 **Статус:** Living document — обновляется при значимых архитектурных изменениях.
 **Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md), [DESIGN v1.7 (Database Agent)](v1.7/DESIGN_DB_AGENT.md).
 
@@ -11,7 +11,11 @@
 **IIChatTools** — серверное приложение на .NET 10 LTS, предоставляющее LLM (через LM Studio)
 широкий набор безопасных инструментов: файловая система, выполнение кода, веб, Git/GitHub,
 браузерная автоматизация, делегирование суб-агентам, **RAG (v1.5)**,
-**Database Agent — read-only SQL (v1.7)**.
+**Database Agent — read-only SQL (v1.7)**, **Mail Agent — IMAP/SMTP (v1.8.0)**,
+**External-LLM — DeepSeek / OpenAI / Groq / Together / Ollama (v1.8.1) + Anthropic Claude (v1.9.0) + Google Gemini (v1.10.0)**,
+**Actor-Critic Debate — `code_agent_with_review` (v1.11.0)**,
+**Vision Agent — computer-use pattern (v1.12.0)**,
+**Speech Recognition — офлайн STT через Whisper.net (v1.13.0 → v1.13.1)**.
 
 **Ключевая идея:** LLM работает в **изолированной песочнице** (`Workspace`) и не имеет
 прямого доступа к системе. Все действия — через инструменты с подтверждениями (`Approvals`).
@@ -24,6 +28,10 @@
 - PuppeteerSharp 7.1, Prometheus-net, `Microsoft.ML.Tokenizers` (tiktoken)
 - **ADO.NET-провайдеры (v1.7)**: `Microsoft.Data.Sqlite` 10.0.12 +
   `Microsoft.Data.SqlClient` 6.1.6 — для `SqlConnectionProvider`
+- **MailKit 4.18.1** + MimeKit — IMAP/SMTP (v1.8.0, KI-125 — security fix)
+- **PdfPig 0.1.9** + **DocumentFormat.OpenXml 3.1.0** — PDF/DOCX в RAG (v1.7.1, KI-104)
+- **Whisper.net 1.8.1** + **Whisper.net.Runtime** — офлайн STT (v1.13.0, KI-140)
+- **System.Drawing.Common 10.0.0** — GDI-скриншоты Vision Agent (v1.12.0, KI-131)
 
 ---
 
@@ -41,12 +49,15 @@
 │  IIChatTools.API  (net10.0)                                         │
 │  ├── Controllers: Home, Auth, Tools, Approvals, Admin, AdminAgents, │
 │  │                AdminKnowledge, AdminSqlAgent (v1.7),             │
-│  │                Status, Chat, ChatStream, ChatView, ChatAttach,   │
-│  │                Profile, ProfileWorkspace, Models                 │
+│  │                Speech (v1.13.0), Status, Chat, ChatStream,       │
+│  │                ChatView, ChatAttach, Profile, ProfileWorkspace,  │
+│  │                Models                                            │
 │  ├── Views (Razor + RU/EN через IStringLocalizer<SharedResources>)  │
 │  ├── ES-модули: api, ui, status, approvals, admin, admin-agents,    │
 │  │              admin-knowledge, admin-sql-agent (v1.7),            │
-│  │              test, chat, profile, profile-workspace              │
+│  │              test, chat, profile, profile-workspace,             │
+│  │              profile-audio (v1.13.1), speech (v1.13.0),          │
+│  │              theme (v1.10.1)                                     │
 │  ├── Program.cs: ConfigureDefaultProxy + миграции + LoadSubAgent    │
 │  │              + LoadSqlAgentOverrides (v1.7)                      │
 │  └── Startup.cs: DI + 50 инструментов + Chat services               │
@@ -55,7 +66,9 @@
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  IIChatTools.Services  (net10.0)                                    │
-│  ├── ToolRegistry (50 = 40 raw + 6 агентов + 3 RAG + 1 SqlAgent)    │
+│  ├── ToolRegistry (61 = 40 raw + 9 агентов + 3 RAG + 1 SqlAgent    │
+│  │                + 7 mail-tools + 3 external-llm-tools + 1 vision +│
+│  │                1 code_agent_with_review)                        │
 │  ├── SubAgentRegistry (Singleton, v1.4.0)                           │
 │  ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator, │
 │  │         ChatTitleService, ChatRetentionService                   │
@@ -64,6 +77,19 @@
 │  ├── SqlAgent (v1.7): SqlAgentService, SqlQueryValidator,           │
 │  │              SqlConnectionProvider, SqlAgentOptionsProvider,     │
 │  │              AdminSqlAgentService, AppPathProvider               │
+│  ├── Mail (v1.8.0): MailKitClient, GlobalMailAccountProvider,       │
+│  │              MailAttachmentService, InMemoryMailRateLimiter      │
+│  ├── ExternalLlm (v1.8.1): ExternalLlmClient, ExternalProviderRegistry,│
+│  │              ExternalLlmCircuitBreaker, ExternalLlmBudgetTracker │
+│  ├── Debate (v1.11.0): AgentDebateSessionService, AgentDebateCoordinator│
+│  ├── Speech (v1.13.0): WhisperNetTranscriptionService                │
+│  ├── VisionAgent (v1.12.0): VisionAgentService, LocalHarnessVisionBackend,│
+│  │              LmStudioVisionClient, LmStudioPlannerClient,        │
+│  │              AutoVisionClient, AutoPlannerClient,                │
+│  │              VisionActionValidator, InMemoryVisionRateLimiter,   │
+│  │              VisionScreenshotStore, VisionRetentionService,      │
+│  │              WpfVisionOverlayLauncher                            │
+│  ├── Cache (v1.8.2): ToolResultCache (IMemoryCache + whitelist)     │
 │  ├── LmStudioClient (Singleton — SSE + tools + ModelOverride)       │
 │  ├── Cross-cutting: Audit, Approval, Workspace, Browser, Token      │
 │  ├── Tools/ (9 групп: FileSystem, CodeExecution, Web, Git, GitHub,  │
@@ -110,7 +136,7 @@
 | Entity | Ключевые поля | Индексы |
 |---|---|---|
 | `Chat` | `UserId`, `Title`, `Model`, `SystemPrompt`, `UpdatedAt` | `(UserId, UpdatedAt)` |
-| `ChatMessage` | `ChatId`, `Role`, `Content`, `ToolCallsJson`, `ToolCallId`, `ToolName`, `TokensIn/Out`, `DurationMs`, `FirstTokenMs`, `FinishReason` | `(ChatId, CreatedAt)` |
+| `ChatMessage` | `ChatId`, `Role`, `Content`, `ToolCallsJson`, `ToolCallId`, `ToolName`, `TokensIn/Out`, `DurationMs`, `FirstTokenMs`, `FinishReason`, `MetadataJson` (v1.6.0 — sources) | `(ChatId, CreatedAt)` |
 
 ### § 3.3. RAG (v1.5.0)
 
@@ -129,6 +155,8 @@
 | `PendingAction` | Ожидающие подтверждения (для `/test`) |
 | `AgentState` | Состояние сессии суб-агента |
 | `MemoryEntry` | Долговременная память пользователя (planner_agent) |
+| `AgentDebateSession` (v1.11.0) | Сессия Actor-Critic: state machine, токены/cost per round |
+| `AgentDebateRound` (v1.11.0) | Раунд сессии: actor / critic / verdict / escalation |
 
 ### § 3.5. Миграции
 
@@ -140,6 +168,8 @@
 | `AddChatMessageStats` | v1.4.1 | +3 поля в ChatMessage |
 | `AddDocumentChunks` | v1.5.0 | DocumentChunk |
 | `AddChatAttachments` | v1.5.0 | ChatAttachment |
+| `AddChatMessageMetadata` | v1.6.0 | +`ChatMessage.MetadataJson` (sources) |
+| `AddAgentDebateSessions` | v1.11.0 | `AgentDebateSession` + `AgentDebateRound` |
 
 **Sqlite (dev):** `EnsureCreatedAsync` — не мигрирует. При изменении модели — удалять `.db` (RULES § 4.25, KI-070).
 
@@ -178,7 +208,26 @@ dotnet ef database update --project IIChatTools.Data --startup-project IIChatToo
 | `IAdminSqlAgentService` (v1.7) | **Scoped** | Persist override в `AppSettings` + runtime |
 | `IAppPathProvider` (v1.7) | **Singleton** | `ContentRootPath` (KI-100 — относительный Sqlite-путь) |
 | `IBrowserSessionManager` | **Singleton** | Кэш Puppeteer-сессий per-user |
-| `BackgroundService`s | **Singleton** (HostedService) | AuditRetention, ChatRetention, MetricsRefresh |
+| `BackgroundService`s | **Singleton** (HostedService) | AuditRetention, ChatRetention, MetricsRefresh, VisionRetention (v1.12.0) |
+| `IExternalProviderRegistry` (v1.8.1) | **Singleton** | Stateless + fail-fast валидация конфига |
+| `IExternalLlmCircuitBreaker` (v1.8.1) | **Singleton** | Per-provider state + Timer cleanup (KI-043) |
+| `IExternalLlmBudgetTracker` (v1.8.1) | **Singleton** | Per-user state + Timer cleanup |
+| `IExternalLlmClient` (v1.8.1) | **Singleton** | Stateless (HttpClientFactory) |
+| `IMailClient` (v1.8.0) | **Singleton** | Per-call connect → operation → disconnect |
+| `IMailAccountProvider` (v1.8.0) | **Singleton** | Читает `IOptions<MailOptions>` |
+| `IMailRateLimiter` (v1.8.0) | **Singleton** | In-memory state + Timer cleanup |
+| `IMailAttachmentService` (v1.8.0) | **Scoped** | Зависит от `IWorkspaceResolver` |
+| `IAgentDebateSessionService` (v1.11.0) | **Scoped** | Через `AppDbContext` |
+| `IAgentDebateCoordinator` (v1.11.0) | **Singleton** | Human-in-the-loop (по образцу `ChatApprovalCoordinator`) |
+| `ISpeechRecognitionService` (v1.13.0) | **Singleton** | Тяжёлая ленивая загрузка модели (~142 MB) |
+| `IVisionBackend` (v1.12.0) | **Scoped** | Backend surface (Local / Sandbox / RemoteVnc) |
+| `IVisionLlmClient` (v1.12.0) | **Singleton** | Stateless (LmStudio / External / Auto) |
+| `IPlannerLlmClient` (v1.12.0) | **Singleton** | Stateless (LmStudio / External / Auto) |
+| `IVisionActionValidator` (v1.12.0) | **Singleton** | Stateless |
+| `IVisionRateLimiter` (v1.12.0) | **Singleton** | In-memory state + Timer cleanup |
+| `IVisionScreenshotStore` (v1.12.0) | **Scoped** | Зависит от `IWorkspaceResolver` |
+| `IVisionAgentService` (v1.12.0) | **Scoped** | Зависит от Scoped backend + store |
+| `IVisionOverlayLauncher` (v1.12.0) | **Singleton** | Wpf (реальный, KI-142) или Noop (fallback) |
 
 **Background services** (`BackgroundService`):
 - `AuditRetentionService` — чистит `AuditLogs` + JSONL-файлы.
@@ -245,11 +294,43 @@ WaitForDecisionAsync разбужен → ExecuteAsync инструмента �
 | **Stop** | `abortController.abort()` | Рвёт SSE → `CancellationToken` → `OperationCanceledException` → audit `Cancelled` (2.1.3.3) |
 | **Edit user-message** | `POST /api/chat/messages/{id}/edit` | Обновить content + удалить всё после → regenerate (2.2.6) |
 
+### § 5.4. Actor-Critic Debate (v1.11.0, KI-126)
+
+Отдельный поток **внутри** `tool_result` для top-level `ITool`
+`code_agent_with_review`. Не пересекается с обычным tool calling loop.
+```
+ChatStreamService
+│ yield ToolCall(code_agent_with_review)
+│ await ITool.ExecuteAsync
+▼
+CodeAgentWithReviewTool
+├── CreateSession (AgentDebateSession) ← persistence (1E)
+├── EventWriter.WriteAsync(debate_started) ← SSE (1E)
+├── Loop (до MaxRounds):
+│ ├── code_agent (actor) → actorOutput
+│ ├── code_reviewer_agent (critic) → verdict (JSON)
+│ ├── EventWriter.WriteAsync(debate_round) ← SSE (1E)
+│ ├── HumanFeedback? (BetweenRounds) → AgentDebateCoordinator.WaitForFeedback
+│ └── Uncertain → ask_external_llm (эскалация, 1F)
+├── AddRound (persistence per round)
+├── Complete (AgentDebateSession.Status)
+└── EventWriter.WriteAsync(debate_completed)
+```
+
+**Координатор** (`IAgentDebateCoordinator`, Singleton) — по образцу
+`ChatApprovalCoordinator`: `ConcurrentDictionary<int, TaskCompletionSource<string>>`,
+`RunContinuationsAsynchronously` (RULES § 4.23). Endpoint
+`POST /api/chat/debate/{sessionId}/inject` — пользовательский feedback
+между раундами.
+
+**SSE-события:** `debate_started` / `debate_round` / `debate_escalated` /
+`debate_completed`. См. `ChatStreamEvent` (v1.11.0).
+
 ---
 
 ## § 6. Инструменты
 
-### § 6.1. Группы (50 = 40 raw + 6 агентов + 3 RAG + 1 SqlAgent)
+### § 6.1. Группы (61 = 40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-llm + 1 vision + 1 review-orchestrator)
 
 | Группа | Кол-во | Требуют approval |
 |---|:---:|:---:|
@@ -265,12 +346,23 @@ WaitForDecisionAsync разбужен → ExecuteAsync инструмента �
 | + Агенты (v1.4.0) | +6 | (по агенту) |
 | + RAG (v1.5.0) | +3 | — |
 | + SqlAgent (v1.7.0) | +1 | ✅ |
-| **Итого (ToolRegistry)** | **50** | — |
+| + Mail tools (v1.8.0, внутри `mail_agent`) | +7 | 3 (send/delete/move) |
+| + External-LLM tools (v1.8.1, внутри `external_llm_agent`) | +3 | — |
+| + Vision Agent (v1.12.0, top-level) | +1 | ✅ (per-action) |
+| + `code_reviewer_agent` (v1.11.0) | +1 | — |
+| + `code_agent_with_review` (v1.11.0, top-level) | +1 | ✅ |
+| + `mail_agent` (v1.8.0) | +1 | ✅ |
+| + `external_llm_agent` (v1.8.1) | +1 | — |
+| **Итого (ToolRegistry)** | **61** | — |
 
 ### § 6.2. Multi-Agent (v1.4.0)
 
-Chat видит **11 инструментов** в v1.7.0: 6 агентов + `consult_secondary_agent`
-+ 3 RAG-tool + `database_agent` (см. § 6.3 и § 6.4).
+Chat видит **16 инструментов** в v1.13.1: 9 агентов из `SubAgentRegistry`
+(`file_system_agent`, `code_agent`, `code_reviewer_agent` (v1.11.0),
+`web_agent`, `git_agent`, `github_agent`, `planner_agent`,
+`mail_agent` (v1.8.0), `external_llm_agent` (v1.8.1))
++ `consult_secondary_agent` + 3 RAG-tool + `database_agent` (v1.7.0)
++ `code_agent_with_review` (v1.11.0) + `vision_agent` (v1.12.0).
 
 | Агент | Инструментов | Модель | Approval |
 |:---|:---:|:---:|:---:|
@@ -340,6 +432,10 @@ Chat видит **1 top-level инструмент** `database_agent` (не на
 | **Python 3** | `run_python` | — |
 | **Node.js** | `run_javascript` | — |
 | **Prometheus** | Метрики | `/metrics` публичный |
+| **MailKit 4.18.1** (v1.8.0, KI-125) | IMAP/SMTP | Требует `Mail:Enabled` |
+| **Whisper.net 1.8.1** (v1.13.0) | Офлайн STT | Требует `ggml-*.bin` модель |
+| **PdfPig 0.1.9** (v1.7.1) | PDF-парсер для RAG | Сканы без текстового слоя — не поддерживаются |
+| **DocumentFormat.OpenXml 3.1.0** (v1.7.1) | DOCX-парсер для RAG | `.doc` (старый формат) — не поддерживается |
 
 ---
 
@@ -413,6 +509,75 @@ Chat-модель остаётся `LmStudio:Model`.
 default interface method). `DatabaseAgentTool` переопределяет:
 `action == "execute_query"`. См. KI-101, RULES § 4.46.
 
+### ADR-013. Mail Agent — глобальный аккаунт + per-call connect (v1.8.0)
+**Проблема:** один почтовый ящик для всех пользователей (v1.8.0 — MVP).
+Per-user — v1.8.x (KI-108). IMAP-пул с TTL отложен (`per-call connect` в MVP).
+**Решение:** `GlobalMailAccountProvider` читает `IOptions<MailOptions>`.
+`MailKitClient.Connect → Operation → Disconnect` в каждом вызове. Rate limiter
+(20/час) — Singleton с Timer-cleanup (KI-043).
+
+### ADR-014. External-LLM — ProviderFormat switch (v1.8.1 → v1.9.0 → v1.10.0)
+**Проблема:** OpenAI / Anthropic / Gemini имеют разные форматы запросов.
+**Решение:** `ExternalProviderOptions.Format` (enum `ProviderFormat`: OpenAI / Anthropic / Gemini).
+`ExternalLlmClient.CompleteAsync` — switch по формату → `CompleteOpenAiAsync` /
+`CompleteAnthropicAsync` / `CompleteGeminiAsync`. Общая обвязка (circuit breaker,
+budget, audit) — единая, параметризована headers. Default = OpenAI — backward-compatible.
+
+### ADR-015. External-LLM — circuit breaker + budget tracker (v1.8.1)
+**Проблема:** внешний провайдер может падать; пользователь может «сжечь» бюджет.
+**Решение:** `ExternalLlmCircuitBreaker` (per-provider, N fail → skip X сек) +
+`ExternalLlmBudgetTracker` (per-user, $5/день + 500k токенов). Оба — Singleton
+с `ConcurrentDictionary` + Timer cleanup. Имитация успеха — невозможна (fail
+не инкрементирует токены).
+
+### ADR-016. Actor-Critic — Debate persistence + SSE + Human-in-the-loop (v1.11.0)
+**Проблема:** нужен автономный review кода с итерациями и опциональным
+вмешательством человека.
+**Решение:** top-level `ITool` `code_agent_with_review` (не `AgentToolBase` —
+свой loop). `AgentDebateSession` + `AgentDebateRound` — persistence в БД.
+SSE-события `debate_*` через `ToolExecutionContext.EventWriter` (Channel).
+`AgentDebateCoordinator` (Singleton, TCS) — Human-in-the-loop между раундами.
+Эскалация на `ask_external_llm` при `Uncertain`.
+
+### ADR-017. ToolResultCache — whitelist + per-user key + prefix invalidation (v1.8.2)
+**Проблема:** повторные вызовы `wikipedia_search` / `web_search` / RAG — дорого.
+**Решение:** `IMemoryCache` (Singleton, SizeLimit=10000). Whitelist — per-tool
+TTL в `appsettings:ToolCache:Tools`. Ключ `tool:{name}:u{userId}:{sha256(canonical_json)}` —
+per-user изоляция. Канонизация — рекурсивная сортировка `JObject`-ключей.
+Инвалидация по префиксу — через `CancellationChangeToken` (IMemoryCache не имеет
+prefix-eviction).
+
+### ADR-018. Speech Recognition — Whisper.net Singleton с ленивой загрузкой (v1.13.0)
+**Проблема:** модель (`ggml-base.bin`, ~142 MB) тяжёлая. Загрузка при старте
+приложения — недопустима (замедляет boot).
+**Решение:** `WhisperNetTranscriptionService` — Singleton, ленивая загрузка
+модели при первом запросе. Модель кэшируется на всё время жизни. `IAppPathProvider`
+(из v1.7.0) резолвит `ModelPath` относительно `ContentRootPath`.
+
+### ADR-019. Vision Agent — три модели + три backend'а (v1.12.0)
+**Проблема:** одна модель не тянет и planning, и UI-description.
+**Решение:** `IVisionLlmClient` (Ministral-3B / Qwen2.5-VL-7B) + `IPlannerLlmClient`
+(qwen3-coder-30b-a3b / qwen3-4b). Три backend'а: `LocalHarnessVisionBackend`
+(SystemHarness + SendInput), `SandboxVisionBackend` (Ф3), `VncMcpVisionBackend` (Ф4).
+Выбор — через `VisionAgent:Backend:Mode` в конфиге.
+
+### ADR-020. Vision Agent — Auto* клиенты с fallback chain (v1.12.0)
+**Проблема:** LmStudio может быть недоступен; хочется fallback на external VL.
+**Решение:** `AutoVisionClient` / `AutoPlannerClient` — Singleton, перебирают
+`VisionLlm.FallbackChain`. Резолв через `Func<IVisionLlmClient>` (ADR-002) —
+ленивая фабрика, тестируемо через fake-фабрики. Выбор Provider
+(`lmstudio` / `external` / `auto`) — в DI-factory.
+
+### ADR-021. WPF overlay — WS_EX_NOACTIVATE + NamedPipe IPC (v1.12.x, KI-142)
+**Проблема:** реальный on-screen indicator **обязателен** (DESIGN § 6.4).
+Клик по overlay не должен забирать фокус у Chrome.
+**Решение:** отдельный проект `IIChatTools.VisionOverlay` (WPF,
+`net10.0-windows`, WinExe). IPC — NamedPipe `iichattools-vision-overlay-{taskId}`
+(JSON, `\n`-разделитель). Overlay — сервер, API — клиент. `WS_EX_NOACTIVATE |
+WS_EX_TOOLWINDOW` через `OverlayWin32.cs`. `ShowActivated="False"` в XAML.
+`STOP` → `CancellationToken` через `IVisionOverlayHandle.StopToken`
+(связывается с `timeoutCts` через `CreateLinkedTokenSource`).
+
 ---
 
 ## § 9. Ссылки
@@ -421,11 +586,18 @@ default interface method). `DatabaseAgentTool` переопределяет:
 - [DESIGN v1.3](v1.3/DESIGN.md) — Chat UI
 - [DESIGN v1.4](v1.4/DESIGN.md) — Multi-Agent
 - [DESIGN v1.4 Sidebar/Search](v1.4/DESIGN_SIDEBAR_SEARCH.md) — UX polish
-- [DESIGN v1.5](v1.5/DESIGN.md) — RAG / Knowledge Base (✅ Done)
-- [DESIGN v1.7](v1.7/DESIGN_DB_AGENT.md) — Database Agent (✅ Done)
+- [DESIGN v1.5](v1.5/DESIGN.md) — RAG / Knowledge Base (✅ v1.5.0)
+- [DESIGN v1.7](v1.7/DESIGN_DB_AGENT.md) — Database Agent (✅ v1.7.0)
+- [DESIGN v1.8 — Mail Agent](v1.8/DESIGN_MAIL_AGENT.md) — IMAP/SMTP (✅ v1.8.0)
+- [DESIGN v1.8 — External-LLM](v1.8/DESIGN_EXTERNAL_LLM.md) — 5 провайдеров (✅ v1.8.1)
+- [DESIGN v1.9 — Anthropic / Gemini](v1.9/DESIGN_ANTHROPIC_GEMINI.md) — Anthropic (✅ v1.9.0)
+- [DESIGN v1.9 — Gemini](v1.9/DESIGN_GEMINI.md) — Google Gemini (✅ v1.10.0)
+- [DESIGN v1.11 — Actor-Critic](v1.11/DESIGN_MULTI_AGENT_DEBATE.md) — code_agent_with_review (✅ v1.11.0)
+- [DESIGN v1.12 — Vision Agent](v1.12/DESIGN_VISION_AGENT.md) — computer-use (✅ v1.12.0, MVP)
+- [DESIGN v1.13 — Speech Recognition](v1.13/DESIGN_SPEECH_RECOGNITION.md) — Whisper.net (✅ v1.13.0)
 
 ### Правила и процессы
-- [RULES.md](RULES.md) — правила разработки (v1.4.20)
+- [RULES.md](RULES.md) — правила разработки (v1.4.28)
 - [RELEASES.md](RELEASES.md) — чек-лист релиза
 - [PROMPT_V2.md](PROMPT_V2.md) — стартовый промпт для новых чатов
 
@@ -436,4 +608,4 @@ default interface method). `DatabaseAgentTool` переопределяет:
 
 ---
 
-**© 2026 RuChating (iilmchat) · IIChatTools v1.7.0**
+**© 2026 RuChating (iilmchat) · IIChatTools v1.13.1**

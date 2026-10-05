@@ -1443,12 +1443,15 @@ fresh-профилем (`--user-data-dir=%TEMP%\vision-profile-{id}`) — без
 **Whitelist процессов** (FlaUI / `GetForegroundWindow`): действие отменяется,
 если фокус ушёл на `notepad.exe` (не в `AllowedProcesses`).
 
+**On-screen indicator (KI-142, Fixed):** WPF-приложение
+`IIChatTools.VisionOverlay.exe` — полупрозрачное always-on-top окно
+(320px, правый верхний угол) с прогрессом «Шаг N из M» и кнопкой STOP.
+Клик по overlay не отбирает фокус у Chrome (`WS_EX_NOACTIVATE`, KI-149).
+ESC / кнопка STOP — немедленная отмена задачи.
+
 **Отложено в v1.12.x:**
 - `sandbox` backend — Windows Sandbox (Ф3);
-- `remote-vnc` backend — MCP-клиент для удалённой машины (Ф4);
-- **WPF overlay** — реальный on-screen indicator (**KI-142**). Сейчас —
-  заглушка `NoopVisionOverlayLauncher`, пользователь видит результат по
-  действиям Chrome и курсора.
+- `remote-vnc` backend — MCP-клиент для удалённой машины (Ф4).
 
 ### Конфигурация (секция `VisionAgent` в `appsettings.json`)
 
@@ -1519,13 +1522,13 @@ fresh-профилем (`--user-data-dir=%TEMP%\vision-profile-{id}`) — без
 | 4 | **Approval + бюджет** | `run_task` + mutation-actions, MaxSteps, MaxTaskSeconds, rate limit 5/5 мин |
 | 5 | **Audit** | Каждый `run_task` — в AuditLogs (без task text, без скриншотов) |
 
-**Отложено:** WPF overlay (KI-142), PII masking (KI-138), OCR fallback (KI-137),
-External VL providers (KI-139, KI-141).
+**Отложено:** PII masking (KI-138), OCR fallback (KI-137),
+External VL providers (KI-139, KI-141), PuppeteerSharp DOM+Vision (KI-161),
+Coordinate-then-Verify (KI-162), Set-of-Mark (KI-163).
 
 ### Ограничения MVP
 
 - **Только `local-harness`** (Windows). Sandbox (Ф3) и RemoteVnc (Ф4) — v1.12.x.
-- **Нет on-screen indicator** — заглушка `NoopVisionOverlayLauncher`. См. KI-142.
 - **Скриншоты не сохраняются** в `ChatMessage.MetadataJson`
   (`PersistScreenshots = false`). В workspace — на 1 ч (`WorkspaceRetentionHours = 1`).
 - **VL-модель должна быть мультимодальной.** Обычный `qwen3-4b` не подойдёт.
