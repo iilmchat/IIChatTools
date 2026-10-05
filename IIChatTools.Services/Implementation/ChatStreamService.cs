@@ -165,10 +165,22 @@ namespace IIChatTools.Services.Implementation
             "→ вызови `code_agent` (он найдёт содержимое через `search_knowledge_base`). " +
             "НЕ вызывай `file_system_agent`.\n" +
             "\n" +
+            "9. Открыть сайт / кликнуть по элементу / ввести текст в поле / " +
+            "сделать скриншот страницы в браузере — используй " +
+            "`consult_secondary_agent` (внутри — `browser_*`). " +
+            "`vision_agent` — ТОЛЬКО для desktop-приложений (Outlook, Excel, 1С) " +
+            "и случаев, когда DOM недоступен (canvas / WebGL / shadow-DOM). " +
+            "Для обычных сайтов (wikipedia.org, deepseek.com, github.com) — " +
+            "`consult_secondary_agent`, НЕ `vision_agent`.\n" +
+            "\n" +
             "ПРИМЕР 3: «Создай папку `c:\\projects\\test\\` и положи туда " +
             "`script.bat` с содержимым `echo Hello`» → вызови `code_agent` " +
             "(через `run_python`: `os.makedirs(...)` + `open(...).write(...)`). " +
-            "НЕ вызывай `file_system_agent` (path вне workspace — он не справится).";
+            "НЕ вызывай `file_system_agent` (path вне workspace — он не справится).\n" +
+            "\n" +
+            "ПРИМЕР 4: «Зайди на chat.deepseek.com, задай вопрос X, верни ответ» " +
+            "→ вызови `consult_secondary_agent`. НЕ вызывай `vision_agent` — " +
+            "это обычный сайт с DOM.";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;

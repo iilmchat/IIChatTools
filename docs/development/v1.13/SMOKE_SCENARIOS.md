@@ -41,11 +41,13 @@ IIChatTools. Каждый сценарий — конкретная задача
 
 ## Детали сценариев
 
-### #1 — DeepSeek API
-
-**DoD:**
-1. Открыть браузер.
-2. Перейти на `https://www.deepseek.com/chat`.
+**Результат smoke #1 (2026-10-05):**
+- ❌ LLM выбрала `vision_agent` вместо `consult_secondary_agent` — см. KI-172.
+- ✅ Whitelist отсёк `www.deepseek.com` — защита работает.
+- ✅ LLM честно ответила после Fail (KI-114-fix + KI-167-fix работают).
+- 📝 URL в DoD исправлен: `chat.deepseek.com` (не `www.deepseek.com/chat`).
+- **Fix (ready):** правило 9 в `DefaultSystemPrompt` + whitelist +`deepseek.com`.
+- **Ре-прогон:** после правки.
 3. Открыть новый чат (кнопка «New chat» с иконкой крестик в кружке).
 4. Ввести запрос «Сколько попугаев в одном питоне».
 5. Отправить запрос (справа внизу синяя иконка со стрелочкой вверх).

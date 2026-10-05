@@ -3716,6 +3716,26 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-172 — Chat LLM выбирает `vision_agent` для browser-задач
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-05 (smoke #1 «DeepSeek API»).
+- **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
+- **Симптом:** Задача «Зайди на chat.deepseek.com, задай вопрос, верни ответ» —
+  Chat LLM (qwen3-4b) выбирает **`vision_agent`** (whitelist отклонил домен),
+  хотя правильный инструмент — **`consult_secondary_agent`** (внутри — `browser_*`).
+- **Корень:** `DefaultSystemPrompt` не разграничивает «browser-задача →
+  `consult_secondary_agent`» / «desktop-задача → `vision_agent`». LLM склонна
+  выбирать `vision_agent` (position-bias: он идёт раньше в списке? или потому
+  что там есть `url`-параметр, а в consult — нет).
+- **Fix (в работе):** правило 9 в `DefaultSystemPrompt` — «для обычных сайтов
+  (wikipedia.org, deepseek.com, github.com) → `consult_secondary_agent`.
+  `vision_agent` — только для desktop / canvas / shadow-DOM». Плюс ПРИМЕР 4.
+- **Связанные:** KI-128 (Browser workflow — Planned), KI-118, KI-120, KI-127,
+  KI-168 (аналогичные tool-selection у qwen3-4b).
+
+---
+
 ### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
