@@ -1818,7 +1818,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-114 — `AgentToolBase` возвращает `ToolResult.Ok` при `Completed=false`
-- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** —
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-09-29 (smoke Mail Agent)
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`
 (строка после `var result = await subAgent.ExecuteTaskAsync(context, request);`).
@@ -1837,7 +1837,15 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 2. Оставить `Ok`, но с явным `message: "⚠️ Агент не завершил задачу"`.
 3. Добавить в `ToolResult` новое поле `PartialSuccess` (семантически точнее).
 - **Не блокер v1.8.0** — задокументировано. Пересмотр — отдельным DESIGN-update.
-- **Связанные:** KI-113 (галлюцинация успеха), DESIGN v1.4 § 3.3.
+- **Fix (v1.13.x):** `AgentToolBase.ExecuteAsync` — если
+  `result.Completed == false` → возвращает `ToolResult.Fail` с данными агента
+  (`sessionId`, `steps`, `finalAnswer`) в качестве `data`. Если `true` —
+  как раньше `ToolResult.Ok` (+ sources).
+- **Практический эффект (smoke #3, 2026-10-05):** `file_system_agent` не завершил
+  задачу (path-traversal) → Chat LLM получила `success: false` вместо
+  «success: true» — больше не сможет слепо «верить» агенту.
+- **Связанные:** KI-113 (галлюцинация успеха), KI-167 (smoke #3),
+  DESIGN v1.4 § 3.3.
 
 ---
 
@@ -3503,7 +3511,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-167 — `file_system_agent` галлюцинирует успех вне workspace (рецидив KI-113)
 
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`,
   `IIChatTools.Services/Implementation/SubAgentService.cs`,
@@ -3531,11 +3539,21 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      не создал путь или `save_file` вернул Fail — **НЕ говори “успешно”**.
      Скажи: “не удалось, путь вне workspace”».
   3. **Few-shot** в `SystemPrompt` — показать правильный ответ при path-traversal.
+- **Fix (v1.13.x, 2026-10-05):**
+  1. **SystemPrompt** `file_system_agent` (dev + prod) — добавлены
+     правила 4 (жёсткий запрет внешних путей + честный Fail), 5 (не врать
+     про успех), 6 (перечислить частичный результат).
+  2. **KI-114** — `AgentToolBase` → `Fail` при `Completed=false` (устраняет
+     «усилитель» в самом ядре).
+  3. **Description** `file_system_agent` — явно сказано «работает ТОЛЬКО
+     внутри workspace, для внешних путей — `code_agent`».
+- **Требуется** ре-smoke сценария #3 (с путём **внутри workspace**
+  — `%USERPROFILE%\IIChatToolsWorkspace\test\` — для чистоты проверки).
 - **Связанные:** KI-113, KI-114, KI-168 (tool-selection), KI-169 (audit gap).
 
 ### KI-168 — Chat LLM выбирает `file_system_agent` для задач вне workspace
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
 - **Файлы:** `IIChatTools.Services/Implementation/ChatTools/ChatStreamService.cs`
   (`DefaultSystemPrompt`), `appsettings.Development.json`
@@ -3557,6 +3575,20 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   3. **Проверить `execute_command` whitelist** — в `appsettings.json`
      `Tools:Whitelist: []` (пусто). Проверить `ExecuteCommandTool` — что
      реально блокируется (`EnableShellCommands = true`).
+- **❗ Открытие при фиксе (2026-10-05):** `ExecuteCommandTool.AllowedCommands`
+  содержит **только**: `git, gh, dotnet, node, npm, npx, python3, pip3`.
+  **`cmd` и `powershell` — НЕ в белом списке.** Значит правило «внешние
+  пути → `execute_command`» **не сработает**. Правильный инструмент для
+  внешних путей — **`code_agent`** (`run_python` / `run_javascript`): Python /
+  Node пишут файлы без sandbox-ограничений.
+- **Fix (v1.13.x, 2026-10-05):**
+  - **`ChatStreamService.DefaultSystemPrompt`** — добавлено правило 8:
+    «внешние пути (`c:\...`, `D:\...`, `/tmp/`, `/usr/...`) → `code_agent`
+    с `run_python` / `run_javascript`. НЕ `file_system_agent` (вне workspace
+    не может). НЕ `execute_command` (`cmd`/`powershell` не в whitelist)».
+  - **ПРИМЕР 3** в промпте — как разобрать эту задачу через `code_agent`.
+  - **`Description`** `file_system_agent` (dev + prod) — уточнено:
+    «работает ТОЛЬКО внутри workspace, для внешних путей — `code_agent`».
 - **Связанные:** KI-167 (галлюцинация — следствие), KI-118, KI-120, KI-127
   (аналогичные проблемы tool-selection у qwen3-4b).
 
@@ -3580,6 +3612,11 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      `ToolName = "agent.{AgentName}.{InnerTool}"` — отдельная категория.
   2. Логировать в `ILogger` на уровне Debug (частично делается — в
      `ToolRegistry` есть «Выполнение инструмента X», но без `ResultJson`).
+- **Примечание (2026-10-05):** без этой диагностики невозможно было
+  однозначно определить, что вернул `save_file` — `Success` или `Fail`.
+  Именно из-за этого первая версия KI-167 содержала **две** гипотезы
+  корня (галлюцинация LLM vs path-traversal). Это заметно увеличило
+  время диагностики.
 - **Связанные:** KI-167, KI-076 (AgentStats — использует AuditLogs).
 
 ---

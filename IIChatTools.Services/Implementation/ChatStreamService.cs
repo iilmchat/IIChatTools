@@ -151,12 +151,24 @@ namespace IIChatTools.Services.Implementation
             "`code_agent` умеет искать содержимое вложений через " +
             "`search_knowledge_base`.\n" +
             "\n" +
+            "8. Задачи с путями ВНЕ workspace (`c:\\...`, `D:\\...`, `/tmp/`, " +
+            "`/usr/...`) — используй `code_agent` с `run_python` или " +
+            "`run_javascript`. Python / Node пишут файлы вне workspace, " +
+            "`file_system_agent` — не может (ограничение безопасности). " +
+            "`execute_command` тоже не подходит: `cmd` / `powershell` " +
+            "не в белом списке разрешённых команд.\n" +
+            "\n" +
             "ПРИМЕР 1: «Напиши функцию для проверки палиндрома с обработкой edge cases» " +
             "→ вызови `code_agent_with_review`.\n" +
             "\n" +
             "ПРИМЕР 2: «Исправь код в файле code-12345.py (приложен)» " +
             "→ вызови `code_agent` (он найдёт содержимое через `search_knowledge_base`). " +
-            "НЕ вызывай `file_system_agent`.";
+            "НЕ вызывай `file_system_agent`.\n" +
+            "\n" +
+            "ПРИМЕР 3: «Создай папку `c:\\projects\\test\\` и положи туда " +
+            "`script.bat` с содержимым `echo Hello`» → вызови `code_agent` " +
+            "(через `run_python`: `os.makedirs(...)` + `open(...).write(...)`). " +
+            "НЕ вызывай `file_system_agent` (path вне workspace — он не справится).";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;

@@ -18,6 +18,28 @@
 
 ## [Unreleased]
 
+### Fixed
+- **v1.13.x (KI-114, KI-167, KI-168) — smoke #3 «Запуск скрипта»:
+  tool-selection + ложный успех агента.**
+  - **KI-114:** `AgentToolBase.ExecuteAsync` — если `result.Completed == false`
+    → `ToolResult.Fail` (данные агента передаются в `data`). Раньше всегда
+    возвращался `Ok` — LLM в Chat видела «success: true» даже при провале
+    SubAgent, и это усиливало KI-113 (галлюцинация успеха).
+  - **KI-167:** `SystemPrompt` `file_system_agent` (dev + prod) — добавлены
+    правила 4 (жёсткий запрет внешних путей + честный Fail), 5 (не врать
+    про успех), 6 (перечислить частичный результат). `Description`
+    уточнено: «работает ТОЛЬКО внутри workspace».
+  - **KI-168:** `ChatStreamService.DefaultSystemPrompt` — правило 8:
+    «внешние пути (`c:\...`, `D:\...`, `/tmp/`, `/usr/...`) → `code_agent`
+    (Python / JS). НЕ `file_system_agent` (вне workspace не может), НЕ
+    `execute_command` (`cmd`/`powershell` не в whitelist)». Плюс ПРИМЕР 3.
+  - **❗ Открытие:** `ExecuteCommandTool.AllowedCommands` = `git, gh, dotnet,
+    node, npm, npx, python3, pip3` — `cmd`/`powershell` **отсутствуют**.
+    Поэтому правило «внешние пути → `execute_command`» заменено на
+    «→ `code_agent`».
+  - **Требуется** ре-smoke сценария #3 (с путём **внутри workspace** для
+    чистоты проверки) и smoke #1 (DeepSeek API).
+
 ### Added
 - **v1.12.x — WPF overlay для Vision Agent (KI-142, DESIGN § 4.6, § 6.4)**:
   on-screen indicator теперь — реальное WPF-приложение

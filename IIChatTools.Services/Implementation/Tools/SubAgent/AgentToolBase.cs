@@ -192,23 +192,52 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
                 // записи не должна ломать основной поток.
                 await LogAgentRunAsync(context, descriptor, result, sw.ElapsedMilliseconds, status: "Success");
 
-                // v1.6.1 (KI-086-post): проброс sources от inner-инструментов
-                // агента (wikipedia_search, search_knowledge_base, ...) в Chat.
-                // Далее ChatStreamService accumulator (Шаг 3 v1.6.0) подхватит
-                // и отдаст в SSE done → UI-блок «📚 Источники».
-                return ToolResult.Ok(
-                    new
-                    {
-                        agent = AgentName,
-                        sessionId = result.SessionId,
-                        finalAnswer = result.FinalAnswer,
-                        completed = result.Completed,
-                        steps = result.Steps,
-                        durationMs = result.DurationMs,
-                        usedTools = result.UsedTools
-                    },
-                    message: null,
-                    sources: result.Sources);
+                // v1.13.x (KI-114, KI-167): если агент не завершил задачу
+                // (result.Completed == false) — возвращаем Fail, а не Ok.
+                //
+                // <para>
+                // <b>Причина:</b> раньше AgentToolBase всегда возвращал Ok —
+                // Chat LLM видела «success: true» даже когда SubAgent вернул
+                // completed=false (исчерпан MaxSteps, LLM не нашла путь решения).
+                // Это усиливало «эффект галлюцинации успеха» (KI-113).
+                // См. DESIGN v1.4 § 3.3 — результат агента теперь строго
+                // соответствует его завершённости.
+                // </para>
+                //
+                // <para>
+                // Внешняя семантика: для Chat «success: false» = агент
+                // не справился. LLM перепланирует или честно сообщит пользователю.
+                // </para>
+                var resultData = new
+                {
+                    agent = AgentName,
+                    sessionId = result.SessionId,
+                    finalAnswer = result.FinalAnswer,
+                    completed = result.Completed,
+                    steps = result.Steps,
+                    durationMs = result.DurationMs,
+                    usedTools = result.UsedTools
+                };
+
+                if (result.Completed)
+                {
+                    // v1.6.1 (KI-086-post): проброс sources от inner-инструментов
+                    // агента (wikipedia_search, search_knowledge_base, ...) в Chat.
+                    // Далее ChatStreamService accumulator (Шаг 3 v1.6.0) подхватит
+                    // и отдаст в SSE done → UI-блок «📚 Источники».
+                    return ToolResult.Ok(
+                        resultData,
+                        message: null,
+                        sources: result.Sources);
+                }
+
+                // Агент не завершил задачу — Fail с сохранением result-данных
+                // (sessionId, steps, finalAnswer — для аудита и UI).
+                var failMessage = string.IsNullOrWhiteSpace(result.FinalAnswer)
+                    ? $"Агент '{AgentName}' не завершил задачу (шагов: {result.Steps})."
+                    : $"Агент '{AgentName}' не завершил задачу: {result.FinalAnswer}";
+
+                return ToolResult.Fail(failMessage, resultData);
             }
             catch (OperationCanceledException)
             {

@@ -33,7 +33,7 @@ IIChatTools. Каждый сценарий — конкретная задача
 |---|---|---|---|---|
 | **1** | **DeepSeek API** — открыть сайт, создать чат, задать вопрос, выделить и скопировать ответ | ⚪ Not started | — | — |
 | **2** | **Начало дня** — меню Windows, запустить VS Code, Total Commander, Task Manager | ⚪ Not started | taskbar-icon detection | KI-166 |
-| **3** | **Запуск скрипта** — создать `c:\projects\test\script.bat` с `echo "Hello World"` | 🔴 Failed | path-traversal + tool-selection + hallucination | KI-167, KI-168 |
+| **3** | **Запуск скрипта** — создать `c:\projects\test\script.bat` с `echo "Hello World"` | 🟡 Partial (fix ready) | path-traversal + tool-selection + hallucination — **fix в v1.13.x, ждёт ре-smoke** | KI-114, KI-167, KI-168 |
 | **4** | **Отчёт о проделанной работе** — notepad → сохранить в `c:\projects\test\` | ⚪ Not started | path-traversal (та же, что #3) | KI-167 |
 | **5** | **Котик** — нарисовать HTML/CSS котика, открыть в браузере, отредактировать по замечаниям | 🕒 Deferred | path-traversal, `file://` в whitelist, anti-loop | KI-160, KI-167, KI-168 |
 
@@ -101,12 +101,22 @@ IIChatTools. Каждый сценарий — конкретная задача
 - **KI-168** — LLM выбирает `file_system_agent` для путей вне workspace. Правильный инструмент — `execute_command` или `code_agent`.
 - `c:\projects\test\` — вне workspace, `PathHelper` отклоняет (RULES § 1.9).
 
-**Fix-план:**
-- KI-114: `AgentToolBase` → `Fail` при `Completed=false`.
-- KI-168: правило 8 в `DefaultSystemPrompt` + уточнение Description.
-- **Рекомендация:** переписать smoke с путём внутри workspace
-  (`%USERPROFILE%\IIChatToolsWorkspace\test\`) — тогда `file_system_agent`
-  сработает, smoke будет чистым.
+**Fix-план (выполнено 2026-10-05):**
+- ✅ **KI-114:** `AgentToolBase` → `Fail` при `Completed=false`.
+- ✅ **KI-167:** усилен SystemPrompt `file_system_agent` (dev + prod) —
+  правила 4/5/6 (жёсткий запрет внешних путей, не врать про успех,
+  перечислять частичный результат). Description уточнено.
+- ✅ **KI-168:** правило 8 в `DefaultSystemPrompt` + ПРИМЕР 3.
+- ⚠️ **Ключевое открытие:** `ExecuteCommandTool.AllowedCommands` НЕ
+  содержит `cmd` / `powershell`. Поэтому правило «внешние пути →
+  `execute_command`» не работает; правильный инструмент — `code_agent`
+  (Python / JS). Это отражено в правиле 8.
+- **Рекомендация для ре-smoke:**
+  - **Вариант A (чистый tool-selection):** переписать DoD #3 с путём
+    внутри workspace — `%USERPROFILE%\IIChatToolsWorkspace\test\`.
+    Тогда `file_system_agent` сработает, smoke чистый.
+  - **Вариант B (оригинальный DoD с `c:\projects\test\`):** проверяет
+    правило 8 — LLM должна выбрать `code_agent`, а не `file_system_agent`.
 
 ### #4 — Отчёт о проделанной работе
 
