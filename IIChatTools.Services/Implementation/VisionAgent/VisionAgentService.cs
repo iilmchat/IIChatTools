@@ -107,6 +107,29 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 ? "vt_" + Guid.NewGuid().ToString("N").Substring(0, 8)
                 : request.TaskId;
 
+            // KI-173 (v1.13.x): fallback URL из текста task.
+            // qwen3-4b часто кладёт URL в `task`, а не в `url` (KI-172).
+            // Без url loop работает на ТЕКУЩЕМ экране — чат IIChatTools, не Chrome.
+            // Пытаемся извлечь URL из task — regex `https?://...`.
+            // Если нашлось — используем как effectiveUrl (не мутируем request).
+            var effectiveUrl = request.Url;
+            if (string.IsNullOrWhiteSpace(effectiveUrl))
+            {
+                var urlMatch = System.Text.RegularExpressions.Regex.Match(
+                    request.Task,
+                    @"https?://[^\s\)\]\},;]+",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (urlMatch.Success)
+                {
+                    effectiveUrl = urlMatch.Value.TrimEnd('.', ',', ';', ')', ']');
+                    _logger.LogWarning(
+                        "VisionAgent[{TaskId}]: url не задан, извлечён из task: {Url}. " +
+                        "Chat LLM должна передавать url отдельным аргументом (KI-172).",
+                        taskId, effectiveUrl);
+                }
+            }
+
             // 2.1. Rate limit (Ф6.4): 5 задач / 5 мин per-user.
             var rateCheck = _rateLimiter.TryAcquire(userId);
             if (!rateCheck.Allowed)
@@ -154,12 +177,13 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
             _logger.LogInformation(
                 "VisionAgent[{TaskId}]: старт задачи (user={UserId}, maxSteps={MaxSteps}, timeout={Timeout}s, url={Url}): {Task}",
-                taskId, userId, maxSteps, maxSeconds, request.Url ?? "(нет)", request.Task);
+                taskId, userId, maxSteps, maxSeconds, effectiveUrl ?? "(нет)", request.Task);
 
             // KI-153 (v1.12.x): предупреждаем, если run_task запущен без URL.
             // Loop работает на ТЕКУЩЕМ экране — если фокус не на whitelisted
             // процессе, все mutation-действия упадут на EnsureForegroundProcessAllowed.
-            if (string.IsNullOrWhiteSpace(request.Url))
+            // KI-173 (v1.13.x): если URL извлечён из task — предупреждения нет.
+            if (string.IsNullOrWhiteSpace(effectiveUrl))
             {
                 _logger.LogWarning(
                     "VisionAgent[{TaskId}]: run_task без url — loop будет работать " +
@@ -200,16 +224,16 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             try
             {
                 // 3. Открыть стартовый URL (если задан).
-                if (!string.IsNullOrWhiteSpace(request.Url))
+                if (!string.IsNullOrWhiteSpace(effectiveUrl))
                 {
                     try
                     {
-                        await _backend.OpenAsync(request.Url, effectiveCts.Token).ConfigureAwait(false);
+                        await _backend.OpenAsync(effectiveUrl, effectiveCts.Token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex,
-                            "VisionAgent[{TaskId}]: OpenAsync упал на '{Url}'", taskId, request.Url);
+                            "VisionAgent[{TaskId}]: OpenAsync упал на '{Url}'", taskId, effectiveUrl);
                         result.Error = $"Не удалось открыть URL: {ex.Message}";
                         requestSw.Stop();
                         result.TotalDurationMs = requestSw.ElapsedMilliseconds;

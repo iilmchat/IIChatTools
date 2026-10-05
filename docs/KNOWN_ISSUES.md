@@ -3736,6 +3736,44 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-173 — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout
+
+- **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-05 (smoke #1 вторая попытка — gismeteo).
+- **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — fallback URL из task),
+  `ChatStreamService.DefaultSystemPrompt` (правило 10).
+- **Симптом:** Chat LLM вызывает `vision_agent(action=run_task, task='Найти
+  погоду в Серпухове на gismeteo.ru')` — **без `url`**. `vision_agent`
+  логирует `url=(нет)` и работает на ТЕКУЩЕМ экране (чат IIChatTools) вместо
+  Chrome. Все шаги → timeout. Домен при этом **в whitelist** — не помогает.
+- **В /test работает:** потому что пользователь явно передаёт `url` в аргументах.
+- **Fix (v1.13.x):**
+  1. **Правило 10** в `DefaultSystemPrompt` — явно требует передавать `url`
+     отдельным аргументом + ПРИМЕР 5.
+  2. **Fallback в `VisionAgentService.RunTaskAsync`** — если `request.Url`
+     пуст, извлекаем `https?://...` из `request.Task` через regex, логируем
+     Warning. Это страховка от qwen3-4b, который кладёт URL в текст.
+- **Связанные:** KI-172 (Chat LLM выбирает vision_agent для browser),
+  KI-131 (Vision Agent).
+
+### KI-174 — Vision LLM timeout 180s не покрывает Qwen2.5-VL-7B
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-05 (smoke #1 вторая попытка — logs LM Studio).
+- **Файлы:** `appsettings.Development.json` (`VisionAgent:VisionLlm:TimeoutSeconds`).
+- **Симптом:** `VisionLlm.TimeoutSeconds = 180`, `MaxTokens = 2048`. Qwen2.5-VL-7B
+  на этом железе выдаёт ~8.4 t/s → полный ответ (2048 токенов) ≈ 245 с.
+  `DescribeAsync` уходит в timeout на ~90-й секунде генерации:
+  `System.TimeoutException: Vision LLM не ответила за 180 секунд.`
+  В логе LM Studio — `Client disconnected. Stopping generation...` посреди ответа.
+- **Fix (v1.13.x):**
+  - `VisionLlm.TimeoutSeconds` → **300** (запас 20%).
+  - `VisionLlm.MaxTokens` → **1024** (достаточно для `ui_elements[]`;
+    реально нужно ~500–800 токенов).
+- **Связанные:** KI-131 (Vision Agent), KI-160 (parser dedup + hard cap).
+
+---
+
 ### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x

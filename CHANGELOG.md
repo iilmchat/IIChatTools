@@ -19,6 +19,19 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.13.x (KI-173, KI-174) — Vision Agent: tool-selection + timeout**:
+  - **KI-173:** Chat LLM не передавала `url` отдельным аргументом в
+    `vision_agent(action=run_task)`, а кладла его в текст `task` → loop
+    работал на текущем экране (чат IIChatTools) вместо Chrome → timeout.
+    Fix: (а) правило 10 в `ChatStreamService.DefaultSystemPrompt`;
+    (б) fallback в `VisionAgentService.RunTaskAsync` — extract `https?://...`
+    из `request.Task` regex'ом (страховка от qwen3-4b).
+  - **KI-174:** `VisionLlm.TimeoutSeconds = 180` не покрывал худший случай
+    для Qwen2.5-VL-7B (2048 токенов × 8.4 t/s ≈ 245 с). Fix:
+    `TimeoutSeconds = 300`, `MaxTokens = 1024` (достаточно для `ui_elements[]`).
+  - **Файлы:** `ChatStreamService.cs`, `VisionAgentService.cs`,
+    `appsettings.Development.json`.
+
 - **v1.13.x (KI-114, KI-167, KI-168) — smoke #3 «Запуск скрипта»:
   tool-selection + ложный успех агента.**
   - **KI-114 (уточнён 2026-10-05 по итогам smoke #3):**

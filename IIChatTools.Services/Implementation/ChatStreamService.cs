@@ -180,7 +180,18 @@ namespace IIChatTools.Services.Implementation
             "\n" +
             "ПРИМЕР 4: «Зайди на chat.deepseek.com, задай вопрос X, верни ответ» " +
             "→ вызови `consult_secondary_agent`. НЕ вызывай `vision_agent` — " +
-            "это обычный сайт с DOM.";
+            "это обычный сайт с DOM.\n" +
+            "\n" +
+            "10. КРИТИЧНО для `vision_agent(action='run_task')`: если задача требует " +
+            "открыть URL — ОБЯЗАТЕЛЬНО передавай его отдельным аргументом `url` " +
+            "(не внутри `task`!). Без `url` Vision Agent работает на текущем экране " +
+            "и упадёт по timeout.\n" +
+            "   ❌ Неправильно: vision_agent(action='run_task', task='Найти погоду на gismeteo.ru')\n" +
+            "   ✅ Правильно:   vision_agent(action='run_task', task='Найти погоду', url='https://www.gismeteo.ru/weather-serpukhov-4370/')\n" +
+            "\n" +
+            "ПРИМЕР 5: «Найди погоду в Серпухове на gismeteo.ru» →\n" +
+            "   `vision_agent(action='run_task', task='Найти погоду в Серпухове', url='https://www.gismeteo.ru/weather-serpukhov-4370/')`\n" +
+            "   Аргумент `url` — обязателен, отдельно от `task`.";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;
