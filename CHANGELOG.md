@@ -64,6 +64,34 @@
     retry до 8 сек + логировать фактическое время подключения).
 
 ### Fixed
+- **v1.13.x (KI-146) — Speech: fallback → virtual hard error +
+  дедупликация label в device picker**:
+  - **speech.js:** если сохранённый микрофон недоступен
+    (`NotFoundError` / `OverconstrainedError` / `NotReadableError` / `AbortError`)
+    и fallback на системный default вернул **virtual** устройство
+    (Steam Streaming / VB-Cable / VoiceMeeter / OBS) — запись
+    **не начинается**, показывается hard error «Выберите физический
+    в Профиль → Аудио». Раньше пользователь получал 2 «нулевых» опыта
+    подряд: сначала «микрофон недоступен», потом «virtual default →
+    maxAbs=0». Флаг `_deviceFallbackUsed` различает «default оказался
+    virtual по независимым причинам» (warning, KI-144) от
+    «fallback → default → virtual» (hard error, KI-146).
+  - **profile-audio.js:** дедупликация `<select>` по нормализованному
+    label. Chrome перечисляет одно физ. устройство как 3 разных `deviceId`
+    с префиксами «По умолчанию — », «Оборудование — », «Default — »,
+    «Communications — ». `normalizeDeviceLabel` их убирает,
+    `populateDevices` группирует по `label.toLowerCase()`, внутри группы
+    выбирает `deviceId`, совпадающий с `savedDeviceId` (чтобы подсветка
+    сохранённого выбора работала), иначе — первый по порядку.
+  - **Файлы:** `speech.js` (+1 флаг, +1 hard-error block в
+    `_startRecording`, правка catch вокруг первого `getUserMedia`),
+    `profile-audio.js` (+`DEVICE_LABEL_PREFIXES`, +`normalizeDeviceLabel`,
+    замена `populateDevices`).
+  - **Требует добавить** (отдельным коммитом или позже):
+    ключ `labelSpeechFallbackVirtual` в `SharedResources.resx` (RU + EN)
+    + `data-label-speech-fallback-virtual` на `#chat-messages`.
+    Пока — fallback на русский текст в JS.
+
 - **v1.12.x — Vision Agent: рабочий smoke на Qwen2.5-VL-7B
   (KI-131, KI-150, KI-155, KI-156, KI-157, KI-158, KI-160)**:
   - `VisionLlm.Model` = `qwen2.5-vl-7b-instruct` (dev + prod) вместо

@@ -134,6 +134,13 @@ let _audioDeviceIdLoading = null;    // Promise, если идёт загруз�
 // Флаг: уже показывали toast про fallback на default в этой сессии.
 let _deviceFallbackToastShown = false;
 
+// v1.13.x-fix12 (KI-146): флаг — был ли в текущей попытке записи fallback
+// на системный default (сохранённое устройство оказалось недоступно).
+// Нужен, чтобы отличить «default оказался virtual по независимым причинам»
+// от «fallback → default → virtual». Второе — hard error, не начинаем запись
+// (иначе пользователь получит 2 «нулевых» опыта подряд).
+let _deviceFallbackUsed = false;
+
 // v1.13.1-fix9 (KI-140-fix): флаг — уже предупреждали о «виртуальном» микрофоне.
 let _virtualDeviceToastShown = false;
 
@@ -393,6 +400,9 @@ async function _startRecording() {
         return;
     }
 
+    // v1.13.x-fix12 (KI-146): сброс флага перед новой попыткой.
+    _deviceFallbackUsed = false;
+
     try {
         // v1.13.1-fix8 (KI-145): использовать сохранённый пользователем микрофон
         // (если задан в /profile → Аудио). Иначе — системный default.
@@ -428,6 +438,10 @@ async function _startRecording() {
                 ex.name);
             _showDeviceFallbackToastOnce();
 
+            // v1.13.x-fix12 (KI-146): пометить, что был fallback —
+            // нужен для hard-error проверки ниже.
+            _deviceFallbackUsed = true;
+
             _stream = await navigator.mediaDevices.getUserMedia({ audio: baseConstraints });
         }
 
@@ -452,6 +466,30 @@ async function _startRecording() {
         // v1.13.1-fix9 (KI-140-fix): если трек — virtual device, а выбор
         // в /profile не сделан — предупреждаем один раз (см. KI-144).
         _maybeWarnAboutVirtualDevice(track?.label);
+
+        // v1.13.x-fix12 (KI-146): hard error, если был fallback, а системный
+        // default тоже оказался virtual. Гарантирует, что пользователь не
+        // получит 2 «нулевых» записи подряд — вместо этого показываем явную
+        // ошибку и просим выбрать физический микрофон в /profile.
+        if (_deviceFallbackUsed
+            && track?.label
+            && VIRTUAL_DEVICE_PATTERN.test(track.label)) {
+
+            console.error(
+                '[speech] Fallback → виртуальное устройство «%s». Запись отменена.',
+                track.label);
+
+            _showError(_getLabel('labelSpeechFallbackVirtual',
+                'Сохранённый микрофон недоступен, а системный — виртуальный. ' +
+                'Выберите физический в Профиль → Аудио.'));
+
+            _releaseAudioResources();
+            _stopStream();
+            _isRecording = false;
+            _stopTimer();
+            _setRecordingUI(false);
+            return;
+        }
 
         _pcmChunks = [];
         _isRecording = true;

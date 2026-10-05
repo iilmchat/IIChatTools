@@ -152,7 +152,38 @@ async function showDeviceState() {
 }
 
 /**
+ * Префиксы, которые Chrome добавляет к label одного и того же
+ * физического устройства (v1.13.x-fix12, KI-146).
+ * Пример: «Микрофон (X)», «По умолчанию — Микрофон (X)»,
+ * «Оборудование — Микрофон (X)». Все три deviceId ведут к одному железу.
+ */
+const DEVICE_LABEL_PREFIXES = [
+    /^По умолчанию\s*—\s*/i,
+    /^По умолчанию\s*-\s*/i,
+    /^Оборудование\s*—\s*/i,
+    /^Оборудование\s*-\s*/i,
+    /^Default\s*—\s*/i,
+    /^Default\s*-\s*/i,
+    /^Communications\s*—\s*/i,
+    /^Communications\s*-\s*/i,
+];
+
+/**
+ * Убирает служебные префиксы из label устройства (v1.13.x-fix12, KI-146).
+ * @param {string} label
+ * @returns {string}
+ */
+function normalizeDeviceLabel(label) {
+    let result = label || '';
+    for (const prefix of DEVICE_LABEL_PREFIXES) {
+        result = result.replace(prefix, '');
+    }
+    return result.trim();
+}
+
+/**
  * Заполняет <select> списком audioinput-устройств.
+ * v1.13.x-fix12 (KI-146): с дедупликацией по нормализованному label.
  */
 async function populateDevices() {
     const select = document.getElementById('profile-audio-device');
@@ -164,17 +195,41 @@ async function populateDevices() {
     const card = document.getElementById('profile-audio-card');
     const defaultLabel = card?.dataset.labelDeviceDefault || 'Default';
 
-    let html = `<option value="">${escapeHtml(defaultLabel)}</option>`;
-
+    // v1.13.x-fix12 (KI-146): дедупликация. Chrome перечисляет одно физ.
+    // устройство как 3 разных deviceId с префиксами в label. Группируем
+    // по нормализованному label. Внутри группы выбираем deviceId, который
+    // совпадает с savedDeviceId (иначе select.value не подсветит сохранённый
+    // выбор), иначе — первый по порядку enumerateDevices.
+    const groups = new Map(); // normalizedLower → MediaDeviceInfo[]
     for (const d of state.devices) {
-        const label = d.label || `Микрофон (${d.deviceId.substring(0, 8)}…)`;
+        const normalized = normalizeDeviceLabel(d.label);
+        const key = normalized.toLowerCase();
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(d);
+    }
+
+    const uniqueDevices = [];
+    for (const group of groups.values()) {
+        const picked = group.find(d => d.deviceId === state.savedDeviceId) || group[0];
+        const displayLabel = normalizeDeviceLabel(picked.label)
+            || picked.label
+            || `Микрофон (${picked.deviceId.substring(0, 8)}…)`;
+        uniqueDevices.push({
+            deviceId: picked.deviceId,
+            label: displayLabel,
+        });
+    }
+
+    let html = `<option value="">${escapeHtml(defaultLabel)}</option>`;
+    for (const d of uniqueDevices) {
         const selected = d.deviceId === state.savedDeviceId ? ' selected' : '';
-        html += `<option value="${escapeHtml(d.deviceId)}"${selected}>${escapeHtml(label)}</option>`;
+        html += `<option value="${escapeHtml(d.deviceId)}"${selected}>${escapeHtml(d.label)}</option>`;
     }
 
     select.innerHTML = html;
 
-    // Если savedDeviceId не найден среди текущих устройств — сбрасываем на default.
+    // Если savedDeviceId вообще отсутствует среди текущих устройств (не только
+    // среди дублей) — сбрасываем на default.
     if (state.savedDeviceId && !state.devices.some(d => d.deviceId === state.savedDeviceId)) {
         console.warn('[profile-audio] Сохранённое устройство не найдено в списке — сброс на default');
         state.savedDeviceId = null;
