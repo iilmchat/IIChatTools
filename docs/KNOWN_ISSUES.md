@@ -3736,6 +3736,49 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-185 — Chat LLM делает лишние vision_agent actions после Fail
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit F)
+- **Обнаружено:** 2026-10-06 (smoke — «Нажми кнопку Новый чат»).
+- **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правило 13).
+- **Симптом:** после Fail от `vision_agent(action='run_task')` Chat LLM:
+  1. Корректно возвращает честный ответ «Кнопка не найдена».
+  2. Но **затем** вызывает `vision_agent(action='click', target='system_status_button')` —
+     самодеятельность, не связанная с задачей.
+  3. Это действие требует approval → модалка висит **5 минут** → timeout.
+- **Root cause:** qwen3-4b «додумывает» за пользователя — пытается обойти Fail
+  через другие actions. Правило 11 покрывает повтор **того же** действия,
+  но не «новых» бессмысленных.
+- **Fix (Commit F):** правило 13 в `DefaultSystemPrompt` —
+  «после fail от vision_agent — верни честный ответ и жди указаний
+  пользователя. НЕ вызывай другие vision_agent actions».
+
+### KI-186 — Vision Agent не может работать с UI IIChatTools (fresh profile)
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-10-06 (smoke — «Нажми кнопку Новый чат»).
+- **Файлы:** `LocalHarnessVisionBackend.cs` (fresh Chrome profile).
+- **Симптом:** Vision Agent открывает `https://localhost:5001` в **fresh
+  Chrome profile** (`vision-profile-XXXX`). У него **НЕТ cookies
+  аутентификации** IIChatTools. Открывается главная страница с кнопками
+  «Перейти» (статус) и «Зарегистрироваться». Кнопки «Новый чат», «Профиль»,
+  «Админка» для Vision Agent **недоступны**.
+- **Это by design:** изоляция профиля — часть 5 уровней безопасности
+  (DESIGN § 6.1). Vision Agent не должен использовать cookies пользователя.
+- **Что это означает:** задачи типа «нажми кнопку Новый чат» **невыполнимы
+  через Vision Agent** и должны возвращать честный ответ
+  «Не могу выполнить — Vision Agent в изолированном браузере».
+- **Возможные решения (отложены):**
+  - **Вариант A:** поддержать передачу cookies из Chat → Vision Agent
+    через `--user-data-dir` shared (сложно, небезопасно, ADR required).
+  - **Вариант B:** CDP-attach к **существующему** Chrome пользователя
+    (уже в KI-161 — DOM+Vision hybrid). Откладывается вместе с ним.
+  - **Вариант C:** использовать `execute_command` + curl/Playwright для
+    UI IIChatTools (не через Vision Agent).
+- **Что делаем сейчас (Commit F):** явный запрет в промпте — Chat НЕ должен
+  вызывать `vision_agent` для UI IIChatTools. Возвращать честный ответ.
+- **Связанные:** KI-161 (DOM+Vision hybrid), KI-185 (лишние actions).
+
 ### KI-182 — Vision Planner зацикливается на одном target
 
 - **Приоритет:** 🟠 High | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x (Commit E)

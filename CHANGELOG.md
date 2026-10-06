@@ -32,6 +32,27 @@
     НЕ вызывай planner_agent / save_memory».
     Файлы: `ChatStreamService.cs`.
 
+- **v1.13.x (KI-185) — Chat LLM делает лишние vision_agent actions после Fail**:
+  - **Симптом:** после Fail от `vision_agent(action='run_task')` Chat LLM
+    возвращает честный ответ, но **затем** вызывает
+    `vision_agent(action='click', target='system_status_button')` —
+    самодеятельность. Approval-модалка висит 5 минут.
+  - **Fix:** правило 13 в `DefaultSystemPrompt` — «после fail от vision_agent
+    НЕ вызывай другие vision_agent actions. Верни честный ответ и жди
+    указаний пользователя».
+    Файлы: `ChatStreamService.cs`.
+
+- **v1.13.x (KI-186) — Vision Agent не может работать с UI IIChatTools**:
+  - **Симптом:** Vision Agent открывает `https://localhost:5001` в fresh
+    Chrome profile без cookies. Видит главную страницу (не `/chat`),
+    кнопки «Новый чат» нет. Задачи типа «нажми Новый чат» невыполнимы.
+  - **Это by design** (изоляция профиля — часть 5 уровней безопасности,
+    DESIGN § 6.1). Задокументировано.
+  - **Fix (Commit F, промпт):** правило 13 явно указывает — для UI IIChatTools
+    НЕ вызывать vision_agent, вернуть честный ответ.
+  - **Отложенные решения:** CDP-attach (KI-161), cookies-передача.
+    Файлы: `ChatStreamService.cs`.
+
 - **v1.13.x (KI-182) — Vision Planner зацикливается на одном target**:
   - **Симптом:** Planner LLM при `run_task` повторял `click new_chat_button`
     на шаге 2, хотя на шаге 1 клик уже был успешным (чат создан). Задача
