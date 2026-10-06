@@ -83,6 +83,15 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
         private const int DefaultWaitMs = 1000;
 
         /// <summary>
+        /// KI-180 (v1.13.x): пауза перед скриншотом, чтобы Bootstrap-модалка
+        /// approval успела закрыться. Bootstrap hide-transition — 300 мс,
+        /// берём 400 мс с запасом. Без паузы GDI-capture попадает в момент
+        /// анимации закрытия и Vision LLM видит `[confirm_dialog, cancel_button,
+        /// confirm_button]` вместо реальных элементов страницы.
+        /// </summary>
+        private const int ApprovalSettleDelayMs = 400;
+
+        /// <summary>
         /// KI-158 (v1.12.x): координаты и размер области overlay для маскировки
         /// на скриншоте (в реальных пикселях экрана). Overlay располагается
         /// в правом верхнем углу: 320 px ширина + 16 px margin = 336.
@@ -443,6 +452,10 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
                 }
             }
 
+            // KI-180: пауза, чтобы approval-модалка успела закрыться.
+            await Task.Delay(ApprovalSettleDelayMs, context.CancellationToken)
+                .ConfigureAwait(false);
+
             byte[] png;
             try
             {
@@ -500,6 +513,10 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
                     return ToolResult.Fail($"Не удалось открыть URL '{url}': {ex.Message}");
                 }
             }
+
+            // KI-180: пауза, чтобы approval-модалка успела закрыться.
+            await Task.Delay(ApprovalSettleDelayMs, context.CancellationToken)
+                .ConfigureAwait(false);
 
             byte[] png;
             try
@@ -572,6 +589,13 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
             ScreenDescriptionDto screen = null;
             if (hasTarget)
             {
+                // KI-180: пауза, чтобы approval-модалка закрылась ДО скриншота.
+                // Без неё GDI-capture ловит момент анимации закрытия Bootstrap,
+                // Vision LLM возвращает [confirm_dialog, cancel_button, confirm_button]
+                // вместо реальных элементов → target не найден (KI-177 как следствие).
+                await Task.Delay(ApprovalSettleDelayMs, context.CancellationToken)
+                    .ConfigureAwait(false);
+
                 byte[] png;
                 try
                 {

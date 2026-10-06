@@ -203,7 +203,15 @@ namespace IIChatTools.Services.Implementation
             "12. Для `vision_agent(action='click'|'type'|...)` с полем `target`:\n" +
             "    используй id из САМОГО ПОСЛЕДНЕГО `vision_agent(action='describe')`,\n" +
             "    а не из более старых вызовов в истории. ID могут меняться между\n" +
-            "    кадрами (KI-160). Если сомневаешься — вызови describe заново.";
+            "    кадрами (KI-160). Если сомневаешься — вызови describe заново.\n" +
+            "\n" +
+            "13. Для UI-задач В ПРИЛОЖЕНИИ IIChatTools (создать новый чат, найти чат,\n" +
+            "    открыть профиль, переключить тему, отправить сообщение) используй\n" +
+            "    `vision_agent(action='run_task')` или `vision_agent(action='click')`.\n" +
+            "    НЕ используй `planner_agent` для UI — он только для сохранения\n" +
+            "    памяти и системной информации. Если задача составная (создать чат\n" +
+            "    И запомнить что-то) — сначала UI-действие через vision_agent,\n" +
+            "    потом planner_agent отдельным вызовом.";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;

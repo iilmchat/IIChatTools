@@ -3762,10 +3762,14 @@ ui_elements: [ confirm_dialog, cancel_button, confirm_button ]
   проверяет `pendingApproval` для текущего чата и ждёт его завершения.
 - **Связанные:** KI-175 (рендер PNG), KI-177 (target не найден).
 
-### KI-177 — Vision Agent: `click(target=X)` — target не найден (рецидив KI-180)
+### KI-177 — Vision Agent: `click(target=X)` — target не найден (следствие KI-180)
 
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
-(следующий коммит — требует `VisionAgentTool.cs`).
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Fix (2026-10-06, Commit D):** пауза 400 мс в `VisionAgentTool.cs`
+  перед `ScreenshotAsync` в `HandleDescribeAsync`, `HandleScreenshotAsync`
+  и `HandleCoordinateActionAsync` (при `hasTarget=true`). Это даёт
+  Bootstrap-модалке approval время на закрытие (hide-transition 300 мс),
+  и GDI-capture не попадает в момент анимации.
 - **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
 - **Файлы:** `VisionAgentTool.cs` (`ClickAsync`), `VisionAgentService.ResolveCoordinates`.
 - **Симптом:** LLM вызывает `vision_agent(describe)` → 5 элементов, включая

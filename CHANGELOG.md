@@ -18,9 +18,27 @@
 
 ## [Unreleased]
 
-### Documented
-- **v1.13.x (KI-177, KI-180) — Vision Agent: approval-модалка в скриншоте**:
-  - **KI-180 (Documented):** approval-модалка IIChatTools попадает в GDI-скриншот
+### Fixed
+- **v1.13.x (KI-177, KI-180, KI-181) — Vision Agent: модалка в кадре +
+  tool-selection для UI-задач**:
+  - **KI-180:** approval-модалка IIChatTools попадала в GDI-скриншот
+    Vision Agent. Bootstrap скрывает модалку с анимацией ~300 мс,
+    а `VisionAgentTool` делал `ScreenshotAsync` **сразу** после
+    `WaitForDecisionAsync` → модель видела
+    `[confirm_dialog, cancel_button, confirm_button]`.
+    Fix: пауза `Task.Delay(400)` перед `ScreenshotAsync` в 3 методах
+    (`HandleDescribeAsync`, `HandleScreenshotAsync`,
+    `HandleCoordinateActionAsync`).
+    Файлы: `VisionAgentTool.cs`.
+  - **KI-177:** `click(target=X)` → FAIL «target 'X' не найден» —
+    следствие KI-180 (модалка в кадре). Fix: тот же (пауза).
+  - **KI-181:** Chat LLM выбирала `planner_agent` для UI-задач
+    в приложении IIChatTools (например, «создать новый чат»).
+    Fix: правило 13 в `ChatStreamService.DefaultSystemPrompt`.
+    Файлы: `ChatStreamService.cs`.
+  - **Warning CS1570:** удалён лишний `/// <summary>` из
+    `VisionSystemPrompt.cs` (мусор от неверно применённой правки
+    Commit C). Файлы: `VisionSystemPrompt.cs`.
     при `vision_agent(action='click')` — Bootstrap закрывает её с анимацией
     ~300 мс, а tool выполняется сразу после `WaitForDecisionAsync`. Vision LLM
     видит `[confirm_dialog, cancel_button, confirm_button]` вместо реальных

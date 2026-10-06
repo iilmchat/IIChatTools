@@ -97,6 +97,9 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// Промпт для Planner LLM — выбирает следующее действие на основе задачи,
         /// истории и описания экрана. Отвечает JSON формата <c>VisionActionDto</c>.
         /// </summary>
+        /// <remarks>
+        /// См. DESIGN § 4.5.
+        /// </remarks>
         public const string PlannerPlanNext =
             "Ты — Planner Agent IIChatTools. Твоя задача — управлять компьютером " +
             "через действия. Ты НЕ видишь экран напрямую — ты получаешь текстовое " +
