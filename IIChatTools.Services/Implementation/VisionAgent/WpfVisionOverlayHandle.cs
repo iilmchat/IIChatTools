@@ -252,11 +252,11 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             {
                 // Dispose во время отправки — нормально.
             }
-            catch (IOException ex)
+            catch (IOException)
             {
                 if (!_disposed)
                 {
-                    _logger.LogDebug(ex,
+                    _logger.LogDebug(
                         "WpfVisionOverlayHandle: pipe закрыт при отправке (taskId={TaskId})",
                         _taskId);
                 }

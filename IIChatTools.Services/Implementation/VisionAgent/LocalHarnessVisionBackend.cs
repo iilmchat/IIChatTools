@@ -551,6 +551,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             var (rx, ry) = ScaleToScreen(x, y);
             var (nx, ny) = NormalizeCoordinates(rx, ry);
 
+            // KI-190-diagnostic: логируем реальные координаты клика — чтобы
+            // можно было сверить с фактическим положением элемента на скрине.
+            _logger.LogInformation(
+                "VisionAgent: CLICK ({ClickMode}) — VL({Vx},{Vy}) → screen({Rx},{Ry})",
+                rightClick ? "right" : "left", x, y, rx, ry);
+
             var downFlag = rightClick
                 ? Win32Interop.MOUSEEVENTF_RIGHTDOWN
                 : Win32Interop.MOUSEEVENTF_LEFTDOWN;

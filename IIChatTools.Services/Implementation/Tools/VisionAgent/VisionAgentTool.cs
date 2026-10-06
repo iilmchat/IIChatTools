@@ -631,15 +631,17 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
                         "Вызови describe, чтобы получить актуальный список.");
                 }
 
-                if (element.Center != null)
-                {
-                    x = element.Center.X;
-                    y = element.Center.Y;
-                }
-                else if (element.Bounds != null)
+                // KI-190 (v1.13.x): bounds priority над center.
+                // См. VisionAgentService.ResolveCoordinates — комментарий.
+                if (element.Bounds != null && element.Bounds.W > 0 && element.Bounds.H > 0)
                 {
                     x = element.Bounds.X + element.Bounds.W / 2;
                     y = element.Bounds.Y + element.Bounds.H / 2;
+                }
+                else if (element.Center != null)
+                {
+                    x = element.Center.X;
+                    y = element.Center.Y;
                 }
                 else
                 {

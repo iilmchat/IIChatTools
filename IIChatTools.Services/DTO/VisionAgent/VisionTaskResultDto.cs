@@ -49,5 +49,15 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// Общая длительность задачи, мс.
         /// </summary>
         public long TotalDurationMs { get; set; }
+
+        /// <summary>
+        /// v1.13.x (KI-190): base64 последнего успешного скриншота задачи.
+        /// Намеренно PascalCase "Base64" — после camelCase-сериализации
+        /// получится ключ "base64", совместимый с KI-175-рендерером в chat.js.
+        /// null, если скриншоты не снимались (SaveToWorkspace = false).
+        /// В БД не сохраняется — ChatStreamService.SanitizeToolResultForLlm
+        /// (KI-176) вырезает поле base64 из Content перед записью.
+        /// </summary>
+        public string Base64 { get; set; }        
     }
 }

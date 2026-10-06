@@ -94,9 +94,26 @@ namespace IIChatTools.VisionOverlay
         /// </summary>
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
+            // v1.13.x (KI-191): overlay перенесён в правый НИЖНИЙ угол.
+            // Причина: в правом верхнем углу он перекрывает адресную строку
+            // Chrome, и Qwen2.5-VL-7B может «цепляться» за него как anchor —
+            // отсюда системный сдвиг координат по y (~50 px вниз).
+            RepositionToBottomRight();
+
+            // При изменении текста / высоты окна (SizeToContent="Height")
+            // окно должно оставаться приклеенным к нижнему краю.
+            SizeChanged += (_, __) => RepositionToBottomRight();
+        }
+
+        /// <summary>
+        /// Позиционирует overlay в правом нижнем углу рабочей области
+        /// (KI-191). Вызывается при Loaded и при каждом SizeChanged.
+        /// </summary>
+        private void RepositionToBottomRight()
+        {
             var work = SystemParameters.WorkArea;
             Left = work.Right - ActualWidth - CornerMargin;
-            Top = work.Top + CornerMargin;
+            Top = work.Bottom - ActualHeight - CornerMargin;
         }
 
         /// <summary>

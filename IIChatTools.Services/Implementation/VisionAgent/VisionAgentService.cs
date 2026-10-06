@@ -165,6 +165,11 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 Success = false
             };
 
+            // v1.13.x (KI-190): последний успешный PNG — вернём в result.Base64,
+            // чтобы Chat UI мог отрендерить картинку (KI-175).
+            // Hoisted из try-блока: иначе не видно после finally (CS0103).
+            byte[] lastScreenshotPng = null;
+
             var requestSw = Stopwatch.StartNew();
 
             // Ф6.3 (KI-131): общий timeout на всю задачу.
@@ -259,6 +264,8 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     try
                     {
                         png = await _backend.ScreenshotAsync(effectiveCts.Token).ConfigureAwait(false);
+                        // v1.13.x (KI-190): запоминаем последний успешный PNG.
+                        lastScreenshotPng = png;
                     }
                     catch (OperationCanceledException)
                     {
@@ -517,6 +524,23 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     result.Error ?? "(нет)");
             }
 
+            // v1.13.x (KI-190): base64 последнего скриншота — Chat UI отрендерит.
+            // Ограничение 3 MB — защита от раздутия SSE (для downscale-скриншотов
+            // 1024-1280px размер PNG ~150-300 KB → ~200-400 KB base64, с запасом).
+            if (lastScreenshotPng != null && lastScreenshotPng.Length > 0
+                && lastScreenshotPng.Length <= 3_000_000)
+            {
+                try
+                {
+                    result.Base64 = Convert.ToBase64String(lastScreenshotPng);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "VisionAgent[{TaskId}]: base64-кодирование скриншота упало", taskId);
+                }
+            }
+
             return result;
         }
 
@@ -596,16 +620,22 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 var element = screen?.UiElements?.FirstOrDefault(el =>
                     string.Equals(el.Id, action.Target, StringComparison.Ordinal));
 
-                if (element?.Center != null)
+                if (element != null)
                 {
-                    return (element.Center.X, element.Center.Y);
-                }
+                    // KI-190 (v1.13.x): приоритет bounds над center.
+                    // Qwen2.5-VL-7B стабильно ошибается в center.y (возвращает ~20,
+                    // игнорируя фактический bounds.y), но bounds выдаёт корректно.
+                    // Считаем центр из bounds, если он есть. Center — только fallback.
+                    if (element.Bounds != null && element.Bounds.W > 0 && element.Bounds.H > 0)
+                    {
+                        return (element.Bounds.X + element.Bounds.W / 2,
+                                element.Bounds.Y + element.Bounds.H / 2);
+                    }
 
-                // Если target есть в screen, но без center — попробуем bounds.
-                if (element?.Bounds != null)
-                {
-                    return (element.Bounds.X + element.Bounds.W / 2,
-                            element.Bounds.Y + element.Bounds.H / 2);
+                    if (element.Center != null)
+                    {
+                        return (element.Center.X, element.Center.Y);
+                    }
                 }
 
                 throw new InvalidOperationException(
