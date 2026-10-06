@@ -365,6 +365,21 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         continue;
                     }
 
+                    // 4.4.1. KI-187 (v1.13.x): детектор цикла.
+                    // Проверяем накопленную историю ПЕРЕД выполнением действия:
+                    // если Planner зациклился — прерываем loop с fail.
+                    // Причина: на wikipedia.org Planner делал 4×wait подряд,
+                    // потом повторял click search_btn → бесконечный loop.
+                    if (DetectPlannerCycle(history, out var cycleReason))
+                    {
+                        _logger.LogWarning(
+                            "VisionAgent[{TaskId}]: детектор цикла сработал — {Reason}",
+                            taskId, cycleReason);
+                        result.Success = false;
+                        result.Error = cycleReason;
+                        break;
+                    }
+
                     // 4.5. Sanitized action (если валидатор clamp'нул).
                     var effectiveAction = validation.SanitizedAction ?? action;
 
@@ -605,6 +620,78 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
             throw new InvalidOperationException(
                 "VisionAgentService: не задан ни target, ни x/y для действия.");
+        }
+
+        // ============================================================
+        // KI-187 (v1.13.x) — детектор цикла Planner LLM.
+        // ============================================================
+
+        /// <summary>Сколько последних шагов анализировать на зацикливание.</summary>
+        private const int CycleDetectionWindow = 3;
+
+        /// <summary>
+        /// KI-187 (v1.13.x): проверяет, не зациклился ли Planner LLM.
+        ///
+        /// <para>
+        /// <b>Симптом:</b> на wikipedia.org после успешного <c>click search_btn</c>
+        /// Planner делал 4×<c>wait</c> подряд, потом повторял <c>click search_btn</c>
+        /// → бесконечный цикл. Vision LLM видит одну и ту же страницу (Wikipedia
+        /// оставляет поле поиска сверху при переходе), Planner не понимает,
+        /// что задача уже выполнена.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Правила:</b>
+        /// <list type="bullet">
+        ///   <item>3+ подряд <c>wait</c> — fail (нечего ждать, планировщик в тупике).</item>
+        ///   <item>3+ подряд одинаковый <c>(action, target)</c> — fail (цикл).</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        /// <param name="history">Накопленная история шагов.</param>
+        /// <param name="outReason">Причина зацикливания (если возвращает true).</param>
+        /// <returns>true — если обнаружен цикл; false — всё чисто.</returns>
+        private static bool DetectPlannerCycle(
+            IReadOnlyList<VisionStepDto> history,
+            out string outReason)
+        {
+            outReason = null;
+
+            if (history == null || history.Count < CycleDetectionWindow)
+            {
+                return false;
+            }
+
+            // 1. 3+ подряд wait — Planner в тупике.
+            var lastN = history
+                .Skip(history.Count - CycleDetectionWindow)
+                .ToList();
+
+            if (lastN.All(s => string.Equals(
+                    s.Action, "wait", StringComparison.OrdinalIgnoreCase)))
+            {
+                outReason =
+                    $"Planner LLM сделал {CycleDetectionWindow} шага 'wait' подряд. " +
+                    "Вероятно, страница не меняется или задача требует другого действия.";
+                return true;
+            }
+
+            // 2. 3+ подряд одинаковый (action, target).
+            var first = lastN[0];
+            var allSame = lastN.All(s =>
+                string.Equals(s.Action, first.Action, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(s.Target ?? string.Empty, first.Target ?? string.Empty,
+                    StringComparison.Ordinal));
+            if (allSame)
+            {
+                outReason =
+                    $"Planner LLM повторил действие '{first.Action}' с target " +
+                    $"'{first.Target}' {CycleDetectionWindow} раз подряд. " +
+                    "Возможно, задача уже выполнена или Planner не видит изменений.";
+                return true;
+            }
+
+            return false;
         }
     }
 }

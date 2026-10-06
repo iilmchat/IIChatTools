@@ -32,6 +32,19 @@
     НЕ вызывай planner_agent / save_memory».
     Файлы: `ChatStreamService.cs`.
 
+- **v1.13.x (KI-187, KI-188) — Vision Agent: детектор цикла + graceful pipe**:
+  - **KI-187 (High):** Planner LLM зацикливался на `wait` после успешного
+    action. На wikipedia.org: `type "Москва"` → `click search_button` →
+    4×`wait` → повторный `click search_button` → loop до STOP. Fix:
+    детектор `DetectPlannerCycle` в `VisionAgentService` — 3+ подряд `wait`
+    или 3+ подряд одинаковый `(action, target)` → fail. Плюс правило 12
+    в `PlannerPlanNext` — не делать `wait` при 2+ предыдущих.
+    Файлы: `VisionAgentService.cs`, `VisionSystemPrompt.cs`.
+  - **KI-188 (Low):** при STOP от overlay `WpfVisionOverlayHandle.SendCommand`
+    падал с `IOException: Pipe is broken` (overlay уже мёртв). В логах —
+    полный stack trace. Fix: `try/catch (IOException)` в `SendCommand` +
+    `try/catch (Exception)` в `SetFinalStatus`. Файлы: `WpfVisionOverlayHandle.cs`.
+
 - **v1.13.x (KI-185) — Chat LLM делает лишние vision_agent actions после Fail**:
   - **Симптом:** после Fail от `vision_agent(action='run_task')` Chat LLM
     возвращает честный ответ, но **затем** вызывает

@@ -3736,6 +3736,57 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-187 — Vision Planner зацикливается на `wait` после успешного action
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit G)
+- **Обнаружено:** 2026-10-06 (smoke #1 — wikipedia.org, «Найди статью про Москву»).
+- **Файлы:** `VisionAgentService.cs` (детектор цикла).
+- **Симптом:** после успешной цепочки `type search_input "Москва"` →
+  `click search_button` Planner LLM делал **4×`wait` подряд**, потом
+  **повторял `click search_button`** → бесконечный loop. Пользователь
+  остановил STOP-кнопкой на шаге 9 из 15.
+- **Root cause:** Wikipedia оставляет поле поиска и кнопку в верхней части
+  страницы даже после перехода к результатам. Vision LLM продолжает видеть
+  те же 2 элемента (`search_input`, `search_button`), Planner не понимает,
+  что состояние не изменилось → ждёт, потом повторяет.
+- **Fix (Commit G):**
+  - В `VisionAgentService.RunTaskAsync` — детектор цикла
+    `DetectPlannerCycle`: если последние 3 шага = `wait` подряд ИЛИ одинаковый
+    `(action, target)` — прервать loop с `fail` и внятным сообщением.
+  - Плюс: правило в `PlannerPlanNext` — «если предыдущие 3 шага были `wait` —
+    не делай снова `wait`, выбери done/fail/другое действие».
+- **Что НЕ решает:** сам факт «Vision LLM видит ту же страницу» — это
+  ограничение VL-модели. Детектор цикла — защита от бесконечного loop,
+  а не от «Planner не понимает, что задача выполнена».
+- **Долгосрочно:** в KI-161 (CDP-attach к Chrome) — можно проверять URL
+  страницы напрямую через CDP → определять переход.
+
+### KI-188 — `Pipe is broken` при STOP от overlay
+
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit G)
+- **Обнаружено:** 2026-10-06 (smoke #1 — пользователь нажал STOP).
+- **Файлы:** `WpfVisionOverlayHandle.cs` (`SendCommand`, `SetFinalStatus`).
+- **Симптом:** при STOP от overlay `VisionAgentService.RunTaskAsync` в
+  `finally` вызывает `overlayHandle.SetFinalStatus(...)` → `SendCommand` →
+  `StreamWriter.WriteLine` → **`IOException: Pipe is broken`** (overlay уже
+  закрыт). В логах — полный stack trace.
+- **Fix (Commit G):** `try/catch (IOException)` в `SendCommand` +
+  `try/catch (Exception)` в `SetFinalStatus` → `LogDebug` вместо throw.
+- **Связанные:** KI-142 (WPF overlay), KI-152 (timeout vs отмена).
+
+### KI-189 — После STOP от overlay Chat возвращает корректный ответ (Documented)
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-10-06 (smoke #1 — пользователь нажал STOP).
+- **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
+- **Симптом:** после STOP от overlay `vision_agent` вернул
+  `success=false, message="Отменено пользователем (STOP в overlay)."`.
+  Chat LLM корректно ответила:
+  «Задача не была выполнена из-за отмены пользователем.»
+- **Что подтверждено:** правило 11 (KI-184) покрывает случай STOP:
+  Chat **не** пыталась делать лишние vision_agent actions или planner_agent.
+- **Не баг:** это ожидаемое поведение — документация для истории.
+
 ### KI-185 — Chat LLM делает лишние vision_agent actions после Fail
 
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit F)
