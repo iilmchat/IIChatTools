@@ -3736,6 +3736,90 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-180 — Approval-модалка попадает в скриншот Vision Agent
+
+- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
+- **Файлы:** `VisionAgentTool.cs` (ClickAsync / DescribeAsync), `ChatStreamService` (approval flow).
+- **Симптом:** при `vision_agent(action='click', target='X')` — действие требует
+  approval → показывается модалка IIChatTools. Пользователь нажимает «Подтвердить»
+  → Bootstrap закрывает модалку с анимацией ~300 мс. Но tool выполняется **сразу**
+  после `WaitForDecisionAsync` — snapshot GDI успевает захватить **исчезающую**
+  модалку. Vision LLM возвращает `[confirm_dialog, cancel_button, confirm_button]`
+  вместо реальных UI-элементов страницы → `target='X'` не найден → FAIL.
+- **Доказательство (LM Studio logs 2026-10-06 17:19:37):**
+```text
+description: "Скриншот веб-страницы с подтверждением действия и элементами
+инструмента IIChatTools."
+ui_elements: [ confirm_dialog, cancel_button, confirm_button ]
+```
+- **Fix (план, v1.13.x):**
+- **Вариант A (простой):** в `VisionAgentTool.ClickAsync` при первом describe
+  добавить `await Task.Delay(500)` — модалка успеет закрыться.
+- **Вариант B:** маскировать approval-модалку на скриншоте (по аналогии с
+  overlay mask из KI-158). Нужно найти bounds модалки через CDP или JS-канал.
+- **Вариант C (архитектурный):** Chat должен передавать ChatId в tool, tool
+  проверяет `pendingApproval` для текущего чата и ждёт его завершения.
+- **Связанные:** KI-175 (рендер PNG), KI-177 (target не найден).
+
+### KI-177 — Vision Agent: `click(target=X)` — target не найден (рецидив KI-180)
+
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+(следующий коммит — требует `VisionAgentTool.cs`).
+- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
+- **Файлы:** `VisionAgentTool.cs` (`ClickAsync`), `VisionAgentService.ResolveCoordinates`.
+- **Симптом:** LLM вызывает `vision_agent(describe)` → 5 элементов, включая
+`new_chat_button`. Затем `vision_agent(click, target='new_chat_button')` →
+**FAIL: «target 'new_chat_button' не найден в ui_elements»**.
+- **Root cause (уточнён 2026-10-06):** **KI-180** — свежий describe внутри
+`vision_agent(click)` захватывает approval-модалку, Vision LLM возвращает
+`[confirm_dialog, cancel_button, confirm_button]`, target `new_chat_button`
+там отсутствует.
+- **Что сделано в v1.13.x (Commit C):**
+1. Правило 12 в Chat DefaultSystemPrompt — использовать id из **последнего**
+   describe, не из старых.
+2. Правило 21 в VisionUiDescribe — **стабильные id** (не переименовывать
+   элементы между кадрами).
+- **Что осталось (следующий коммит):** fix самого tool — кэш последнего
+`ScreenDescriptionDto` в `VisionAgentService` (TTL 30 сек), использовать его
+при `target != null` вместо свежего describe. **Или** — фикс KI-180
+(маскировка модалки).
+- **Связанные:** KI-180 (модалка в кадре — настоящий корень), KI-160
+(нестабильность VL), KI-131 (Vision Agent).
+
+### KI-178 — Vision LLM timeout 300 сек при `Qwen2.5-VL-7B`
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-06 (smoke #1 — три timeout за сессию).
+- **Файлы:** `appsettings.Development.json` (`VisionAgent:VisionLlm:MaxTokens`).
+- **Симптом:** `Qwen2.5-VL-7B` на этом железе даёт ~8.5 t/s. При prompt
+~2000 токенов + `MaxTokens=1024` реальное время генерации достигает 240+ сек.
+На сложных экранах модель может зацикливаться (повторять элементы) и
+не укладываться даже в 300 сек.
+- **Доказательство (LM Studio logs):**
+- Один describe: prompt 13.5 с + eval 59 с = **72 с** ✅
+- Другой: prompt 8.1 с + eval 39 с = **47 с** ✅
+- Третий: клиент disconnected после `n_gen = 773` — timeout 300 с ❌
+- **Fix (v1.13.x):** `MaxTokens` 1024 → **768** (реально нужно ~500-650 для
+`ui_elements[]`; 768 = запас 20%). Плюс — в `VisionSystemPrompt.VisionUiDescribe`
+добавлено правило 22 (стоп-условие, не дублировать элементы).
+- **Связанные:** KI-131, KI-174 (первый timeout 180→300), KI-160 (зацикливание).
+
+### KI-179 — Chat LLM зацикливается на Vision-задачах
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
+- **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правила 11-12).
+- **Симптом:** qwen3-4b вызывает `describe → click(Fail) → describe →
+click(Fail) → describe → click(Fail)` — лимит 5 итераций. В финальном
+ответе — галлюцинация «Успешно определил текущий экран...» + извинение
+за лимит. Рецидив KI-118/120/127/168.
+- **Fix (v1.13.x):**
+- Правило 11: «При `success=false` — НЕ повторяй то же действие. Сделай
+  describe / смени target / переключись на другой tool».
+- Правило 12: «Используй id из САМОГО ПОСЛЕДНЕГО describe».
+- **Связанные:** KI-118, KI-120, KI-127, KI-168 (tool-selection у qwen3-4b).
+
 ### KI-176 — base64 в history ломает чат (Critical)
 
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.13.x
@@ -3784,7 +3868,74 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   сохраняется в БД (по KI-176). Live-режим — работает, история — нет.
   Потенциальный отдельный KI (v1.13.x): сохранять base64 в
   `MetadataJson` для F5-восстановления.
-  
+
+---
+
+### KI-177 — Vision Agent: click(target=X) не находит X в свежем describe
+
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
+- **Файлы:** `VisionAgentTool.cs` (`ClickAsync`), `VisionAgentService.ResolveCoordinates`.
+- **Симптом:** LLM вызывает `describe` → получает `ui_elements[].id`
+  (например, `new_chat_button`). Затем вызывает `click(target='new_chat_button')`
+  → **Fail: «target 'new_chat_button' не найден в ui_elements»**. Причина:
+  `ClickAsync` делает **свой** свежий `DescribeAsync`, а Vision LLM
+  возвращает **другие id** при каждом вызове (нестабильна в именовании).
+- **Fix (план):** кэш последнего `ScreenDescriptionDto` в `VisionAgentService`
+  (TTL 30 сек) — при `target != null` использовать его, а не свежий describe.
+  Дополнительно усилить промпт: «используй стабильные snake_case id по типу
+  элемента (`new_chat_button`, `send_button`)».
+- **Связанные:** KI-131 (Vision Agent), KI-160 (нестабильность VL).
+
+---
+
+### KI-178 — Vision LLM timeout 300 сек при 2000+ токенах промпта
+
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-06 (smoke #1 — три timeout за сессию).
+- **Файлы:** `appsettings.Development.json` (`VisionAgent:VisionLlm:MaxTokens`),
+  `VisionSystemPrompt.PlannerPlanNext`.
+- **Симптом:** `Qwen2.5-VL-7B` на этом железе даёт ~8.5 t/s. При prompt
+  ~2000 токенов + `MaxTokens=1024` реальное время генерации достигает 240+
+  сек, а иногда модель зацикливается и не останавливается → timeout 300 сек.
+- **Fix (план):** `MaxTokens` 1024 → **512** (реально нужно ~500 для
+  `ui_elements[]`). В промпт добавить `StopSequences = ["\n\n\n"]` +
+  жёстче: «Остановись на закрывающей `]`, не повторяй элементы».
+- **Связанные:** KI-131, KI-174 (первый timeout 180→300), KI-160 (зацикливание).
+
+---
+
+### KI-179 — Chat LLM зацикливается на Vision-задачах
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
+- **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
+- **Симптом:** qwen3-4b вызывает `describe → click (Fail) → describe →
+  click (Fail) → describe → click (Fail) → лимит 5 итераций`. В финальном
+  ответе — галлюцинация «Успешно определил текущий экран...» + извинение
+  за лимит. Это рецидив KI-118/120/127/168.
+- **Fix (план):** правило 11: «Если tool вернул `success=false` —
+  НЕ повторяй то же действие. Перепланируй (новый describe / другой target /
+  другой инструмент). Если 2 Fail подряд — переключись на `consult_secondary_agent`».
+- **Связанные:** KI-118, KI-120, KI-127, KI-168 (tool-selection у qwen3-4b).
+
+---
+
+### KI-180 — Approval-модалка попадает в скриншот Vision Agent
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-10-06 (smoke #1).
+- **Симптом:** при `click(target=X)` выполняется `DescribeAsync` **после**
+  открытия approval-модалки в IIChatTools. Модалка попадает в скриншот,
+  Vision LLM описывает её кнопки («Отклонить», «Подтвердить») вместо
+  целевого UI. Пример: LLM получила список `[confirm_dialog, cancel_button,
+  confirm_button]` вместо ожидаемого `[new_chat_button, ...]`.
+- **Не баг:** модалка approval — часть UI на момент скриншота.
+  Но UX странный: LLM думает, что видит целевой диалог.
+- **Возможное решение:** маскировать модалку approval на скриншоте
+  (по аналогии с overlay mask из KI-158). Или — сделать approval
+  «инфраструктурным» (не попадает в GDI capture).
+
 ---
 
 ### KI-173 — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout

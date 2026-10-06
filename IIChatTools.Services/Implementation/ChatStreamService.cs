@@ -191,7 +191,19 @@ namespace IIChatTools.Services.Implementation
             "\n" +
             "ПРИМЕР 5: «Найди погоду в Серпухове на gismeteo.ru» →\n" +
             "   `vision_agent(action='run_task', task='Найти погоду в Серпухове', url='https://www.gismeteo.ru/weather-serpukhov-4370/')`\n" +
-            "   Аргумент `url` — обязателен, отдельно от `task`.";
+            "   Аргумент `url` — обязателен, отдельно от `task`.\n" +
+            "\n" +
+            "11. КРИТИЧНО при `success=false` (для ЛЮБОГО tool, особенно `vision_agent`):\n" +
+            "    НЕ повторяй то же действие с теми же аргументами. Два Fail подряд\n" +
+            "    с одинаковыми аргументами — гарантированный провал. Вместо этого:\n" +
+            "    - сделай `vision_agent(action='describe')` для свежего списка элементов;\n" +
+            "    - выбери ДРУГОЙ target или аргумент;\n" +
+            "    - либо переключись на `consult_secondary_agent` (для browser-задач).\n" +
+            "\n" +
+            "12. Для `vision_agent(action='click'|'type'|...)` с полем `target`:\n" +
+            "    используй id из САМОГО ПОСЛЕДНЕГО `vision_agent(action='describe')`,\n" +
+            "    а не из более старых вызовов в истории. ID могут меняться между\n" +
+            "    кадрами (KI-160). Если сомневаешься — вызови describe заново.";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;

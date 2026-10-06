@@ -18,7 +18,35 @@
 
 ## [Unreleased]
 
+### Documented
+- **v1.13.x (KI-177, KI-180) — Vision Agent: approval-модалка в скриншоте**:
+  - **KI-180 (Documented):** approval-модалка IIChatTools попадает в GDI-скриншот
+    при `vision_agent(action='click')` — Bootstrap закрывает её с анимацией
+    ~300 мс, а tool выполняется сразу после `WaitForDecisionAsync`. Vision LLM
+    видит `[confirm_dialog, cancel_button, confirm_button]` вместо реальных
+    элементов страницы.
+  - **KI-177 (Planned, следующий коммит):** `click(target='X')` → FAIL
+    «target 'X' не найден» — следствие KI-180. Требует `VisionAgentTool.cs`
+    (кэш последнего `ScreenDescriptionDto`) или маскировки модалки.
+  - **Что сделано сейчас:** правило 12 в Chat DefaultSystemPrompt +
+    правило 21 в VisionUiDescribe (стабильные id).
+  - **Что осталось:** fix самого tool — следующий коммит.
+
 ### Fixed
+- **v1.13.x (KI-178, KI-179) — Vision Agent: timeout + зацикливание Chat LLM**:
+  - **KI-178:** `MaxTokens = 1024` не укладывалось в 300 с таймаут на
+    `Qwen2.5-VL-7B` (8.5 t/s): при prompt ~2000 токенов время генерации
+    достигало 240+ сек, иногда модель зацикливалась и не останавливалась.
+    Fix: `MaxTokens` 1024 → **768**; правило 22 в `VisionUiDescribe` —
+    стоп-условие «остановись после `]`, не дублируй элементы».
+    Файлы: `appsettings.Development.json`, `VisionSystemPrompt.cs`.
+  - **KI-179:** qwen3-4b в Chat зацикливалась на Vision-задачах:
+    `describe → click(Fail) → describe → click(Fail) → …` до лимита 5
+    итераций. В финальном ответе — галлюцинация «Успешно определил…».
+    Fix: правила 11 (при `success=false` — не повторяй, перепланируй)
+    и 12 (используй id из последнего describe) в `DefaultSystemPrompt`.
+    Файлы: `ChatStreamService.cs`.
+
 - **v1.13.x (KI-176) — base64 в history ломает чат (Critical)**:
   - **Симптом:** после `vision_agent(action=screenshot)` любой следующий
     запрос в чате падает с `400: request (260605 tokens) exceeds the
