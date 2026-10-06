@@ -3736,6 +3736,54 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-182 — Vision Planner зацикливается на одном target
+
+- **Приоритет:** 🟠 High | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x (Commit E)
+- **Обнаружено:** 2026-10-06 (smoke — «Создай новый чат с заголовком "Тест"»).
+- **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — детектор цикла, план — Commit F),
+  `VisionSystemPrompt.cs` (`PlannerPlanNext` — правила 10-11).
+- **Симптом:** Planner LLM при `run_task`:
+  - Шаг 1: `click new_chat_button` → **успех** (чат создан).
+  - Шаг 2: `click new_chat_button` → **повтор** того же действия.
+  - Шаг 3: describe → `ui_elements=[]` → `fail`.
+  Loop исчерпывает MaxSteps на повтор одного и того же действия.
+- **Root cause:** правила 8-9 в PlannerPlanNext ловят только повторы **после fail**.
+  Но шаг 1 был **успешным** — Planner не видит, что цель достигнута.
+- **Fix (Commit E, soft):** правило 10 в `PlannerPlanNext` — «если в history был
+  успешный click по target X и цель достигнута — верни done. Не повторяй click X».
+  Правило 11 — обработка неполных задач (ввод текста после клика).
+- **Fix (Commit F, hard):** детектор цикла в `VisionAgentService` — перед
+  `PlanNextAsync` проверка `history`: 2+ шага с одинаковым `(action, target)` →
+  пропустить шаг; 3+ подряд → fail.
+- **Связанные:** KI-160 (нестабильность VL), KI-131 (Vision Agent).
+
+### KI-183 — Chat LLM выдумывает URL для `vision_agent(action=describe)`
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit E)
+- **Обнаружено:** 2026-10-06 (smoke — «Создай новый чат с заголовком "Тест"»).
+- **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правило 10).
+- **Симптом:** после fail от `vision_agent(action=run_task)`, Chat LLM вызывает
+  `vision_agent(action='describe', url='https://ii-chattools.com')` — выдуманный
+  домен, которого нет в whitelist. Fail:
+  `Домен «ii-chattools.com» не в whitelist`.
+- **Fix (Commit E):** правило 10 в `DefaultSystemPrompt` — «НЕ выдумывай URL.
+  Для UI-задач приложения IIChatTools — НЕ указывай url вообще, Vision Agent
+  работает на текущем экране».
+- **Связанные:** KI-181 (правило 13 — UI-задачи через vision_agent).
+
+### KI-184 — Chat LLM делает лишние вызовы `planner_agent` после Fail
+
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit E)
+- **Обнаружено:** 2026-10-06 (smoke — «Создай новый чат с заголовком "Тест"»).
+- **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правило 11).
+- **Симптом:** после 2+ Fail от `vision_agent` Chat LLM вызывает `planner_agent`
+  с задачей «Запомнить, что создание чата не удалось» — записывает в
+  `MemoryEntries` (ключ `chat_creation_issue`) факт провала. Это не задача
+  пользователя — самодеятельность LLM.
+- **Fix (Commit E):** правило 11 в `DefaultSystemPrompt` — «после 2+ Fail подряд
+  НЕ вызывай planner_agent / save_memory. Верни честный ответ пользователю».
+- **Связанные:** KI-183 (следствие той же сессии).
+
 ### KI-180 — Approval-модалка попадает в скриншот Vision Agent
 
 - **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.13.x

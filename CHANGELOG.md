@@ -19,6 +19,29 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.13.x (KI-183, KI-184) — Chat LLM: галлюцинация URL + лишние вызовы**:
+  - **KI-183:** Chat LLM выдумывала URL (`ii-chattools.com`) для
+    `vision_agent(action='describe')` — домен не в whitelist → Fail.
+    Fix: правило 10 в `DefaultSystemPrompt` — «НЕ выдумывай URL. Для UI-задач
+    приложения IIChatTools — НЕ указывай url вообще».
+    Файлы: `ChatStreamService.cs`.
+  - **KI-184:** после 2+ Fail от Vision Agent Chat LLM вызывала
+    `planner_agent(task='Запомнить, что создание чата не удалось')` —
+    записывала в `MemoryEntries` факт провала. Fix: правило 11 в
+    `DefaultSystemPrompt` — «после 2+ Fail подряд — верни честный ответ,
+    НЕ вызывай planner_agent / save_memory».
+    Файлы: `ChatStreamService.cs`.
+
+- **v1.13.x (KI-182) — Vision Planner зацикливается на одном target**:
+  - **Симптом:** Planner LLM при `run_task` повторял `click new_chat_button`
+    на шаге 2, хотя на шаге 1 клик уже был успешным (чат создан). Задача
+    не завершалась `done`, loop исчерпывал MaxSteps.
+  - **Fix (Commit E, soft):** правило 10 в `PlannerPlanNext` — «если в history
+    был успешный click по target X и цель достигнута — верни done».
+    Правило 11 — обработка неполных задач (ввод текста после клика).
+    **Hard-fix (детектор цикла в `VisionAgentService`) — Commit F.**
+    Файлы: `VisionSystemPrompt.cs`.
+
 - **v1.13.x (KI-177, KI-180, KI-181) — Vision Agent: модалка в кадре +
   tool-selection для UI-задач**:
   - **KI-180:** approval-модалка IIChatTools попадала в GDI-скриншот
