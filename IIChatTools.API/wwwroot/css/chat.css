@@ -416,6 +416,51 @@
 
 /* ============ Tool calls / результаты ============ */
 
+/* KI-175: PNG-скриншот от vision_agent в tool-block. */
+.chat-tool-result-image {
+    margin-top: 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: var(--bs-body-bg);
+    max-width: 100%;
+}
+
+.chat-tool-result-image img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    cursor: zoom-in;
+    transition: opacity 0.15s ease;
+}
+
+.chat-tool-result-image img:hover {
+    opacity: 0.92;
+}
+
+.chat-tool-result-image-meta {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    word-break: break-all;
+}
+
+.chat-tool-result-image-meta code {
+    font-size: 0.7rem;
+    background: transparent;
+    color: var(--bs-body-color);
+}
+
+/* На мобильных — не растягивать на всю ширину */
+@media (max-width: 576px) {
+    .chat-tool-result-image {
+        max-width: 100%;
+    }
+}
+
 .chat-tool-block,
 .chat-tool-result {
     display: flex;

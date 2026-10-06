@@ -3022,15 +3022,68 @@ function appendToolResultBlock(bubble, result) {
     if (!toolsEl) return;
 
     const ok = result.success;
-    const preview = (result.message || '').substring(0, 100);
+    const preview = (result.message || '').substring(0, 150);
+    const content = result.content || {};
+
+    // KI-175: если tool вернул PNG (vision_agent action=screenshot) —
+    // рендерим <img> с data-URL прямо в tool-block.
+    // base64 приходит в SSE-событии tool_result (в БД и LM Studio он вырезан — KI-176).
+    const imageHtml = renderToolResultImage(ok, result.name, content);
 
     toolsEl.insertAdjacentHTML('beforeend', `
         <div class="chat-tool-result ${ok ? 'success' : 'error'}">
             <span class="chat-tool-icon">${ok ? '✅' : '❌'}</span>
             <span class="chat-tool-name">${escapeHtml(result.name || 'tool')}</span>
             <span class="chat-tool-preview">${escapeHtml(preview)}</span>
-        </div>`);
+        </div>
+        ${imageHtml}`);
     scrollToBottom();
+}
+
+/**
+ * KI-175: рендерит <img> из base64-ответа tool'а (vision_agent screenshot).
+ * Возвращает HTML или '' (если это не PNG-screenshot).
+ *
+ * @param {boolean} ok — успех tool'а
+ * @param {string} toolName — имя tool'а
+ * @param {object} content — result.content (ToolResult.Data)
+ * @returns {string} HTML
+ */
+function renderToolResultImage(ok, toolName, content) {
+    if (!ok || !content) return '';
+
+    // Vision Agent возвращает { path, base64, sizeBytes, mimeType? }.
+    // base64 может отсутствовать (например, при describe / run_task — там его нет).
+    if (!content.base64 || typeof content.base64 !== 'string') return '';
+
+    const mime = content.mimeType || 'image/png';
+    const sizeBytes = content.sizeBytes || 0;
+    const path = content.path || '';
+
+    // Ограничиваем размер base64 в DOM — защита от гигантских скриншотов (4K).
+    // Если PNG > 2 MB, показываем ссылку на файл вместо inline <img>.
+    const MAX_INLINE_BYTES = 2 * 1024 * 1024;
+    if (sizeBytes > MAX_INLINE_BYTES) {
+        return `
+            <div class="chat-tool-result-image-meta">
+                📎 <code>${escapeHtml(path)}</code> (${escapeHtml(formatFileSize(sizeBytes))})
+                — файл слишком большой для инлайн-просмотра.
+            </div>`;
+    }
+
+    const safeMime = escapeAttr(mime);
+    const safeAlt = escapeAttr(`Screenshot от ${toolName || 'tool'}`);
+
+    return `
+        <div class="chat-tool-result-image">
+            <img src="data:${safeMime};base64,${content.base64}"
+                 alt="${safeAlt}"
+                 loading="lazy" />
+            <div class="chat-tool-result-image-meta">
+                ${escapeHtml(formatFileSize(sizeBytes))}
+                ${path ? ` · <code>${escapeHtml(path)}</code>` : ''}
+            </div>
+        </div>`;
 }
 
 /**

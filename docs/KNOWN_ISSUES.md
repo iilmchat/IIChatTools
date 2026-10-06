@@ -3763,7 +3763,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-175 — Скриншот не рендерится в Chat UI
 
-- **Приоритет:** 🟡 High | **Статус:** Planned | **Запланировано:** v1.13.x (Commit B)
+- **Приоритет:** 🟡 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #1, chatId=29).
 - **Файлы:** `wwwroot/js/modules/chat.js` (обработчик `tool_result`).
 - **Симптом:** в чате tool-block показывает `Screenshot получен и сохранён
@@ -3771,7 +3771,20 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Fix (Commit B):** в `chat.js` при `tool_result` — если `data.base64`
   есть, добавить `<img src="data:image/png;base64,...">` в tool-block.
 - **Связанные:** KI-176 (base64 в history).
-
+- **Fix (v1.13.x, Commit B):**
+  1. `appendToolResultBlock` (chat.js) — если `result.content.base64` есть,
+     вызывается `renderToolResultImage(ok, toolName, content)`.
+  2. `renderToolResultImage` — проверяет `content.base64`, рендерит
+     `<img src="data:image/png;base64,...">` в tool-block.
+  3. Лимит: если `sizeBytes > 2 MB` — показываем только мета-ссылку
+     (защита от гигантских PNG в DOM).
+  4. Стили `.chat-tool-result-image` (chat.css): max-width 100%,
+     border, meta-подпись с path/sizeBytes.
+- **Ограничение:** при F5 картинка **не восстанавливается** — base64 не
+  сохраняется в БД (по KI-176). Live-режим — работает, история — нет.
+  Потенциальный отдельный KI (v1.13.x): сохранять base64 в
+  `MetadataJson` для F5-восстановления.
+  
 ---
 
 ### KI-173 — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout
