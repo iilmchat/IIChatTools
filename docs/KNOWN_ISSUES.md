@@ -3736,6 +3736,41 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-192 — Vision Agent: VL возвращает пустой `ui_elements` на медленно
+  грузящихся страницах
+
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=41/42).
+- **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — loop),
+  `VisionSystemPrompt.cs` (`PlannerPlanNext`).
+- **Симптом:** после успешного `type search_input "Москва"` → `click
+  search_button` Wikipedia загружает страницу результатов **дольше**,
+  чем длится один VL-цикл. На следующем шаге `DescribeAsync` возвращает
+  `{ description: "…", ui_elements: [] }`. Planner LLM (qwen3-4b) получает
+  «пустой экран» → `action=wait` → снова пусто → через 2-3 итерации
+  `action=fail`.
+  - chatId=41: `ui_elements=0` с **первого** кадра после `OpenAsync`
+    (Chrome не успел отрендерить страницу) → `fail` за 1 шаг.
+  - chatId=42: 6 → 2 → 3 → 0 элементов, затем `fail` за 3 шага.
+- **Причина:**
+  - Qwen2.5-VL-7B на этом железе: **8.6 t/s**, один Describe — 37–81 сек
+    (LM Studio Developer Logs: `eval time = 26198 ms / 228 tokens`).
+  - Между Describe и Describe страница может завершить навигацию, но
+    следующий кадр ловится в промежуточном состоянии (белый экран,
+    спиннер) → VL честно возвращает `ui_elements: []`.
+  - Loop **не различает** «пустой экран = страница ещё грузится» и
+    «пустой экран = задача невыполнима».
+- **Возможные решения:**
+  1. В `VisionAgentService.RunTaskAsync` при `screen.UiElements.Count == 0`
+     и `history.Count == 0` — сделать паузу `Limits.PageStabilityCheckMs × 4`
+     (≈2 сек) и повторить `DescribeAsync` **без** вызова Planner.
+     Счётчик retry — до 3 раз.
+  2. В `PlannerPlanNext` добавить few-shot: «Если `ui_elements=[]` и это
+     первый кадр — верни `wait`, не `fail`».
+  3. Комбинация: retry в loop + правило в промпте.
+- **Связанные:** KI-131 (Vision Agent), KI-160 (слабые VL),
+  KI-194 (Planner premature done), KI-162 (verify — диагностика).
+
 ### KI-193 — Vision LLM: id drift между кадрами (`search_btn` → `search_button`)
 
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x

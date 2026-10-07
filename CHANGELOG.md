@@ -19,7 +19,8 @@
 ## [Unreleased]
 
 ### Fixed
-- **v1.13.x (KI-162-fix2) — Coordinate-then-Verify: verify-координаты НЕ точнее bounds-center**:
+- **v1.13.x (KI-162-fix2) — Coordinate-then-Verify: verify-координаты НЕ точнее
+  bounds-center**:
   - **Симптом:** при `vision_agent(action='click', target='search_button')` на
     Wikipedia клик уходил на 20 px левее целевой кнопки. Smoke-прогон
     (chatId=37/38/39): `bounds-center=(689,385)` → попадание,
@@ -33,14 +34,12 @@
     логируются для диагностики (видеть, что VL «видит» на кропе), но
     в клик не идут. Verify оставлен как диагностический инструмент;
     `VisionAgent:Verify:Enabled=false` полностью отключает вызов.
-  - **Файлы:** `VisionVerifyHelper.cs`, `VisionAgentService.cs`
-    (комментарий в `ResolveCoordinatesAsync`), `VisionAgentTool.cs`
-    (`TryVerifyCoordinatesAsync` → делегирует в helper).
-  - **Известное ограничение:** Verify выключен через `Enabled=false`
-    не удаляет код — метод `VerifyTargetAsync` остаётся в интерфейсе
-    для будущих экспериментов с более мощными VL-моделями (KI-161, KI-163).
+  - **Файлы:** `VisionVerifyHelper.cs`, `VisionAgentService.cs`,
+    `VisionAgentTool.cs`.
+  - **Известное ограничение:** `Verify:Enabled=false` не удаляет код —
+    `VerifyTargetAsync` остаётся в интерфейсе для будущих экспериментов
+    с более мощными VL-моделями (KI-161, KI-163).
 
-### Fixed
 - **v1.13.x (KI-185) — Chat LLM: лишняя смена tool'а после fail от vision_agent**:
   - **Симптом:** после `vision_agent(action='run_task') → success=false`
     Chat LLM автоматически вызывала `consult_secondary_agent`
@@ -415,23 +414,49 @@
     `file_system_agent` сможет сработать, и smoke будет чистым.
 
 ### Documented
-- **v1.13.x (KI-167/168/169) — smoke #3 «Запуск скрипта»: провал
-  tool-selection + ложный успех агента.**
-  - **KI-167** (Planned): `file_system_agent` галлюцинирует успех вне
-    workspace (рецидив KI-113 + усилитель KI-114). Проверено: `c:\projects\test\`
-    и `script.bat` не существуют; AuditLogs `agent.file_system_agent | Status=Success`.
-  - **KI-168** (Planned): Chat LLM выбирает `file_system_agent` для задач
-    вне workspace. Нужно правило 8 в `DefaultSystemPrompt` + уточнение Description.
-  - **KI-169** (Documented): SubAgent не аудирует внутренние tool-вызовы —
-    видно только статус агента целиком. Снижает observability при разборе.
-  - **Реестр сценариев:** создан `docs/development/v1.13/SMOKE_SCENARIOS.md`
-    (5 пользовательских DoD, порядок прохождения, форматы запуска).
-  - **Вывод по smoke #3:** для чистого tool-selection сценарий лучше
-    писать с путём **внутри workspace** (например,
-    `%USERPROFILE%\IIChatToolsWorkspace\test\`) — тогда `file_system_agent`
-    сможет сработать.
+- **v1.13.x (KI-192) — Vision Agent: VL возвращает пустой `ui_elements`
+  на медленно грузящихся страницах**:
+  - **Симптом (smoke 2026-10-07, chatId=41/42):** после успешного
+    `type search_input "Москва"` → `click search_button` Wikipedia
+    грузит страницу результатов **дольше**, чем длится один VL-цикл
+    (37–81 сек на этом железе). Следующий `DescribeAsync` возвращает
+    `{ description: "…", ui_elements: [] }` → Planner LLM видит
+    «пустой экран» → `wait` → снова пусто → `fail`.
+  - **Причина:** Qwen2.5-VL-7B на CPU/частичном GPU-offload — **8.6 t/s**.
+    Между Describe и Describe страница может завершить навигацию, но
+    следующий кадр ловится в промежуточном состоянии (белый экран).
+    Loop **не различает** «пустой экран = ещё грузится» и «пустой экран =
+    задача невыполнима».
+  - **План (v1.13.x):** retry в `VisionAgentService.RunTaskAsync` при
+    `ui_elements=[]` и `history.Count=0` — пауза 2 сек + повтор Describe
+    (до 3 раз), без вызова Planner. Плюс правило в `PlannerPlanNext`:
+    «при `ui_elements=[]` на первом кадре — верни `wait`, не `fail`».
+  - **Связанные:** KI-131, KI-160, KI-194.
+
+- **v1.13.x (KI-193) — Vision LLM: id drift между кадрами
+  (`search_btn` → `search_button`)**:
+  - **Симптом:** одна и та же кнопка поиска на соседних кадрах описывается
+    разными id. Детектор цикла KI-187 не срабатывает (id разные),
+    approval-модалка показывается дважды.
+  - **План:** fuzzy-matching target'ов в `VisionActionValidator`
+    (edit distance ≤ 2) + нормализация суффиксов (`_btn` / `_button`).
+
+- **v1.13.x (KI-194) — Vision Planner: `done` без фактической проверки
+  результата**:
+  - **Симптом:** после `click search_button` с промахом (клик ушёл в
+    левую границу) Planner LLM возвращает `done` с reason «Поиск по
+    Москве выполнен и кнопка нажата». Задача фактически не решена,
+    но `VisionTaskResultDto.Success = true`.
+  - **Причина:** qwen3-4b считает, что раз в history был `click` без
+    явного fail — задача выполнена. Проверки «сменилось ли состояние
+    экрана» нет.
+  - **План:** правило в `PlannerPlanNext` + post-verification
+    (финальный describe после `done`). Долгосрочно — CDP-attach (KI-161).
+  - **Рецидив** KI-113 (галлюцинация успеха SubAgent).
 
 - **KI-144** — Chrome использует virtual audio device по умолчанию
+  (Steam Streaming Microphone) → `maxAbs=0`. Решение — device picker
+  в `/profile → 🎤 Аудио` (KI-145).
   (Steam Streaming Microphone) → `maxAbs=0`. Решение — device picker
   в `/profile → 🎤 Аудио` (KI-145).
 
