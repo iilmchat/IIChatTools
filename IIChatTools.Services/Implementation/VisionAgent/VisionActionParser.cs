@@ -68,7 +68,18 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             action = action.Trim().ToLowerInvariant();
             if (!KnownActions.Contains(action))
             {
-                return Fail($"Неизвестный action: «{action}». " +
+                // KI-197 (Fix 2): улучшенный reason с подсказкой о типичной
+                // галлюцинации Planner LLM. qwen3-4b иногда выдумывает
+                // действия вне whitelist (navigate / goto / open / search) —
+                // как знакомые паттерны из Playwright / Puppeteer / browser-API.
+                var hint = IsKnownBrowserHallucination(action)
+                    ? " Возможно, LLM перепутала action с browser-командой " +
+                      "(Playwright / Puppeteer). Навигация выполняется ДО loop'а — " +
+                      "URL открывается вызывающим кодом через `run_task(url=...)`. " +
+                      "Для ожидания используй `wait`, для завершения — `done` / `fail`."
+                    : string.Empty;
+
+                return Fail($"Неизвестный action: «{action}».{hint} " +
                             $"Допустимые: {string.Join(", ", KnownActions)}.");
             }
 
@@ -170,6 +181,49 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         {
             if (string.IsNullOrEmpty(s) || s.Length <= maxLen) return s;
             return s.Substring(0, maxLen) + "…";
+        }
+
+        // ============================================================
+        // KI-197 (Fix 2) — эвристика «browser-hallucination».
+        // ============================================================
+
+        /// <summary>
+        /// KI-197 (Fix 2): типичные «browser-actions», которые LLM выдумывает
+        /// вне whitelist. Возвращаются знакомыми паттернами из Playwright /
+        /// Puppeteer / других browser-API.
+        /// </summary>
+        private static readonly HashSet<string> KnownBrowserHallucinations =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "navigate",
+                "goto",
+                "go",
+                "open",
+                "open_url",
+                "open_page",
+                "visit",
+                "browse",
+                "load",
+                "search",
+                "scroll_to",
+                "scrollto",
+                "redirect",
+                "click_selector",
+                "type_selector",
+                "wait_for_selector",
+                "waitforselector"
+            };
+
+        /// <summary>
+        /// KI-197 (Fix 2): проверяет, относится ли action к типичным
+        /// browser-командам (Playwright / Puppeteer).
+        /// </summary>
+        /// <param name="action">Action от LLM (lowercase).</param>
+        /// <returns>true — если похоже на browser-команду.</returns>
+        private static bool IsKnownBrowserHallucination(string action)
+        {
+            return !string.IsNullOrEmpty(action)
+                && KnownBrowserHallucinations.Contains(action);
         }
     }
 }

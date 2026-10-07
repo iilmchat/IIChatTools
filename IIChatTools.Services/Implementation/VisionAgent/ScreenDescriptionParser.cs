@@ -212,15 +212,35 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 };
             }
 
+            // KI-199: VL-модель нестабильна в вычислении center.
+            // Согласно наблюдениям (smoke KI-197, chatId=57), Qwen2.5-VL-7B
+            // может вернуть center.y=20 при bounds.y=375 — это область
+            // адресной строки Chrome, а не центр элемента.
+            //
+            // Правило: если есть bounds — center ВСЕГДА пересчитывается
+            // как bounds.x + w/2, bounds.y + h/2. Если bounds нет —
+            // используется center из ответа VL (fallback).
             var centerToken = GetTokenIgnoreCase(obj, "center");
-            if (centerToken is JObject centerObj)
+            var parsedCenterX = (centerToken as JObject)?["x"]?.Value<int?>();
+            var parsedCenterY = (centerToken as JObject)?["y"]?.Value<int?>();
+
+            int centerX, centerY;
+            if (element.Bounds != null && element.Bounds.W > 0 && element.Bounds.H > 0)
             {
-                element.Center = new UiElementCenterDto
-                {
-                    X = GetIntIgnoreCase(centerObj, "x"),
-                    Y = GetIntIgnoreCase(centerObj, "y")
-                };
+                centerX = element.Bounds.X + element.Bounds.W / 2;
+                centerY = element.Bounds.Y + element.Bounds.H / 2;
             }
+            else
+            {
+                centerX = parsedCenterX ?? 0;
+                centerY = parsedCenterY ?? 0;
+            }
+
+            element.Center = new UiElementCenterDto
+            {
+                X = centerX,
+                Y = centerY
+            };
 
             return element;
         }

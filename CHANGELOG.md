@@ -108,6 +108,33 @@
     VL-fallback для canvas / WebGL / shadow-DOM / iframe / desktop.
 
 ### Fixed
+- **v1.13.x (KI-198, KI-199) — Vision LLM: языковые ссылки + галлюцинация
+  `center`**:
+  - **KI-198 (High):** на главной странице Wikipedia Vision LLM
+    (Qwen2.5-VL-7B) возвращает только `search_input` + `search_btn`,
+    пропуская крупные языковые ссылки («Русский», «English», ...).
+    Planner LLM корректно отвечает `fail`: «Нет элемента с текстом
+    "Русский" на странице».
+    - **Причина:** правило 8 промпта `VisionUiDescribe` велит
+      игнорировать «заголовки-тексты / decorations» — VL воспринимала
+      крупные языковые ссылки в центре как заголовок.
+    - **Fix (частично):** правило 8 — языковые ссылки явно
+      обозначены как `type=link` (не decorations); добавлено
+      правило 22 — на порталах (Wikipedia / GitHub) приоритет
+      кликабельных ссылок над заголовками.
+    - **Файлы:** `VisionSystemPrompt.cs` (`VisionUiDescribe`).
+    - **Возможные итерации:** поднять hard cap 8 → 15; более крупная
+      VL-модель; CDP-fallback по label (KI-161).
+  - **KI-199 (Medium):** VL-модель возвращает `center`, не
+    соответствующий `bounds` (smoke chatId=57, шаг 2: `bounds.y=375,
+    h=30`, а `center.y=20` — область адресной строки Chrome).
+    - **Fix:** `ScreenDescriptionParser.Parse` — игнорирует `center`
+      из ответа VL, всегда пересчитывает как `bounds.x + w/2,
+      bounds.y + h/2` (если bounds заданы). Правило 11 промпта
+      `VisionUiDescribe` усилено — center обязан удовлетворять
+      bounds-center.
+    - **Файлы:** `ScreenDescriptionParser.cs`, `VisionSystemPrompt.cs`.
+
 - **v1.13.x (KI-197) — Vision Planner: галлюцинация actions вне whitelist**:
   - **Симптом:** Planner LLM (qwen3-4b) на задаче «Открой wikipedia.org
     и кликни по ссылке "Русский"» возвращает `action=navigate` (или
@@ -128,9 +155,12 @@
       `wait` (не `navigate`); есть элемент → `click` / `type` /
       `press_key`.
     - `VisionSystemPrompt.cs`.
-  - **Fix 2 (planned, опционально):** улучшить reason в
-    `VisionActionParser.Parse` при неизвестном action + `LogWarning`
-    в `LmStudioPlannerClient`. **Требует файл `VisionActionParser.cs`.**
+  - **Fix 2 (v1.13.x, fixed):** `VisionActionParser.Parse` — reason
+    при неизвестном action теперь содержит подсказку о типичной
+    browser-hallucination (`navigate` / `goto` / `open` / `search` /
+    `scroll_to` / ...). `LmStudioPlannerClient` — `LogWarning` при
+    `action=fail` (видно в логе сразу + raw content LLM).
+    - Файлы: `VisionActionParser.cs`, `LmStudioPlannerClient.cs`.
   - **Воспроизведение:** 100% (smoke chatId=53/54/55/56 — все падали
     на step 2 после `wait`).
   - **Связанные:** KI-161 (работает), KI-192 (не проявляется),

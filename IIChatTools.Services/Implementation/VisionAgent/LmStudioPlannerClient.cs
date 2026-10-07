@@ -176,9 +176,24 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
                 var action = VisionActionParser.Parse(assistantContent);
 
-                _logger.LogDebug(
-                    "VisionAgent: PlanNextAsync — action={Action}, target={Target}, reason={Reason}",
-                    action.Action, action.Target, action.Reason);
+                // KI-197 (Fix 2): LogWarning при fail от парсера — видно
+                // в логе сразу, а не только по возвращаемому action.
+                // Полезно при отладке галлюцинаций Planner LLM
+                // (navigate / goto / open / search / scroll_to).
+                if (string.Equals(action.Action, "fail", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning(
+                        "VisionAgent: PlanNextAsync — Planner LLM вернула fail " +
+                        "или невалидный action. reason={Reason}, rawContent={RawContent}",
+                        action.Reason,
+                        Truncate(assistantContent, 300));
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "VisionAgent: PlanNextAsync — action={Action}, target={Target}, reason={Reason}",
+                        action.Action, action.Target, action.Reason);
+                }
 
                 return action;
             }

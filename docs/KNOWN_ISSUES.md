@@ -3877,6 +3877,66 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   KI-195 (hotkey-first — работает), KI-196 (no-click-after-Enter —
   работает).
 
+---
+
+### KI-198 — Vision LLM не распознаёт языковые ссылки на Wikipedia
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed (частично) | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-197, chatId=57).
+- **Файлы:** `VisionSystemPrompt.cs` (`VisionUiDescribe`, правило 8),
+  `ScreenDescriptionParser.cs` (hard cap 8), `LmStudioVisionClient.cs`
+  (`MaxImageWidth/Height`, `MaxTokens`).
+- **Симптом:** на главной странице `wikipedia.org` Vision LLM
+  (Qwen2.5-VL-7B) возвращает **только** `search_input` и `search_btn`
+  — языковые ссылки («Русский», «English», «Deutsch», ...), которые
+  визуально крупные и по центру, в `ui_elements` НЕ попадают.
+  Planner LLM корректно возвращает `fail`: «Нет элемента с текстом
+  "Русский" на странице».
+- **Причина (диагноз 2026-10-07):** правило 8 промпта `VisionUiDescribe`
+  жёстко ограничивает `ui_elements` до 8 элементов и велит игнорировать
+  «заголовки-тексты / декорации / боковые меню». VL-модель воспринимает
+  языковые ссылки как «заголовок-текст» (крупный шрифт в центре)
+  и **не включает их** в список.
+- **Fix (частично, v1.13.x):**
+  - **Правка промпта (правило 8):** явно указано, что языковые ссылки
+    (Русский / English / Deutsch / …) — это **кликабельные ссылки**,
+    а не decorations. Включать как `type=link`.
+  - **Правка промпта (правило 23, новое):** для страниц-порталов
+    (Wikipedia, GitHub, etc.) — приоритет на **интерактивные**
+    элементы (ссылки, кнопки, поля), а не на заголовки-тексты.
+- **Остаётся (возможные итерации, если частичный fix не сработает):**
+  1. Убрать/поднять hard cap 8 → 15.
+  2. Более крупная VL-модель (`qwen3-vl-30b` / `qwen2.5-vl-32b`).
+  3. CDP-fallback по label (KI-161 уже готов — расширение в
+     `VisionAgentService.ResolveCoordinatesAsync`: если target не
+     в `ui_elements`, попробовать DOM-поиск по label из task).
+- **Связанные:** KI-131 (Vision Agent), KI-161 (CDP-attach — рабочий
+  fallback для DOM-элементов), KI-160 (нестабильность VL),
+  KI-199 (галлюцинация `center`).
+
+### KI-199 — Vision LLM возвращает некорректный `center` (не соответствует `bounds`)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-197, chatId=57, шаг 2).
+- **Файлы:** `ScreenDescriptionParser.cs` (нормализация),
+  `VisionSystemPrompt.cs` (`VisionUiDescribe` — правило 11).
+- **Симптом:** VL-модель возвращает элемент с `bounds.y = 375, h = 30`,
+  но `center.y = 20`. `center.y = 20` не соответствует
+  `bounds.y + h/2 = 390` — это область адресной строки Chrome.
+- **Влияние:** `VisionAgentService.ResolveCoordinatesAsync` использует
+  `bounds-center` (KI-190), поэтому для click-actions это не критично.
+  Но если кто-то полагается на `center` (fallback-ветка) — клик уйдёт
+  мимо.
+- **Причина:** Qwen2.5-VL-7B нестабильна в вычислении центра — правило
+  11 промпта («center = bounds.x+w/2, bounds.y+h/2») игнорируется.
+- **Fix (v1.13.x):** `ScreenDescriptionParser.Parse` — **игнорирует
+  `center` из ответа VL**, всегда вычисляет как
+  `bounds.x + bounds.w/2, bounds.y + bounds.h/2`. Если `bounds` не
+  заданы — `center` из ответа используется как fallback (обратная
+  совместимость).
+- **Связанные:** KI-131, KI-162-fix2 (verify-координаты тоже ненадёжны),
+  KI-190 (bounds-center надёжнее), KI-198 (та же VL-модель).
+
 ### KI-192 — Vision Agent: VL возвращает пустой `ui_elements` на медленно
   грузящихся страницах
 
@@ -3911,30 +3971,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   3. Комбинация: retry в loop + правило в промпте.
 - **Связанные:** KI-131 (Vision Agent), KI-160 (слабые VL),
   KI-194 (Planner premature done), KI-162 (verify — диагностика).
-
-### KI-193 — Vision LLM: id drift между кадрами (`search_btn` → `search_button`)
-
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
-- **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=36, задача «Открой wikipedia.org и кликни по кнопке поиска»).
-- **Файлы:** `VisionSystemPrompt.VisionUiDescribe` (правило 21), `VisionActionValidator`,
-  `VisionAgentService.DetectPlannerCycle`.
-- **Симптом:** одна и та же кнопка поиска на соседних кадрах описывается разными id:
-  - Шаг 3: VL → `search_btn`
-  - Шаг 4: VL → `search_button`
-  - Planner LLM сгенерировал **разные** `click`-actions с этими target'ами.
-- **Влияние:**
-  - **Детектор цикла KI-187 не срабатывает** — он ловит 3+ подряд одинаковый `(action, target)`, а здесь target'ы разные. Реально имел место **повторный клик** по одной кнопке.
-  - **Approval-модалка показывается дважды** — пользователь видит «два клика», не понимая, что это один и тот же элемент.
-  - **KI-160-подобные защиты не работают** — VL генерирует «новые» id, старая защита (hard cap 8) не помогает.
-- **Причина:** Qwen2.5-VL-7B нестабильна в присвоении id. Правило 21 промпта («Один и тот же элемент на разных кадрах должен иметь ОДИН и тот же id») игнорируется. Аналогично KI-160 (нестабильность геометрии), но с id.
-- **Возможные решения:**
-  1. **Fuzzy-matching target'ов** в `VisionActionValidator`: если target не найден — попробовать edit distance ≤ 2 к существующим id, или сравнить с нормализацией суффиксов (`_btn` / `_button` / `_input` / `_field`).
-  2. **Нормализация id** в `ScreenDescriptionParser`: `search_btn` → `search_button` (единый суффикс).
-  3. **Fuzzy-matching в `DetectPlannerCycle`**: сравнивать `(action, NormalizeTarget(target))`.
-  4. **Усилить промпт:** добавить few-shot примеры с явными id (`search_input`, `search_button`, `send_button`).
-- **Оценка:** ~30 мин.
-- **Связанные:** KI-187 (детектор цикла — не срабатывает из-за drift), KI-160
-  (нестабильность VL), KI-177 (target не найден — родственная проблема).
 
 ---
 
