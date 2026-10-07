@@ -4632,6 +4632,8 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 - **Рекомендация:** вариант 2 (polling) — средний компромисс.
 - **Связанные:** KI-203 (RAG PDF OCR — Fixed v1.13.x).
 
+---
+
 ### KI-205 — RAG: постраничный просмотр PNG сканов
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
@@ -4718,6 +4720,85 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
     `ShouldOcrFallback`). Всего: **1068 → 1079**.
 - **Связанные:** KI-104 (PdfParser — Fixed v1.7.1), KI-137 (Vision Agent
   OCR скриншотов — Planned), KI-141 (External multimodal — Planned).
+
+---
+
+### KI-206 — RAG: Page viewer — thumbnails, зум, скролл (улучшения UX)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-205 — UI без sidebar thumbnails/zoom).
+- **Файлы:** `chat.js`, `chat.css`, `Index.cshtml`, `.resx` (RU + EN).
+- **Описание:** Базовая модалка KI-205 работает, но UX беден:
+  - нет списка миниатюр страниц;
+  - нет зума / fit-width / fit-page;
+  - нет прокрутки колесом мыши и клавишами ↑/↓ (только ←/→);
+  - нет перехода по номеру страницы;
+  - нет оптимизации загрузки больших PDF.
+- **Fix (Фаза 1, ~3 ч):**
+  1. **Sidebar превью слева** — list thumbnails (по 1 PNG-странице), активная
+     подсвечивается. **Сворачиваемая** по образцу `chat-sidebar-collapsed`
+     (state в `localStorage`, хоткей `Ctrl+B`). **По умолчанию — развёрнута**.
+  2. **Прокрутка колесом мыши** — prev/next page (debounce 300 мс).
+  3. **Клавиши ↑/↓** — prev/next (в дополнение к ←/→).
+  4. **Input «Стр. N из M»** + Enter → `gotoPage(N)`.
+  5. **Кнопки зума** `−` / `+` / `100%` / `Fit width` / `Fit page`.
+     Зум — CSS `transform: scale()`, range 25%–400%.
+  6. **Lazy-load thumbnails** — IntersectionObserver / подгрузка видимых.
+- **Связанные:** KI-205 (Fixed v1.13.x).
+
+---
+
+### KI-207 — RAG: Page viewer — выделение текста и поиск (text layer)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Обнаружено:** 2026-10-07 (smoke KI-205 — нет выделения/поиска, как в Acrobat).
+- **Файлы:** `IOcrService.cs`, `TesseractOcrService.cs`, `PdfParser.cs`,
+  `ChatAttachmentsController.cs`, `chat.js`, `chat.css`, `Index.cshtml`,
+  `.resx` (RU + EN).
+- **Описание:** Пользователь хочет **выделение текста** (как в Acrobat),
+  **поиск по странице**, экспорт текста. Текущий PNG — это «тупая картинка»,
+  на которой ничего не выделяется. Нужен **text layer** поверх PNG
+  (по аналогии с PDF.js).
+- **Fix (Фаза 2, ~5-7 ч):**
+  1. **`IOcrService.RecognizeWithLayoutAsync`** — новый метод: возвращает
+     слова + bounding boxes (вместо plain text). У Tesseract это
+     `page.GetWords()` → `word.Text + word.BoundingBox`.
+  2. **`PdfParser`** — сохранять `page-N.json` рядом с PNG:
+     `{ "width": 1654, "height": 2339, "words": [{ "text": "...", "x": .., "y": .., "w": .., "h": .. }] }`.
+  3. **`ChatAttachmentsController`** — endpoint
+     `GET .../pages/{N}/ocr` → JSON.
+  4. **Frontend** — `<div class="page-text-layer">` с абсолютно-позиционированными
+     `<span>` (прозрачный текст поверх PNG). Реализация по образцу PDF.js:
+     `color: transparent; position: absolute; white-space: pre;`.
+  5. **Поиск (Ctrl+F)** — input в шапке модалки, подсветка `<mark>` всех
+     совпадений, ↑/↓ навигация, счётчик «N / M».
+  6. **Copy выделенного** — стандартный Ctrl+C (браузер сам копирует).
+  7. **Экспорт текста страницы** — скачать `page-N.txt`.
+- **Оценка:** ~5-7 ч (из-за сложности позиционирования по координатам и
+  работы с масштабированием text layer при зуме).
+- **Связанные:** KI-205 (Fixed v1.13.x), KI-206 (Фаза 1 UX).
+
+---
+
+### KI-208 — RAG: Page viewer — экспорт (ZIP, PDF с text layer)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
+- **Обнаружено:** 2026-10-07 (обсуждение KI-207).
+- **Файлы:** `ChatAttachmentsController.cs`, `chat.js`, `.resx`.
+- **Описание:** Пользователь может хотеть:
+  - Скачать все PNG одной ZIP-архивом.
+  - Скачать только текстовый слой (все страницы, `all.txt`).
+  - Экспорт PDF с выделяемым текстом (PDF + text layer на клиенте через pdf-lib).
+- **Fix:**
+  1. `GET .../attachments/{id}/pages/zip` — ZIP всех PNG.
+  2. `GET .../attachments/{id}/pages/all-text` — единый txt.
+  3. (Опционально) Экспорт PDF на клиенте через `pdf-lib` — jsPDF-like.
+- **Оценка:** ~2-3 ч.
+- **Связанные:** KI-205, KI-206, KI-207.
+
+---
+
+## Сводка по статусам
 
 | Статус | Кол-во |
 |--------|--------|
