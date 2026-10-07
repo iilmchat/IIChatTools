@@ -210,6 +210,10 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 return null;   // без id/type элемент бесполезен.
             }
 
+            // KI-193: нормализация id — VL-модель нестабильна в именовании
+            // (search_btn на одном кадре, search_button на следующем).
+            id = VisionIdNormalizer.Normalize(id);
+
             // KI-160: id только из цифр (10000000000...) — галлюцинация.
             if (id.Length >= 8 && id.All(c => char.IsDigit(c)))
             {

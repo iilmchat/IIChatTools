@@ -43,6 +43,24 @@
   - **Тесты:** 1043/1043 (fix в промпте, без изменения кода).
 
 ### Added
+- **v1.13.x (KI-193) — Vision LLM: id drift между кадрами**:
+  - **Симптом:** одна и та же кнопка на соседних кадрах описывается
+    разными id (`search_btn` → `search_button`). Planner сгенерирует
+    разные `click`-actions, детектор цикла KI-187 их не поймает,
+    approval-модалка показывается дважды.
+  - **Fix:**
+    - Новый `VisionIdNormalizer.Normalize(id)` — приводит типовые
+      суффиксы к единой форме: `_btn`/`_butt` → `_button`,
+      `_lnk` → `_link`, `_field`/`_inp`/`_tb` → `_input`,
+      `_chk`/`_cb` → `_checkbox`, `_dd`/`_sel` → `_dropdown`,
+      `_txt` → `_text`, `_opt` → `_option`. Регистр префикса сохранён.
+    - `ScreenDescriptionParser.ParseUiElement`: `id = Normalize(id)` —
+      нормализация при парсинге VL-ответа.
+    - `VisionAgentService.DetectPlannerCycle`: сравнивает
+      нормализованные target'ы — drift больше не обходит детектор.
+  - **Файлы:** `VisionIdNormalizer.cs` (new), `ScreenDescriptionParser.cs`,
+    `VisionAgentService.cs`, `VisionIdNormalizerTests.cs` (new).
+  - **Тесты:** 1043 → **1068** (+25).
 - **v1.13.x (KI-194) — Vision Planner: premature `done` для goal-задач**:
   - **Симптом:** задача «найди статью про Москву» — шаг 1 `type`, шаг 2 `click
     search_button`, экран **не изменился** (всё ещё главная Wikipedia с полем

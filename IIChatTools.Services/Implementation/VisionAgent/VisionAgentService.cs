@@ -915,10 +915,14 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             }
 
             // 2. 3+ подряд одинаковый (action, target).
+            // KI-193: сравниваем НОРМАЛИЗОВАННЫЕ target'ы — иначе
+            // search_btn и search_button считаются разными.
             var first = lastN[0];
+            var firstTargetNorm = VisionIdNormalizer.Normalize(first.Target);
             var allSame = lastN.All(s =>
                 string.Equals(s.Action, first.Action, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(s.Target ?? string.Empty, first.Target ?? string.Empty,
+                string.Equals(VisionIdNormalizer.Normalize(s.Target) ?? string.Empty,
+                    firstTargetNorm ?? string.Empty,
                     StringComparison.Ordinal));
             if (allSame)
             {
