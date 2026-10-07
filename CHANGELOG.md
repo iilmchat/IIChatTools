@@ -108,6 +108,34 @@
     VL-fallback для canvas / WebGL / shadow-DOM / iframe / desktop.
 
 ### Fixed
+- **v1.13.x (KI-197) — Vision Planner: галлюцинация actions вне whitelist**:
+  - **Симптом:** Planner LLM (qwen3-4b) на задаче «Открой wikipedia.org
+    и кликни по ссылке "Русский"» возвращает `action=navigate` (или
+    `goto` / `open` / `search`) — action вне whitelist. `VisionActionParser`
+    → `fail` с явным списком допустимых actions → `success=false, steps=0`.
+  - **Причина:** qwen3-4b видит задачу «Открой wikipedia.org» →
+    интерпретирует её как **навигацию** (знакомый паттерн `navigate`
+    из Playwright / Puppeteer). В `PlannerPlanNext` не было явного
+    запрета выдумывать actions вне списка, не было примеров
+    типичных ошибок, не было объяснения что URL передаётся в
+    `run_task(url=...)` **до** loop'а.
+  - **Fix 1 (main):** в `PlannerPlanNext` добавлен новый блок
+    «КРИТИЧНО — СПИСОК ACTIONS ЗАКРЫТ» (перед «ГЛАВНОЕ ПРАВИЛО»):
+    - Явный whitelist 11 actions.
+    - 5 примеров типичных галлюцинаций с `❌`
+      (`navigate` / `goto` / `open` / `search` / `scroll_to`).
+    - Объяснение: URL уже открыт ДО loop'а; пусто в `ui_elements` →
+      `wait` (не `navigate`); есть элемент → `click` / `type` /
+      `press_key`.
+    - `VisionSystemPrompt.cs`.
+  - **Fix 2 (planned, опционально):** улучшить reason в
+    `VisionActionParser.Parse` при неизвестном action + `LogWarning`
+    в `LmStudioPlannerClient`. **Требует файл `VisionActionParser.cs`.**
+  - **Воспроизведение:** 100% (smoke chatId=53/54/55/56 — все падали
+    на step 2 после `wait`).
+  - **Связанные:** KI-161 (работает), KI-192 (не проявляется),
+    KI-194 (не проявляется), KI-195 / KI-196 (работают).
+
 - **v1.13.x (KI-195, KI-196) — Vision Planner: hotkey-first + no-click-after-Enter**:
   - **KI-195 (Fixed):** правило 13 в `PlannerPlanNext` — после
     `type target=search_input` для отправки формы использовать

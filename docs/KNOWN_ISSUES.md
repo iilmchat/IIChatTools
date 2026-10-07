@@ -3805,6 +3805,78 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-197 — Vision Planner: галлюцинация actions вне whitelist (`navigate`, `goto`, `open`)
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-161, chatId=53/54/55/56).
+- **Файлы:** `VisionSystemPrompt.cs` (`PlannerPlanNext`),
+  `VisionActionParser.cs` (reason в fail — см. Fix 2 ниже).
+- **Симптом:** Planner LLM (qwen3-4b) при задаче «Открой wikipedia.org
+  и кликни по ссылке "Русский"» возвращает
+  `{"action": "navigate", "target": "wikipedia_org", "reason": "Открыть википедию"}`.
+  `VisionActionParser` видит неизвестный action → `fail` с явным
+  списком допустимых actions. `success=false, steps=0`.
+
+- **Лог (LM Studio, task 5296):**
+  ```json
+  {
+    "role": "assistant",
+    "content": "{\n  \"action\": \"navigate\",\n  \"target\": \"wikipedia_org\",\n  \"reason\": \"Открыть википедию\"\n}"
+  }
+  ```
+
+- **Лог (терминал):**
+  ```
+  VisionAgent[vt_debc2174]: завершено (success=False, steps=0, ms=46006):
+  Неизвестный action: «navigate». Допустимые: click, double_click,
+  right_click, move_mouse, type, press_key, hotkey, scroll, wait, done, fail.
+  ```
+
+- **Причина:** qwen3-4b видит задачу «Открой wikipedia.org» →
+  интерпретирует её как **навигацию** (браузерный контекст → знакомый
+  паттерн `navigate` из Playwright / Puppeteer / других browser-API).
+  В `PlannerPlanNext`:
+  1. Список actions есть — но нет **явного запрета** выдумывать actions
+     вне списка (4B-модель игнорирует «неявный» whitelist).
+  2. Нет **примеров типичных ошибок** (`navigate` / `goto` / `open` —
+     что именно НЕ существует).
+  3. Нет объяснения: URL передаётся в `run_task(url=...)` **до** loop'а;
+     Planner не занимается навигацией.
+
+- **Воспроизведение:** 100% (4 smoke-прогона подряд: chatId=53/54/55/56,
+  все падали на step 2 после `wait`).
+
+- **Fix (v1.13.x):**
+  - **Fix 1 (main):** новый блок «КРИТИЧНО — СПИСОК ACTIONS ЗАКРЫТ»
+    в `PlannerPlanNext` (вставлен перед «ГЛАВНОЕ ПРАВИЛО»):
+    - Явный whitelist 11 actions.
+    - 5 примеров типичных галлюцинаций с `❌` (`navigate` / `goto` /
+      `open` / `search` / `scroll_to`).
+    - Объяснение: «URL уже открыт ДО loop'а, навигация НЕ входит
+      в задачу Planner'а».
+    - Рекомендации: пусто в `ui_elements` → `wait` (не `navigate`);
+      есть элемент → `click` / `type` / `press_key`.
+  - **Fix 2 (planned, опционально):** улучшить reason в
+    `VisionActionParser.Parse` при неизвестном action:
+    «Возможно, LLM перепутала action с browser-командой. Навигация
+    выполняется до loop'а — используйте `wait` / `done` / `fail`».
+    Плюс `LogWarning` в `LmStudioPlannerClient` при пустом/невалидном
+    action от LLM.
+    **⚠️ Требует файл `VisionActionParser.cs`** (не в контексте).
+
+- **Smoke (ожидание):** «Открой wikipedia.org и кликни по ссылке "Русский"»:
+  - Step 1: `wait` (страница грузится).
+  - Step 2: `click search_button` **ИЛИ** `type search_input` + `click search_button`
+    (в зависимости от task'а).
+  - Не должно быть `navigate` / `goto` / `open`.
+  - `success=true`, ≥ 2 шага.
+
+- **Связанные:** KI-161 (CDP-attach — работает), KI-192 (пустой
+  `ui_elements` — наблюдается, но Planner корректно вернул `wait`),
+  KI-194 (Planner `done` без проверки — не проявляется в этом smoke),
+  KI-195 (hotkey-first — работает), KI-196 (no-click-after-Enter —
+  работает).
+
 ### KI-192 — Vision Agent: VL возвращает пустой `ui_elements` на медленно
   грузящихся страницах
 
