@@ -25,6 +25,34 @@ namespace IIChatTools.Services.Interfaces
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Coordinate-then-Verify (KI-162): уточняет координаты центра
+        /// UI-элемента на кропе (с upscale). Второй VL-вызов.
+        /// </summary>
+        /// <param name="croppedPng">
+        /// PNG-кроп вокруг элемента (обычно upscale'нутый ×2).
+        /// Готовится вызывающим кодом через <c>VisionImageResizer.CropAndUpscale</c>.
+        /// </param>
+        /// <param name="targetDescription">
+        /// Описание элемента для промпта VL: label («Кнопка Поиск») или
+        /// id (<c>search_btn</c>), если label отсутствует.
+        /// </param>
+        /// <param name="originalBounds">
+        /// Оригинальные bounds элемента в системе исходного PNG
+        /// (для контекста / логирования). Может быть <c>null</c>.
+        /// </param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// <see cref="VerifyTargetResultDto"/> с координатами <b>в системе
+        /// исходного PNG</b>. При любой ошибке — <c>Found = false</c> с
+        /// заполненным <c>Error</c>; вызывающий код делает fallback.
+        /// </returns>
+        Task<VerifyTargetResultDto> VerifyTargetAsync(
+            byte[] croppedPng,
+            string targetDescription,
+            UiElementBoundsDto originalBounds,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Готов ли клиент к работе (например, LM Studio доступен и модель загружена).
         /// </summary>
         bool IsReady { get; }

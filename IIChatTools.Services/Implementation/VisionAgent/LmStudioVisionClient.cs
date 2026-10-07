@@ -187,6 +187,152 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             }
         }
 
+        /// <inheritdoc />
+        public async Task<VerifyTargetResultDto> VerifyTargetAsync(
+            byte[] croppedPng,
+            string targetDescription,
+            UiElementBoundsDto originalBounds,
+            CancellationToken cancellationToken = default)
+        {
+            if (croppedPng == null || croppedPng.Length == 0)
+            {
+                return new VerifyTargetResultDto
+                {
+                    Found = false,
+                    Error = "PNG-кроп пуст."
+                };
+            }
+
+            if (!IsReady)
+            {
+                return new VerifyTargetResultDto
+                {
+                    Found = false,
+                    Error = "LmStudioVisionClient не готов."
+                };
+            }
+
+            // 1. Кодируем кроп в base64 data-URL.
+            var base64 = Convert.ToBase64String(croppedPng);
+            var dataUrl = $"data:image/png;base64,{base64}";
+
+            // 2. System prompt с подставленным targetDescription.
+            var systemPrompt = VisionSystemPrompt.GetVerifyTargetPrompt(targetDescription);
+
+            // 3. Тело запроса (OpenAI-совместимый multimodal).
+            var body = new JObject
+            {
+                ["model"] = _visionOptions.Model,
+                ["messages"] = new JArray
+                {
+                    new JObject
+                    {
+                        ["role"] = "system",
+                        ["content"] = systemPrompt
+                    },
+                    new JObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = new JArray
+                        {
+                            new JObject
+                            {
+                                ["type"] = "text",
+                                ["text"] = "Верни координаты центра элемента в JSON."
+                            },
+                            new JObject
+                            {
+                                ["type"] = "image_url",
+                                ["image_url"] = new JObject { ["url"] = dataUrl }
+                            }
+                        }
+                    }
+                },
+                ["max_tokens"] = 256,   // мало нужно: 4 поля JSON.
+                ["temperature"] = 0.0f, // детерминированно.
+                ["stream"] = false
+            };
+
+            var json = body.ToString(Formatting.None);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(_visionOptions.TimeoutSeconds));
+
+            var client = _httpClientFactory.CreateClient();
+            var url = $"{_lmStudioBaseUrl.TrimEnd('/')}/v1/chat/completions";
+
+            _logger.LogDebug(
+                "VisionAgent: VerifyTargetAsync — model={Model}, cropBytes={Bytes}, target='{Target}', origBounds=({X},{Y},{W},{H})",
+                _visionOptions.Model, croppedPng.Length, targetDescription,
+                originalBounds?.X ?? 0, originalBounds?.Y ?? 0,
+                originalBounds?.W ?? 0, originalBounds?.H ?? 0);
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.PostAsync(url, content, cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    "VisionAgent: VerifyTargetAsync timeout ({Seconds} сек)",
+                    _visionOptions.TimeoutSeconds);
+                return new VerifyTargetResultDto
+                {
+                    Found = false,
+                    Error = $"Vision LLM не ответила за {_visionOptions.TimeoutSeconds} секунд."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "VisionAgent: VerifyTargetAsync HTTP-ошибка");
+                return new VerifyTargetResultDto
+                {
+                    Found = false,
+                    Error = $"HTTP-ошибка: {ex.Message}"
+                };
+            }
+
+            using (response)
+            {
+                var responseText = await response.Content
+                    .ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning(
+                        "VisionAgent: VerifyTargetAsync HTTP {Status}: {Body}",
+                        (int)response.StatusCode, Truncate(responseText, 300));
+                    return new VerifyTargetResultDto
+                    {
+                        Found = false,
+                        Error = $"Vision LLM вернула HTTP {(int)response.StatusCode}."
+                    };
+                }
+
+                var assistantContent = ExtractAssistantContent(responseText);
+                if (string.IsNullOrEmpty(assistantContent))
+                {
+                    return new VerifyTargetResultDto
+                    {
+                        Found = false,
+                        Error = "VL вернула пустой content."
+                    };
+                }
+
+                // 4. Парсим — VerifyResponseParser никогда не бросает.
+                var result = VerifyResponseParser.Parse(assistantContent);
+
+                _logger.LogDebug(
+                    "VisionAgent: VerifyTargetAsync — Found={Found}, ({X},{Y}), conf={Conf:F2}, error={Err}",
+                    result.Found, result.X, result.Y, result.Confidence,
+                    result.Error ?? "(нет)");
+
+                return result;
+            }
+        }
+
         /// <summary>
         /// Извлекает <c>choices[0].message.content</c> из ответа LM Studio.
         /// </summary>

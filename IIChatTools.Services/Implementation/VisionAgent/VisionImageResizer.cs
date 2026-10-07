@@ -107,5 +107,103 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             target.Save(output, ImageFormat.Png);
             return output.ToArray();
         }
+
+        /// <summary>
+        /// KI-162 (Coordinate-then-Verify): вырезает регион вокруг bounds
+        /// элемента (+<paramref name="padding"/> со всех сторон) и апскейлит
+        /// его ×<paramref name="upscale"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Регион автоматически расширяется до минимум 200×200 px (§ 2
+        /// промпта KI-162) и clamp'ится к границам исходного PNG.
+        /// </para>
+        /// <para>
+        /// <b>Windows-only</b> — использует <c>System.Drawing.Common</c>.
+        /// </para>
+        /// </remarks>
+        /// <param name="pngBytes">PNG-байты исходного (downscale'нутого) скриншота.</param>
+        /// <param name="x">Левая граница bounds элемента (в системе исходного PNG).</param>
+        /// <param name="y">Верхняя граница bounds элемента.</param>
+        /// <param name="w">Ширина bounds элемента.</param>
+        /// <param name="h">Высота bounds элемента.</param>
+        /// <param name="padding">Отступ со всех сторон, px (обычно 100).</param>
+        /// <param name="upscale">Коэффициент апскейла (обычно 2).</param>
+        /// <returns>PNG-байты кропа (upscale'нутого).</returns>
+        /// <exception cref="ArgumentNullException">Если <paramref name="pngBytes"/> = null.</exception>
+        /// <exception cref="ArgumentException">Если PNG невалидный или <paramref name="upscale"/> &lt; 1.</exception>
+        [SupportedOSPlatform("windows")]
+        public static (byte[] png, int cropX, int cropY, int cropW, int cropH) CropAndUpscale(
+            byte[] pngBytes,
+            int x, int y, int w, int h,
+            int padding,
+            int upscale)
+        {
+            if (pngBytes == null) throw new ArgumentNullException(nameof(pngBytes));
+            if (pngBytes.Length == 0)
+                throw new ArgumentException("Пустой PNG.", nameof(pngBytes));
+            if (upscale < 1)
+                throw new ArgumentException("Upscale должен быть ≥ 1.", nameof(upscale));
+            if (padding < 0) padding = 0;
+
+            using var input = new MemoryStream(pngBytes);
+            using var source = new Bitmap(input);
+
+            // 1. Вычислить прямоугольник кропа (с padding + clamp к границам).
+            var cropX = Math.Max(0, x - padding);
+            var cropY = Math.Max(0, y - padding);
+            var cropW = Math.Min(source.Width - cropX, w + 2 * padding);
+            var cropH = Math.Min(source.Height - cropY, h + 2 * padding);
+
+            // 2. Минимум 200×200 (§ 2 промпта KI-162).
+            const int MinCropSize = 200;
+            if (cropW < MinCropSize)
+            {
+                var delta = (MinCropSize - cropW) / 2;
+                cropX = Math.Max(0, cropX - delta);
+                cropW = Math.Min(source.Width - cropX, MinCropSize);
+            }
+            if (cropH < MinCropSize)
+            {
+                var delta = (MinCropSize - cropH) / 2;
+                cropY = Math.Max(0, cropY - delta);
+                cropH = Math.Min(source.Height - cropY, MinCropSize);
+            }
+
+            // 3. Sanity-check: прямоугольник должен быть валиден.
+            if (cropW <= 0 || cropH <= 0)
+            {
+                throw new ArgumentException(
+                    $"Некорректный регион кропа: ({cropX},{cropY},{cropW},{cropH}) " +
+                    $"при исходнике {source.Width}×{source.Height}.");
+            }
+
+            // 4. Crop.
+            using var cropped = source.Clone(
+                new Rectangle(cropX, cropY, cropW, cropH),
+                PixelFormat.Format32bppArgb);
+
+            // 5. Upscale × N.
+            var targetW = cropW * upscale;
+            var targetH = cropH * upscale;
+
+            using var target = new Bitmap(targetW, targetH, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(target))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.CompositingQuality = CompositingQuality.HighQuality;
+                g.DrawImage(cropped, 0, 0, targetW, targetH);
+            }
+
+            using var output = new MemoryStream();
+            target.Save(output, ImageFormat.Png);
+
+            // KI-162-fix: возвращаем координаты кропа в системе исходного PNG.
+            // Нужны вызывающему коду для обратного пересчёта координат VL
+            // (VL работает в системе кропа × upscale).
+            return (output.ToArray(), cropX, cropY, cropW, cropH);
+        }
     }
 }

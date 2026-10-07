@@ -407,11 +407,17 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     }
 
                     // 4.7. Выполняем действие.
+                    // KI-162-2 (v1.13.x): передаём png — нужен для VerifyTargetAsync
+                    // внутри ResolveCoordinatesAsync (кроп вокруг bounds).
                     var stepSw = Stopwatch.StartNew();
                     string stepError = null;
                     try
                     {
-                        await ExecuteActionAsync(_backend, actionType, effectiveAction, screen, effectiveCts.Token)
+                        // KI-162-2 (v1.13.x): передаём png — нужен для VerifyTargetAsync
+                        // внутри ResolveCoordinatesAsync (кроп вокруг bounds).
+                        await ExecuteActionAsync(
+                                _backend, actionType, effectiveAction, screen, png,
+                                effectiveCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
@@ -553,11 +559,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <c>target</c> (семантический id) → <c>Center.X/Y</c>, если target задан.
         /// Иначе — из <c>x</c> / <c>y</c>.
         /// </summary>
-        private static async Task ExecuteActionAsync(
+        private async Task ExecuteActionAsync(
             IVisionBackend backend,
             string actionType,
             VisionActionDto action,
             ScreenDescriptionDto screen,
+            byte[] currentScreenshotPng,
             CancellationToken ct)
         {
             switch (actionType)
@@ -567,7 +574,9 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 case "right_click":
                 case "move_mouse":
                 {
-                    var (x, y) = ResolveCoordinates(action, screen);
+                    var (x, y) = await ResolveCoordinatesAsync(
+                            action, screen, currentScreenshotPng, ct)
+                        .ConfigureAwait(false);
                     switch (actionType)
                     {
                         case "click": await backend.ClickAsync(x, y, ct); break;
@@ -606,13 +615,18 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
         /// <summary>
         /// Резолвит координаты: если задан <c>target</c> — ищем в
-        /// <c>screen.UiElements</c> и берём центр. Иначе — <c>x</c> / <c>y</c>.
+        /// <c>screen.UiElements</c>. При включённом <c>Verify</c> и наличии
+        /// bounds — уточняем координаты вторым VL-вызовом (KI-162-2).
+        /// Иначе — bounds-center / center / прямые x/y.
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Если target не найден или не заданы ни target, ни x/y.
         /// </exception>
-        private static (int x, int y) ResolveCoordinates(
-            VisionActionDto action, ScreenDescriptionDto screen)
+        private async Task<(int x, int y)> ResolveCoordinatesAsync(
+            VisionActionDto action,
+            ScreenDescriptionDto screen,
+            byte[] currentScreenshotPng,
+            CancellationToken ct)
         {
             // 1. Приоритет — target (семантический id).
             if (!string.IsNullOrWhiteSpace(action.Target))
@@ -620,26 +634,44 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 var element = screen?.UiElements?.FirstOrDefault(el =>
                     string.Equals(el.Id, action.Target, StringComparison.Ordinal));
 
-                if (element != null)
+                if (element == null)
                 {
-                    // KI-190 (v1.13.x): приоритет bounds над center.
-                    // Qwen2.5-VL-7B стабильно ошибается в center.y (возвращает ~20,
-                    // игнорируя фактический bounds.y), но bounds выдаёт корректно.
-                    // Считаем центр из bounds, если он есть. Center — только fallback.
-                    if (element.Bounds != null && element.Bounds.W > 0 && element.Bounds.H > 0)
-                    {
-                        return (element.Bounds.X + element.Bounds.W / 2,
-                                element.Bounds.Y + element.Bounds.H / 2);
-                    }
+                    throw new InvalidOperationException(
+                        $"VisionAgentService: target '{action.Target}' не найден в ui_elements.");
+                }
 
-                    if (element.Center != null)
-                    {
-                        return (element.Center.X, element.Center.Y);
-                    }
+                // KI-162-2 (v1.13.x): Coordinate-then-Verify.
+                // Тот же путь, что и в VisionAgentTool.HandleCoordinateActionAsync.
+                if (_options.Verify?.Enabled == true
+                    && element.Bounds != null
+                    && element.Bounds.W > 0 && element.Bounds.H > 0
+                    && currentScreenshotPng != null && currentScreenshotPng.Length > 0)
+                {
+                    return await VisionVerifyHelper.TryVerifyAsync(
+                            currentScreenshotPng,
+                            element,
+                            action.Target,
+                            _visionLlm,
+                            _options.Verify,
+                            _logger,
+                            ct)
+                        .ConfigureAwait(false);
+                }
+
+                // KI-190: bounds priority над center (fallback, если Verify выключен).
+                if (element.Bounds != null && element.Bounds.W > 0 && element.Bounds.H > 0)
+                {
+                    return (element.Bounds.X + element.Bounds.W / 2,
+                            element.Bounds.Y + element.Bounds.H / 2);
+                }
+
+                if (element.Center != null)
+                {
+                    return (element.Center.X, element.Center.Y);
                 }
 
                 throw new InvalidOperationException(
-                    $"VisionAgentService: target '{action.Target}' не найден в ui_elements.");
+                    $"VisionAgentService: target '{action.Target}' не содержит ни bounds, ни center.");
             }
 
             // 2. Fallback — прямые координаты.
@@ -651,7 +683,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             throw new InvalidOperationException(
                 "VisionAgentService: не задан ни target, ни x/y для действия.");
         }
-
+        
         // ============================================================
         // KI-187 (v1.13.x) — детектор цикла Planner LLM.
         // ============================================================

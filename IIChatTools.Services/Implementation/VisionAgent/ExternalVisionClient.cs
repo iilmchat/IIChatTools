@@ -44,5 +44,27 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 "Отслеживается в KI-141 (Planned, v1.12.x). " +
                 "Используйте Provider=lmstudio для локальной VL-модели.");
         }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// KI-162 (v1.13.x): не поддерживается — <see cref="IExternalLlmClient"/>
+        /// работает только с текстом (см. KI-141). Возвращаем <c>Found = false</c>,
+        /// чтобы <c>AutoVisionClient</c> сделал fallback на LmStudio.
+        /// <b>Не бросаем</b> <see cref="NotSupportedException"/> — иначе
+        /// fallback-цепочка прервётся в координатном действии.
+        /// </remarks>
+        public Task<VerifyTargetResultDto> VerifyTargetAsync(
+            byte[] croppedPng,
+            string targetDescription,
+            UiElementBoundsDto originalBounds,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new VerifyTargetResultDto
+            {
+                Found = false,
+                Error = "External Vision LLM не поддерживает VerifyTarget " +
+                        "(multimodal — KI-141, Planned, v1.12.x)."
+            });
+        }
     }
 }

@@ -200,16 +200,21 @@ namespace IIChatTools.Services.Implementation
             "   URL указывай ТОЛЬКО если пользователь назвал домен явно.\n" +
             "   Придуманные домены (`ii-chattools.com` и подобные) — ЗАПРЕЩЕНЫ.\n" +
             "\n" +
-            "11. КРИТИЧНО при `success=false` (для ЛЮБОГО tool, особенно `vision_agent`):\n" +
-            "    НЕ повторяй то же действие с теми же аргументами. Два Fail подряд\n" +
-            "    с одинаковыми аргументами — гарантированный провал. Вместо этого:\n" +
-            "    - сделай `vision_agent(action='describe')` для свежего списка элементов;\n" +
-            "    - выбери ДРУГОЙ target или аргумент;\n" +
-            "    - либо переключись на `consult_secondary_agent` (для browser-задач).\n" +
+            "11. КРИТИЧНО при `success=false` (для ЛЮБОГО tool):\n" +
+            "    - НЕ повторяй то же действие с теми же аргументами;\n" +
+            "    - если задача — про vision_agent: сделай describe для свежего\n" +
+            "      списка элементов и выбери ДРУГОЙ target;\n" +
+            "    - если после 2+ Fail подряд задача не решается — верни честный ответ\n" +
+            "      пользователю БЕЗ автоматической смены tool'а.\n" +
             "\n" +
-            "    KI-184: после 2+ Fail подряд — НЕ вызывай `planner_agent` и не пытайся\n" +
+            "    KI-184: после 2+ Fail подряд НЕ вызывай `planner_agent` и не пытайся\n" +
             "    `save_memory`. Верни ЧЕСТНЫЙ ответ пользователю: «Не удалось выполнить,\n" +
             "    причина: <последняя ошибка>». Сохранять факт провала в память — лишнее.\n" +
+            "\n" +
+            "    KI-185: после fail от `vision_agent` НЕ переключайся на\n" +
+            "    `consult_secondary_agent`, `web_agent` или другой tool автоматически.\n" +
+            "    Vision-задача уже провалилась — другой агент не имеет визуального\n" +
+            "    доступа к тому же экрану. Верни честный ответ и жди указаний.\n" +
             "\n" +
             "12. Для `vision_agent(action='click'|'type'|...)` с полем `target`:\n" +
             "    используй id из САМОГО ПОСЛЕДНЕГО `vision_agent(action='describe')`,\n" +
@@ -234,8 +239,9 @@ namespace IIChatTools.Services.Implementation
             "    (wikipedia.org, example.com) или для desktop-приложений.\n" +
             "\n" +
             "    KI-185: после fail от vision_agent — НЕ вызывай другие vision_agent\n" +
-            "    actions, если пользователь не просил. Верни честный ответ\n" +
-            "    и жди следующего указания пользователя.";
+            "    actions, НЕ переключайся на другие агенты (`consult_secondary_agent`,\n" +
+            "    `web_agent` и т.п.) автоматически. Верни честный ответ и жди\n" +
+            "    следующего указания пользователя.";
 
         private readonly IChatService _chatService;
         private readonly ILmStudioClient _lmStudioClient;

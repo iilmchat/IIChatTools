@@ -147,6 +147,89 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 "Проверьте VisionAgent:VisionLlm:FallbackChain и доступность LM Studio / External API-ключей.");
         }
 
+        /// <inheritdoc />
+        /// <remarks>
+        /// KI-162 (v1.13.x): перебираем FallbackChain, пока один не вернёт
+        /// <c>Found = true</c>. Критерий успеха отличается от
+        /// <see cref="DescribeAsync"/> (там — непустое Description).
+        /// Здесь — <c>Found = true</c> (VL нашла элемент в кропе).
+        ///
+        /// <para>
+        /// Если все вернули <c>Found = false</c> — возвращаем последний
+        /// результат с ошибкой. Вызывающий код (VisionAgentTool) делает
+        /// fallback на bounds center.
+        /// </para>
+        /// </remarks>
+        public async Task<VerifyTargetResultDto> VerifyTargetAsync(
+            byte[] croppedPng,
+            string targetDescription,
+            UiElementBoundsDto originalBounds,
+            CancellationToken cancellationToken = default)
+        {
+            var chain = BuildChain();
+            if (chain.Count == 0)
+            {
+                return new VerifyTargetResultDto
+                {
+                    Found = false,
+                    Error = "AutoVisionClient: FallbackChain пуст."
+                };
+            }
+
+            VerifyTargetResultDto lastResult = null;
+
+            for (int i = 0; i < chain.Count; i++)
+            {
+                var entry = chain[i];
+
+                if (!entry.Client.IsReady)
+                {
+                    _logger.LogDebug(
+                        "AutoVisionClient.VerifyTarget: [{Index}/{Total}] '{Name}' не готов — пропуск",
+                        i + 1, chain.Count, entry.EntryName);
+                    continue;
+                }
+
+                try
+                {
+                    var result = await entry.Client
+                        .VerifyTargetAsync(croppedPng, targetDescription,
+                            originalBounds, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (result != null && result.Found)
+                    {
+                        _logger.LogDebug(
+                            "AutoVisionClient.VerifyTarget: успех на '{Name}' ({X},{Y}, conf={Conf:F2})",
+                            entry.EntryName, result.X, result.Y, result.Confidence);
+                        return result;
+                    }
+
+                    lastResult = result;
+                    _logger.LogDebug(
+                        "AutoVisionClient.VerifyTarget: '{Name}' вернул Found=false ({Err}) — fallback",
+                        entry.EntryName, result?.Error ?? "(нет)");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "AutoVisionClient.VerifyTarget: '{Name}' упал — fallback",
+                        entry.EntryName);
+                }
+            }
+
+            // Все вернули Found=false — возвращаем последний результат.
+            return lastResult ?? new VerifyTargetResultDto
+            {
+                Found = false,
+                Error = "AutoVisionClient: все провайдеры вернули Found=false."
+            };
+        }
+
         // ============================================================
         // Private
         // ============================================================

@@ -176,5 +176,47 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             "    поле ввода заголовка — верни { \"action\": \"done\", \"reason\":\n" +
             "    \"Чат создан, заголовок по умолчанию\" } ИЛИ fail с явным указанием,\n" +
             "    что не удалось найти поле для ввода заголовка.";
+
+        /// <summary>
+        /// KI-162 (Coordinate-then-Verify): промпт для уточнения координат
+        /// центра элемента на кропе. Не const, потому что подставляет
+        /// <paramref name="targetDescription"/> в текст.
+        /// </summary>
+        /// <param name="targetDescription">
+        /// Описание искомого элемента: label («Кнопка Поиск») или id
+        /// (<c>search_btn</c>), если label отсутствует.
+        /// </param>
+        /// <returns>Готовый system-prompt для второго VL-вызова.</returns>
+        public static string GetVerifyTargetPrompt(string targetDescription)
+        {
+            var safeDesc = string.IsNullOrWhiteSpace(targetDescription)
+                ? "(без описания)"
+                : targetDescription.Trim();
+
+            return
+                "Ты — Vision Agent IIChatTools. Ты видишь ФРАГМЕНТ скриншота " +
+                "(crop + upscale). Найди центр элемента:\n" +
+                "\"" + safeDesc + "\"\n" +
+                "\n" +
+                "ОТВЕЧАЙ СТРОГО JSON, БЕЗ markdown-обёрток:\n" +
+                "{\n" +
+                "  \"x\": <ЦЕЛОЕ_ЧИСЛО>,\n" +
+                "  \"y\": <ЦЕЛОЕ_ЧИСЛО>,\n" +
+                "  \"confidence\": <0.0_—_1.0>,\n" +
+                "  \"found\": <true_ИЛИ_false>\n" +
+                "}\n" +
+                "\n" +
+                "ПРАВИЛА (критично):\n" +
+                "1. x/y — координаты ЦЕНТРА элемента В ПИКСЕЛЯХ ЭТОГО ФРАГМЕНТА.\n" +
+                "   Верхний левый угол фрагмента = (0, 0). НЕ координаты экрана.\n" +
+                "2. ЗАПРЕЩЕНО возвращать числа 123, 456, 0.95 — это ПРИМЕР-плейсхолдер,\n" +
+                "   НЕ реальные координаты. Смотри на картинку и верни РЕАЛЬНЫЕ числа\n" +
+                "   для этого фрагмента.\n" +
+                "3. confidence — твоя уверенность 0.0–1.0. Чётко видишь — 0.9+.\n" +
+                "   Размыто / частично скрыт — 0.5–0.7. Не уверен — 0.0–0.3.\n" +
+                "4. Если элемент НЕ виден на фрагменте — { \"found\": false }.\n" +
+                "5. НЕ выдумывай координаты. Лучше found=false, чем промах.\n" +
+                "6. Не пиши пояснений до/после JSON.";
+        }
     }
 }

@@ -39,6 +39,12 @@ namespace IIChatTools.Services.DTO.VisionAgent
 
         /// <summary>Privacy: сохранение скриншотов, маскирование URL-bar.</summary>
         public VisionPrivacyOptions Privacy { get; set; } = new VisionPrivacyOptions();
+
+        /// <summary>
+        /// Coordinate-then-Verify (KI-162): уточнение координат через
+        /// второй VL-вызов на кропе. См. <see cref="VisionVerifyOptions"/>.
+        /// </summary>
+        public VisionVerifyOptions Verify { get; set; } = new VisionVerifyOptions();
     }
 
     /// <summary>

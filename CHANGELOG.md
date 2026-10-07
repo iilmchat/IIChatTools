@@ -19,6 +19,43 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.13.x (KI-162-fix2) — Coordinate-then-Verify: verify-координаты НЕ точнее bounds-center**:
+  - **Симптом:** при `vision_agent(action='click', target='search_button')` на
+    Wikipedia клик уходил на 20 px левее целевой кнопки. Smoke-прогон
+    (chatId=37/38/39): `bounds-center=(689,385)` → попадание,
+    `verify=(675,387)` → промах на левую границу. Confidence при этом — 0.90
+    (ложная).
+  - **Root cause:** Qwen2.5-VL-7B даёт ±20–40 px noise даже на кропе ×2.
+    Verify-координаты (`VerifyTargetResultDto.X/Y`) — не улучшение,
+    а второй источник шума. `bounds-center` из KI-190 — надёжнее.
+  - **Fix:** `VisionVerifyHelper.TryVerifyAsync` теперь **всегда возвращает
+    bounds-center** (fallbackX, fallbackY). Verify-координаты
+    логируются для диагностики (видеть, что VL «видит» на кропе), но
+    в клик не идут. Verify оставлен как диагностический инструмент;
+    `VisionAgent:Verify:Enabled=false` полностью отключает вызов.
+  - **Файлы:** `VisionVerifyHelper.cs`, `VisionAgentService.cs`
+    (комментарий в `ResolveCoordinatesAsync`), `VisionAgentTool.cs`
+    (`TryVerifyCoordinatesAsync` → делегирует в helper).
+  - **Известное ограничение:** Verify выключен через `Enabled=false`
+    не удаляет код — метод `VerifyTargetAsync` остаётся в интерфейсе
+    для будущих экспериментов с более мощными VL-моделями (KI-161, KI-163).
+
+### Fixed
+- **v1.13.x (KI-185) — Chat LLM: лишняя смена tool'а после fail от vision_agent**:
+  - **Симптом:** после `vision_agent(action='run_task') → success=false`
+    Chat LLM автоматически вызывала `consult_secondary_agent`
+    (с модалкой approval) вместо честного ответа пользователю.
+  - **Root cause:** правило 11 в `DefaultSystemPrompt` **само разрешало**
+    переключение («либо переключись на `consult_secondary_agent`
+    (для browser-задач)»). qwen3-4b добросовестно следовала промпту.
+  - **Fix:**
+    - Правило 11: убран совет про переключение на `consult_secondary_agent`.
+      Добавлено: «после 2+ Fail — верни честный ответ БЕЗ автоматической
+      смены tool'а».
+    - Правило 13: явно запрещено переключаться на `consult_secondary_agent`,
+      `web_agent` и т.п. после fail от vision_agent.
+  - **Файлы:** `ChatStreamService.cs` (`DefaultSystemPrompt`).
+
 - **v1.13.x (KI-183, KI-184) — Chat LLM: галлюцинация URL + лишние вызовы**:
   - **KI-183:** Chat LLM выдумывала URL (`ii-chattools.com`) для
     `vision_agent(action='describe')` — домен не в whitelist → Fail.
@@ -177,6 +214,68 @@
     чистоты проверки) и smoke #1 (DeepSeek API).
 
 ### Added
+- **v1.13.x (KI-162) — Vision Agent: Coordinate-then-Verify (crop + upscale)**:
+  После первого `describe` VL-модель даёт `bounds` целевого элемента с
+  ошибкой ±30 px (Qwen2.5-VL-7B на 1280×720). Добавлена **верификация
+  координат вторым VL-вызовом** на кропе вокруг `bounds`:
+  - `IVisionLlmClient.VerifyTargetAsync(croppedPng, targetDescription,
+    originalBounds, ct)` — новый метод интерфейса.
+  - `LmStudioVisionClient.VerifyTargetAsync` — multimodal POST с кропом.
+  - `ExternalVisionClient.VerifyTargetAsync` — заглушка `Found=false`
+    (multimodal у External — KI-141, Planned).
+  - `AutoVisionClient.VerifyTargetAsync` — fallback-цепочка по
+    `FallbackChain`; критерий успеха — `Found=true` (в отличие от
+    `DescribeAsync`, где — непустое Description).
+  - `VisionImageResizer.CropAndUpscale(png, x, y, w, h, padding, upscale)` —
+    вырезает регион с padding'ом (min 200×200 px, clamp к границам),
+    апскейлит ×N через HighQualityBicubic.
+  - `VerifyResponseParser` — устойчивый парсер
+    `{ x, y, confidence, found }` (markdown-обёртки, case-insensitive,
+    невалидный JSON → `Found=false`).
+  - `VisionVerifyOptions` (секция `VisionAgent:Verify`): `Enabled=true`,
+    `CropPadding=100`, `Upscale=2`, `MinConfidence=0.6`.
+  - `VisionSystemPrompt.GetVerifyTargetPrompt(targetDescription)` —
+    промпт: координаты **в системе кропа**, потом обратный пересчёт
+    `origX = cropX + llmX / upscale`.
+  - Интеграция в `VisionAgentTool.HandleCoordinateActionAsync`: после
+    `describe` → crop → VerifyTargetAsync → при `Found=true &&
+    Confidence≥MinConfidence` используются уточнённые координаты,
+    иначе — fallback на `bounds`-center (KI-190).
+  - **Ожидаемый эффект:** ±3–5 px вместо ±30 px. Требует GPU-offload для
+    Qwen2.5-VL-7B (иначе latency второго вызова 60–120 сек).
+  - **Ограничение MVP:** Verify пока только в одиночных `click`-actions
+    (через `VisionAgentTool`). В `run_task`-loop (через
+    `VisionAgentService.ResolveCoordinates`) — отдельная итерация
+    (KI-162-2, Planned).
+  - **Windows-only:** `CropAndUpscale` использует `System.Drawing.Common`;
+    на Linux — грациозный fallback на bounds center.
+
+- **v1.13.x (KI-162 + KI-162-2) — Vision Agent: Coordinate-then-Verify (crop + upscale)**:
+  После первого `describe` VL-модель даёт `bounds` целевого элемента с
+  ошибкой ±30 px (Qwen2.5-VL-7B на 1280×720). Добавлена **верификация
+  координат вторым VL-вызовом** на кропе вокруг `bounds`:
+  - **KI-162:** базовый механизм — `IVisionLlmClient.VerifyTargetAsync`,
+    `VisionImageResizer.CropAndUpscale`, `VerifyResponseParser`,
+    `VisionVerifyOptions`, `VisionSystemPrompt.GetVerifyTargetPrompt`.
+  - **KI-162-2:** `VisionVerifyHelper.TryVerifyAsync` — общий helper,
+    который используют **оба** пути:
+    - `VisionAgentTool.HandleCoordinateActionAsync` (одиночные click-actions);
+    - `VisionAgentService.ResolveCoordinatesAsync` (полный `run_task` loop).
+  - `LmStudioVisionClient.VerifyTargetAsync` — multimodal POST с кропом.
+  - `ExternalVisionClient.VerifyTargetAsync` — заглушка `Found=false`
+    (multimodal у External — KI-141, Planned).
+  - `AutoVisionClient.VerifyTargetAsync` — fallback-цепочка по
+    `FallbackChain`; критерий успеха — `Found=true`.
+  - Конфиг (`VisionAgent:Verify`): `Enabled=true`, `CropPadding=100`,
+    `Upscale=2`, `MinConfidence=0.6`.
+  - Промпт: координаты **в системе кропа**, обратный пересчёт
+    `origX = cropX + llmX / upscale` в helper'е.
+  - Fallback на bounds-center (KI-190) — если Verify выключен, VL вернула
+    `Found=false` или `Confidence < MinConfidence`.
+  - **Ожидаемый эффект:** ±3–5 px вместо ±30 px.
+  - **Windows-only:** `CropAndUpscale` использует `System.Drawing.Common`;
+    на Linux — грациозный fallback на bounds center.
+
 - **v1.12.x — WPF overlay для Vision Agent (KI-142, DESIGN § 4.6, § 6.4)**:
   on-screen indicator теперь — реальное WPF-приложение
   `IIChatTools.VisionOverlay.exe` (net10.0-windows, отдельный процесс).

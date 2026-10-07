@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.VisionAgent;
 using IIChatTools.Services.Extensions;
+using IIChatTools.Services.Implementation.VisionAgent;   // KI-162: VisionImageResizer
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -648,6 +649,20 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
                     return ToolResult.Fail(
                         $"target '{target}' не содержит ни center, ни bounds.");
                 }
+
+                // KI-162 (Coordinate-then-Verify): уточняем координаты вторым
+                // VL-вызовом на кропе вокруг bounds. При низкой уверенности
+                // или ошибке — fallback на bounds center (значения выше).
+                if (_options.Verify?.Enabled == true
+                    && element.Bounds != null
+                    && element.Bounds.W > 0 && element.Bounds.H > 0)
+                {
+                    var (vx, vy) = await TryVerifyCoordinatesAsync(
+                        png, element, target, context.CancellationToken)
+                        .ConfigureAwait(false);
+                    x = vx;
+                    y = vy;
+                }
             }
 
             // Валидация.
@@ -795,6 +810,42 @@ namespace IIChatTools.Services.Implementation.Tools.VisionAgent
             return ToolResult.Ok(
                 new { action = actionType },
                 $"Действие '{actionType}' выполнено.");
+        }
+
+        // ============================================================
+        // KI-162 (v1.13.x) — Coordinate-then-Verify
+        // ============================================================
+
+        /// <summary>
+        /// KI-162: уточняет координаты через второй VL-вызов на кропе
+        /// вокруг <paramref name="element"/>.Bounds.
+        /// <list type="number">
+        ///   <item>Crop + upscale через <c>VisionImageResizer.CropAndUpscale</c>.</item>
+        ///   <item>VL-вызов <c>VerifyTargetAsync</c>.</item>
+        ///   <item>Если <c>Found = true</c> и <c>Confidence ≥ MinConfidence</c> —
+        ///     возвращаем уточнённые координаты.</item>
+        ///   <item>Иначе — fallback на bounds center / center элемента.</item>
+        /// </list>
+        /// </summary>
+        /// <summary>
+        /// KI-162-2 (v1.13.x): уточняет координаты через общий helper
+        /// <see cref="VisionVerifyHelper.TryVerifyAsync"/>. Тот же код
+        /// используется в <c>VisionAgentService</c> (run_task loop).
+        /// </summary>
+        private Task<(int x, int y)> TryVerifyCoordinatesAsync(
+            byte[] png,
+            UiElementDto element,
+            string targetId,
+            CancellationToken ct)
+        {
+            return VisionVerifyHelper.TryVerifyAsync(
+                png,
+                element,
+                targetId,
+                _visionLlm,
+                _options.Verify,
+                _logger,
+                ct);
         }
     }
 }
