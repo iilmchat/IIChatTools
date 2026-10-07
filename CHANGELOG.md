@@ -43,7 +43,22 @@
   - **Тесты:** 1043/1043 (fix в промпте, без изменения кода).
 
 ### Added
-- **v1.13.x (KI-193) — Vision LLM: id drift между кадрами**:
+- **v1.13.x (KI-203 Phase 2) — RAG: OCR-fallback для сканов PDF**:
+  - **Проблема:** `PdfParser` (PdfPig) извлекает только текстовый слой.
+    Сканы (фото договора, отсканированная книга) дают пустой `page.Text`
+    → чанки не создаются → RAG не находит содержимое.
+  - **Fix:**
+    - `PdfParser` инжектит `IOcrService` + `IOptions<OcrOptions>`.
+    - `ParseInternalAsync` — для страниц с текстовым слоем <
+      `MinTextCharsPerPage` (50) применяет OCR через `IOcrService`.
+    - `RenderPageToPng` — рендер страницы через PDFtoImage (PDFium).
+    - `ShouldOcrFallback` (public static) — решает, применять ли OCR
+      (учитывает `Enabled` / `IsReady` / `MinTextCharsPerPage` / `MaxPagesToOcr`).
+    - Метаданные `ocrPagesUsed` — если был хотя бы один OCR.
+  - **Файлы:** `PdfParser.cs`, `FakeOcrService.cs` (new),
+    `PdfParserTests.cs`.
+  - **Тесты:** 1068 → **1079** (+11: 3 constructor + 8 Theory).
+
   - **Симптом:** одна и та же кнопка на соседних кадрах описывается
     разными id (`search_btn` → `search_button`). Planner сгенерирует
     разные `click`-actions, детектор цикла KI-187 их не поймает,

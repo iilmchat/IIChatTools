@@ -3,28 +3,44 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Services.DTO.Rag;
 using IIChatTools.Services.Implementation.Rag.Parsers;
+using IIChatTools.Tests.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace IIChatTools.Tests.UnitTests.Rag.Parsers
 {
     /// <summary>
-    /// Тесты <see cref="PdfParser"/> (v1.7.1, KI-104).
+    /// Тесты <see cref="PdfParser"/> (v1.7.1, KI-104; OCR-fallback — KI-203).
     ///
     /// <para>
     /// Реальный PDF-контент в тестах не проверяется — PdfPig read-only,
     /// генерация PDF требует отдельной библиотеки (iTextSharp). Проверка
-    /// извлечения текста — smoke-сценарий в <c>docs/TESTING.md</c> § 3.5.
+    /// end-to-end с валидным PDF — smoke-сценарий.
     /// </para>
     ///
     /// <para>
-    /// Здесь — shape-тесты: <c>CanParse</c>, throws на отсутствующий файл,
-    /// throws на неверное расширение, throws на повреждённый PDF.
+    /// Здесь — shape-тесты (<c>CanParse</c>, throws) + unit-тесты
+    /// <see cref="PdfParser.ShouldOcrFallback"/> (KI-203) с fake OCR.
     /// </para>
     /// </summary>
     public class PdfParserTests
     {
-        private static readonly PdfParser Parser = new PdfParser();
+        private static PdfParser CreateParser(
+            FakeOcrService ocr = null,
+            OcrOptions ocrOptions = null)
+        {
+            ocr ??= new FakeOcrService();
+            ocrOptions ??= new OcrOptions { Enabled = true };
+            return new PdfParser(
+                ocr,
+                Options.Create(ocrOptions),
+                NullLogger<PdfParser>.Instance);
+        }
+
+        private static readonly PdfParser Parser = CreateParser();
 
         // ============ CanParse ============
 
@@ -123,6 +139,74 @@ namespace IIChatTools.Tests.UnitTests.Rag.Parsers
         {
             try { if (File.Exists(path)) File.Delete(path); }
             catch { /* best-effort */ }
+        }
+
+        // ============ KI-203: конструктор ============
+
+        [Fact]
+        public void Constructor_NullOcr_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new PdfParser(
+                    null,
+                    Options.Create(new OcrOptions()),
+                    NullLogger<PdfParser>.Instance));
+        }
+
+        [Fact]
+        public void Constructor_NullOptions_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new PdfParser(
+                    new FakeOcrService(),
+                    null,
+                    NullLogger<PdfParser>.Instance));
+        }
+
+        [Fact]
+        public void Constructor_NullLogger_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new PdfParser(
+                    new FakeOcrService(),
+                    Options.Create(new OcrOptions()),
+                    null));
+        }
+
+        // ============ KI-203: ShouldOcrFallback ============
+
+        [Theory]
+        // (textLen, ocrReady, ocrEnabled, minChars, ocrPagesUsed, maxPages) → expected
+        // (а) Всё включено, страница-скан (0 символов) → OCR.
+        [InlineData(0,   true, true, 50, 0,   100, true)]
+        // (б) Страница с текстом 100 ≥ 50 → OCR не нужен.
+        [InlineData(100, true, true, 50, 0,   100, false)]
+        // (в) Граница: 49 < 50 → OCR.
+        [InlineData(49,  true, true, 50, 0,   100, true)]
+        // (г) Граница: 50 ≥ 50 → не OCR.
+        [InlineData(50,  true, true, 50, 0,   100, false)]
+        // (д) OCR отключён в конфиге → не OCR.
+        [InlineData(0,   true, false, 50, 0,  100, false)]
+        // (е) OCR-сервис не готов (Linux / tessdata нет) → не OCR.
+        [InlineData(0,   false, true, 50, 0,  100, false)]
+        // (ж) Лимит страниц достигнут → не OCR.
+        [InlineData(0,   true, true, 50, 100, 100, false)]
+        // (з) Лимит не достигнут (99 из 100) → OCR.
+        [InlineData(0,   true, true, 50, 99,  100, true)]
+        public void ShouldOcrFallback_VariousInputs_ReturnsExpected(
+            int textLayerLength,
+            bool ocrReady,
+            bool ocrEnabled,
+            int minChars,
+            int ocrPagesUsed,
+            int maxPages,
+            bool expected)
+        {
+            var actual = PdfParser.ShouldOcrFallback(
+                textLayerLength, ocrReady, ocrEnabled,
+                minChars, ocrPagesUsed, maxPages);
+
+            Assert.Equal(expected, actual);
         }
     }
 }
