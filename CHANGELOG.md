@@ -69,8 +69,24 @@
     `X/Y > 0` — координаты из DOM. Иначе — VL-fallback
     (Verify KI-162-2 → bounds-center KI-190 → center).
     `Mode="vision"` — DOM-блок пропускается.
-  - **Реализация:** Ф6 (DI + appsettings).
-  - **Тесты:** Ф7.
+  - **Ф6 (Fixed):** DI + appsettings.
+    - `Startup.cs` (`RegisterVisionAgentTools`):
+      `PuppeteerSharpCdpSession` (Scoped),
+      `IChromeCdpSession` (Scoped, factory),
+      `VisionCoordinateProvider` (Singleton).
+      `DomCoordinateProvider` **не в DI** — создаётся через `new`
+      внутри `LocalHarnessVisionBackend` (DESIGN § 2.5, нужна
+      конкретная CDP-сессия задачи).
+    - `appsettings.json` (prod): `CoordinateProvider:Mode = "vision"`,
+      `Cdp.Enabled = false` — безопасный дефолт (KI-190, без CDP).
+    - `appsettings.Development.json`: `Mode = "auto"`,
+      `Cdp.Enabled = true` — DOM если CDP подключён, иначе VL.
+    - **NullLogger:** `PuppeteerSharpCdpSession` создаётся
+      в `LocalHarnessVisionBackend.OpenAsync` через `new` с
+      `NullLogger<PuppeteerSharpCdpSession>.Instance` (backend не
+      имеет `ILoggerFactory`; переход на DI-инжект — v1.13.x-fix,
+      если понадобятся логи CDP).
+  - **Реализация:** Ф7 (тесты).
 
 ### Fixed
 - **v1.13.x (KI-195, KI-196) — Vision Planner: hotkey-first + no-click-after-Enter**:

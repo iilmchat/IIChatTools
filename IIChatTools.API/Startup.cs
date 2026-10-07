@@ -1022,6 +1022,24 @@ namespace IIChatTools.API
                     : sp.GetRequiredService<NoopVisionOverlayLauncher>();
             });
 
+            // KI-161 (v1.13.x): CDP-attach. IChromeCdpSession — Scoped
+            // (per-task). Реальный инстанс создаётся внутри
+            // LocalHarnessVisionBackend.OpenAsync (через new, т.к.
+            // backend'у нужна конкретная CDP-сессия с правильным
+            // browserUrl и жизненным циклом задачи). Регистрация в DI —
+            // для тестов (мок IChromeCdpSession) и потенциальных
+            // альтернативных потребителей.
+            services.AddScoped<PuppeteerSharpCdpSession>();
+            services.AddScoped<IChromeCdpSession>(sp =>
+                sp.GetRequiredService<PuppeteerSharpCdpSession>());
+
+            // KI-161 (v1.13.x): VisionCoordinateProvider — Singleton
+            // (stateless, bounds-center из VL-описания, KI-190).
+            // DomCoordinateProvider НЕ в DI — создаётся через new
+            // внутри LocalHarnessVisionBackend (нужна конкретная
+            // CDP-сессия задачи, DESIGN § 2.5).
+            services.AddSingleton<VisionCoordinateProvider>();
+
             // Ф6.2 (KI-131): оркестратор loop'а Vision Agent.
             // Scoped — зависит от Scoped IVisionBackend + IVisionScreenshotStore.
             services.AddScoped<IVisionAgentService, VisionAgentService>();
