@@ -4137,11 +4137,21 @@ function startOcrPolling(chatId) {
     stopOcrPolling();   // на случай, если предыдущий не был остановлен
 
     const POLL_MS = 500;
+    const TIMEOUT_MS = 120_000;   // 2 мин — потолок polling'а
+    const startedAt = Date.now();
+
     const controller = { stopped: false, timerId: null };
     state.ocrPolling = controller;
 
     async function tick() {
         if (controller.stopped) return;
+
+        // Общий таймаут — защита от зависшего polling'а.
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+            console.warn('[chat] OCR-polling превысил таймаут 120 сек — стоп');
+            controller.stopped = true;
+            return;
+        }
 
         // При переключении чата — прекращаем (UI теперь другой).
         if (state.activeChatId !== chatId) {
@@ -4159,11 +4169,15 @@ function startOcrPolling(chatId) {
                     .reduce((sum, a) => sum + (a.chunksCount || 0), 0);
                 renderAttachmentsBar();
 
-                const stillProcessing = state.attachments.some(
+                // v1.13.x (KI-204-fix): не останавливаемся при ПУСТОМ списке.
+                // Сервер создаёт attachment в БД только после multipart-парсинга
+                // (что может занять 1-3 сек). До этого polling видит [] — это НЕ
+                // повод остановиться, а повод ждать дальше.
+                const anyProcessing = state.attachments.some(
                     a => a.ocrProgress && a.ocrProgress.isProcessing);
 
-                if (!stillProcessing) {
-                    // Прогресс завершён — тихо останавливаемся.
+                if (state.attachments.length > 0 && !anyProcessing) {
+                    // Есть attachments, и все завершены — стоп.
                     controller.stopped = true;
                     return;
                 }
