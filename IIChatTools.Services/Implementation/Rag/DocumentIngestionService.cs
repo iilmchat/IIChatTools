@@ -55,6 +55,7 @@ namespace IIChatTools.Services.Implementation.Rag
         private readonly IEmbeddingService _embeddingService;
         private readonly IVectorStore _vectorStore;
         private readonly ITokenCounter _tokenCounter;
+        private readonly IOcrProgressTracker _ocrProgressTracker;
         private readonly AppDbContext _db;
         private readonly IConfiguration _configuration;
         private readonly ILogger<DocumentIngestionService> _logger;
@@ -77,6 +78,7 @@ namespace IIChatTools.Services.Implementation.Rag
             IEmbeddingService embeddingService,
             IVectorStore vectorStore,
             ITokenCounter tokenCounter,
+            IOcrProgressTracker ocrProgressTracker,
             AppDbContext db,
             IConfiguration configuration,
             ILogger<DocumentIngestionService> logger)
@@ -86,6 +88,7 @@ namespace IIChatTools.Services.Implementation.Rag
             _embeddingService = embeddingService ?? throw new ArgumentNullException(nameof(embeddingService));
             _vectorStore = vectorStore ?? throw new ArgumentNullException(nameof(vectorStore));
             _tokenCounter = tokenCounter ?? throw new ArgumentNullException(nameof(tokenCounter));
+            _ocrProgressTracker = ocrProgressTracker ?? throw new ArgumentNullException(nameof(ocrProgressTracker));
             _db = db ?? throw new ArgumentNullException(nameof(db));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -103,8 +106,27 @@ namespace IIChatTools.Services.Implementation.Rag
 
             var stopwatch = Stopwatch.StartNew();
 
-            // 1. Получить текст (parse файла / использовать готовый / URL).
-            var (rawText, documentPath, parsedMetadata) = await GetTextFromSourceAsync(request, cancellationToken);
+            // KI-204: открываем scope прогресса OCR (только для файлов из чата).
+            // PdfParser (Singleton) вызовет _progressTracker.Report(...) внутри
+            // ParseInternalAsync — AsyncLocal подхватит текущий ключ.
+            // Key = {chatId}:{fileName}. Для глобальных индексов (chatId=null) —
+            // scope не открывается.
+            IDisposable ocrScope = null;
+            if (request.SourceType == IngestionSourceType.File
+                && request.ChatId.HasValue
+                && request.ChatId.Value > 0)
+            {
+                var fileName = Path.GetFileName(request.Source ?? request.FilePath)
+                    ?? Path.GetFileName(request.FilePath)
+                    ?? "document.pdf";
+                var key = $"{request.ChatId.Value}:{fileName}";
+                ocrScope = _ocrProgressTracker.BeginScope(key);
+            }
+
+            try
+            {
+                // 1. Получить текст (parse файла / использовать готовый / URL).
+                var (rawText, documentPath, parsedMetadata) = await GetTextFromSourceAsync(request, cancellationToken);
 
             // 2. SHA256 hash содержимого.
             var documentHash = ComputeSha256Hex(rawText);
@@ -248,6 +270,11 @@ namespace IIChatTools.Services.Implementation.Rag
                 DocumentPath = documentPath,
                 Skipped = false
             };
+            }
+            finally
+            {
+                ocrScope?.Dispose();
+            }
         }
 
         /// <inheritdoc />

@@ -11,6 +11,7 @@ using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.Rag;
 using IIChatTools.Services.Implementation.Rag.Parsers;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Tests.Fakes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -143,6 +144,7 @@ namespace IIChatTools.Tests.IntegrationTests
                 embedding,
                 vs,
                 tokenCounter,
+                new FakeOcrProgressTracker(),
                 db,
                 config,
                 NullLogger<DocumentIngestionService>.Instance);

@@ -43,6 +43,7 @@ namespace IIChatTools.API.Controllers
 
         private readonly IChatAttachmentService _attachmentService;
         private readonly IChatService _chatService;
+        private readonly IOcrProgressTracker _ocrProgressTracker;
         private readonly ILogger<ChatAttachmentsController> _logger;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
@@ -57,11 +58,13 @@ namespace IIChatTools.API.Controllers
         public ChatAttachmentsController(
             IChatAttachmentService attachmentService,
             IChatService chatService,
+            IOcrProgressTracker ocrProgressTracker,
             ILogger<ChatAttachmentsController> logger,
             IStringLocalizer<SharedResources> localizer)
         {
             _attachmentService = attachmentService ?? throw new ArgumentNullException(nameof(attachmentService));
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
+            _ocrProgressTracker = ocrProgressTracker ?? throw new ArgumentNullException(nameof(ocrProgressTracker));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         }
@@ -175,6 +178,21 @@ namespace IIChatTools.API.Controllers
                 }
 
                 var list = await _attachmentService.GetForChatAsync(chatId, userId, cancellationToken);
+
+                // KI-204: обогащаем DTO прогрессом OCR (если идёт обработка).
+                // Ключ = {chatId}:{fileName} — совпадает с тем, что использует
+                // DocumentIngestionService.BeginScope.
+                foreach (var dto in list)
+                {
+                    if (string.IsNullOrWhiteSpace(dto.FileName)) continue;
+
+                    var key = $"{chatId}:{dto.FileName}";
+                    var progress = _ocrProgressTracker.Get(key);
+                    if (progress != null && progress.TotalPages > 0)
+                    {
+                        dto.OcrProgress = progress;
+                    }
+                }
 
                 return Ok(new { success = true, data = list });
             }

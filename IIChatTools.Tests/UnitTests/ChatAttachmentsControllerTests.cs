@@ -9,6 +9,7 @@ using IIChatTools.API.Resources;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Tests.Fakes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
@@ -169,6 +170,7 @@ namespace IIChatTools.Tests.UnitTests
             var controller = new ChatAttachmentsController(
                 attachmentService,
                 chatService,
+                new FakeOcrProgressTracker(),
                 NullLogger<ChatAttachmentsController>.Instance,
                 new PassThroughLocalizer());
 

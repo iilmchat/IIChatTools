@@ -30,13 +30,16 @@ namespace IIChatTools.Tests.UnitTests.Rag.Parsers
     {
         private static PdfParser CreateParser(
             FakeOcrService ocr = null,
-            OcrOptions ocrOptions = null)
+            OcrOptions ocrOptions = null,
+            FakeOcrProgressTracker progressTracker = null)
         {
             ocr ??= new FakeOcrService();
             ocrOptions ??= new OcrOptions { Enabled = true };
+            progressTracker ??= new FakeOcrProgressTracker();
             return new PdfParser(
                 ocr,
                 Options.Create(ocrOptions),
+                progressTracker,
                 NullLogger<PdfParser>.Instance);
         }
 
@@ -150,6 +153,7 @@ namespace IIChatTools.Tests.UnitTests.Rag.Parsers
                 new PdfParser(
                     null,
                     Options.Create(new OcrOptions()),
+                    new FakeOcrProgressTracker(),
                     NullLogger<PdfParser>.Instance));
         }
 
@@ -159,6 +163,18 @@ namespace IIChatTools.Tests.UnitTests.Rag.Parsers
             Assert.Throws<ArgumentNullException>(() =>
                 new PdfParser(
                     new FakeOcrService(),
+                    null,
+                    new FakeOcrProgressTracker(),
+                    NullLogger<PdfParser>.Instance));
+        }
+
+        [Fact]
+        public void Constructor_NullProgressTracker_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new PdfParser(
+                    new FakeOcrService(),
+                    Options.Create(new OcrOptions()),
                     null,
                     NullLogger<PdfParser>.Instance));
         }
@@ -170,6 +186,7 @@ namespace IIChatTools.Tests.UnitTests.Rag.Parsers
                 new PdfParser(
                     new FakeOcrService(),
                     Options.Create(new OcrOptions()),
+                    new FakeOcrProgressTracker(),
                     null));
         }
 

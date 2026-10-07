@@ -35,6 +35,7 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
 
         private readonly IOcrService _ocr;
         private readonly OcrOptions _ocrOptions;
+        private readonly IOcrProgressTracker _progressTracker;
         private readonly ILogger<PdfParser> _logger;
 
         /// <summary>
@@ -42,15 +43,20 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
         /// </summary>
         /// <param name="ocr">OCR-сервис (Tesseract) — для fallback сканов.</param>
         /// <param name="ocrOptions">Настройки OCR (Enabled, RenderDpi, MaxPagesToOcr, ...).</param>
+        /// <param name="progressTracker">
+        /// Трекер прогресса OCR (KI-204) — для индикации «OCR: 2/3 страниц».
+        /// </param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если параметр null.</exception>
         public PdfParser(
             IOcrService ocr,
             IOptions<OcrOptions> ocrOptions,
+            IOcrProgressTracker progressTracker,
             ILogger<PdfParser> logger)
         {
             _ocr = ocr ?? throw new ArgumentNullException(nameof(ocr));
             _ocrOptions = (ocrOptions ?? throw new ArgumentNullException(nameof(ocrOptions))).Value;
+            _progressTracker = progressTracker ?? throw new ArgumentNullException(nameof(progressTracker));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -170,6 +176,14 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                         _ocrOptions.MinTextCharsPerPage,
                         ocrPagesUsed,
                         _ocrOptions.MaxPagesToOcr);
+
+                    // KI-204: обновляем прогресс для UI (chip «OCR: 2/3»).
+                    // Только когда страница идёт в OCR — иначе не показываем
+                    // прогресс для PDF с текстовым слоем.
+                    if (shouldOcr)
+                    {
+                        _progressTracker.Report(page.Number, totalPages);
+                    }
 
                     if (shouldOcr)
                     {

@@ -444,6 +444,11 @@ namespace IIChatTools.API
             // Зависимости (парсеры/embedding/vector store) — Singleton, инжектятся.
             services.AddScoped<IDocumentIngestionService, DocumentIngestionService>();
 
+            // v1.13.x (KI-204): трекер прогресса OCR (in-memory).
+            // Singleton — общий ConcurrentDictionary + AsyncLocal.
+            // Cleanup timer — TTL 5 мин (по образцу KI-043).
+            services.AddSingleton<IOcrProgressTracker, OcrProgressTracker>();
+
             // v1.5.0 (KI-083, Шаг 5A): сервис поиска по векторным индексам.
             // Scoped — читает DocumentChunk из БД для enrichment.
             services.AddScoped<IRetrievalService, RetrievalService>();
