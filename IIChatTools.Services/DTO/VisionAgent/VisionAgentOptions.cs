@@ -45,6 +45,17 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// второй VL-вызов на кропе. См. <see cref="VisionVerifyOptions"/>.
         /// </summary>
         public VisionVerifyOptions Verify { get; set; } = new VisionVerifyOptions();
+
+        /// <summary>
+        /// Провайдер координат (KI-161): DOM через CDP или VL-fallback.
+        /// См. <see cref="VisionCoordinateProviderOptions"/>.
+        /// </summary>
+        /// <remarks>
+        /// v1.13.x (KI-161). Секция <c>VisionAgent:CoordinateProvider</c>
+        /// в appsettings.
+        /// </remarks>
+        public VisionCoordinateProviderOptions CoordinateProvider { get; set; }
+            = new VisionCoordinateProviderOptions();
     }
 
     /// <summary>

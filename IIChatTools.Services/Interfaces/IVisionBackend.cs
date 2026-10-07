@@ -62,5 +62,43 @@ namespace IIChatTools.Services.Interfaces
 
         /// <summary>Пауза (мс) — для ожидания анимации / загрузки.</summary>
         Task WaitAsync(int milliseconds, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Возвращает провайдер координат из DOM (KI-161), если backend
+        /// поддерживает CDP-attach. <c>null</c> — DOM недоступен,
+        /// используется VL-fallback (bounds-center, KI-190).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// v1.13.x (KI-161). Default-метод (C# 8+): возвращает <c>null</c>.
+        /// <c>LocalHarnessVisionBackend</c> переопределяет — возвращает
+        /// <c>DomCoordinateProvider</c>, если CDP подключён.
+        /// </para>
+        /// <para>
+        /// <b>RULES § 4.46:</b> default interface method виден только через
+        /// интерфейсную переменную. <c>VisionAgentService</c> держит
+        /// <c>IVisionBackend</c> — вызов корректен.
+        /// </para>
+        /// </remarks>
+        ICoordinateProvider GetCoordinateProvider() => null;
+
+        /// <summary>
+        /// Текущий коэффициент масштабирования «screen / screenshot».
+        /// 1.0 — если скриншот не downscale'ится (реальные пиксели экрана
+        /// совпадают с PNG-координатами). Пример: 1.875 — если 1920
+        /// downscale'нут до 1024.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// v1.13.x (KI-161). Default-метод: возвращает <c>(1.0, 1.0)</c>.
+        /// </para>
+        /// <para>
+        /// <b>Зачем:</b> <c>DomCoordinateProvider</c> получает координаты
+        /// из DOM в физических px экрана. Чтобы вернуть их
+        /// в <b>screenshot-space</b> (система, в которой работает
+        /// <c>VisionAgentService</c>), он делит их на этот scale.
+        /// </para>
+        /// </remarks>
+        (double X, double Y) GetScreenshotScale() => (1.0, 1.0);
     }
 }

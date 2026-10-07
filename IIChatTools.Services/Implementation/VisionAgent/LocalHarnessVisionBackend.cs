@@ -91,6 +91,23 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         private const int OverlayMaskHeight = 160;
 
         /// <summary>
+        /// KI-161 (v1.13.x): CDP-сессия к Chrome (для DOM-координат).
+        /// Создаётся в <see cref="OpenAsync"/> после запуска Chrome
+        /// с флагом <c>--remote-debugging-port</c>.
+        /// <c>null</c> — CDP не подключён (порт занят / Chrome без флага /
+        /// ошибка подключения). Тогда <see cref="GetCoordinateProvider"/>
+        /// вернёт <c>null</c>, и <c>VisionAgentService</c> пойдёт по VL-fallback.
+        /// </summary>
+        private PuppeteerSharpCdpSession _cdpSession;
+
+        /// <summary>
+        /// KI-161 (v1.13.x): провайдер координат из DOM.
+        /// Создаётся в <see cref="OpenAsync"/> после успешного подключения
+        /// CDP. <c>null</c> — DOM недоступен.
+        /// </summary>
+        private DomCoordinateProvider _domCoordinateProvider;
+
+        /// <summary>
         /// Создаёт backend.
         /// </summary>
         /// <param name="options">Настройки Vision Agent (секция <c>VisionAgent</c>).</param>
@@ -157,6 +174,22 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             // ВАЖНО: --start-maximized для более стабильного viewport.
             // --disable-blink-features=AutomationControlled — анти-детект.
             // БЕЗ --headless (мы видим окно и управляем им).
+            //
+            // KI-161: --remote-debugging-port для DOM-координат через CDP.
+            // Слушает только loopback (127.0.0.1), недоступен извне.
+            // Порт из конфига (default 9222); смена — при занятости другим
+            // процессом (тогда CDP-подключение упадёт, DOM отключится,
+            // пойдёт VL-fallback — не падаем).
+            var cdpEnabled = _options.CoordinateProvider?.Cdp?.Enabled == true;
+            var cdpPort = 9222;
+            var browserUrl = _options.CoordinateProvider?.Cdp?.BrowserUrl
+                             ?? "http://127.0.0.1:9222";
+            if (Uri.TryCreate(browserUrl, UriKind.Absolute, out var parsedUri)
+                && parsedUri.Port > 0)
+            {
+                cdpPort = parsedUri.Port;
+            }
+
             var args = new List<string>
             {
                 $"--user-data-dir={_chromeProfileDir}",
@@ -167,6 +200,11 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 "--start-maximized",
                 url
             };
+
+            if (cdpEnabled)
+            {
+                args.Insert(args.Count - 1, $"--remote-debugging-port={cdpPort}");
+            }
 
             var psi = new ProcessStartInfo
             {
@@ -197,6 +235,64 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             // (Фокус может «улететь» между шагами — LM Studio, Alt+Tab, анимации.)
             try { _chromeProcess.Refresh(); } catch { /* ignore */ }
             _chromeHwnd = _chromeProcess?.MainWindowHandle ?? IntPtr.Zero;
+
+            // KI-161: попытка подключения к Chrome через CDP (для DOM-координат).
+            // Если CDP отключён в конфиге или подключение не удалось —
+            // _cdpSession остаётся null, VisionAgentService пойдёт по VL-fallback.
+            if (cdpEnabled)
+            {
+                try
+                {
+                    _cdpSession = new PuppeteerSharpCdpSession(
+                        Microsoft.Extensions.Logging.Abstractions.NullLogger<PuppeteerSharpCdpSession>.Instance);
+
+                    var connected = await _cdpSession
+                        .ConnectAsync(browserUrl, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (connected)
+                    {
+                        _domCoordinateProvider = new DomCoordinateProvider(
+                            _cdpSession, _logger);
+
+                        _logger.LogInformation(
+                            "VisionAgent: CDP подключён к {Url} — DOM-координаты доступны",
+                            browserUrl);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "VisionAgent: CDP не подключён ({Url}) — VL-fallback (bounds-center)",
+                            browserUrl);
+
+                        await _cdpSession.DisposeAsync().ConfigureAwait(false);
+                        _cdpSession = null;
+                        _domCoordinateProvider = null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "VisionAgent: ошибка CDP-подключения — VL-fallback");
+
+                    try
+                    {
+                        var cdp = _cdpSession;
+                        if (cdp != null)
+                        {
+                            await cdp.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    catch { /* ignore */ }
+
+                    _cdpSession = null;
+                    _domCoordinateProvider = null;
+                }
+            }
+            else
+            {
+                _logger.LogDebug("VisionAgent: CDP отключён в конфиге — VL-fallback");
+            }
         }
 
         /// <summary>
@@ -482,6 +578,41 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             return Task.FromResult(pngBytes);
         }
 
+        // ============================================================
+        // KI-161 — DOM+Vision hybrid
+        // ============================================================
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// <para>
+        /// v1.13.x (KI-161): возвращает <see cref="DomCoordinateProvider"/>,
+        /// если CDP-сессия подключена в <see cref="OpenAsync"/>.
+        /// <c>null</c> — DOM недоступен, <c>VisionAgentService</c>
+        /// пойдёт по VL-fallback.
+        /// </para>
+        /// <para>
+        /// Метод синхронный (default-метод в <see cref="IVisionBackend"/>):
+        /// подключение CDP выполняется заранее в <c>OpenAsync</c>,
+        /// где уже есть <c>async</c> контекст.
+        /// </para>
+        /// </remarks>
+        public ICoordinateProvider GetCoordinateProvider()
+        {
+            return _domCoordinateProvider;
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// v1.13.x (KI-161): возвращает текущий <c>_screenshotScaleX/Y</c>
+        /// (заполняется в <see cref="ScreenshotAsync"/> после каждого
+        /// downscale). Используется <c>DomCoordinateProvider</c> для
+        /// конвертации DOM-координат (физические px) в screenshot-space.
+        /// </remarks>
+        public (double X, double Y) GetScreenshotScale()
+        {
+            return (_screenshotScaleX, _screenshotScaleY);
+        }
+
         /// <summary>Получение метрики системы (Win32 <c>GetSystemMetrics</c>).</summary>
         private const int SM_CXSCREEN = 0;
         /// <summary>Получение метрики системы (Win32 <c>GetSystemMetrics</c>).</summary>
@@ -496,6 +627,28 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// </summary>
         private void CloseBrowser()
         {
+            // KI-161: сначала разрываем CDP-сессию (Disconnect, не Kill),
+            // потом убиваем Chrome. Порядок важен: Disconnect закрывает
+            // WebSocket-канал корректно, без «connection reset» в логах
+            // Chrome. Если CDP уже мёртв — Disconnect безопасен (try-catch).
+            try
+            {
+                var cdp = _cdpSession;
+                if (cdp != null)
+                {
+                    cdp.DisposeAsync().AsTask().Wait(2000);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "VisionAgent: CDP dispose упал (не критично)");
+            }
+            finally
+            {
+                _cdpSession = null;
+                _domCoordinateProvider = null;
+            }
+
             try
             {
                 if (_chromeProcess != null && !_chromeProcess.HasExited)

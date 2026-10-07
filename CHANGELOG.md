@@ -48,8 +48,22 @@
     конвертация viewport-css → window-css → screen-px → screenshot-space.
     `VisionCoordinateProvider` (DI Singleton) — fallback:
     bounds-center из VL-описания (KI-190).
-  - **Реализация:** Ф4-Ф5 (изменения в `LocalHarnessVisionBackend`
-    и `VisionAgentService`).
+  - **Ф4 (Fixed):** `IVisionBackend` + `LocalHarnessVisionBackend`.
+    - `IVisionBackend`: 2 default-метода — `GetCoordinateProvider()`
+      (→ null) и `GetScreenshotScale()` (→ (1.0, 1.0)).
+    - `VisionAgentOptions.CoordinateProvider` — новое поле
+      (секция `VisionAgent:CoordinateProvider`).
+    - `LocalHarnessVisionBackend.OpenAsync`: добавляет
+      `--remote-debugging-port=9222` (порт из конфига); после
+      получения HWND пытается подключиться к Chrome через CDP.
+      При успехе создаёт `DomCoordinateProvider`; при неудаче —
+      `_cdpSession = null`, VL-fallback.
+    - `GetCoordinateProvider()` override — возвращает
+      `_domCoordinateProvider` (или null).
+    - `GetScreenshotScale()` override — возвращает текущий
+      `_screenshotScaleX/Y`.
+    - `CloseBrowser` — сначала `Disconnect` CDP, потом kill Chrome.
+  - **Реализация:** Ф5 (изменения в `VisionAgentService`).
   - **Тесты:** Ф7.
 
 ### Fixed
