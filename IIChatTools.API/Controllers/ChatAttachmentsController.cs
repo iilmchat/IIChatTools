@@ -52,6 +52,9 @@ namespace IIChatTools.API.Controllers
         /// </summary>
         /// <param name="attachmentService">Сервис вложений (Scoped)</param>
         /// <param name="chatService">Сервис чатов (для проверки владения)</param>
+        /// <param name="ocrProgressTracker">
+        /// Трекер прогресса OCR (KI-204) — обогащает DTO в <c>GetListAsync</c>.
+        /// </param>
         /// <param name="logger">Логгер</param>
         /// <param name="localizer">Локализатор</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>

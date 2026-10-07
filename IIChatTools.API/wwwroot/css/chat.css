@@ -2012,6 +2012,28 @@ body.chat-global-search-open {
     white-space: nowrap;
 }
 
+/* v1.13.x (KI-204): прогресс OCR в чипе attachment'а.
+   Показывается вместо «N чанков», пока идёт распознавание. */
+.chat-attachment-chip-meta-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    color: var(--bs-primary);
+}
+
+.chat-attachment-chip-meta-progress .spinner-border {
+    width: .7rem;
+    height: .7rem;
+    border-width: .12em;
+    flex-shrink: 0;
+}
+
+/* Подсветка всего чипа, пока идёт OCR. */
+.chat-attachment-chip.chat-attachment-chip-processing {
+    border-color: var(--bs-primary-border-subtle);
+    background: var(--bs-primary-bg-subtle);
+}
+
 .chat-attachment-chip-remove {
     flex-shrink: 0;
     width: 20px;

@@ -419,6 +419,10 @@
     <data name="RagClearSuccess" xml:space="preserve">
       <value>RAG-индекс чата очищен</value>
     </data>
+    <!-- v1.13.x (KI-204): прогресс OCR в чипе attachment'а. -->
+    <data name="RagOcrProgress" xml:space="preserve">
+      <value>OCR: {0} / {1}</value>
+    </data>
 
     <!-- ===== RAG / Admin Knowledge Base (v1.5.0, KI-083, Шаг 7B) ===== -->
     <data name="AdminTabKnowledgeBase" xml:space="preserve">

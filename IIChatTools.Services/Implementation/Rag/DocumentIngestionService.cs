@@ -68,6 +68,9 @@ namespace IIChatTools.Services.Implementation.Rag
         /// <param name="embeddingService">Сервис эмбеддингов (LM Studio)</param>
         /// <param name="vectorStore">Векторное хранилище (InMemory MVP)</param>
         /// <param name="tokenCounter">Счётчик токенов (для поля DocumentChunk.Tokens)</param>
+        /// <param name="ocrProgressTracker">
+        /// Трекер прогресса OCR (KI-204) — для индикации «OCR: 2/3 страниц».
+        /// </param>
         /// <param name="db">Контекст БД (DocumentChunks)</param>
         /// <param name="configuration">Конфигурация (Rag:Chunking)</param>
         /// <param name="logger">Логгер</param>

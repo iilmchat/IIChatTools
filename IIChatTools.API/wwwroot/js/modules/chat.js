@@ -48,6 +48,10 @@ const state = {
     attachments: [],             // ChatAttachmentDto[]
     ragChunkCount: 0,            // суммарное количество чанков в my_rag_docs для активного чата
 
+    // v1.13.x (KI-204): polling OCR-прогресса.
+    // { stopped: bool, timerId: number|null } или null, если не активен.
+    ocrPolling: null,
+
     // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
     debateView: 'collapsed',
 
@@ -1130,6 +1134,9 @@ async function selectChat(chatId) {
 
     // KI-078A: при переключении чата — закрыть панель поиска (marks устарели).
     closeChatSearch();
+
+    // v1.13.x (KI-204): останавливаем polling OCR старого чата (если активен).
+    stopOcrPolling();
 
     updateUrl(chatId);
     renderChatList();
@@ -4062,45 +4069,132 @@ async function uploadFiles(files) {
     const successTpl = bar?.dataset.labelUploadSuccess
         || 'Файл «{0}» проиндексирован ({1} чанков)';
 
-    const tasks = files.map(async (file) => {
-        const fd = new FormData();
-        fd.append('file', file, file.name);
+    // v1.13.x (KI-204): запускаем polling OCR-прогресса **параллельно**
+    // с upload-запросами. Сервер создаёт запись ChatAttachment в БД
+    // до начала ingestion (OCR), поэтому polling с первой же итерации
+    // видит attachment с chunksCount=0 + ocrProgress.isProcessing=true.
+    const chatIdAtStart = state.activeChatId;
+    startOcrPolling(chatIdAtStart);
 
-        try {
-            const response = await fetch(
-                `/api/chat/${state.activeChatId}/attachments`,
-                {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    body: fd,
-                });
+    try {
+        const tasks = files.map(async (file) => {
+            const fd = new FormData();
+            fd.append('file', file, file.name);
 
-            const res = await response.json();
-            if (!res || !res.success) {
-                const msg = res?.message || `HTTP ${response.status}`;
-                toast(`«${file.name}»: ${msg}`, 'error');
+            try {
+                const response = await fetch(
+                    `/api/chat/${chatIdAtStart}/attachments`,
+                    {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        body: fd,
+                    });
+
+                const res = await response.json();
+                if (!res || !res.success) {
+                    const msg = res?.message || `HTTP ${response.status}`;
+                    toast(`«${file.name}»: ${msg}`, 'error');
+                    return null;
+                }
+
+                const chunks = res.data?.chunksCount ?? 0;
+                const msg = successTpl
+                    .replace('{0}', file.name)
+                    .replace('{1}', String(chunks));
+                toast(msg, 'success');
+                return res.data;
+            } catch (ex) {
+                toast(`«${file.name}»: ${ex.message || 'Ошибка соединения'}`, 'error');
                 return null;
             }
+        });
 
-            const chunks = res.data?.chunksCount ?? 0;
-            const msg = successTpl
-                .replace('{0}', file.name)
-                .replace('{1}', String(chunks));
-            toast(msg, 'success');
-            return res.data;
-        } catch (ex) {
-            toast(`«${file.name}»: ${ex.message || 'Ошибка соединения'}`, 'error');
-            return null;
-        }
-    });
-
-    const results = await Promise.all(tasks);
-    const succeeded = results.filter(r => r !== null);
-
-    if (succeeded.length > 0) {
+        await Promise.all(tasks);
+    } finally {
+        // Останавливаем polling (в т.ч. если upload упал).
+        stopOcrPolling();
         // Перезагружаем список вложений с сервера — единый источник истины.
         await loadAttachments();
     }
+}
+
+/**
+ * v1.13.x (KI-204): polling OCR-прогресса для указанного чата.
+ *
+ * <para>
+ * Опрашивает GET /api/chat/{chatId}/attachments каждые 500 мс,
+ * обновляет чипы через renderAttachmentsBar. Авто-остановка:
+ * <list type="bullet">
+ *   <item>все attachments имеют ocrProgress.isProcessing = false;</item>
+ *   <item>state.activeChatId !== chatId (пользователь переключил чат);</item>
+ *   <item>явный вызов stopOcrPolling() (из uploadFiles.finally).</item>
+ * </list>
+ * </para>
+ *
+ * @param {number} chatId — id чата, для которого отслеживаем прогресс.
+ */
+function startOcrPolling(chatId) {
+    stopOcrPolling();   // на случай, если предыдущий не был остановлен
+
+    const POLL_MS = 500;
+    const controller = { stopped: false, timerId: null };
+    state.ocrPolling = controller;
+
+    async function tick() {
+        if (controller.stopped) return;
+
+        // При переключении чата — прекращаем (UI теперь другой).
+        if (state.activeChatId !== chatId) {
+            controller.stopped = true;
+            return;
+        }
+
+        try {
+            const res = await apiGet(`/api/chat/${chatId}/attachments`);
+            if (controller.stopped) return;
+
+            if (res.success && Array.isArray(res.data)) {
+                state.attachments = res.data;
+                state.ragChunkCount = state.attachments
+                    .reduce((sum, a) => sum + (a.chunksCount || 0), 0);
+                renderAttachmentsBar();
+
+                const stillProcessing = state.attachments.some(
+                    a => a.ocrProgress && a.ocrProgress.isProcessing);
+
+                if (!stillProcessing) {
+                    // Прогресс завершён — тихо останавливаемся.
+                    controller.stopped = true;
+                    return;
+                }
+            }
+        } catch (ex) {
+            // Не критично — пропускаем итерацию.
+            console.debug('[chat] OCR-polling итерация не удалась:', ex);
+        }
+
+        if (!controller.stopped) {
+            controller.timerId = setTimeout(tick, POLL_MS);
+        }
+    }
+
+    // Первый вызов — сразу (не ждём 500 мс).
+    tick();
+}
+
+/**
+ * v1.13.x (KI-204): останавливает polling OCR-прогресса (если активен).
+ */
+function stopOcrPolling() {
+    const c = state.ocrPolling;
+    if (!c) return;
+
+    c.stopped = true;
+    if (c.timerId) {
+        clearTimeout(c.timerId);
+        c.timerId = null;
+    }
+    state.ocrPolling = null;
 }
 
 /**
@@ -4186,15 +4280,35 @@ function renderAttachmentsBar() {
     bar.hidden = false;
 
     // Chips: 📄 {name} ({size} · {N чанков}) [×]
+    // v1.13.x (KI-204): если идёт OCR — вместо «N чанков» показываем
+    // «🔄 OCR: 2/3». Класс .chat-attachment-chip-processing подсвечивает чип.
     chipsEl.innerHTML = state.attachments.map(a => {
         const size = formatFileSize(a.sizeBytes || 0);
-        const chunks = formatChipChunks(a.chunksCount || 0);
+        const isProcessing = !!(a.ocrProgress && a.ocrProgress.isProcessing);
+
+        let metaHtml;
+        if (isProcessing) {
+            const tpl = bar.dataset.labelOcrProgress || 'OCR: {0} / {1}';
+            const progressText = tpl
+                .replace('{0}', String(a.ocrProgress.currentPage || 0))
+                .replace('{1}', String(a.ocrProgress.totalPages || 0));
+            metaHtml =
+                `<span class="chat-attachment-chip-meta chat-attachment-chip-meta-progress">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span>${escapeHtml(progressText)}</span>
+                </span>`;
+        } else {
+            const chunks = formatChipChunks(a.chunksCount || 0);
+            metaHtml = `<span class="chat-attachment-chip-meta">${escapeHtml(size)} · ${escapeHtml(chunks)}</span>`;
+        }
+
         return `
-            <div class="chat-attachment-chip" data-attachment-id="${a.id}">
+            <div class="chat-attachment-chip${isProcessing ? ' chat-attachment-chip-processing' : ''}"
+                 data-attachment-id="${a.id}">
                 <span class="chat-attachment-chip-icon" aria-hidden="true">📄</span>
                 <span class="chat-attachment-chip-name"
                       title="${escapeHtml(a.fileName || '')}">${escapeHtml(a.fileName || '')}</span>
-                <span class="chat-attachment-chip-meta">${escapeHtml(size)} · ${escapeHtml(chunks)}</span>
+                ${metaHtml}
                 <button type="button"
                         class="chat-attachment-chip-remove"
                         data-attachment-remove="${a.id}"
