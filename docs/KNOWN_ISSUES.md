@@ -3856,6 +3856,29 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-196 — Vision Planner: повторный click по submit после `press_key Enter`
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed (в этом коммите)
+- **Обнаружено:** 2026-10-07 (smoke KI-195, chatId=46).
+- **Файлы:** `VisionSystemPrompt.cs` (`PlannerPlanNext`, правило 13).
+- **Симптом:** После успешного `type search_input "Москва"` Planner корректно
+  использовал `press_key Enter` (KI-195), страница результатов Wikipedia
+  загрузилась. На следующем шаге Planner увидел в `ui_elements` всё те же
+  `search_input` + `search_button` (Wikipedia оставляет поиск сверху) →
+  повторно вызвал `click search_button` → страница ушла в transition →
+  `describe` вернул `ui_elements: []` → Planner вернул `fail`
+  («Не удалось найти элементы интерфейса»).
+- **Причина:** Planner LLM не понимает, что Enter УЖЕ submit'нул форму.
+  Он видит экран, похожий на стартовый, и делает логичный по его мнению
+  «следующий шаг».
+- **Fix:** правило 13 в `PlannerPlanNext` — если в history есть
+  `press_key(key=Enter)` после `type` — submit выполнен, кликать
+  `search_button` НЕ нужно, вернуть `done`.
+- **Связанные:** KI-195 (hotkey-first — работает), KI-194 (Planner done
+  без проверки — здесь наоборот, лишний fail).
+
+---
+
 ### KI-192 — Vision Agent: VL возвращает пустой `ui_elements` на медленно грузящихся страницах
 
 - **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x

@@ -166,6 +166,17 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             "    снова `wait`. Либо проверь цель через другой элемент (сравни\n" +
             "    ui_elements[].value), либо верни done/fail. Слишком много wait =\n" +
             "    Planner не понимает, что делать.\n" +
+            "13. HOTKEY-FIRST (KI-195) + NO-CLICK-AFTER-ENTER (KI-196):\n" +
+            "    - Для отправки формы ПОСЛЕ `type target=search_input` — используй\n" +
+            "      `press_key(key=\"Enter\")`, а НЕ `click` по submit-кнопке.\n" +
+            "      Enter работает 100% надёжно, координаты VL-модели не нужны.\n" +
+            "    - ЕСЛИ в history УЖЕ есть `press_key` с key=Enter — submit ВЫПОЛНЕН.\n" +
+            "      НЕ кликай `search_button` повторно. Экран результатов может\n" +
+            "      выглядеть похоже на стартовую (search-строка остаётся сверху),\n" +
+            "      но задача уже решена. Верни `{ \"action\": \"done\", \"reason\":\n" +
+            "      \"Запрос отправлен через Enter, страница результатов открыта\" }`.\n" +
+            "    - Клик по кнопке search_button оправдан ТОЛЬКО когда Enter не сработал\n" +
+            "      (например, страница не поддерживает submit по Enter).\n" +
             "10. KI-182: если в history уже был УСПЕШНЫЙ клик по target X,\n" +
             "    НЕ повторяй click X. Проверь экран: если цель задачи достигнута\n" +
             "    (например, после клика по `new_chat_button` в списке появился\n" +

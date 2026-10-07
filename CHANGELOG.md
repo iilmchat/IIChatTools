@@ -19,6 +19,21 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.13.x (KI-195, KI-196) — Vision Planner: hotkey-first + no-click-after-Enter**:
+  - **KI-195 (Fixed):** правило 13 в `PlannerPlanNext` — после
+    `type target=search_input` для отправки формы использовать
+    `press_key(key="Enter")`, а не `click` по submit-кнопке. Enter
+    работает 100% надёжно, координаты VL не требуются.
+  - **KI-196 (Fixed):** расширение правила 13 — если в history уже есть
+    `press_key(key=Enter)` после `type`, submit выполнен. НЕ кликать
+    `search_button` повторно, даже если `ui_elements` показывает тот же
+    search-элемент (Wikipedia оставляет строку поиска на странице
+    результатов). Возвращать `done`.
+  - **Smoke chatId=46:** до фикса — `type → press_key Enter → click
+    search_button → fail`. После фикса ожидается:
+    `type → press_key Enter → done`.
+  - **Файлы:** `VisionSystemPrompt.cs` (`PlannerPlanNext`).
+
 - **v1.13.x (KI-162-fix2) — Coordinate-then-Verify: verify-координаты НЕ точнее
   bounds-center**:
   - **Симптом:** при `vision_agent(action='click', target='search_button')` на
