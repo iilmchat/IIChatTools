@@ -1,6 +1,6 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.29,
+**Версия:** 1.4.30,
 **Обновлено:** 2026-10-07
 **Назначение:** единый свод правил для команды и ассистента.
 
@@ -201,6 +201,7 @@
 | KI-147 | 🟢 | Planned | ARCHITECTURE.md устарел (v1.7.0 → v1.13.1) | v1.13.x |
 | KI-161 | 🟢 | **Fixed (v1.13.x)** | Vision Agent: PuppeteerSharp DOM+Vision (CDP-attach) | — |
 | KI-194 | 🟡 | ✅ **Fixed (v1.13.x)** | Vision Planner: `done` без проверки результата. Literal/goal + article_title. | — |
+| KI-203 | 🟡 | ✅ **Fixed (v1.13.x)** | RAG: OCR сканов PDF (Tesseract + PDFtoImage). | — |
 
 **Fixed в v1.7.0:** KI-097 (Database Agent), KI-098 (Admin UI whitelist), KI-101 (per-action approval), KI-102 (Admin UI локализация).
 
@@ -266,6 +267,7 @@
 | 2026-10-01 | **1.4.27** | § 4.51 — `ITool`, зависящий от `IToolRegistry` / `ISubAgentService`, → `Func<T>` (ADR-002); симптом «A circular dependency was detected» виден только при `dotnet run`. **Прецедент:** `CodeAgentWithReviewTool` (KI-126, Шаг 1D-fix2). |
 | 2026-10-03 | **1.4.28** | § 7 — актуализация KI-выжимки после релиза v1.11.0 + регистрации KI-131/137/138/139 (Planned, v1.12.0/v1.12.x). KI-129 → Fixed (v1.11.0). **Docs-only.** |
 | 2026-10-07 | **1.4.29** | § 7 — KI-192 → Fixed (retry empty ui_elements + perf-fix), KI-194 → Fixed (literal/goal + article_title). **Docs-only.** |
+| 2026-10-07 | **1.4.30** | § 7 — KI-203 → Fixed (RAG PDF OCR, Tesseract + PDFtoImage). **Docs-only.** |
 
 ---
 

@@ -4610,10 +4610,14 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ### KI-203 — RAG: OCR-скан PDF не индексируется (нет текстового слоя)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (обсуждение Vision Agent + RAG).
-- **Файлы:** `IIChatTools.Services/Implementation/Rag/Parsers/PdfParser.cs`,
-  `IIChatTools.Services/Implementation/Rag/Parsers/RagDocumentParserRegistry.cs`,
+- **Файлы (итог):** `IIChatTools.Services/Interfaces/IOcrService.cs`,
+  `IIChatTools.Services/DTO/Rag/OcrOptions.cs`,
+  `IIChatTools.Services/Implementation/Rag/TesseractOcrService.cs`,
+  `IIChatTools.Services/Implementation/Rag/Parsers/PdfParser.cs`,
+  `scripts/setup/download-tessdata.ps1`,
+  `IIChatTools.Tests/Fakes/FakeOcrService.cs`,
   `IIChatTools.Tests/UnitTests/Rag/Parsers/PdfParserTests.cs`.
 - **Описание:** `PdfParser` (v1.7.1, KI-104, PdfPig 0.1.9) извлекает
   **текстовый слой** PDF-страниц. Если пользователь прикладывает
@@ -4642,8 +4646,27 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   - Опция `Rag:Ingestion:OcrFallbackEnabled` (default false).
 - **Отличается от KI-137:** KI-137 — OCR **скриншотов** в Vision Agent
   (для мелкого текста / капчи). KI-203 — OCR **PDF-файлов** в RAG.
+- **Fix (v1.13.x, 3 коммита):**
+  - **Фаза 1** (`b19d6d2`): `IOcrService` + `OcrOptions` + `TesseractOcrService`
+    (Singleton, `Lazy<TesseractEngine>`, потокобезопасный). NuGet:
+    `Tesseract 5.2.0`, `PDFtoImage 5.0.0`. Скрипт `download-tessdata.ps1`
+    (tessdata_best, rus + eng, ~30 MB). DI-регистрация.
+  - **Фаза 2** (`c4ed09a`): `PdfParser` инжектит `IOcrService` +
+    `IOptions<OcrOptions>`. `ParseInternalAsync` — для страниц с
+    текстовым слоем < `MinTextCharsPerPage` применяет OCR через
+    `Conversion.SavePng` (PDFtoImage 5.x, `Index page`, temp-файлы).
+    `ShouldOcrFallback` (public static) — тестируемый без PDF.
+    Метаданные `ocrPagesUsed`.
+  - **Фаза 3**: `appsettings.json` (`Enabled: false` — prod),
+    `.Development.json` (`Enabled: true` — dev). README.
+  - **Graceful degradation:** на Linux (native lib tesseract отсутствует
+    в NuGet) — `IsReady = false`, парсер работает как раньше. Для
+    Linux-прода — `libtesseract4` + native lib в Dockerfile (отдельная
+    задача).
+  - **Тесты:** +11 (`PdfParserTests`: 3 constructor + 8 Theory
+    `ShouldOcrFallback`). Всего: **1068 → 1079**.
 - **Связанные:** KI-104 (PdfParser — Fixed v1.7.1), KI-137 (Vision Agent
-  OCR — Planned), KI-141 (External multimodal — Planned).
+  OCR скриншотов — Planned), KI-141 (External multimodal — Planned).
 
 | Статус | Кол-во |
 |--------|--------|
@@ -4675,7 +4698,8 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
 | Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
-| Planned | 12 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-142, KI-143, KI-146, KI-147 -->
+| Fixed (v1.13.x, KI-203) | 1 |      <!-- KI-203 (RAG PDF OCR) -->
+| Planned | 11 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147 -->
 | In Progress | 0 |                   <!-- — -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->

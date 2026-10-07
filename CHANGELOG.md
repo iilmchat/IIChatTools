@@ -19,6 +19,28 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.13.x (KI-203) — RAG: OCR-fallback для сканов PDF**:
+  - **Проблема:** `PdfParser` (PdfPig) извлекает только текстовый слой
+    PDF. Сканы (фото договоров, отсканированные книги) дают пустой
+    `page.Text` → чанки не создаются → RAG не находит содержимое.
+  - **3 фазы:**
+    - **Фаза 1** (`b19d6d2`): `IOcrService` + `OcrOptions` +
+      `TesseractOcrService` (Singleton, Lazy engine, потокобезопасный).
+      NuGet `Tesseract 5.2.0` + `PDFtoImage 5.0.0`. Скрипт
+      `download-tessdata.ps1` (tessdata_best, rus+eng, ~30 MB).
+    - **Фаза 2** (`c4ed09a`): `PdfParser` — `ParseInternalAsync` с
+      OCR-fallback для страниц < `MinTextCharsPerPage` (50) символов.
+      `ShouldOcrFallback` (public static, тестируется без PDF).
+      `RenderPageToPng` — `Conversion.SavePng` (PDFtoImage 5.x,
+      `Index page`, temp-файлы). Метаданные `ocrPagesUsed`.
+    - **Фаза 3**: `appsettings.json` (`Enabled: false` — prod),
+      `.Development.json` (`Enabled: true` — dev).
+  - **Graceful degradation:** на Linux `IsReady = false` (native
+    lib tesseract отсутствует в NuGet) → парсер работает как раньше.
+  - **Файлы:** `IOcrService.cs`, `OcrOptions.cs`, `TesseractOcrService.cs`,
+    `PdfParser.cs`, `FakeOcrService.cs`, `PdfParserTests.cs`,
+    `download-tessdata.ps1`, `Startup.cs`, `appsettings*.json`.
+  - **Тесты:** 1068 → **1079** (+11: 3 constructor + 8 Theory).
 - **v1.13.x (KI-194-fix3) — Vision LLM не различает портал и статью**:
   - **Симптом (smoke 2026-10-07, chatId=62/63):** задача «найди статью
     про Москву» — Enter отправлен, переход на `ru.wikipedia.org/wiki/Москва`
