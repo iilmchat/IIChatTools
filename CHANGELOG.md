@@ -18,6 +18,26 @@
 
 ## [Unreleased]
 
+### Added
+- **v1.13.x (KI-161) — Vision Agent: PuppeteerSharp CDP-attach (Ф1: контракты + DTO)**:
+  Добавлены контракты и DTO для DOM+Vision hybrid (KI-161). Цель — 0 px
+  ошибки клика для DOM-доступных элементов (вместо ±20-30 px у VL).
+  - **`IChromeCdpSession`** — сессия CDP к уже запущенному Chrome
+    (`--remote-debugging-port=9222`). Методы: `ConnectAsync`,
+    `FindElementAsync` (поиск по label / position / type),
+    `GetViewportInfoAsync` (DPR + screen offset).
+  - **`ICoordinateProvider`** — провайдер координат. Две реализации
+    в следующих фазах: `DomCoordinateProvider` (0 px) и
+    `VisionCoordinateProvider` (bounds-center, KI-190).
+  - **DTO:** `CoordinateRequest`, `CoordinateResult`,
+    `CdpElementQuery`, `CdpElementResult`, `CdpViewportInfo`,
+    `VisionCoordinateProviderOptions`, `VisionCdpOptions`.
+  - **Реализация:** Ф2-Ф5 (PuppeteerSharpCdpSession, DomCoordinateProvider,
+    VisionCoordinateProvider, изменения в `LocalHarnessVisionBackend` и
+    `VisionAgentService`).
+  - **Тесты:** Ф7.
+  - **Файлы:** 9 новых (2 интерфейса + 7 DTO).
+
 ### Fixed
 - **v1.13.x (KI-195, KI-196) — Vision Planner: hotkey-first + no-click-after-Enter**:
   - **KI-195 (Fixed):** правило 13 в `PlannerPlanNext` — после
