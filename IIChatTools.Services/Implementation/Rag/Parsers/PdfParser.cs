@@ -252,26 +252,25 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
         /// <returns>PNG-байты.</returns>
         private static byte[] RenderPageToPng(byte[] pdfBytes, int pageIndex, int dpi)
         {
-            // PDFtoImage 5.x: публичный API работает через файловые пути
-            // (Conversion.SavePng(string pdfFile, string outputFile, Index page, ...)).
-            // Index — 0-based (default = 0 = первая страница).
+            // PDFtoImage 5.x: перегрузка
+            // SavePng(string imageFilename, string pdfAsBase64String,
+            //         Index page, string? password, RenderOptions options)
+            // Первый параметр — путь к выходному PNG, второй — PDF
+            // в виде base64-строки. PDF хранится в памяти (pdfBytes),
+            // промежуточный файл не нужен.
             //
             // CA1416: SavePng помечен [SupportedOSPlatform] для Windows /
             // Linux / macOS. Проект таргетит plain net10.0 — анализатор
             // ругается, хотя API работает на всех целевых ОС. Подавляем
             // локально (прецедент — LocalHarnessVisionBackend, KI-131).
 #pragma warning disable CA1416
-            var tempPdf = Path.GetTempFileName();
-            var tempPng = Path.ChangeExtension(tempPdf, ".png");
+            var tempPng = Path.ChangeExtension(Path.GetTempFileName(), ".png");
 
             try
             {
-                File.WriteAllBytes(tempPdf, pdfBytes);
-
-                // PDFtoImage 5.0.0: page: Index (0-based).
                 Conversion.SavePng(
-                    tempPdf,
                     tempPng,
+                    Convert.ToBase64String(pdfBytes),
                     page: new Index(pageIndex),
                     password: null,
                     options: new RenderOptions { Dpi = dpi });
@@ -280,9 +279,6 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
             }
             finally
             {
-                try { if (File.Exists(tempPdf)) File.Delete(tempPdf); }
-                catch { /* best-effort */ }
-
                 try { if (File.Exists(tempPng)) File.Delete(tempPng); }
                 catch { /* best-effort */ }
             }
