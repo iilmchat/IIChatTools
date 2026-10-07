@@ -30,7 +30,7 @@
   - **Ф2 (Fixed):** `PuppeteerSharpCdpSession` — реализация
     `IChromeCdpSession`. Подключение к Chrome через
     `Puppeteer.ConnectAsync` (`--remote-debugging-port=9222`,
-    `DefaultViewport=null`, timeout 5000 мс). JS-скрипт поиска
+    `DefaultViewport=null`). JS-скрипт поиска
     элемента: `label` (substring, case-insensitive) →
     `position` (ближайший центр, tolerance 200 px) → `type`
     (первый видимый). JS-скрипт viewport-метрик: DPR,
@@ -41,8 +41,15 @@
     `Found=false` + `Error`. PuppeteerSharp 7.1: используем
     конкретные классы `Browser` / `Page` (интерфейсы
     `IBrowser` / `IPage` появились в v10+).
-  - **Реализация:** Ф3-Ф5 (DomCoordinateProvider, VisionCoordinateProvider,
-    изменения в `LocalHarnessVisionBackend` и `VisionAgentService`).
+  - **Ф3 (Fixed):** `DomCoordinateProvider` + `VisionCoordinateProvider` —
+    две реализации `ICoordinateProvider`.
+    `DomCoordinateProvider` (создаётся через `new` внутри
+    `LocalHarnessVisionBackend`) — обёртка над `IChromeCdpSession`,
+    конвертация viewport-css → window-css → screen-px → screenshot-space.
+    `VisionCoordinateProvider` (DI Singleton) — fallback:
+    bounds-center из VL-описания (KI-190).
+  - **Реализация:** Ф4-Ф5 (изменения в `LocalHarnessVisionBackend`
+    и `VisionAgentService`).
   - **Тесты:** Ф7.
 
 ### Fixed
