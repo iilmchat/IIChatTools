@@ -86,7 +86,17 @@
       `NullLogger<PuppeteerSharpCdpSession>.Instance` (backend не
       имеет `ILoggerFactory`; переход на DI-инжект — v1.13.x-fix,
       если понадобятся логи CDP).
-  - **Реализация:** Ф7 (тесты).
+  - **Ф7 (Fixed):** тесты.
+    - `DomCoordinateProviderTests` (12): конвертация
+      viewport→screen→screenshot (identity, offsets, DPR=1.25,
+      scale=2), edge cases (не подключён, not found, throw,
+      cancellation, DPR=0, scale=0, propagation label/type).
+    - `VisionCoordinateProviderTests` (5): bounds-center,
+      null bounds, zero-size bounds, null request, Name.
+    - `PuppeteerSharpCdpSessionTests` (9): 6 non-skip
+      (empty URL, whitespace, not-connected, dispose idempotent,
+      null query) + 3 skip (реальный Chrome).
+    - **Итого:** +26 тестов (1016 → 1042).
 
 ### Fixed
 - **v1.13.x (KI-195, KI-196) — Vision Planner: hotkey-first + no-click-after-Enter**:
