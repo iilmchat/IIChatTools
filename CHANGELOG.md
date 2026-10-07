@@ -63,7 +63,13 @@
     - `GetScreenshotScale()` override — возвращает текущий
       `_screenshotScaleX/Y`.
     - `CloseBrowser` — сначала `Disconnect` CDP, потом kill Chrome.
-  - **Реализация:** Ф5 (изменения в `VisionAgentService`).
+  - **Ф5 (Fixed):** `VisionAgentService.ResolveCoordinatesAsync` —
+    DOM-first. `Mode ∈ {dom, auto}` + `backend.GetCoordinateProvider() != null`
+    → `DomCoordinateProvider.ResolveAsync`. При `Found=true` и
+    `X/Y > 0` — координаты из DOM. Иначе — VL-fallback
+    (Verify KI-162-2 → bounds-center KI-190 → center).
+    `Mode="vision"` — DOM-блок пропускается.
+  - **Реализация:** Ф6 (DI + appsettings).
   - **Тесты:** Ф7.
 
 ### Fixed

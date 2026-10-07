@@ -615,10 +615,28 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
         /// <summary>
         /// Резолвит координаты: если задан <c>target</c> — ищем в
-        /// <c>screen.UiElements</c>. При включённом <c>Verify</c> и наличии
-        /// bounds — уточняем координаты вторым VL-вызовом (KI-162-2).
-        /// Иначе — bounds-center / center / прямые x/y.
+        /// <c>screen.UiElements</c>. <b>Сначала пробуем DOM через CDP</b>
+        /// (KI-161, 0 px ошибки), затем — VL-fallback:
+        /// Verify (KI-162-2) → bounds-center (KI-190) → center.
+        /// Иначе — прямые x/y.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>Порядок резолва (v1.13.x, KI-161):</b>
+        /// <list type="number">
+        ///   <item><description>Если <c>Mode ∈ {dom, auto}</c> и backend
+        ///     поддерживает CDP (<c>GetCoordinateProvider() != null</c>) —
+        ///     <c>DomCoordinateProvider</c>. При <c>Found=true</c>
+        ///     возвращаем координаты из DOM.</description></item>
+        ///   <item><description>VL-fallback: Verify (KI-162-2) →
+        ///     bounds-center (KI-190) → center.</description></item>
+        /// </list>
+        /// </para>
+        /// <para>
+        /// <b>Mode:</b> <c>"dom"</c> — только DOM; <c>"vision"</c> — только VL
+        /// (DOM-блок пропускается); <c>"auto"</c> — DOM если доступен, иначе VL.
+        /// </para>
+        /// </remarks>
         /// <exception cref="InvalidOperationException">
         /// Если target не найден или не заданы ни target, ни x/y.
         /// </exception>
@@ -639,6 +657,85 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     throw new InvalidOperationException(
                         $"VisionAgentService: target '{action.Target}' не найден в ui_elements.");
                 }
+
+                // ========== KI-161: DOM-first (PuppeteerSharp CDP-attach) ==========
+                // Если backend поддерживает DOM-координаты (LocalHarness + Chrome
+                // с --remote-debugging-port=9222) — получаем точные координаты
+                // из getBoundingClientRect (0 px ошибки vs ±20-30 px у VL).
+                //
+                // Mode:
+                //   "dom"    — только DOM (при неудаче — VL-fallback, не падаем);
+                //   "vision" — DOM-блок полностью пропускается (старое поведение, KI-190);
+                //   "auto"   — DOM если CDP подключён, иначе VL.
+                var coordinateMode = _options.CoordinateProvider?.Mode?.ToLowerInvariant() ?? "auto";
+                var domEnabled = coordinateMode == "dom" || coordinateMode == "auto";
+
+                if (domEnabled)
+                {
+                    var domProvider = _backend.GetCoordinateProvider();
+                    if (domProvider != null)
+                    {
+                        var (scaleX, scaleY) = _backend.GetScreenshotScale();
+
+                        var domRequest = new CoordinateRequest
+                        {
+                            TargetId = action.Target,
+                            TargetLabel = element.Label,
+                            TargetType = element.Type,
+                            TargetBounds = element.Bounds,
+                            ScreenshotScaleX = scaleX > 0 ? scaleX : 1.0,
+                            ScreenshotScaleY = scaleY > 0 ? scaleY : 1.0
+                        };
+
+                        try
+                        {
+                            var domResult = await domProvider
+                                .ResolveAsync(domRequest, ct)
+                                .ConfigureAwait(false);
+
+                            // Защита от (0,0): DomCoordinateProvider возвращает
+                            // X=0/Y=0 только если coordinates не удалось получить
+                            // (лежит в левом верхнем углу viewport под chrome UI —
+                            // нереалистично для реальной кнопки; используем как маркер
+                            // «не нашёл» → VL-fallback).
+                            if (domResult != null
+                                && domResult.Found
+                                && domResult.X > 0 && domResult.Y > 0)
+                            {
+                                _logger.LogInformation(
+                                    "VisionAgent: DOM-resolve target='{Target}' → ({X},{Y}) " +
+                                    "selector='{Selector}' matchedBy={By}",
+                                    action.Target, domResult.X, domResult.Y,
+                                    domResult.Selector ?? "(нет)",
+                                    domResult.Error ?? "(нет)");
+
+                                return (domResult.X, domResult.Y);
+                            }
+
+                            _logger.LogDebug(
+                                "VisionAgent: DOM-resolve target='{Target}' не нашёл — " +
+                                "VL-fallback ({Err})",
+                                action.Target,
+                                domResult?.Error ?? "not found");
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex,
+                                "VisionAgent: DOM-resolve упал — VL-fallback");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug(
+                            "VisionAgent: DOM-провайдер недоступен (Mode={Mode}) — VL-fallback",
+                            coordinateMode);
+                    }
+                }
+                // ========== /KI-161 ==========
 
                 // KI-162-2 (v1.13.x): Coordinate-then-Verify.
                 // Тот же путь, что и в VisionAgentTool.HandleCoordinateActionAsync.
