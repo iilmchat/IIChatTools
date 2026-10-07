@@ -2580,6 +2580,8 @@ body.chat-pages-modal-open {
     display: block;
     border: 1px solid var(--bs-border-color);
     background: #fff;
+    /* Убрано transition — вызывало «мигание» при смене страницы с разным
+       зумом (smoke KI-206 round 1). Мгновенное применение — норма. */
 }
 
 /* На мобильных — thumbs занимает весь экран при expanded. */
@@ -2597,3 +2599,130 @@ body.chat-pages-modal-open {
         font-size: .7rem;
     }
 }
+
+/* ============================================================
+   v1.13.x (KI-207): text layer + поиск в page viewer.
+   ============================================================ */
+
+/* Обёртка text layer. Размер = natural PNG (масштабируется через
+   transform: scale() в JS синхронно с <img>). */
+.chat-pages-text-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* width / height — из JS (natural PNG) */
+    pointer-events: none;
+    overflow: hidden;
+    transform-origin: top left;
+    /* Слой рендерится поверх <img>. z-index гарантирует порядок. */
+    z-index: 1;
+    /* Не мешать кликам по кнопкам навигации (они absolute с z-index: 2). */
+}
+
+/* Одно слово. Все координаты — в natural PNG px. */
+.chat-pages-text-word {
+    position: absolute;
+    color: transparent;
+    white-space: pre;
+    pointer-events: auto;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+    /* font-family по умолчанию — позиционирование по bbox, не по глифам. */
+}
+
+/* Подсветка найденного слова. */
+.chat-pages-text-word > mark.chat-pages-search-hit {
+    background: #fff3a3;
+    color: transparent;
+    padding: 0;
+    border-radius: 1px;
+}
+
+.chat-pages-text-word > mark.chat-pages-search-hit.chat-pages-search-hit-active {
+    background: #ffb84d;
+    box-shadow: 0 0 0 2px #0d6efd;
+}
+
+/* Поисковая панель — overlay в правом верхнем углу viewport. */
+.chat-pages-search-bar {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .35rem .5rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+}
+
+.chat-pages-search-bar[hidden] {
+    display: none !important;
+}
+
+.chat-pages-search-input {
+    width: 200px;
+    padding: .25rem .5rem;
+    font-size: .85rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.chat-pages-search-input:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .25);
+}
+
+.chat-pages-search-counter {
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+    font-family: var(--bs-font-monospace);
+    min-width: 50px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.chat-pages-search-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: .25rem;
+    background: transparent;
+    color: var(--bs-body-color);
+    cursor: pointer;
+    font-size: .85rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color .15s, color .15s;
+}
+
+.chat-pages-search-btn:hover {
+    background: var(--bs-secondary-bg);
+    color: var(--bs-primary);
+}
+
+.chat-pages-search-btn:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 1px;
+}
+
+@media (max-width: 575.98px) {
+    .chat-pages-search-bar {
+        left: 8px;
+        right: 8px;
+    }
+    .chat-pages-search-input {
+        flex: 1 1 auto;
+        width: auto;
+    }
+}
+

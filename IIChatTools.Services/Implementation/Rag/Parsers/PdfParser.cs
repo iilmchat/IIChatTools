@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,8 +9,13 @@ using IIChatTools.Services.DTO.Rag;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;   // KI-207-fix: CamelCasePropertyNamesContractResolver
 using PDFtoImage;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
+// KI-207: WordExtractor — extension-метод GetWords() живёт здесь.
+using UglyToad.PdfPig.DocumentLayoutAnalysis.WordExtractor;
 
 namespace IIChatTools.Services.Implementation.Rag.Parsers
 {
@@ -171,6 +177,7 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                 int ocrPagesUsed = 0;
                 int totalPages = doc.NumberOfPages;
                 int savedPagesCount = 0;
+                int savedTextLayersCount = 0;
 
                 // v1.13.x (KI-205): если задана директория — сохраняем PNG каждой
                 // страницы (независимо от OCR, чтобы пользователь мог посмотреть
@@ -221,6 +228,73 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                         }
                     }
 
+                    // v1.13.x (KI-207): построение text layer.
+                    // Порядок: PNG → OCR (или PdfPig) → textLayer → сохранение.
+                    //
+                    // ВАЖНО: один вызов OCR — RecognizeWithLayoutAsync даёт
+                    // и текст, и word boxes. Раньше вызывались оба метода
+                    // (RecognizeAsync для usedText + RecognizeWithLayoutAsync
+                    // для слоя) — это двойной OCR, дорого.
+                    PageTextLayerDto textLayer = null;
+
+                    if (pagePng != null)
+                    {
+                        try
+                        {
+                            var (pngW, pngH) = GetPngDimensions(pagePng);
+                            if (pngW > 0 && pngH > 0)
+                            {
+                                if (shouldOcr)
+                                {
+                                    // Скан → один OCR-вызов с bbox'ами.
+                                    var ocrLayer = await _ocr
+                                        .RecognizeWithLayoutAsync(
+                                            pagePng, pngW, pngH, cancellationToken)
+                                        .ConfigureAwait(false);
+
+                                    if (ocrLayer?.Words?.Count > 0)
+                                    {
+                                        textLayer = ocrLayer;
+
+                                        // Восстанавливаем текст из слов:
+                                        // пробел между словами.
+                                        var ocrText = string.Join(" ",
+                                            ocrLayer.Words.Select(w => w.Text));
+
+                                        if (!string.IsNullOrWhiteSpace(ocrText))
+                                        {
+                                            usedText = ocrText;
+                                            ocrPagesUsed++;
+
+                                            _logger.LogInformation(
+                                                "OCR: страница {Page}/{Total} распознана " +
+                                                "({Chars} символов, {Words} слов, скан)",
+                                                page.Number, totalPages,
+                                                ocrText.Length, ocrLayer.Words.Count);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // Текстовый PDF → PdfPig word boxes.
+                                    textLayer = ExtractWordsFromPdfPage(
+                                        page, pngW, pngH);
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex,
+                                "PDF: страница {Page}/{Total} — построение " +
+                                "text layer упало (не критично)",
+                                page.Number, totalPages);
+                        }
+                    }
+
                     // Сохранение PNG в workspace (KI-205).
                     if (shouldSavePages && pagePng != null)
                     {
@@ -245,25 +319,27 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                         }
                     }
 
-                    // OCR-fallback.
-                    if (shouldOcr && pagePng != null)
+                    // v1.13.x (KI-207): сохранение text layer рядом с PNG.
+                    // KI-207-fix: camelCase — фронт (chat.js) читает
+                    // dto.width / dto.words / dto.height без нормализации.
+                    if (shouldSavePages && textLayer != null && textLayer.Words.Count > 0)
                     {
                         try
                         {
-                            var ocrText = await _ocr
-                                .RecognizeAsync(pagePng, cancellationToken)
-                                .ConfigureAwait(false);
-
-                            if (!string.IsNullOrWhiteSpace(ocrText))
+                            var jsonPath = Path.Combine(
+                                savePagesDir, $"page-{page.Number}.json");
+                            var jsonSettings = new JsonSerializerSettings
                             {
-                                usedText = ocrText;
-                                ocrPagesUsed++;
-
-                                _logger.LogInformation(
-                                    "OCR: страница {Page}/{Total} распознана " +
-                                    "({Chars} символов, скан)",
-                                    page.Number, totalPages, ocrText.Length);
-                            }
+                                ContractResolver =
+                                    new CamelCasePropertyNamesContractResolver()
+                            };
+                            var json = JsonConvert.SerializeObject(
+                                textLayer, jsonSettings);
+                            await File.WriteAllTextAsync(
+                                    jsonPath, json, Encoding.UTF8,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                            savedTextLayersCount++;
                         }
                         catch (OperationCanceledException)
                         {
@@ -272,11 +348,11 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                         catch (Exception ex)
                         {
                             _logger.LogWarning(ex,
-                                "OCR: страница {Page}/{Total} — ошибка, " +
-                                "используем текстовый слой как есть",
-                                page.Number, totalPages);
+                                "PDF: не удалось сохранить text layer страницы {Page} в {Path}",
+                                page.Number, savePagesDir);
                         }
                     }
+
 
                     if (!string.IsNullOrEmpty(usedText))
                     {
@@ -289,8 +365,9 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                 if (savedPagesCount > 0)
                 {
                     _logger.LogInformation(
-                        "PDF: сохранено {Count} PNG-страниц в {Dir}",
-                        savedPagesCount, savePagesDir);
+                        "PDF: сохранено {Count} PNG-страниц в {Dir} " +
+                        "(с text layer: {Layers})",
+                        savedPagesCount, savePagesDir, savedTextLayersCount);
                 }
 
                 // Нормализация переносов.
@@ -324,6 +401,79 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                     PageCount = totalPages
                 };
             }
+        }
+
+        /// <summary>
+        /// v1.13.x (KI-207): извлекает word boxes из текстового PDF
+        /// через PdfPig <see cref="Page.GetWords()"/>.
+        ///
+        /// <para>
+        /// PdfPig отдаёт координаты в PDF-точках (origin — bottom-left, y↑).
+        /// Конвертируем в natural PNG pixels (top-left, y↓) через
+        /// масштабирование по ширине/высоте страницы.
+        /// </para>
+        /// </summary>
+        /// <param name="page">PdfPig страница.</param>
+        /// <param name="pngW">Ширина PNG в пикселях.</param>
+        /// <param name="pngH">Высота PNG в пикселях.</param>
+        private static PageTextLayerDto ExtractWordsFromPdfPage(
+            Page page, int pngW, int pngH)
+        {
+            var layer = new PageTextLayerDto { Width = pngW, Height = pngH };
+
+            var pdfPageW = page.Width;    // PDF points
+            var pdfPageH = page.Height;   // PDF points
+            if (pdfPageW <= 0 || pdfPageH <= 0)
+                return layer;
+
+            var scaleX = pngW / pdfPageW;
+            var scaleY = pngH / pdfPageH;
+
+            // PdfPig 0.1.9: DefaultWordExtractor.Instance — статический singleton,
+            // принимает IEnumerable<Letter> (page.Letters).
+            // GetWords() extension-метод (page.GetWords()) требует using
+            // UglyToad.PdfPig.DocumentLayoutAnalysis.WordExtractor — добавлен.
+            foreach (var word in UglyToad.PdfPig.DocumentLayoutAnalysis.WordExtractor.NearestNeighbourWordExtractor.Instance.GetWords(page.Letters))
+            {
+                var text = word.Text;
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
+                var rect = word.BoundingBox;   // PdfRectangle (Left, Bottom, Right, Top)
+                var w = (rect.Right - rect.Left) * scaleX;
+                var h = (rect.Top - rect.Bottom) * scaleY;
+                if (w <= 0 || h <= 0) continue;
+
+                layer.Words.Add(new WordBoxDto
+                {
+                    Text = text,
+                    X = rect.Left * scaleX,
+                    // PDF y↑: top в точках → PNG y↓: y = (pageHeight - top) * scale
+                    Y = (pdfPageH - rect.Top) * scaleY,
+                    W = w,
+                    H = h
+                });
+            }
+
+            return layer;
+        }
+
+        /// <summary>
+        /// v1.13.x (KI-207): читает ширину/высоту PNG из заголовка (IHDR).
+        /// </summary>
+        /// <param name="png">PNG-байты.</param>
+        /// <returns>(width, height) или (0, 0) при ошибке.</returns>
+        private static (int width, int height) GetPngDimensions(byte[] png)
+        {
+            // PNG signature (8 байт) + длина IHDR (4) + "IHDR" (4) + width (4) + height (4).
+            if (png == null || png.Length < 24) return (0, 0);
+
+            // Проверка сигнатуры PNG.
+            if (png[0] != 0x89 || png[1] != 0x50 || png[2] != 0x4E || png[3] != 0x47)
+                return (0, 0);
+
+            int w = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+            int h = (png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23];
+            return (w, h);
         }
 
         /// <summary>

@@ -41,5 +41,31 @@ namespace IIChatTools.Services.Interfaces
         Task<string> RecognizeAsync(
             byte[] imageBytes,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Распознаёт текст на изображении с сохранением bbox'ов каждого слова
+        /// (v1.13.x, KI-207 — text layer).
+        ///
+        /// <para>
+        /// Используется для построения text layer поверх PNG: слова
+        /// позиционируются абсолютно, что позволяет выделять текст и искать
+        /// по странице (как в Acrobat).
+        /// </para>
+        /// </summary>
+        /// <param name="imageBytes">PNG-байты.</param>
+        /// <param name="imageWidth">Ширина изображения в пикселях (для DTO).</param>
+        /// <param name="imageHeight">Высота изображения в пикселях (для DTO).</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// Text layer (слова + bbox). Слова — в natural PNG pixels,
+        /// top-left origin, y↓.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">Если <see cref="IsReady"/> = false.</exception>
+        /// <exception cref="ArgumentException">Если <paramref name="imageBytes"/> пуст.</exception>
+        Task<DTO.Rag.PageTextLayerDto> RecognizeWithLayoutAsync(
+            byte[] imageBytes,
+            int imageWidth,
+            int imageHeight,
+            CancellationToken cancellationToken = default);
     }
 }

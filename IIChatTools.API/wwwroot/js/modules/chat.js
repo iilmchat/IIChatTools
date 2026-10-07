@@ -64,6 +64,7 @@ const state = {
     // v1.13.x (KI-205): постраничный просмотр PNG сканов.
     // v1.13.x (KI-206): + zoom (число), thumbsCollapsed (bool),
     //                    imageNaturalSize {w, h}, thumbsObserver.
+    // v1.13.x (KI-207): + textLayer (DOM), textLayerDto, searchHits, searchIndex.
     pagesViewer: null,
 
     // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
@@ -391,6 +392,34 @@ function bindEvents() {
                 }
             }, { passive: false });
         }
+
+        // v1.13.x (KI-207): поисковая панель в модалке страниц.
+        const searchBar = document.getElementById('chat-pages-search-bar');
+        if (searchBar) {
+            const searchInput = document.getElementById('chat-pages-search-input');
+
+            searchInput?.addEventListener('input', (e) => {
+                applyPagesSearch(e.target.value);
+            });
+
+            searchInput?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    navigatePagesSearch(e.shiftKey ? -1 : +1);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closePagesSearch();
+                }
+            });
+
+            searchBar.querySelector('[data-action="prev"]')
+                ?.addEventListener('click', () => navigatePagesSearch(-1));
+            searchBar.querySelector('[data-action="next"]')
+                ?.addEventListener('click', () => navigatePagesSearch(+1));
+            searchBar.querySelector('[data-action="close"]')
+                ?.addEventListener('click', closePagesSearch);
+        }
     }
 
     // KI-083 (Шаг 6D): вложения чата (RAG)
@@ -490,6 +519,85 @@ function bindEvents() {
     // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B/F/K.
     // Работает только на /chat (модуль подключён только там).
     document.addEventListener('keydown', (e) => {
+        // ==================================================================
+        // KI-207-fix: модалка страниц — ПРИОРИТЕТ №1.
+        // Блок вынесен в начало: иначе Ctrl+F (и другие) перехватываются
+        // ранее стоящими обработчиками (Ctrl+B/F/K ниже) и до модалки
+        // не долетают (плюс Chrome успевает открыть нативный поиск).
+        // ==================================================================
+        const pmNav = document.getElementById('chat-pages-modal');
+        if (pmNav && !pmNav.hidden) {
+            // Ctrl+F — открыть поиск по text layer.
+            if (e.ctrlKey && !e.shiftKey && !e.altKey
+                && e.key.toLowerCase() === 'f')
+            {
+                e.preventDefault();
+                openPagesSearch();
+                return;
+            }
+
+            // Ctrl+= / Ctrl+- / Ctrl+0 — зум.
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    setPagesZoom(getPagesZoom() + PAGES_ZOOM_STEP);
+                    return;
+                }
+                if (e.key === '-' || e.key === '_') {
+                    e.preventDefault();
+                    setPagesZoom(getPagesZoom() - PAGES_ZOOM_STEP);
+                    return;
+                }
+                if (e.key === '0') {
+                    e.preventDefault();
+                    setPagesZoom(1.0);
+                    return;
+                }
+            }
+
+            // Escape — закрыть поиск (если открыт) / потом модалку.
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                const psb = document.getElementById('chat-pages-search-bar');
+                if (psb && !psb.hidden) {
+                    closePagesSearch();
+                } else {
+                    closePagesViewer();
+                }
+                return;
+            }
+
+            // ←/→/↑/↓ — навигация по страницам (если фокус не в input).
+            const ae = document.activeElement;
+            const inInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+            if (!inInput) {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigatePagesViewer(-1);
+                    return;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigatePagesViewer(+1);
+                    return;
+                }
+            }
+
+            // Прочие Ctrl-хоткеи и Escape не обрабатываем, пока модалка
+            // открыта (чтобы не мешать браузеру/пользователю).
+            // Например, Ctrl+B / Ctrl+K — просто игнорируем.
+            if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+                const k = e.key.toLowerCase();
+                if (k === 'b' || k === 'k') {
+                    e.preventDefault();
+                    return;
+                }
+            }
+        }
+
+        // ==================================================================
+        // Ниже — глобальные hotkeys страницы /chat (модалка страниц закрыта).
+        // ==================================================================
         if (e.ctrlKey && !e.shiftKey && !e.altKey) {
             const k = e.key.toLowerCase();
             if (k === 'b') {
@@ -508,66 +616,21 @@ function bindEvents() {
                 return;
             }
         }
+
         if (e.key === 'Escape') {
-            // Приоритет 0 (v1.13.x, KI-205): модалка страниц.
-            const pm = document.getElementById('chat-pages-modal');
-            if (pm && !pm.hidden) {
-                e.preventDefault();
-                closePagesViewer();
-                return;
-            }
-            // Приоритет 1: ⌘K-модалка (если открыта — закрываем только её).
+            // Приоритет 1: ⌘K-модалка.
             const gsModal = document.getElementById('chat-global-search');
             if (gsModal && !gsModal.hidden) {
                 e.preventDefault();
                 closeGlobalSearch();
                 return;
             }
-            // Приоритет 2: панель поиска по активному чату (KI-078A).
+            // Приоритет 2: панель поиска по активному чату.
             const bar = document.getElementById('chat-search-bar');
             if (bar && !bar.hidden) {
                 e.preventDefault();
                 closeChatSearch();
                 return;
-            }
-        }
-
-        // v1.13.x (KI-205 + KI-206): навигация ←/→/↑/↓ внутри модалки страниц.
-        const pmNav = document.getElementById('chat-pages-modal');
-        if (pmNav && !pmNav.hidden) {
-            // Если фокус в input — не перехватываем.
-            const ae = document.activeElement;
-            const inInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
-
-            if (!inInput) {
-                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    navigatePagesViewer(-1);
-                    return;
-                }
-                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    navigatePagesViewer(+1);
-                    return;
-                }
-                // KI-206: Ctrl+= / Ctrl+- / Ctrl+0 — зум.
-                if (e.ctrlKey || e.metaKey) {
-                    if (e.key === '=' || e.key === '+') {
-                        e.preventDefault();
-                        setPagesZoom(getPagesZoom() + PAGES_ZOOM_STEP);
-                        return;
-                    }
-                    if (e.key === '-' || e.key === '_') {
-                        e.preventDefault();
-                        setPagesZoom(getPagesZoom() - PAGES_ZOOM_STEP);
-                        return;
-                    }
-                    if (e.key === '0') {
-                        e.preventDefault();
-                        setPagesZoom(1.0);
-                        return;
-                    }
-                }
             }
         }
     });
@@ -4739,12 +4802,22 @@ function renderPagesViewerPage(pageNumber) {
 
         const img = wrap.querySelector('.chat-pages-modal-image');
         if (img) {
-            // После загрузки — фиксируем naturalSize и применяем текущий zoom.
-            img.addEventListener('load', () => {
+            const onImgReady = () => {
                 if (viewer && viewer.currentPage === pageNumber) {
                     applyPagesZoom();
+                    // KI-207: загрузить text layer после img (и подогнать scale).
+                    loadPagesTextLayer(pageNumber);
                 }
-            });
+            };
+
+            // KI-207-fix: если PNG уже в кеше браузера, событие `load`
+            // НЕ сработает. Проверяем img.complete — иначе text layer
+            // не загрузится (баг: на чате 59 запросов /ocr было всего 2).
+            if (img.complete && img.naturalWidth > 0) {
+                onImgReady();
+            } else {
+                img.addEventListener('load', onImgReady);
+            }
         }
 
         // Прелоад следующей страницы.
@@ -4752,6 +4825,9 @@ function renderPagesViewerPage(pageNumber) {
             const pre = new Image();
             pre.src = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber + 1}`;
         }
+
+        // KI-207: сразу сбрасываем поиск (слой будет заменён).
+        closePagesSearch();
     }
 
     // Счётчик «N / M».
@@ -4859,6 +4935,9 @@ function applyPagesZoom() {
     // Сброс на случай, если остался transform от предыдущей версии.
     img.style.transform = '';
     img.style.transformOrigin = '';
+
+    // KI-207: синхронизировать scale text layer с новым размером img.
+    applyTextLayerScale();
 }
 
 /**
@@ -4935,6 +5014,8 @@ function closePagesViewer() {
     const modal = document.getElementById('chat-pages-modal');
     if (!modal) return;
 
+    closePagesSearch();
+
     modal.hidden = true;
     document.body.classList.remove('chat-pages-modal-open');
     state.pagesViewer = null;
@@ -4944,4 +5025,309 @@ function closePagesViewer() {
 
     const thumbs = document.getElementById('chat-pages-thumbs-list');
     if (thumbs) thumbs.innerHTML = '';
+}
+
+// ============================================================
+// v1.13.x (KI-207): text layer + поиск.
+// ============================================================
+
+/**
+ * KI-207: загружает и рендерит text layer для страницы.
+ * Тихий fail — если нет page-N.json, просто не рендерим слой.
+ * @param {number} pageNumber
+ */
+async function loadPagesTextLayer(pageNumber) {
+    const viewer = state.pagesViewer;
+    if (!viewer || !state.activeChatId) return;
+
+    const wrap = document.getElementById('chat-pages-image-wrap');
+    if (!wrap) return;
+
+    // Сразу удаляем предыдущий слой (страница сменилась).
+    wrap.querySelector('.chat-pages-text-layer')?.remove();
+    viewer.textLayer = null;
+    viewer.textLayerDto = null;
+
+    try {
+        const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber}/ocr`;
+
+        // apiGet умеет парсить { success, data }; но endpoint возвращает
+        // «сырой» JSON PageTextLayerDto при успехе. Поэтому fetch напрямую.
+        const response = await fetch(url, { credentials: 'same-origin' });
+        if (!response.ok) return;   // 404 / 500 — тихо пропускаем.
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) return;
+
+        let dto;
+        try {
+            dto = await response.json();
+        } catch {
+            return;
+        }
+
+        // Проверка: если сервер вернул { success: false } — пропускаем.
+        if (dto && dto.success === false) return;
+
+        // KI-207-fix: нормализация регистра. Принимаем оба варианта:
+        //   • camelCase (новый формат после KI-207-fix);
+        //   • PascalCase (старые page-N.json, или если сервер вернёт
+        //     сырой JsonConvert.SerializeObject).
+        const width = dto.width ?? dto.Width;
+        const height = dto.height ?? dto.Height;
+        const rawWords = dto.words ?? dto.Words ?? [];
+        if (!width || !height || !Array.isArray(rawWords) || rawWords.length === 0) {
+            return;
+        }
+
+        // Нормализуем слова: { text, x, y, w, h } в camelCase.
+        const normalized = {
+            width,
+            height,
+            words: rawWords.map(w => ({
+                text: w.text ?? w.Text,
+                x: w.x ?? w.X,
+                y: w.y ?? w.Y,
+                w: w.w ?? w.W,
+                h: w.h ?? w.H
+            }))
+        };
+
+        // Защита от гонки: пользователь мог переключить страницу.
+        if (viewer.currentPage !== pageNumber) return;
+
+        renderTextLayer(wrap, normalized);
+    } catch (ex) {
+        console.debug('[chat] loadPagesTextLayer fail (ignore):', ex);
+    }
+}
+
+/**
+ * KI-207: рендерит прозрачный text layer поверх <img>.
+ * @param {HTMLElement} wrap
+ * @param {{width:number,height:number,words:Array}} dto
+ */
+function renderTextLayer(wrap, dto) {
+    const viewer = state.pagesViewer;
+    if (!viewer) return;
+
+    const layer = document.createElement('div');
+    layer.className = 'chat-pages-text-layer';
+    layer.style.width = `${dto.width}px`;
+    layer.style.height = `${dto.height}px`;
+
+    for (let i = 0; i < dto.words.length; i++) {
+        const w = dto.words[i];
+        if (!w.text || w.w <= 0 || w.h <= 0) continue;
+
+        const span = document.createElement('span');
+        span.className = 'chat-pages-text-word';
+        span.textContent = w.text;
+        span.dataset.wordIndex = String(i);
+        span.style.left = `${w.x}px`;
+        span.style.top = `${w.y}px`;
+        span.style.width = `${w.w}px`;
+        span.style.height = `${w.h}px`;
+        // font-size ~0.9 от высоты — позиционирование по bbox, не по глифам.
+        // Прозрачный цвет делает точность не критичной; selection-follows-bbox.
+        span.style.fontSize = `${w.h * 0.9}px`;
+        span.style.lineHeight = `${w.h}px`;
+
+        layer.appendChild(span);
+    }
+
+    wrap.appendChild(layer);
+
+    viewer.textLayer = layer;
+    viewer.textLayerDto = dto;
+    viewer.searchHits = [];
+    viewer.searchIndex = -1;
+
+    applyTextLayerScale();
+}
+
+/**
+ * KI-207: синхронизирует transform text layer с текущим размером <img>.
+ */
+function applyTextLayerScale() {
+    const viewer = state.pagesViewer;
+    if (!viewer || !viewer.textLayer || !viewer.textLayerDto) return;
+
+    const naturalW = viewer.textLayerDto.width;
+    if (!naturalW) return;
+
+    // Считаем масштаб от фактической ширины <img> в DOM.
+    const img = document.querySelector('#chat-pages-image-wrap .chat-pages-modal-image');
+    if (!img) return;
+
+    // img.offsetWidth — layout-ширина в CSS px (уже с учётом zoom).
+    const displayW = img.offsetWidth;
+    if (displayW <= 0) return;
+
+    const scale = displayW / naturalW;
+    viewer.textLayer.style.transform = `scale(${scale})`;
+    viewer.textLayer.style.transformOrigin = 'top left';
+}
+
+/**
+ * KI-207: открывает поисковую панель в модалке страниц.
+ */
+function openPagesSearch() {
+    const bar = document.getElementById('chat-pages-search-bar');
+    if (!bar) return;
+
+    bar.hidden = false;
+    const input = document.getElementById('chat-pages-search-input');
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+/**
+ * KI-207: закрывает поиск + снимает подсветки.
+ */
+function closePagesSearch() {
+    const bar = document.getElementById('chat-pages-search-bar');
+    if (bar) bar.hidden = true;
+
+    const viewer = state.pagesViewer;
+    if (viewer?.textLayer) {
+        clearPagesSearchHighlights(viewer.textLayer);
+        viewer.searchHits = [];
+        viewer.searchIndex = -1;
+    }
+
+    updatePagesSearchCounter(0, 0);
+}
+
+/**
+ * KI-207: снимает <mark> со всех слов.
+ */
+function clearPagesSearchHighlights(layer) {
+    layer.querySelectorAll('mark.chat-pages-search-hit').forEach(mark => {
+        const parent = mark.parentNode;
+        if (!parent) return;
+        while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+        parent.removeChild(mark);
+        parent.normalize();
+    });
+}
+
+/**
+ * KI-207: применяет поиск: подсвечивает слова, содержащие query (case-insensitive).
+ *
+ * <para>
+ * MVP — поиск внутри одного слова. Кросс-словесный поиск (по flat text)
+ * — отложен в следующую итерацию.
+ * </para>
+ */
+function applyPagesSearch(query) {
+    const viewer = state.pagesViewer;
+    if (!viewer?.textLayer) return;
+
+    const layer = viewer.textLayer;
+    clearPagesSearchHighlights(layer);
+    viewer.searchHits = [];
+    viewer.searchIndex = -1;
+
+    const q = (query || '').trim().toLowerCase();
+    if (!q) {
+        updatePagesSearchCounter(0, 0);
+        return;
+    }
+
+    const spans = layer.querySelectorAll('.chat-pages-text-word');
+    const hits = [];
+    for (const span of spans) {
+        const text = (span.textContent || '').toLowerCase();
+        if (text.includes(q)) {
+            const mark = document.createElement('mark');
+            mark.className = 'chat-pages-search-hit';
+            while (span.firstChild) mark.appendChild(span.firstChild);
+            span.appendChild(mark);
+            hits.push(span);
+        }
+    }
+
+    viewer.searchHits = hits;
+    viewer.searchIndex = hits.length > 0 ? 0 : -1;
+
+    updatePagesSearchCounter(hits.length > 0 ? 1 : 0, hits.length);
+
+    if (hits.length > 0) {
+        scrollToSearchHit(0);
+    }
+}
+
+/**
+ * KI-207: перейти к предыдущему / следующему совпадению.
+ * @param {number} delta  -1 = вверх, +1 = вниз (циклически).
+ */
+function navigatePagesSearch(delta) {
+    const viewer = state.pagesViewer;
+    if (!viewer?.searchHits || viewer.searchHits.length === 0) return;
+
+    const n = viewer.searchHits.length;
+    let idx = (viewer.searchIndex ?? 0) + delta;
+    idx = ((idx % n) + n) % n;
+    viewer.searchIndex = idx;
+
+    updatePagesSearchCounter(idx + 1, n);
+    scrollToSearchHit(idx);
+}
+
+/**
+ * KI-207: скроллит модалку к указанному совпадению + подсвечивает его как активное.
+ */
+function scrollToSearchHit(index) {
+    const viewer = state.pagesViewer;
+    if (!viewer?.searchHits) return;
+
+    // Снимаем активную подсветку со всех.
+    viewer.textLayer?.querySelectorAll(
+        '.chat-pages-search-hit-active').forEach(el => {
+            el.classList.remove('chat-pages-search-hit-active');
+        });
+
+    const span = viewer.searchHits[index];
+    if (!span) return;
+
+    const mark = span.querySelector('.chat-pages-search-hit');
+    if (mark) mark.classList.add('chat-pages-search-hit-active');
+
+    // Скролл внутри viewport (не в body).
+    const viewport = document.querySelector('.chat-pages-viewport');
+    if (viewport && span) {
+        const spanRect = span.getBoundingClientRect();
+        const viewRect = viewport.getBoundingClientRect();
+
+        // Если span вне видимой области — центрируем.
+        if (spanRect.top < viewRect.top || spanRect.bottom > viewRect.bottom) {
+            const targetY = span.offsetTop * (viewer.zoom || 1)
+                - viewport.clientHeight / 2
+                + (span.offsetHeight * (viewer.zoom || 1)) / 2;
+            viewport.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        }
+    }
+}
+
+/**
+ * KI-207: обновляет счётчик поиска.
+ */
+function updatePagesSearchCounter(current, total) {
+    const counter = document.getElementById('chat-pages-search-counter');
+    const bar = document.getElementById('chat-pages-search-bar');
+    if (!counter) return;
+
+    if (total === 0) {
+        const noResults = bar?.dataset.labelNoresults || 'No matches';
+        counter.textContent = noResults;
+        return;
+    }
+
+    const template = bar?.dataset.labelCounter || '{0} / {1}';
+    counter.textContent = template
+        .replace('{0}', String(current))
+        .replace('{1}', String(total));
 }

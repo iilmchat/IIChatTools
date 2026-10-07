@@ -524,6 +524,103 @@ namespace IIChatTools.API.Controllers
             }
         }
 
+        // ============================================================
+        // v1.13.x (KI-207): text layer страницы (для выделения + поиска)
+        // ============================================================
+
+        /// <summary>
+        /// Возвращает text layer страницы (words + bbox) — для рендера
+        /// прозрачного слоя поверх PNG и поиска/выделения.
+        ///
+        /// <para>
+        /// Если для страницы нет <c>page-N.json</c> (не OCR-страница и не
+        /// текстовый PDF, или файл загружен до v1.13.x) — возвращается
+        /// <c>{ success: false, message: "Text layer not found" }</c>.
+        /// Frontend просто не рендерит слой.
+        /// </para>
+        /// </summary>
+        /// <param name="chatId">Идентификатор чата.</param>
+        /// <param name="attachmentId">Идентификатор вложения.</param>
+        /// <param name="pageNumber">Номер страницы (1-based).</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// JSON <c>{ success, data: { width, height, words: [...] } }</c>
+        /// или <c>{ success: false, message }</c>.
+        /// </returns>
+        [HttpGet("{attachmentId:int}/pages/{pageNumber:int}/ocr")]
+        public async Task<IActionResult> GetPageTextLayerAsync(
+            int chatId,
+            int attachmentId,
+            int pageNumber,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (pageNumber < 1)
+                    return Ok(new { success = false, message = "Text layer not found" });
+
+                var userId = GetCurrentUserId();
+
+                var chat = await _chatService.GetChatAsync(chatId, userId, cancellationToken);
+                if (chat == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = _localizer["Ресурс не найден."].Value
+                    });
+                }
+
+                var attachments = await _attachmentService.GetForChatAsync(
+                    chatId, userId, cancellationToken);
+                var attachment = attachments.FirstOrDefault(a => a.Id == attachmentId);
+                if (attachment == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = _localizer["Ресурс не найден."].Value
+                    });
+                }
+
+                var workspaceRoot = await _workspaceResolver
+                    .GetWorkspacePathAsync(userId);
+                var pagesDir = BuildPagesDirectory(
+                    workspaceRoot, chatId, attachment.FileName);
+
+                var jsonPath = System.IO.Path.Combine(
+                    pagesDir, $"page-{pageNumber}.json");
+
+                if (!System.IO.File.Exists(jsonPath))
+                {
+                    return Ok(new { success = false, message = "Text layer not found" });
+                }
+
+                var json = await System.IO.File.ReadAllTextAsync(
+                    jsonPath, System.Text.Encoding.UTF8, cancellationToken);
+
+                // Возвращаем как есть — парсинг JSON на стороне фронта
+                // (структура PageTextLayerDto фиксирована).
+                return Content(json, "application/json");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Ошибка получения text layer: chatId={ChatId}, " +
+                    "attachmentId={Id}, page={Page}",
+                    chatId, attachmentId, pageNumber);
+                return Ok(new
+                {
+                    success = false,
+                    message = _localizer["Внутренняя ошибка сервера."].Value
+                });
+            }
+        }
+
         /// <summary>
         /// v1.13.x (KI-205): путь к папке PNG-страниц вложения.
         /// </summary>

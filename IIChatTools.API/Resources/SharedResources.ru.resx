@@ -473,6 +473,25 @@
     <data name="RagPagesNotFound" xml:space="preserve">
       <value>Страницы не найдены</value>
     </data>
+    <!-- KI-207: text layer + поиск. -->
+    <data name="RagPagesSearchPlaceholder" xml:space="preserve">
+      <value>Поиск по странице…</value>
+    </data>
+    <data name="RagPagesSearchCounter" xml:space="preserve">
+      <value>{0} из {1}</value>
+    </data>
+    <data name="RagPagesSearchNoResults" xml:space="preserve">
+      <value>Не найдено</value>
+    </data>
+    <data name="RagPagesSearchPrev" xml:space="preserve">
+      <value>Предыдущее совпадение</value>
+    </data>
+    <data name="RagPagesSearchNext" xml:space="preserve">
+      <value>Следующее совпадение</value>
+    </data>
+    <data name="RagPagesSearchClose" xml:space="preserve">
+      <value>Закрыть поиск</value>
+    </data>
 
     <!-- ===== RAG / Admin Knowledge Base (v1.5.0, KI-083, Шаг 7B) ===== -->
     <data name="AdminTabKnowledgeBase" xml:space="preserve">

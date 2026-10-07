@@ -340,7 +340,13 @@
      data-label-page-label="@Localizer["RagPagesPageLabel"]"
      data-label-page-input="@Localizer["RagPagesPageInput"]"
      data-label-loading="@Localizer["RagPagesLoading"]"
-     data-label-not-found="@Localizer["RagPagesNotFound"]">
+     data-label-not-found="@Localizer["RagPagesNotFound"]"
+     data-label-search-placeholder="@Localizer["RagPagesSearchPlaceholder"]"
+     data-label-search-counter="@Localizer["RagPagesSearchCounter"]"
+     data-label-search-noresults="@Localizer["RagPagesSearchNoResults"]"
+     data-label-search-prev="@Localizer["RagPagesSearchPrev"]"
+     data-label-search-next="@Localizer["RagPagesSearchNext"]"
+     data-label-search-close="@Localizer["RagPagesSearchClose"]">
     <div class="chat-pages-modal-backdrop" data-action="close"></div>
     <div class="chat-pages-modal-dialog" role="dialog" aria-modal="true">
         <div class="chat-pages-modal-header">
@@ -403,7 +409,30 @@
             </aside>
             <div class="chat-pages-viewport">
                 <div class="chat-pages-image-wrap" id="chat-pages-image-wrap">
-                    <!-- img + nav заполняются JS -->
+                    <!-- img + nav + text-layer заполняются JS -->
+                </div>
+
+                <!-- v1.13.x (KI-207): поиск по text layer (Ctrl+F). -->
+                <div id="chat-pages-search-bar"
+                     class="chat-pages-search-bar"
+                     hidden
+                     data-label-counter="@Localizer["RagPagesSearchCounter"]"
+                     data-label-noresults="@Localizer["RagPagesSearchNoResults"]">
+                    <input id="chat-pages-search-input"
+                           type="text"
+                           class="chat-pages-search-input"
+                           autocomplete="off"
+                           placeholder="@Localizer["RagPagesSearchPlaceholder"]" />
+                    <span class="chat-pages-search-counter" id="chat-pages-search-counter">0 / 0</span>
+                    <button type="button" class="chat-pages-search-btn" data-action="prev"
+                            title="@Localizer["RagPagesSearchPrev"]"
+                            aria-label="@Localizer["RagPagesSearchPrev"]">↑</button>
+                    <button type="button" class="chat-pages-search-btn" data-action="next"
+                            title="@Localizer["RagPagesSearchNext"]"
+                            aria-label="@Localizer["RagPagesSearchNext"]">↓</button>
+                    <button type="button" class="chat-pages-search-btn" data-action="close"
+                            title="@Localizer["RagPagesSearchClose"]"
+                            aria-label="@Localizer["RagPagesSearchClose"]">✕</button>
                 </div>
             </div>
         </div>

@@ -141,6 +141,78 @@ namespace IIChatTools.Services.Implementation.Rag
             }, cancellationToken);
         }
 
+        /// <inheritdoc />
+        public Task<DTO.Rag.PageTextLayerDto> RecognizeWithLayoutAsync(
+            byte[] imageBytes,
+            int imageWidth,
+            int imageHeight,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_options.Enabled)
+            {
+                throw new InvalidOperationException(
+                    "OCR отключён в конфиге (Rag:Ingestion:Ocr:Enabled = false).");
+            }
+            if (imageBytes == null || imageBytes.Length == 0)
+            {
+                throw new ArgumentException("Пустое изображение.", nameof(imageBytes));
+            }
+            if (_initFailed)
+            {
+                throw new InvalidOperationException(
+                    "OCR engine не инициализирован (tessdata не найдена или native lib недоступна).");
+            }
+
+            return Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var result = new DTO.Rag.PageTextLayerDto
+                {
+                    Width = imageWidth,
+                    Height = imageHeight
+                };
+
+                lock (_sync)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    using var pix = Pix.LoadFromMemory(imageBytes);
+                    using var page = _engine.Value.Process(pix);
+
+                    // Tesseract.NET 5.2.0: Page НЕ реализует IEnumerable<Word>.
+                    // Используем PageIterator на уровне Word.
+                    // TryGetBoundingBox → Rect { X1, Y1, X2, Y2 } — top-left origin,
+                    // y↓ — совпадает с системой координат PNG.
+                    using var iter = page.GetIterator();
+                    iter.Begin();
+                    do
+                    {
+                        if (!iter.TryGetBoundingBox(PageIteratorLevel.Word, out var rect))
+                            continue;
+
+                        var text = iter.GetText(PageIteratorLevel.Word);
+                        if (string.IsNullOrWhiteSpace(text)) continue;
+
+                        var w = rect.X2 - rect.X1;
+                        var h = rect.Y2 - rect.Y1;
+                        if (w <= 0 || h <= 0) continue;
+
+                        result.Words.Add(new DTO.Rag.WordBoxDto
+                        {
+                            Text = text,
+                            X = rect.X1,
+                            Y = rect.Y1,
+                            W = w,
+                            H = h
+                        });
+                    } while (iter.Next(PageIteratorLevel.Word));
+                }
+
+                return result;
+            }, cancellationToken);
+        }
+
         // ============================================================
         // Private
         // ============================================================
