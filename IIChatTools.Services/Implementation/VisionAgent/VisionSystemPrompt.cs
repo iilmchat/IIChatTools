@@ -213,6 +213,11 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             "   Вместо этого: выбери другой target из screen или верни\n" +
             "   { \"action\": \"wait\", \"deltaY\": 1000, \"reason\": \"Ждём загрузки\" },\n" +
             "   чтобы loop переснял свежий скриншот.\n" +
+            "\n" +
+            "8a. KI-192: если screen.ui_elements ПУСТ и history.Count == 0\n" +
+            "    (первый кадр) — страница ещё грузится. Верни\n" +
+            "    { \"action\": \"wait\", \"deltaY\": 2000, \"reason\": \"Страница грузится\" }.\n" +
+            "    НЕ возвращай fail на первом кадре — loop сам сделает retry.\n" +
             "9. Если в history уже 2+ fail-шага подряд — верни { \"action\": \"fail\",\n" +
             "   \"reason\": \"Не удалось выполнить: <причина из последнего fail>\" }.\n" +
             "   Не зацикливайся.\n" +

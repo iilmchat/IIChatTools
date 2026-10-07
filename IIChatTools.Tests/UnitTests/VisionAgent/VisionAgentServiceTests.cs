@@ -382,5 +382,61 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
 
             Assert.Contains(UserId, planner.UserIdsReceived);
         }
+
+        // ============ 16. KI-192: retry на пустом ui_elements ============
+
+        [Fact]
+        public async Task RunTaskAsync_EmptyUiElementsOnFirstFrame_RetriesDescribe()
+        {
+            // Arrange
+            var backend = new FakeVisionBackend();
+            var visionLlm = new FakeVisionLlmClient();
+
+            // Сценарий: initial describe → empty, retry #1 → empty,
+            // retry #2 → непустой (1 элемент). Планировщик вызывается
+            // РОВНО ОДИН РАЗ — после того как retry вернул элементы.
+            visionLlm.Responses.Enqueue(new ScreenDescriptionDto
+            {
+                Description = "Страница грузится",
+                UiElements = new List<UiElementDto>()
+            });
+            visionLlm.Responses.Enqueue(new ScreenDescriptionDto
+            {
+                Description = "Страница грузится",
+                UiElements = new List<UiElementDto>()
+            });
+            visionLlm.Responses.Enqueue(new ScreenDescriptionDto
+            {
+                Description = "Wikipedia",
+                UiElements = new List<UiElementDto>
+                {
+                    new UiElementDto { Id = "search_input", Type = "text_input" }
+                }
+            });
+
+            var planner = new FakePlannerLlmClient();
+            planner.Responses.Enqueue(new VisionActionDto
+            {
+                Action = "done",
+                Reason = "ok"
+            });
+
+            // PageStabilityCheckMs = 1 → retryDelayMs = Max(500, 4) = 500.
+            // 2 retry × 500 ms ≈ 1 сек — приемлемо для unit-теста.
+            var options = DefaultOptions();
+            options.Limits.PageStabilityCheckMs = 1;
+
+            var sut = CreateService(backend, visionLlm, planner, options: options);
+
+            // Act
+            var result = await sut.RunTaskAsync(
+                new VisionTaskRequest { Task = "test", TaskId = "t1" },
+                UserId, CancellationToken.None);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(3, visionLlm.CallCount);              // initial + 2 retry
+            Assert.Single(planner.UserIdsReceived);            // Planner вызван 1 раз
+        }
     }
 }

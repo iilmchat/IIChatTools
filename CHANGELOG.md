@@ -19,6 +19,23 @@
 ## [Unreleased]
 
 ### Added
+- **v1.13.x (KI-192) — Vision Agent: retry на пустом `ui_elements`**:
+  - **Симптом:** VL-модель на медленно грузящихся страницах (gismeteo, РЖД)
+    на первом кадре возвращает `ui_elements=[]` (белый экран, спиннер).
+    Planner LLM видит «пустой экран» → `wait` → снова пусто → через 2-3
+    итерации `fail`.
+  - **Fix:**
+    - `VisionAgentService.RunTaskAsync` — при `ui_elements=[]` **и**
+      `history.Count == 0` (первый кадр) — retry-loop до 3 раз с паузой
+      `PageStabilityCheckMs × 4` (≈2 сек). Planner **не вызывается**
+      до успешного describe. Логирование retry на `LogInformation`.
+    - `VisionSystemPrompt.PlannerPlanNext` — правило **8a**: «Если
+      `ui_elements=[]` и это первый кадр — верни `wait`, не `fail`».
+  - **Файлы:** `VisionAgentService.cs`, `VisionSystemPrompt.cs`,
+    `VisionAgentServiceTests.cs` (+1 тест).
+  - **Тесты:** 1042 → **1043**.
+
+### Added
 - **v1.13.x (KI-161) — Vision Agent: PuppeteerSharp CDP-attach**:
   DOM+Vision hybrid: 0 px ошибки клика для DOM-доступных элементов
   (вместо ±20-30 px у VL).

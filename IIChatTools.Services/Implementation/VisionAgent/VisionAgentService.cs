@@ -322,6 +322,83 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         break;
                     }
 
+                    // KI-192 (v1.13.x): retry на пустом ui_elements на первом кадре.
+                    // Медленно грузящиеся страницы (gismeteo, РЖД) на первом
+                    // describe возвращают UiElements=[] (белый экран, спиннер,
+                    // переход). Planner видит «пустой экран» → wait или fail.
+                    // Retry до 3 раз с паузой PageStabilityCheckMs × 4 (~2 сек),
+                    // не вызывая Planner. Только на первом кадре (history.Count == 0):
+                    // на последующих шагах пустой экран обрабатывает сам Planner
+                    // (wait) + DetectPlannerCycle (KI-187).
+                    if (history.Count == 0
+                        && (screen.UiElements == null || screen.UiElements.Count == 0))
+                    {
+                        const int MaxRetries = 3;
+                        var retryDelayMs = Math.Max(500,
+                            _options.Limits.PageStabilityCheckMs * 4);
+
+                        for (int attempt = 1; attempt <= MaxRetries; attempt++)
+                        {
+                            _logger.LogInformation(
+                                "VisionAgent[{TaskId}]: ui_elements=[] на шаге {Step} " +
+                                "(history={Hist}). Retry {Attempt}/{Max} через {Delay}ms.",
+                                taskId, step, history.Count, attempt, MaxRetries, retryDelayMs);
+
+                            await Task.Delay(retryDelayMs, effectiveCts.Token)
+                                .ConfigureAwait(false);
+
+                            // Свежий скриншот.
+                            try
+                            {
+                                png = await _backend.ScreenshotAsync(effectiveCts.Token)
+                                    .ConfigureAwait(false);
+                                lastScreenshotPng = png;
+                            }
+                            catch (OperationCanceledException) { throw; }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex,
+                                    "VisionAgent[{TaskId}]: retry ScreenshotAsync упал",
+                                    taskId);
+                                break;
+                            }
+
+                            // Повторный describe.
+                            try
+                            {
+                                screen = await _visionLlm.DescribeAsync(png, effectiveCts.Token)
+                                    .ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) { throw; }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex,
+                                    "VisionAgent[{TaskId}]: retry DescribeAsync упал",
+                                    taskId);
+                                break;
+                            }
+
+                            if (screen.UiElements != null && screen.UiElements.Count > 0)
+                            {
+                                _logger.LogInformation(
+                                    "VisionAgent[{TaskId}]: retry {Attempt} успешен — " +
+                                    "ui_elements={Count}",
+                                    taskId, attempt, screen.UiElements.Count);
+                                break;
+                            }
+                        }
+
+                        // Если после retry всё ещё пусто — fallthrough к Planner,
+                        // он сам решит wait/fail.
+                        if (screen.UiElements == null || screen.UiElements.Count == 0)
+                        {
+                            _logger.LogWarning(
+                                "VisionAgent[{TaskId}]: ui_elements=[] после {Max} retry — " +
+                                "передаём Planner'у как есть.",
+                                taskId, MaxRetries);
+                        }
+                    }
+
                     // 4.3. Следующее действие.
                     VisionActionDto action;
                     try
