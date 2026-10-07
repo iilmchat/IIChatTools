@@ -4608,7 +4608,58 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ---
 
-### KI-203 — RAG: OCR-скан PDF не индексируется (нет текстового слоя)
+### KI-204 — RAG: нет индикации прогресса OCR при загрузке PDF
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-203 — сканы PDF обрабатываются ~20 сек без обратной связи).
+- **Файлы:** `wwwroot/js/modules/chat.js` (`uploadFiles`, `renderAttachmentsBar`),
+  `ChatAttachmentsController.cs` (`UploadAsync`), `ChatAttachmentService.cs`,
+  `wwwroot/css/chat.css`, новый DTO `AttachmentProcessingStatusDto`.
+- **Описание:** при загрузке скана-PDF (3 страницы = ~20 сек OCR) UI показывает
+  только спиннер кнопки 📎. Пользователь не понимает: идёт ли процесс,
+  что зависло, сколько страниц осталось.
+- **Возможные решения:**
+  1. **Простой spinner + текст** «⏳ Обработка документа…» — ~30 мин.
+  2. **Polling через существующий endpoint** — клиент опрашивает
+     `GET /api/chat/{id}/attachments` каждые 500 мс. Backend отдаёт
+     `{ isProcessing: true, progress: { current: 2, total: 3 } }`.
+     In-memory `ConcurrentDictionary<attachmentId, ProgressInfo>` —
+     по образцу `AgentDebateCoordinator` / `VisionRateLimiter`. ~2 ч.
+  3. **SSE для attachment upload** — отдельный endpoint
+     `/api/chat/{id}/attachments/stream`. Требует переделки upload-flow
+     (`multipart/form-data` → SSE). ~4-5 ч.
+  4. **SignalR** — оверкилл. ~5-6 ч.
+- **Рекомендация:** вариант 2 (polling) — средний компромисс.
+- **Связанные:** KI-203 (RAG PDF OCR — Fixed v1.13.x).
+
+### KI-205 — RAG: постраничный просмотр PNG сканов
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-203 — temp PNG страниц удаляются, пользователь не видит распознанное).
+- **Файлы (план):** `PdfParser.cs` (`RenderPageToPng`),
+  `ChatAttachmentService.cs`, `ChatAttachmentsController.cs`,
+  `wwwroot/js/modules/chat.js`, `wwwroot/css/chat.css`,
+  `appsettings.json` (`Rag:Ingestion:Ocr:SavePagesToWorkspace`).
+- **Описание:** `RenderPageToPng` создаёт temp-PNG и удаляет в `finally`.
+  Пользователь не видит, что именно распознал OCR. При ошибках
+  (искажённый текст, пропущенный абзац) не понимает, где проблема.
+- **Идея:** сохранять PNG страниц в workspace (опционально) + UI для
+  постраничного просмотра.
+- **Логика:**
+  1. `PdfParser` — при `SavePagesToWorkspace=true` сохраняет PNG в
+     `{userWorkspace}/chat-attachments/{chatId}/{fileName}-pages/page-{N}.png`.
+  2. `ChatAttachmentService.DeleteAsync` — удаляет папку страниц вместе с PDF.
+  3. Новые endpoint'ы:
+     - `GET /api/chat/{chatId}/attachments/{id}/pages` — список.
+     - `GET /api/chat/{chatId}/attachments/{id}/pages/{pageNumber}` — PNG.
+  4. UI: кнопка «👁 Страницы (N)» в чипе + модалка с навигацией ←/→.
+     Опционально: overlay «что распознал OCR» для сверки.
+- **Ограничения:**
+  - Storage: 100-страничный PDF × ~200 KB = ~20 MB. TTL — вместе с PDF.
+  - Кроссплатформенно (PDFtoImage → SkiaSharp).
+  - Опция выключена по умолчанию.
+- **Связанные:** KI-203 (RAG PDF OCR — Fixed v1.13.x), KI-204.
+
 
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (обсуждение Vision Agent + RAG).
@@ -4699,7 +4750,7 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
 | Fixed (v1.13.x, KI-203) | 1 |      <!-- KI-203 (RAG PDF OCR) -->
-| Planned | 11 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147 -->
+| Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205 -->
 | In Progress | 0 |                   <!-- — -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
