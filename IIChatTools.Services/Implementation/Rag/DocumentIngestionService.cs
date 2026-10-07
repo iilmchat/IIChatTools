@@ -115,6 +115,7 @@ namespace IIChatTools.Services.Implementation.Rag
             // Key = {chatId}:{fileName}. Для глобальных индексов (chatId=null) —
             // scope не открывается.
             IDisposable ocrScope = null;
+            string savePagesDir = null;
             if (request.SourceType == IngestionSourceType.File
                 && request.ChatId.HasValue
                 && request.ChatId.Value > 0)
@@ -124,12 +125,30 @@ namespace IIChatTools.Services.Implementation.Rag
                     ?? "document.pdf";
                 var key = $"{request.ChatId.Value}:{fileName}";
                 ocrScope = _ocrProgressTracker.BeginScope(key);
+
+                // v1.13.x (KI-205): если вызывающий код задал SavePagesDirectory —
+                // создаём директорию (parser её не создаёт).
+                if (!string.IsNullOrWhiteSpace(request.SavePagesDirectory))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(request.SavePagesDirectory);
+                        savePagesDir = request.SavePagesDirectory;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "Не удалось создать директорию для PNG-страниц: {Dir}",
+                            request.SavePagesDirectory);
+                    }
+                }
             }
 
             try
             {
                 // 1. Получить текст (parse файла / использовать готовый / URL).
-                var (rawText, documentPath, parsedMetadata) = await GetTextFromSourceAsync(request, cancellationToken);
+                var (rawText, documentPath, parsedMetadata) = await GetTextFromSourceAsync(
+                request, savePagesDir, cancellationToken);
 
             // 2. SHA256 hash содержимого.
             var documentHash = ComputeSha256Hex(rawText);
@@ -421,7 +440,10 @@ namespace IIChatTools.Services.Implementation.Rag
         /// Возвращает текст (parse файла / готовый текст / URL) + путь документа + метаданные парсера.
         /// </summary>
         private async Task<(string text, string documentPath, Dictionary<string, string> metadata)>
-            GetTextFromSourceAsync(IngestionRequest request, CancellationToken cancellationToken)
+            GetTextFromSourceAsync(
+                IngestionRequest request,
+                string savePagesDir,
+                CancellationToken cancellationToken)
         {
             switch (request.SourceType)
             {
@@ -449,7 +471,16 @@ namespace IIChatTools.Services.Implementation.Rag
                         ?? throw new ArgumentException(
                             $"Формат файла не поддерживается: {Path.GetExtension(request.FilePath)}");
 
-                    var parsed = await parser.ParseAsync(request.FilePath, cancellationToken);
+                    // v1.13.x (KI-205): передаём опции (SavePagesDirectory)
+                    // через ParseOptions. Default-метод IRagDocumentParser
+                    // игнорирует их, если парсер не поддерживает.
+                    var parseOptions = new ParseOptions
+                    {
+                        SavePagesDirectory = savePagesDir
+                    };
+
+                    var parsed = await parser.ParseAsync(
+                        request.FilePath, parseOptions, cancellationToken);
 
                     // v1.6.1 (KI-086-post): если задан относительный Source
                     // ("docs/development/RULES.md", "chat-attachments/5/uuid.pdf") —

@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.API.Resources;
@@ -44,6 +46,7 @@ namespace IIChatTools.API.Controllers
         private readonly IChatAttachmentService _attachmentService;
         private readonly IChatService _chatService;
         private readonly IOcrProgressTracker _ocrProgressTracker;
+        private readonly IWorkspaceResolver _workspaceResolver;
         private readonly ILogger<ChatAttachmentsController> _logger;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
@@ -55,6 +58,9 @@ namespace IIChatTools.API.Controllers
         /// <param name="ocrProgressTracker">
         /// Трекер прогресса OCR (KI-204) — обогащает DTO в <c>GetListAsync</c>.
         /// </param>
+        /// <param name="workspaceResolver">
+        /// Резолвер workspace (KI-205) — для подсчёта PNG-страниц и чтения файлов.
+        /// </param>
         /// <param name="logger">Логгер</param>
         /// <param name="localizer">Локализатор</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
@@ -62,12 +68,14 @@ namespace IIChatTools.API.Controllers
             IChatAttachmentService attachmentService,
             IChatService chatService,
             IOcrProgressTracker ocrProgressTracker,
+            IWorkspaceResolver workspaceResolver,
             ILogger<ChatAttachmentsController> logger,
             IStringLocalizer<SharedResources> localizer)
         {
             _attachmentService = attachmentService ?? throw new ArgumentNullException(nameof(attachmentService));
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
             _ocrProgressTracker = ocrProgressTracker ?? throw new ArgumentNullException(nameof(ocrProgressTracker));
+            _workspaceResolver = workspaceResolver ?? throw new ArgumentNullException(nameof(workspaceResolver));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         }
@@ -183,17 +191,44 @@ namespace IIChatTools.API.Controllers
                 var list = await _attachmentService.GetForChatAsync(chatId, userId, cancellationToken);
 
                 // KI-204: обогащаем DTO прогрессом OCR (если идёт обработка).
-                // Ключ = {chatId}:{fileName} — совпадает с тем, что использует
-                // DocumentIngestionService.BeginScope.
+                // KI-205: + количество сохранённых PNG-страниц.
+                var userId2 = userId;   // для лямбды
                 foreach (var dto in list)
                 {
                     if (string.IsNullOrWhiteSpace(dto.FileName)) continue;
 
+                    // KI-204: прогресс OCR.
                     var key = $"{chatId}:{dto.FileName}";
                     var progress = _ocrProgressTracker.Get(key);
                     if (progress != null && progress.TotalPages > 0)
                     {
                         dto.OcrProgress = progress;
+                    }
+
+                    // KI-205: количество PNG-страниц (best-effort, I/O).
+                    try
+                    {
+                        var workspaceRoot = await _workspaceResolver
+                            .GetWorkspacePathAsync(userId2);
+                        var subfolder = "chat-attachments";   // совпадает с default
+                        var safeName = System.IO.Path.GetFileName(dto.FileName);
+                        var pagesDir = System.IO.Path.Combine(
+                            workspaceRoot, subfolder, chatId.ToString(),
+                            $"{safeName}-pages");
+
+                        if (System.IO.Directory.Exists(pagesDir))
+                        {
+                            var count = System.IO.Directory
+                                .EnumerateFiles(pagesDir, "*.png").Count();
+                            dto.PagesCount = count;
+                            dto.PagesAvailable = count > 0;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex,
+                            "GetListAsync: не удалось подсчитать PNG-страницы " +
+                            "для attachment id={Id}", dto.Id);
                     }
                 }
 
@@ -331,6 +366,178 @@ namespace IIChatTools.API.Controllers
                     message = _localizer["Внутренняя ошибка сервера."].Value
                 });
             }
+        }
+
+        // ============================================================
+        // v1.13.x (KI-205): постраничный просмотр PNG сканов
+        // ============================================================
+
+        /// <summary>
+        /// Возвращает список сохранённых PNG-страниц вложения (метаданные).
+        /// </summary>
+        /// <param name="chatId">Идентификатор чата.</param>
+        /// <param name="attachmentId">Идентификатор вложения.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// JSON <c>{ success, data: { pages: [{ pageNumber, sizeBytes }], count } }</c>
+        /// или <c>{ success: false, message }</c>.
+        /// </returns>
+        [HttpGet("{attachmentId:int}/pages")]
+        public async Task<IActionResult> GetPagesAsync(
+            int chatId,
+            int attachmentId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                var chat = await _chatService.GetChatAsync(chatId, userId, cancellationToken);
+                if (chat == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = _localizer["Ресурс не найден."].Value
+                    });
+                }
+
+                // Получаем метаданные вложения (проверка владения — в сервисе).
+                var attachments = await _attachmentService.GetForChatAsync(
+                    chatId, userId, cancellationToken);
+                var attachment = attachments.FirstOrDefault(a => a.Id == attachmentId);
+                if (attachment == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = _localizer["Ресурс не найден."].Value
+                    });
+                }
+
+                // Резолвим путь к папке pages.
+                var workspaceRoot = await _workspaceResolver
+                    .GetWorkspacePathAsync(userId);
+                var pagesDir = BuildPagesDirectory(
+                    workspaceRoot, chatId, attachment.FileName);
+
+                if (!System.IO.Directory.Exists(pagesDir))
+                {
+                    return Ok(new { success = true, data = new { pages = new object[0], count = 0 } });
+                }
+
+                var pages = System.IO.Directory
+                    .EnumerateFiles(pagesDir, "*.png")
+                    .Select(path =>
+                    {
+                        var fileName = System.IO.Path.GetFileNameWithoutExtension(path);
+                        // "page-1.png" → 1
+                        if (fileName.StartsWith("page-", StringComparison.Ordinal)
+                            && int.TryParse(fileName.Substring("page-".Length), out var num))
+                        {
+                            var fileInfo = new System.IO.FileInfo(path);
+                            return new { pageNumber = num, sizeBytes = fileInfo.Length };
+                        }
+                        return null;
+                    })
+                    .Where(p => p != null)
+                    .OrderBy(p => p.pageNumber)
+                    .ToList();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new { pages, count = pages.Count }
+                });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Ошибка получения PNG-страниц: chatId={ChatId}, attachmentId={Id}",
+                    chatId, attachmentId);
+                return Ok(new
+                {
+                    success = false,
+                    message = _localizer["Внутренняя ошибка сервера."].Value
+                });
+            }
+        }
+
+        /// <summary>
+        /// Возвращает PNG-страницу вложения.
+        /// </summary>
+        /// <param name="chatId">Идентификатор чата.</param>
+        /// <param name="attachmentId">Идентификатор вложения.</param>
+        /// <param name="pageNumber">Номер страницы (1-based).</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>PNG (image/png) или 404.</returns>
+        [HttpGet("{attachmentId:int}/pages/{pageNumber:int}")]
+        public async Task<IActionResult> GetPageImageAsync(
+            int chatId,
+            int attachmentId,
+            int pageNumber,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (pageNumber < 1)
+                    return NotFound();
+
+                var userId = GetCurrentUserId();
+
+                var chat = await _chatService.GetChatAsync(chatId, userId, cancellationToken);
+                if (chat == null) return NotFound();
+
+                var attachments = await _attachmentService.GetForChatAsync(
+                    chatId, userId, cancellationToken);
+                var attachment = attachments.FirstOrDefault(a => a.Id == attachmentId);
+                if (attachment == null) return NotFound();
+
+                var workspaceRoot = await _workspaceResolver
+                    .GetWorkspacePathAsync(userId);
+                var pagesDir = BuildPagesDirectory(
+                    workspaceRoot, chatId, attachment.FileName);
+
+                var pagePath = System.IO.Path.Combine(pagesDir, $"page-{pageNumber}.png");
+                if (!System.IO.File.Exists(pagePath))
+                    return NotFound();
+
+                var bytes = await System.IO.File.ReadAllBytesAsync(
+                    pagePath, cancellationToken);
+                return File(bytes, "image/png");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Ошибка получения PNG-страницы: chatId={ChatId}, " +
+                    "attachmentId={Id}, page={Page}",
+                    chatId, attachmentId, pageNumber);
+                return NotFound();
+            }
+        }
+
+        /// <summary>
+        /// v1.13.x (KI-205): путь к папке PNG-страниц вложения.
+        /// </summary>
+        /// <param name="workspaceRoot">Корень workspace пользователя.</param>
+        /// <param name="chatId">Идентификатор чата.</param>
+        /// <param name="fileName">Оригинальное имя файла вложения.</param>
+        private static string BuildPagesDirectory(
+            string workspaceRoot, int chatId, string fileName)
+        {
+            const string subfolder = "chat-attachments";
+            var safeName = System.IO.Path.GetFileName(fileName);
+            return System.IO.Path.Combine(
+                workspaceRoot, subfolder, chatId.ToString(),
+                $"{safeName}-pages");
         }
 
         // ============================================================

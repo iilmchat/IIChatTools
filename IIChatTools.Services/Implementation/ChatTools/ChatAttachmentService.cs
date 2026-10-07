@@ -224,6 +224,26 @@ namespace IIChatTools.Services.Implementation.ChatTools
                 // Физический файл на диске — по-прежнему {guid}.ext (StoragePath).
                 var ragDocumentPath = BuildRagDocumentPath(chatId, fileName, subfolder);
 
+                // v1.13.x (KI-205): если включено — сохраняем PNG каждой страницы
+                // в {chatFolder}/{safeName}-pages/.
+                string savePagesDir = null;
+                if (_configuration.GetValue<bool>("Rag:Ingestion:Ocr:SavePagesToWorkspace"))
+                {
+                    try
+                    {
+                        var safeName = Path.GetFileName(fileName);
+                        savePagesDir = Path.Combine(chatFolder, $"{safeName}-pages");
+                        Directory.CreateDirectory(savePagesDir);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "Attachment: не удалось создать папку для PNG-страниц {Dir}",
+                            savePagesDir);
+                        savePagesDir = null;
+                    }
+                }
+
                 var ingestResult = await _ingestionService.IngestAsync(new IngestionRequest
                 {
                     IndexName = MyRagDocsIndex,
@@ -231,7 +251,8 @@ namespace IIChatTools.Services.Implementation.ChatTools
                     FilePath = fullPath,
                     ChatId = chatId,
                     UserId = userId,
-                    Source = ragDocumentPath   // citations (KI-086 v1.6.0; KI-106 v1.7.1)
+                    Source = ragDocumentPath,   // citations (KI-086 v1.6.0; KI-106 v1.7.1)
+                    SavePagesDirectory = savePagesDir   // v1.13.x (KI-205)
                 }, cancellationToken);
 
                 entity.ChunksCount = ingestResult.DocumentChunksCreated;
@@ -340,6 +361,31 @@ namespace IIChatTools.Services.Implementation.ChatTools
                     fullPath, entity.Id);
             }
 
+            // v1.13.x (KI-205): удаляем папку PNG-страниц (best-effort).
+            try
+            {
+                var subfolder = GetStringConfig(
+                    "Rag:Attachments:StorageSubfolder", DefaultStorageSubfolder);
+                var safeName = Path.GetFileName(entity.FileName);
+                var pagesFolder = Path.Combine(
+                    workspaceRoot, subfolder, entity.ChatId.ToString(),
+                    $"{safeName}-pages");
+
+                if (Directory.Exists(pagesFolder))
+                {
+                    Directory.Delete(pagesFolder, recursive: true);
+                    _logger.LogDebug(
+                        "Attachment id={Id}: удалена папка PNG-страниц {Dir}",
+                        entity.Id, pagesFolder);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Не удалось удалить папку PNG-страниц для attachment id={Id}. Продолжаем.",
+                    entity.Id);
+            }
+
             // 3. Удаляем запись из БД.
             _db.ChatAttachments.Remove(entity);
             await _db.SaveChangesAsync(cancellationToken);
@@ -403,6 +449,24 @@ namespace IIChatTools.Services.Implementation.ChatTools
                 var subfolder = GetStringConfig(
                     "Rag:Attachments:StorageSubfolder", DefaultStorageSubfolder);
                 var chatFolder = Path.Combine(workspaceRoot, subfolder, chatId.ToString());
+
+                // v1.13.x (KI-205): сначала удаляем подпапки *-pages.
+                if (Directory.Exists(chatFolder))
+                {
+                    foreach (var pagesDir in Directory.EnumerateDirectories(
+                        chatFolder, "*-pages"))
+                    {
+                        try
+                        {
+                            Directory.Delete(pagesDir, recursive: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug(ex,
+                                "Не удалось удалить папку PNG-страниц {Dir}", pagesDir);
+                        }
+                    }
+                }
 
                 if (Directory.Exists(chatFolder)
                     && !Directory.EnumerateFileSystemEntries(chatFolder).Any())

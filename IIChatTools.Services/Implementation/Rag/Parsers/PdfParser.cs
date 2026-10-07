@@ -78,8 +78,17 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
         }
 
         /// <inheritdoc />
+        public Task<ParsedDocument> ParseAsync(
+            string filePath,
+            CancellationToken cancellationToken = default)
+        {
+            return ParseAsync(filePath, options: null, cancellationToken);
+        }
+
+        /// <inheritdoc />
         public async Task<ParsedDocument> ParseAsync(
             string filePath,
+            ParseOptions options,
             CancellationToken cancellationToken = default)
         {
             if (filePath == null)
@@ -100,7 +109,7 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
             // KI-203: ParseInternalAsync включает OCR-вызовы (async), поэтому
             // не оборачиваем в Task.Run (sync-over-async). PDFtoImage-рендер
             // внутри sync, но короткий (~100-200 мс на страницу).
-            return await ParseInternalAsync(bytes, originalSize, cancellationToken);
+            return await ParseInternalAsync(bytes, originalSize, options, cancellationToken);
         }
 
         /// <summary>
@@ -141,6 +150,7 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
         private async Task<ParsedDocument> ParseInternalAsync(
             byte[] bytes,
             long originalSize,
+            ParseOptions options,
             CancellationToken cancellationToken)
         {
             PdfDocument doc;
@@ -160,6 +170,14 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                 var sb = new StringBuilder();
                 int ocrPagesUsed = 0;
                 int totalPages = doc.NumberOfPages;
+                int savedPagesCount = 0;
+
+                // v1.13.x (KI-205): если задана директория — сохраняем PNG каждой
+                // страницы (независимо от OCR, чтобы пользователь мог посмотреть
+                // оригинал любой страницы).
+                var savePagesDir = options?.SavePagesDirectory;
+                var shouldSavePages = !string.IsNullOrWhiteSpace(savePagesDir);
+                var renderDpi = options?.RenderDpi ?? _ocrOptions.RenderDpi;
 
                 foreach (var page in doc.GetPages())
                 {
@@ -178,23 +196,62 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                         _ocrOptions.MaxPagesToOcr);
 
                     // KI-204: обновляем прогресс для UI (chip «OCR: 2/3»).
-                    // Только когда страница идёт в OCR — иначе не показываем
-                    // прогресс для PDF с текстовым слоем.
                     if (shouldOcr)
                     {
                         _progressTracker.Report(page.Number, totalPages);
                     }
 
-                    if (shouldOcr)
+                    // v1.13.x (KI-205): рендер PNG страницы — один раз.
+                    // Используется или для OCR, или для просмотра (или для обоих).
+                    byte[] pagePng = null;
+
+                    if (shouldOcr || shouldSavePages)
                     {
                         try
                         {
                             // PdfPig: page.Number — 1-based; PDFtoImage: pageIndex — 0-based.
                             var pageIndex = page.Number - 1;
-                            var png = RenderPageToPng(bytes, pageIndex, _ocrOptions.RenderDpi);
+                            pagePng = RenderPageToPng(bytes, pageIndex, renderDpi);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex,
+                                "PDF: страница {Page}/{Total} — рендер PNG упал",
+                                page.Number, totalPages);
+                        }
+                    }
 
+                    // Сохранение PNG в workspace (KI-205).
+                    if (shouldSavePages && pagePng != null)
+                    {
+                        try
+                        {
+                            var pagePath = Path.Combine(
+                                savePagesDir, $"page-{page.Number}.png");
+                            await File.WriteAllBytesAsync(
+                                    pagePath, pagePng, cancellationToken)
+                                .ConfigureAwait(false);
+                            savedPagesCount++;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex,
+                                "PDF: не удалось сохранить PNG страницы {Page} в {Path}",
+                                page.Number, savePagesDir);
+                        }
+                    }
+
+                    // OCR-fallback.
+                    if (shouldOcr && pagePng != null)
+                    {
+                        try
+                        {
                             var ocrText = await _ocr
-                                .RecognizeAsync(png, cancellationToken)
+                                .RecognizeAsync(pagePng, cancellationToken)
                                 .ConfigureAwait(false);
 
                             if (!string.IsNullOrWhiteSpace(ocrText))
@@ -229,6 +286,13 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                     sb.AppendLine();
                 }
 
+                if (savedPagesCount > 0)
+                {
+                    _logger.LogInformation(
+                        "PDF: сохранено {Count} PNG-страниц в {Dir}",
+                        savedPagesCount, savePagesDir);
+                }
+
                 // Нормализация переносов.
                 var text = sb.ToString()
                     .Replace("\r\n", "\n")
@@ -244,6 +308,12 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                 if (ocrPagesUsed > 0)
                 {
                     metadata["ocrPagesUsed"] = ocrPagesUsed.ToString();
+                }
+
+                // v1.13.x (KI-205): если PNG сохранялись — фиксируем количество.
+                if (savedPagesCount > 0)
+                {
+                    metadata["savedPagesCount"] = savedPagesCount.ToString();
                 }
 
                 return new ParsedDocument

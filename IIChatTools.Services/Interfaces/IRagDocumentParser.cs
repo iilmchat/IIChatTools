@@ -58,5 +58,32 @@ namespace IIChatTools.Services.Interfaces
         Task<ParsedDocument> ParseAsync(
             string filePath,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Извлекает текст из файла с дополнительными опциями
+        /// (v1.13.x, KI-205).
+        ///
+        /// <para>
+        /// <b>Default-метод:</b> игнорирует <paramref name="options"/> и
+        /// вызывает базовый <see cref="ParseAsync(string, CancellationToken)"/>.
+        /// Парсеры, которым важны опции (например, <c>PdfParser</c> для
+        /// сохранения PNG-страниц), переопределяют этот метод.
+        /// </para>
+        /// </summary>
+        /// <param name="filePath">Абсолютный путь (уже валидирован).</param>
+        /// <param name="options">
+        /// Опции парсинга (<see cref="ParseOptions"/>). Может быть <c>null</c> —
+        /// эквивалентно дефолтному поведению.
+        /// </param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>Извлечённый текст + метаданные.</returns>
+        Task<ParsedDocument> ParseAsync(
+            string filePath,
+            ParseOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            // Default-реализация (C# 8+): игнорируем options, вызываем базовый overload.
+            return ParseAsync(filePath, cancellationToken);
+        }
     }
 }

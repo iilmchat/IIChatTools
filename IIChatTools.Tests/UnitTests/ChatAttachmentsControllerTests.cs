@@ -157,6 +157,17 @@ namespace IIChatTools.Tests.UnitTests
         // ============================================================
 
         /// <summary>
+        /// Создаёт temp-root для теста. Удаляется вызывающим кодом в finally.
+        /// </summary>
+        private static string CreateTempRoot()
+        {
+            var root = Path.Combine(Path.GetTempPath(),
+                "iichattools_attach_serv_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            return root;
+        }
+
+        /// <summary>
         /// Создаёт контроллер с fake-зависимостями.
         /// </summary>
         private static (ChatAttachmentsController Controller,
@@ -166,11 +177,12 @@ namespace IIChatTools.Tests.UnitTests
         {
             var attachmentService = new FakeAttachmentService();
             var chatService = new FakeChatService();
-
+            var tempRoot = CreateTempRoot();
             var controller = new ChatAttachmentsController(
                 attachmentService,
                 chatService,
                 new FakeOcrProgressTracker(),
+                new FakeWorkspaceResolver(tempRoot),
                 NullLogger<ChatAttachmentsController>.Instance,
                 new PassThroughLocalizer());
 

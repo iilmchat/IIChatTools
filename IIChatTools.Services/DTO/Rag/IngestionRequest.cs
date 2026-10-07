@@ -68,5 +68,15 @@ namespace IIChatTools.Services.DTO.Rag
         /// Если не задан — используется <see cref="FilePath"/> или <see cref="Url"/>.
         /// </summary>
         public string Source { get; set; }
+
+        /// <summary>
+        /// v1.13.x (KI-205): директория для сохранения PNG-страниц PDF.
+        /// <c>null</c> — не сохранять (default).
+        /// <para>
+        /// Заполняется <c>ChatAttachmentService</c> при
+        /// <c>Rag:Ingestion:Ocr:SavePagesToWorkspace = true</c>.
+        /// </para>
+        /// </summary>
+        public string SavePagesDirectory { get; set; }
     }
 }

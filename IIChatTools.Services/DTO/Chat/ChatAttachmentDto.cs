@@ -43,5 +43,19 @@ namespace IIChatTools.Services.DTO.Chat
         /// </para>
         /// </summary>
         public OcrProgressDto OcrProgress { get; set; }
+
+        /// <summary>
+        /// v1.13.x (KI-205): количество сохранённых PNG-страниц
+        /// (0 — страницы не сохранялись или документ не PDF).
+        /// Заполняется <c>ChatAttachmentsController.GetListAsync</c>.
+        /// </summary>
+        public int PagesCount { get; set; }
+
+        /// <summary>
+        /// v1.13.x (KI-205): доступен ли постраничный просмотр PNG
+        /// (<c>PagesCount > 0</c>). UI показывает кнопку «👁 Страницы»,
+        /// если <c>true</c>.
+        /// </summary>
+        public bool PagesAvailable { get; set; }
     }
 }
