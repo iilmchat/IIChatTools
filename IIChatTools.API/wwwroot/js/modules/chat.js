@@ -4705,6 +4705,14 @@ function renderPagesViewerPage(pageNumber) {
     const wrap = document.getElementById('chat-pages-image-wrap');
 
     if (wrap) {
+        // Сброс inline-стилей (могли остаться от старого applyPagesZoom
+        // с transform-подходом). При width/height-подходе wrap вообще
+        // не должен иметь inline-размеров.
+        wrap.style.width = '';
+        wrap.style.height = '';
+        wrap.style.transform = '';
+        wrap.style.transformOrigin = '';
+
         const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber}`;
         wrap.innerHTML = `
             <button type="button"
@@ -4827,32 +4835,30 @@ function setPagesZoom(value) {
 }
 
 /**
- * Применяет viewer.zoom к <img> через CSS transform.
- * При zoom > 1 — viewport позволяет прокрутку (overflow: auto).
+ * Применяет viewer.zoom к <img>: задаёт width/height в px напрямую.
+ *
+ * <para>
+ * Раньше использовался transform: scale(), но это давало визуальный размер,
+ * не совпадающий с layout — центрирование и скролл работали неправильно
+ * (картинка «уезжала» из своего бокса). Теперь layout == visual.
+ * </para>
  */
 function applyPagesZoom() {
     const viewer = state.pagesViewer;
     if (!viewer) return;
 
     const img = document.querySelector('#chat-pages-image-wrap .chat-pages-modal-image');
-    if (!img) return;
+    if (!img || !img.naturalWidth) return;
 
     const z = viewer.zoom;
-    img.style.transform = `scale(${z})`;
+    const scaledW = Math.round(img.naturalWidth * z);
+    const scaledH = Math.round(img.naturalHeight * z);
 
-    // Меняем origin для корректного позиционирования скролла.
-    img.style.transformOrigin = 'top left';
-
-    // Пересчёт width/height обёртки для скролла.
-    const wrap = document.getElementById('chat-pages-image-wrap');
-    if (wrap && img.naturalWidth > 0) {
-        const scaledW = img.naturalWidth * z;
-        const scaledH = img.naturalHeight * z;
-        wrap.style.width = `${scaledW}px`;
-        wrap.style.height = `${scaledH}px`;
-        img.style.width = `${img.naturalWidth}px`;
-        img.style.height = `${img.naturalHeight}px`;
-    }
+    img.style.width = `${scaledW}px`;
+    img.style.height = `${scaledH}px`;
+    // Сброс на случай, если остался transform от предыдущей версии.
+    img.style.transform = '';
+    img.style.transformOrigin = '';
 }
 
 /**
@@ -4869,10 +4875,15 @@ function fitPagesViewer(kind) {
     const viewport = document.querySelector('.chat-pages-viewport');
     if (!viewport) return;
 
-    // Резервируем 1rem (0.5rem паддинги + 0.5 запаса).
-    const pad = 16;
-    const availW = viewport.clientWidth - pad;
-    const availH = viewport.clientHeight - pad;
+    // clientWidth/Height включают padding. Вычитаем его, чтобы получить
+    // реальную доступную площадь под картинку. +2px запаса, чтобы бордер
+    // картинки (1px с каждой стороны) не вызывал лишний скролл.
+    const cs = window.getComputedStyle(viewport);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+
+    const availW = Math.max(1, viewport.clientWidth - padX - 2);
+    const availH = Math.max(1, viewport.clientHeight - padY - 2);
 
     if (kind === 'width') {
         setPagesZoom(availW / img.naturalWidth);
@@ -4882,7 +4893,6 @@ function fitPagesViewer(kind) {
         setPagesZoom(Math.min(zW, zH));
     }
 }
-
 /**
  * KI-206: toggle панели превью.
  */

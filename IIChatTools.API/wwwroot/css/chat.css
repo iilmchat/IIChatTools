@@ -2218,6 +2218,7 @@ body.chat-pages-modal-open {
     z-index: 1;
     width: min(1100px, 95vw);
     max-height: 94vh;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     background: var(--bs-body-bg);
@@ -2462,14 +2463,19 @@ body.chat-pages-modal-open {
 .chat-pages-modal-content {
     flex: 1 1 auto;
     display: grid;
-    grid-template-columns: 220px 1fr;
+    /* minmax(0, 1fr) — критично: дефолтный grid-item имеет min-width: auto,
+       и при широкой картинке (zoom > 100%) колонка 1fr расширяется под контент,
+       из-за чего sidebar «наезжает» на документ (smoke #1). */
+    grid-template-columns: 220px minmax(0, 1fr);
     min-height: 0;
+    min-width: 0;
+    overflow: hidden;
     transition: grid-template-columns .2s ease;
 }
 
 /* Свёрнутые thumbnails — колонка 0. */
 .chat-pages-modal.chat-pages-thumbs-collapsed .chat-pages-modal-content {
-    grid-template-columns: 0 1fr;
+    grid-template-columns: 0 minmax(0, 1fr);
 }
 
 .chat-pages-modal.chat-pages-thumbs-collapsed .chat-pages-thumbs {
@@ -2480,9 +2486,11 @@ body.chat-pages-modal-open {
 /* Sidebar превью слева. */
 .chat-pages-thumbs {
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--bs-tertiary-bg);
     border-right: 1px solid var(--bs-border-color);
     min-width: 0;
+    min-height: 0;
     transition: width .2s ease;
 }
 
@@ -2544,32 +2552,34 @@ body.chat-pages-modal-open {
 /* Viewport — область просмотра страницы. */
 .chat-pages-viewport {
     position: relative;
+    /* flex + margin: auto на дочернем (image-wrap) — единственный корректный
+       способ центрировать, когда картинка влезает, и скроллить от левого-
+       верхнего угла, когда не влезает. justify-content: center «съедает»
+       левый край при overflow (известный flexbox-баг). */
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    overflow: auto;   /* скролл, если zoom > 100% */
+    overflow: auto;
     background: var(--bs-tertiary-bg);
     padding: .5rem;
+    min-width: 0;
+    min-height: 0;
 }
 
 /* Обёртка img для zoom-scale. */
 .chat-pages-image-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
-    min-height: 100%;
-    transform-origin: top center;
+    /* margin: auto — флекс-трюк: центрирует по обеим осям, когда есть место;
+       не «съедает» левый/верхний край, когда картинка больше viewport'а. */
+    margin: auto;
+    display: block;
+    flex-shrink: 0;
 }
 
 .chat-pages-modal-image {
-    max-width: none;   /* отключаем contain — управляем сами через zoom */
-    max-height: none;
+    /* Размеры (width/height в px) задаёт JS в applyPagesZoom().
+       Никакого transform: scale() — иначе визуальный размер ≠ layout,
+       и центрирование/скролл работают неправильно (smoke #6/#8/#9). */
     display: block;
     border: 1px solid var(--bs-border-color);
     background: #fff;
-    transform-origin: top center;
-    transition: transform .1s ease-out;
 }
 
 /* На мобильных — thumbs занимает весь экран при expanded. */
