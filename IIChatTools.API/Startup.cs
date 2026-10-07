@@ -14,6 +14,7 @@ using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Ma
 using IIChatTools.Services.DTO.ExternalLlm;               // v1.8.1 (KI-109): External-LLM
 using IIChatTools.Services.DTO.Cache;                     // v1.8.2: ToolResultCacheOptions
 using IIChatTools.Services.DTO.Speech;
+using IIChatTools.Services.DTO.Rag;                       // v1.13.x (KI-203): OcrOptions
 using IIChatTools.Services.Implementation.ExternalLlm;    // v1.8.1 (KI-109): ExternalLlmClient и т.д.
 using IIChatTools.Services.Implementation.Cache;          // v1.8.2: ToolResultCache
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
@@ -431,6 +432,12 @@ namespace IIChatTools.API
             services.AddSingleton<IRagDocumentParser, PdfParser>();
             services.AddSingleton<IRagDocumentParser, DocxParser>();
             services.AddSingleton<IRagDocumentParserRegistry, RagDocumentParserRegistry>();
+
+            // v1.13.x (KI-203): OCR для сканов PDF.
+            // Singleton: один TesseractEngine на всё приложение.
+            // Native lib — Windows-only; на Linux IsReady=false (graceful).
+            services.Configure<OcrOptions>(Configuration.GetSection("Rag:Ingestion:Ocr"));
+            services.AddSingleton<IOcrService, TesseractOcrService>();
 
             // v1.5.0 (KI-083, Шаг 4C.2): сервис индексации документов.
             // Scoped — работает с AppDbContext (DocumentChunks).

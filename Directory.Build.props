@@ -87,6 +87,13 @@
          что допустимо — backend всё равно требует Windows).
          См. DESIGN_VISION_AGENT.md § 7.2. -->
     <SystemDrawingCommonVersion>10.0.0</SystemDrawingCommonVersion>
+
+    <!-- v1.13.x (KI-203): OCR для сканов PDF в RAG.
+         Tesseract (MIT, managed-обёртка + native lib для Windows).
+         PDFtoImage (MIT, PDFium — рендер PDF-страниц в PNG).
+         Native lib Tesseract — Windows-only в NuGet; на Linux — graceful skip. -->
+    <TesseractVersion>5.2.0</TesseractVersion>
+    <PDFtoImageVersion>5.0.0</PDFtoImageVersion>
   </PropertyGroup>
 
 </Project>

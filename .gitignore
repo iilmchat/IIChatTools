@@ -120,6 +120,9 @@ PublishProfiles/
 # Workspace — рабочая папка пользователей (не коммитим)
 Workspace/
 
+# OCR: tessdata скачивается через scripts/setup/download-tessdata.ps1
+IIChatTools.API/tools/tessdata/
+
 # Временный конфиг NuGet для наполнения LocalPackages (не коммитим)
 NuGet.Config.online
 
