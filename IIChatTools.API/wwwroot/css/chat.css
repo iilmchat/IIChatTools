@@ -2154,3 +2154,209 @@ body.chat-global-search-open {
         top: -24px;
     }
 }
+
+/* ============================================================
+   v1.13.x (KI-205): постраничный просмотр PNG сканов
+   ============================================================ */
+
+/* Кнопка «👁 N» в чипе attachment'а. */
+.chat-attachment-chip-pages {
+    flex-shrink: 0;
+    padding: .12rem .4rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    font-size: .72rem;
+    font-family: var(--bs-font-monospace);
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+.chat-attachment-chip-pages:hover {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    border-color: var(--bs-primary-border-subtle);
+}
+
+.chat-attachment-chip-pages:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 1px;
+}
+
+/* Модалка */
+body.chat-pages-modal-open {
+    overflow: hidden;
+}
+
+.chat-pages-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1090;   /* выше chat-global-search (1080) */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3vh 2vw;
+}
+
+.chat-pages-modal[hidden] {
+    display: none !important;
+}
+
+.chat-pages-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .55);
+    backdrop-filter: blur(3px);
+    cursor: pointer;
+}
+
+.chat-pages-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(1100px, 95vw);
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .3);
+    overflow: hidden;
+}
+
+.chat-pages-modal-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .6rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+    background: var(--bs-tertiary-bg);
+}
+
+.chat-pages-modal-title {
+    font-weight: 600;
+    font-size: .95rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--bs-emphasis-color);
+}
+
+.chat-pages-modal-counter {
+    font-family: var(--bs-font-monospace);
+    font-size: .85rem;
+    color: var(--bs-secondary-color);
+    flex-shrink: 0;
+}
+
+.chat-pages-modal-close {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: .25rem;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    font-size: 1.1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color .15s, color .15s;
+}
+
+.chat-pages-modal-close:hover {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger);
+}
+
+.chat-pages-modal-body {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: .5rem;
+    background: var(--bs-tertiary-bg);
+    position: relative;
+    overflow: hidden;
+}
+
+.chat-pages-modal-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+    border: 1px solid var(--bs-border-color);
+    background: #fff;
+}
+
+.chat-pages-modal-loading {
+    color: var(--bs-secondary-color);
+    font-size: .95rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.chat-pages-modal-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 50%;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-size: 1.4rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+    transition: background-color .15s, color .15s, transform .15s;
+    z-index: 2;
+    opacity: .9;
+}
+
+.chat-pages-modal-nav:hover:not(:disabled) {
+    background: var(--bs-primary);
+    color: var(--bs-white);
+    transform: translateY(-50%) scale(1.05);
+    opacity: 1;
+}
+
+.chat-pages-modal-nav:disabled {
+    opacity: .25;
+    cursor: not-allowed;
+}
+
+.chat-pages-modal-nav-prev { left: .75rem; }
+.chat-pages-modal-nav-next { right: .75rem; }
+
+@media (max-width: 767.98px) {
+    .chat-pages-modal-dialog {
+        width: 98vw;
+        max-height: 96vh;
+    }
+
+    .chat-pages-modal-nav {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+    }
+
+    .chat-pages-modal-nav-prev { left: .35rem; }
+    .chat-pages-modal-nav-next { right: .35rem; }
+}

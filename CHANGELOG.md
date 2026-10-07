@@ -19,6 +19,37 @@
 ## [Unreleased]
 
 ### Fixed
+- **v1.13.x (KI-205) — RAG: постраничный просмотр PNG сканов**:
+  - **Проблема:** временные PNG-страницы удалялись в `finally`. Пользователь
+    не видел, что распознал OCR. При ошибках не понимал, где проблема
+    (OCR / PDF / качество скана).
+  - **Фаза 1 (backend, `e9f4cea`):**
+    - `ParseOptions` (new DTO) — `SavePagesDirectory`, `RenderDpi`.
+    - `IRagDocumentParser.ParseAsync(file, options, ct)` — default-метод
+      (обратная совместимость).
+    - `PdfParser` — сохранение PNG каждой страницы в
+      `{SavePagesDirectory}/page-N.png` (независимо от OCR).
+    - `DocumentIngestionService` — создание директории + передача через
+      `ParseOptions`.
+    - `ChatAttachmentService` — создание `{chatFolder}/{safeName}-pages/`
+      при upload, удаление при delete/clear.
+    - `ChatAttachmentsController` — 2 endpoint'а: список PNG и сам PNG.
+    - `ChatAttachmentDto` — +`PagesCount`, +`PagesAvailable`.
+    - `appsettings*.json` — `Ocr:SavePagesToWorkspace` (prod=false, dev=true).
+  - **Фаза 2 (frontend):**
+    - `chat.js`: кнопка «👁 N» в чипе attachment'а (если `pagesAvailable`).
+      Модалка с `<img>` + навигация ←/→ + счётчик «N / M» + Escape + прелоад
+      следующей страницы.
+    - `chat.css`: стили `.chat-pages-modal-*`, `.chat-attachment-chip-pages`.
+    - `Index.cshtml`: `data-label-pages-*` + модалка.
+    - `.resx` (RU + EN): 6 ключей (`RagPages*`).
+  - **Файлы:** `ParseOptions.cs` (new), `IRagDocumentParser.cs`, `PdfParser.cs`,
+    `IngestionRequest.cs`, `DocumentIngestionService.cs`, `ChatAttachmentDto.cs`,
+    `ChatAttachmentService.cs`, `ChatAttachmentsController.cs`,
+    `appsettings*.json`, `chat.js`, `chat.css`, `Index.cshtml`, `SharedResources*.resx`.
+  - **Тесты:** 1080/1080 (без изменений — backend без новых unit-тестов,
+    smoke покрывает).
+
 - **v1.13.x (KI-203) — RAG: OCR-fallback для сканов PDF**:
   - **Проблема:** `PdfParser` (PdfPig) извлекает только текстовый слой
     PDF. Сканы (фото договоров, отсканированные книги) дают пустой

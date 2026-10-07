@@ -219,6 +219,7 @@
                  data-label-clear-success="@Localizer["RagClearSuccess"]"
                  data-label-upload-success="@Localizer["RagUploadSuccess"]"
                  data-label-ocr-progress="@Localizer["RagOcrProgress"]"
+                 data-label-pages-button="@Localizer["RagPagesButtonLabel"]"
                  data-label-remove="@Localizer["Удалить"]">
                 <div class="chat-attachments-summary" id="chat-attachment-summary"></div>
                 <div class="chat-attachment-chips" id="chat-attachment-chips"></div>
@@ -319,6 +320,30 @@
             <div class="chat-global-search-hint">
                 @Localizer["ChatSearchGlobalHint"]
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- v1.13.x (KI-205): постраничный просмотр PNG сканов -->
+<div id="chat-pages-modal"
+     class="chat-pages-modal"
+     hidden
+     data-label-counter="@Localizer["RagPagesCounter"]"
+     data-label-prev="@Localizer["RagPagesPrev"]"
+     data-label-next="@Localizer["RagPagesNext"]">
+    <div class="chat-pages-modal-backdrop" data-action="close"></div>
+    <div class="chat-pages-modal-dialog" role="dialog" aria-modal="true">
+        <div class="chat-pages-modal-header">
+            <span class="chat-pages-modal-title">@Localizer["RagPagesTitle"]</span>
+            <span class="chat-pages-modal-counter"></span>
+            <button type="button"
+                    class="chat-pages-modal-close"
+                    data-action="close"
+                    title="@Localizer["RagPagesClose"]"
+                    aria-label="@Localizer["RagPagesClose"]">✕</button>
+        </div>
+        <div class="chat-pages-modal-body">
+            <!-- Заполняется JS -->
         </div>
     </div>
 </div>

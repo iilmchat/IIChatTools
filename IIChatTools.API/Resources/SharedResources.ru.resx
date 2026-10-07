@@ -423,6 +423,25 @@
     <data name="RagOcrProgress" xml:space="preserve">
       <value>OCR: {0} / {1}</value>
     </data>
+    <!-- v1.13.x (KI-205): постраничный просмотр PNG сканов. -->
+    <data name="RagPagesButtonLabel" xml:space="preserve">
+      <value>Открыть просмотр страниц</value>
+    </data>
+    <data name="RagPagesTitle" xml:space="preserve">
+      <value>Просмотр страниц</value>
+    </data>
+    <data name="RagPagesPrev" xml:space="preserve">
+      <value>Предыдущая страница</value>
+    </data>
+    <data name="RagPagesNext" xml:space="preserve">
+      <value>Следующая страница</value>
+    </data>
+    <data name="RagPagesClose" xml:space="preserve">
+      <value>Закрыть</value>
+    </data>
+    <data name="RagPagesCounter" xml:space="preserve">
+      <value>{0} / {1}</value>
+    </data>
 
     <!-- ===== RAG / Admin Knowledge Base (v1.5.0, KI-083, Шаг 7B) ===== -->
     <data name="AdminTabKnowledgeBase" xml:space="preserve">

@@ -52,6 +52,10 @@ const state = {
     // { stopped: bool, timerId: number|null } или null, если не активен.
     ocrPolling: null,
 
+    // v1.13.x (KI-205): постраничный просмотр PNG сканов.
+    // { attachmentId, currentPage, totalPages, fileName } или null.
+    pagesViewer: null,
+
     // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
     debateView: 'collapsed',
 
@@ -286,6 +290,15 @@ function bindEvents() {
             });
     }
 
+    // v1.13.x (KI-205): модалка постраничного просмотра PNG.
+    const pagesModal = document.getElementById('chat-pages-modal');
+    if (pagesModal) {
+        // Backdrop + ✕ — закрыть.
+        pagesModal.querySelectorAll('[data-action="close"]').forEach(el => {
+            el.addEventListener('click', closePagesViewer);
+        });
+    }
+
     // KI-083 (Шаг 6D): вложения чата (RAG)
     document.getElementById('btn-attach-file')
         ?.addEventListener('click', () => {
@@ -300,7 +313,7 @@ function bindEvents() {
             e.target.value = '';
         });
 
-    // Делегированный обработчик: удалить chip / очистить RAG.
+    // Делегированный обработчик: удалить chip / очистить RAG / открыть страницы.
     document.getElementById('chat-attachments-bar')
         ?.addEventListener('click', (e) => {
             const removeBtn = e.target.closest('[data-attachment-remove]');
@@ -316,6 +329,16 @@ function bindEvents() {
                 e.preventDefault();
                 e.stopPropagation();
                 clearAttachments();
+                return;
+            }
+            // v1.13.x (KI-205): открыть постраничный просмотр PNG.
+            const pagesBtn = e.target.closest('[data-pages-open]');
+            if (pagesBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = parseInt(pagesBtn.dataset.pagesOpen, 10);
+                if (Number.isFinite(id)) openPagesViewer(id);
+                return;
             }
         });
 
@@ -392,6 +415,13 @@ function bindEvents() {
             }
         }
         if (e.key === 'Escape') {
+            // Приоритет 0 (v1.13.x, KI-205): модалка страниц.
+            const pm = document.getElementById('chat-pages-modal');
+            if (pm && !pm.hidden) {
+                e.preventDefault();
+                closePagesViewer();
+                return;
+            }
             // Приоритет 1: ⌘K-модалка (если открыта — закрываем только её).
             const gsModal = document.getElementById('chat-global-search');
             if (gsModal && !gsModal.hidden) {
@@ -404,6 +434,21 @@ function bindEvents() {
             if (bar && !bar.hidden) {
                 e.preventDefault();
                 closeChatSearch();
+                return;
+            }
+        }
+
+        // v1.13.x (KI-205): навигация ←/→ внутри модалки страниц.
+        const pmNav = document.getElementById('chat-pages-modal');
+        if (pmNav && !pmNav.hidden) {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                navigatePagesViewer(-1);
+                return;
+            }
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                navigatePagesViewer(+1);
                 return;
             }
         }
@@ -4316,6 +4361,19 @@ function renderAttachmentsBar() {
             metaHtml = `<span class="chat-attachment-chip-meta">${escapeHtml(size)} · ${escapeHtml(chunks)}</span>`;
         }
 
+        // v1.13.x (KI-205): кнопка «👁 N» — постраничный просмотр PNG.
+        const pagesBtnHtml = (a.pagesAvailable && a.pagesCount > 0)
+            ? (() => {
+                const labelTpl = bar.dataset.labelPagesButton || 'Открыть просмотр страниц';
+                const title = `${labelTpl} (${a.pagesCount})`;
+                return `<button type="button"
+                        class="chat-attachment-chip-pages"
+                        data-pages-open="${a.id}"
+                        title="${escapeHtml(title)}"
+                        aria-label="${escapeHtml(title)}">👁 ${a.pagesCount}</button>`;
+            })()
+            : '';
+
         return `
             <div class="chat-attachment-chip${isProcessing ? ' chat-attachment-chip-processing' : ''}"
                  data-attachment-id="${a.id}">
@@ -4323,6 +4381,7 @@ function renderAttachmentsBar() {
                 <span class="chat-attachment-chip-name"
                       title="${escapeHtml(a.fileName || '')}">${escapeHtml(a.fileName || '')}</span>
                 ${metaHtml}
+                ${pagesBtnHtml}
                 <button type="button"
                         class="chat-attachment-chip-remove"
                         data-attachment-remove="${a.id}"
@@ -4373,4 +4432,171 @@ function formatChipChunks(count) {
     }
     const tpl = bar.dataset.labelChunksMany || '{0} chunks';
     return tpl.replace('{0}', String(count));
+}
+
+// ============ v1.13.x (KI-205): постраничный просмотр PNG сканов ============
+
+/**
+ * Открывает модалку постраничного просмотра PNG для attachment'а.
+ * Загружает список страниц через API, рендерит первую.
+ * @param {number} attachmentId — id attachment'а.
+ */
+async function openPagesViewer(attachmentId) {
+    if (!state.activeChatId) return;
+
+    const modal = document.getElementById('chat-pages-modal');
+    if (!modal) return;
+
+    const att = state.attachments.find(a => a.id === attachmentId);
+    if (!att) {
+        toast('Вложение не найдено', 'error');
+        return;
+    }
+
+    // Модалка сразу — с индикатором загрузки.
+    const bodyEl = modal.querySelector('.chat-pages-modal-body');
+    if (bodyEl) {
+        bodyEl.innerHTML = `<div class="chat-pages-modal-loading">
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            <span>Загрузка…</span></div>`;
+    }
+
+    modal.hidden = false;
+    document.body.classList.add('chat-pages-modal-open');
+
+    state.pagesViewer = {
+        attachmentId,
+        currentPage: 0,
+        totalPages: 0,
+        fileName: att.fileName || ''
+    };
+
+    // Заголовок — имя файла.
+    const titleEl = modal.querySelector('.chat-pages-modal-title');
+    if (titleEl) titleEl.textContent = att.fileName || '';
+
+    try {
+        const res = await apiGet(
+            `/api/chat/${state.activeChatId}/attachments/${attachmentId}/pages`);
+
+        if (!res.success || !res.data || !res.data.count) {
+            renderPagesViewerError('Страницы не найдены');
+            return;
+        }
+
+        state.pagesViewer.totalPages = res.data.count;
+        state.pagesViewer.currentPage = 1;
+
+        renderPagesViewerPage(1);
+    } catch (ex) {
+        console.error('[chat] openPagesViewer:', ex);
+        renderPagesViewerError('Ошибка загрузки страниц');
+    }
+}
+
+/**
+ * Рендерит конкретную страницу в модалке.
+ * @param {number} pageNumber — 1-based.
+ */
+function renderPagesViewerPage(pageNumber) {
+    const modal = document.getElementById('chat-pages-modal');
+    const viewer = state.pagesViewer;
+    if (!modal || !viewer || !state.activeChatId) return;
+
+    if (pageNumber < 1) pageNumber = 1;
+    if (pageNumber > viewer.totalPages) pageNumber = viewer.totalPages;
+
+    viewer.currentPage = pageNumber;
+
+    const prevLabel = modal.dataset.labelPrev || 'Previous';
+    const nextLabel = modal.dataset.labelNext || 'Next';
+
+    const bodyEl = modal.querySelector('.chat-pages-modal-body');
+    if (bodyEl) {
+        const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber}`;
+        bodyEl.innerHTML = `
+            <button type="button"
+                    class="chat-pages-modal-nav chat-pages-modal-nav-prev"
+                    data-action="prev"
+                    ${pageNumber <= 1 ? 'disabled' : ''}
+                    title="${escapeHtml(prevLabel)}"
+                    aria-label="${escapeHtml(prevLabel)}">‹</button>
+            <img class="chat-pages-modal-image"
+                 src="${url}"
+                 alt="Page ${pageNumber}" />
+            <button type="button"
+                    class="chat-pages-modal-nav chat-pages-modal-nav-next"
+                    data-action="next"
+                    ${pageNumber >= viewer.totalPages ? 'disabled' : ''}
+                    title="${escapeHtml(nextLabel)}"
+                    aria-label="${escapeHtml(nextLabel)}">›</button>`;
+
+        // Обработчики навигации (пересозданные кнопки).
+        bodyEl.querySelector('[data-action="prev"]')
+            ?.addEventListener('click', () => navigatePagesViewer(-1));
+        bodyEl.querySelector('[data-action="next"]')
+            ?.addEventListener('click', () => navigatePagesViewer(+1));
+
+        // Прелоад следующей страницы.
+        if (pageNumber < viewer.totalPages) {
+            const pre = new Image();
+            pre.src = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber + 1}`;
+        }
+    }
+
+    // Счётчик «N / M».
+    const counterEl = modal.querySelector('.chat-pages-modal-counter');
+    if (counterEl) {
+        const tpl = modal.dataset.labelCounter || '{0} / {1}';
+        counterEl.textContent = tpl
+            .replace('{0}', String(pageNumber))
+            .replace('{1}', String(viewer.totalPages));
+    }
+}
+
+/**
+ * Навигация по страницам (←/→).
+ * @param {number} delta — -1 / +1.
+ */
+function navigatePagesViewer(delta) {
+    const viewer = state.pagesViewer;
+    if (!viewer) return;
+
+    const next = viewer.currentPage + delta;
+    if (next < 1 || next > viewer.totalPages) return;
+
+    renderPagesViewerPage(next);
+}
+
+/**
+ * Показывает ошибку в модалке.
+ * @param {string} message
+ */
+function renderPagesViewerError(message) {
+    const modal = document.getElementById('chat-pages-modal');
+    if (!modal) return;
+
+    const bodyEl = modal.querySelector('.chat-pages-modal-body');
+    if (bodyEl) {
+        bodyEl.innerHTML = `<div class="chat-pages-modal-loading">${escapeHtml(message)}</div>`;
+    }
+
+    const counterEl = modal.querySelector('.chat-pages-modal-counter');
+    if (counterEl) counterEl.textContent = '';
+}
+
+/**
+ * Закрывает модалку постраничного просмотра.
+ */
+function closePagesViewer() {
+    const modal = document.getElementById('chat-pages-modal');
+    if (!modal) return;
+
+    modal.hidden = true;
+    document.body.classList.remove('chat-pages-modal-open');
+    state.pagesViewer = null;
+
+    // Освобождаем память от <img>.
+    const bodyEl = modal.querySelector('.chat-pages-modal-body');
+    if (bodyEl) bodyEl.innerHTML = '';
 }
