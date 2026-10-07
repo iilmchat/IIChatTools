@@ -19,24 +19,31 @@
 ## [Unreleased]
 
 ### Added
-- **v1.13.x (KI-161) — Vision Agent: PuppeteerSharp CDP-attach (Ф1: контракты + DTO)**:
-  Добавлены контракты и DTO для DOM+Vision hybrid (KI-161). Цель — 0 px
-  ошибки клика для DOM-доступных элементов (вместо ±20-30 px у VL).
-  - **`IChromeCdpSession`** — сессия CDP к уже запущенному Chrome
-    (`--remote-debugging-port=9222`). Методы: `ConnectAsync`,
-    `FindElementAsync` (поиск по label / position / type),
-    `GetViewportInfoAsync` (DPR + screen offset).
-  - **`ICoordinateProvider`** — провайдер координат. Две реализации
-    в следующих фазах: `DomCoordinateProvider` (0 px) и
-    `VisionCoordinateProvider` (bounds-center, KI-190).
-  - **DTO:** `CoordinateRequest`, `CoordinateResult`,
-    `CdpElementQuery`, `CdpElementResult`, `CdpViewportInfo`,
-    `VisionCoordinateProviderOptions`, `VisionCdpOptions`.
-  - **Реализация:** Ф2-Ф5 (PuppeteerSharpCdpSession, DomCoordinateProvider,
-    VisionCoordinateProvider, изменения в `LocalHarnessVisionBackend` и
-    `VisionAgentService`).
+- **v1.13.x (KI-161) — Vision Agent: PuppeteerSharp CDP-attach**:
+  DOM+Vision hybrid: 0 px ошибки клика для DOM-доступных элементов
+  (вместо ±20-30 px у VL).
+  - **Ф1 (Fixed):** контракты + DTO. `IChromeCdpSession`,
+    `ICoordinateProvider`, `CoordinateRequest/Result`,
+    `CdpElementQuery/Result/ViewportInfo`,
+    `VisionCoordinateProviderOptions`, `VisionCdpOptions`
+    (2 интерфейса + 7 DTO).
+  - **Ф2 (Fixed):** `PuppeteerSharpCdpSession` — реализация
+    `IChromeCdpSession`. Подключение к Chrome через
+    `Puppeteer.ConnectAsync` (`--remote-debugging-port=9222`,
+    `DefaultViewport=null`, timeout 5000 мс). JS-скрипт поиска
+    элемента: `label` (substring, case-insensitive) →
+    `position` (ближайший центр, tolerance 200 px) → `type`
+    (первый видимый). JS-скрипт viewport-метрик: DPR,
+    `window.screenX/Y`, chrome UI offset. Конвертация
+    VL-bounds (screenshot-space) → viewport-css внутри
+    `FindElementAsync`. `Disconnect()` в `DisposeAsync` — не
+    убивает Chrome. Не бросает — при любой ошибке
+    `Found=false` + `Error`. PuppeteerSharp 7.1: используем
+    конкретные классы `Browser` / `Page` (интерфейсы
+    `IBrowser` / `IPage` появились в v10+).
+  - **Реализация:** Ф3-Ф5 (DomCoordinateProvider, VisionCoordinateProvider,
+    изменения в `LocalHarnessVisionBackend` и `VisionAgentService`).
   - **Тесты:** Ф7.
-  - **Файлы:** 9 новых (2 интерфейса + 7 DTO).
 
 ### Fixed
 - **v1.13.x (KI-195, KI-196) — Vision Planner: hotkey-first + no-click-after-Enter**:
