@@ -2360,3 +2360,230 @@ body.chat-pages-modal-open {
     .chat-pages-modal-nav-prev { left: .35rem; }
     .chat-pages-modal-nav-next { right: .35rem; }
 }
+
+/* ============================================================
+   v1.13.x (KI-206): page viewer — toolbar, thumbs, zoom.
+   ============================================================ */
+
+/* Toolbar в шапке — между title и counter. */
+.chat-pages-toolbar {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    flex-shrink: 0;
+}
+
+.chat-pages-toolbar-sep {
+    display: inline-block;
+    width: 1px;
+    height: 18px;
+    background: var(--bs-border-color);
+    margin: 0 .25rem;
+}
+
+/* Универсальная icon-кнопка в toolbar / thumbs-toggle. */
+.chat-pages-icon-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: .25rem;
+    background: transparent;
+    color: var(--bs-body-color);
+    font-size: .95rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+.chat-pages-icon-btn:hover:not(:disabled) {
+    background: var(--bs-secondary-bg);
+    color: var(--bs-primary);
+}
+
+.chat-pages-icon-btn:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 1px;
+}
+
+.chat-pages-icon-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+/* Кнопка с числовым значением (zoom%). */
+.chat-pages-zoom-value {
+    min-width: 54px;
+    padding: 0 .4rem;
+    width: auto;
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+}
+
+/* Input перехода по номеру страницы. */
+.chat-pages-goto {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    font-size: .78rem;
+    color: var(--bs-secondary-color);
+}
+
+.chat-pages-goto-input {
+    width: 60px;
+    padding: .15rem .35rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+    text-align: center;
+}
+
+.chat-pages-goto-input:focus {
+    outline: none;
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .25);
+}
+
+/* Убираем стрелки у number-input (Chrome). */
+.chat-pages-goto-input::-webkit-outer-spin-button,
+.chat-pages-goto-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.chat-pages-goto-input { -moz-appearance: textfield; appearance: textfield; }
+
+/* Контент: grid [thumbs | viewport]. */
+.chat-pages-modal-content {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 0;
+    transition: grid-template-columns .2s ease;
+}
+
+/* Свёрнутые thumbnails — колонка 0. */
+.chat-pages-modal.chat-pages-thumbs-collapsed .chat-pages-modal-content {
+    grid-template-columns: 0 1fr;
+}
+
+.chat-pages-modal.chat-pages-thumbs-collapsed .chat-pages-thumbs {
+    overflow: hidden;
+    border-right: 0;
+}
+
+/* Sidebar превью слева. */
+.chat-pages-thumbs {
+    overflow-y: auto;
+    background: var(--bs-tertiary-bg);
+    border-right: 1px solid var(--bs-border-color);
+    min-width: 0;
+    transition: width .2s ease;
+}
+
+.chat-pages-thumbs-list {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    padding: .5rem;
+}
+
+/* Один thumbnail. */
+.chat-pages-thumb {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    padding: .25rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    background: var(--bs-body-bg);
+    cursor: pointer;
+    transition: border-color .15s, background-color .15s;
+    user-select: none;
+}
+
+.chat-pages-thumb:hover {
+    border-color: var(--bs-primary-border-subtle);
+    background: var(--bs-primary-bg-subtle);
+}
+
+.chat-pages-thumb.chat-pages-thumb-active {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary-bg-subtle);
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, .2);
+}
+
+.chat-pages-thumb-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--bs-border-color);
+    background: #fff;
+    border-radius: .15rem;
+}
+
+.chat-pages-thumb-num {
+    position: absolute;
+    top: .35rem;
+    left: .35rem;
+    padding: .05rem .35rem;
+    background: rgba(0, 0, 0, .65);
+    color: #fff;
+    font-family: var(--bs-font-monospace);
+    font-size: .68rem;
+    line-height: 1.2;
+    border-radius: .15rem;
+}
+
+/* Viewport — область просмотра страницы. */
+.chat-pages-viewport {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: auto;   /* скролл, если zoom > 100% */
+    background: var(--bs-tertiary-bg);
+    padding: .5rem;
+}
+
+/* Обёртка img для zoom-scale. */
+.chat-pages-image-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 100%;
+    transform-origin: top center;
+}
+
+.chat-pages-modal-image {
+    max-width: none;   /* отключаем contain — управляем сами через zoom */
+    max-height: none;
+    display: block;
+    border: 1px solid var(--bs-border-color);
+    background: #fff;
+    transform-origin: top center;
+    transition: transform .1s ease-out;
+}
+
+/* На мобильных — thumbs занимает весь экран при expanded. */
+@media (max-width: 767.98px) {
+    .chat-pages-modal-content {
+        grid-template-columns: 120px 1fr;
+    }
+
+    .chat-pages-toolbar {
+        gap: .15rem;
+    }
+
+    .chat-pages-zoom-value {
+        min-width: 44px;
+        font-size: .7rem;
+    }
+}

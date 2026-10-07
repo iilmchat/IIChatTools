@@ -21,6 +21,15 @@ const LS_KEY_SIDEBAR = 'chat.sidebarCollapsed';
 // v1.11.0 (KI-126, Шаг 1G.1): ключ localStorage для вида отображения дебатов.
 const LS_KEY_DEBATE_VIEW = 'chat.debateView';
 
+// v1.13.x (KI-206): ключ localStorage для состояния thumbs sidebar.
+const LS_KEY_PAGES_THUMBS = 'chat.pagesThumbsCollapsed';
+
+/** KI-206: шаг зума для кнопок +/−. */
+const PAGES_ZOOM_STEP = 0.25;
+/** KI-206: границы зума. */
+const PAGES_ZOOM_MIN = 0.25;
+const PAGES_ZOOM_MAX = 4.0;
+
 const state = {
     chats: [],
     models: [],
@@ -53,7 +62,8 @@ const state = {
     ocrPolling: null,
 
     // v1.13.x (KI-205): постраничный просмотр PNG сканов.
-    // { attachmentId, currentPage, totalPages, fileName } или null.
+    // v1.13.x (KI-206): + zoom (число), thumbsCollapsed (bool),
+    //                    imageNaturalSize {w, h}, thumbsObserver.
     pagesViewer: null,
 
     // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
@@ -290,13 +300,97 @@ function bindEvents() {
             });
     }
 
-    // v1.13.x (KI-205): модалка постраничного просмотра PNG.
+    // v1.13.x (KI-205 + KI-206): модалка постраничного просмотра PNG.
     const pagesModal = document.getElementById('chat-pages-modal');
     if (pagesModal) {
         // Backdrop + ✕ — закрыть.
         pagesModal.querySelectorAll('[data-action="close"]').forEach(el => {
             el.addEventListener('click', closePagesViewer);
         });
+
+        // KI-206: thumbs toggle.
+        document.getElementById('chat-pages-thumbs-toggle')
+            ?.addEventListener('click', togglePagesThumbs);
+
+        // KI-206: зум (кнопки + / − / 100%).
+        pagesModal.querySelectorAll('[data-zoom]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const kind = btn.dataset.zoom;
+                if (kind === 'in') setPagesZoom(getPagesZoom() + PAGES_ZOOM_STEP);
+                else if (kind === 'out') setPagesZoom(getPagesZoom() - PAGES_ZOOM_STEP);
+                else if (kind === 'reset') setPagesZoom(1.0);
+            });
+        });
+
+        // KI-206: fit-width / fit-page.
+        pagesModal.querySelectorAll('[data-fit]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const kind = btn.dataset.fit;
+                if (kind === 'width') fitPagesViewer('width');
+                else if (kind === 'page') fitPagesViewer('page');
+            });
+        });
+
+        // KI-206: input «Стр. N / M» + Enter.
+        const gotoInput = document.getElementById('chat-pages-goto-input');
+        if (gotoInput) {
+            gotoInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const n = parseInt(gotoInput.value, 10);
+                    if (Number.isFinite(n)) gotoPagesViewer(n);
+                    gotoInput.blur();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    gotoInput.blur();
+                }
+            });
+        }
+
+        // KI-206: скролл колесом мыши (prev / next page, debounce 300 мс).
+        const viewport = pagesModal.querySelector('.chat-pages-viewport');
+        if (viewport) {
+            let wheelAccum = 0;
+            let wheelLocked = false;
+            let wheelResetTimer = null;
+
+            viewport.addEventListener('wheel', (e) => {
+                // Ctrl+wheel — нативный зум браузера, не мешаем.
+                if (e.ctrlKey) return;
+
+                // Если контент страницы скроллится вертикально (zoom > fit),
+                // сначала даём скроллить картинку, потом листаем.
+                const canScrollInside = viewport.scrollHeight > viewport.clientHeight;
+                if (canScrollInside) {
+                    const atTop = viewport.scrollTop <= 0;
+                    const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1;
+                    if (e.deltaY < 0 && !atTop) return;       // листаем содержимое вверх
+                    if (e.deltaY > 0 && !atBottom) return;    // листаем содержимое вниз
+                }
+
+                if (wheelLocked) {
+                    e.preventDefault();
+                    return;
+                }
+
+                wheelAccum += e.deltaY;
+                e.preventDefault();
+
+                if (Math.abs(wheelAccum) >= 60) {
+                    const dir = wheelAccum > 0 ? +1 : -1;
+                    navigatePagesViewer(dir);
+
+                    wheelLocked = true;
+                    if (wheelResetTimer) clearTimeout(wheelResetTimer);
+                    wheelResetTimer = setTimeout(() => {
+                        wheelLocked = false;
+                        wheelAccum = 0;
+                    }, 300);
+                    wheelAccum = 0;
+                }
+            }, { passive: false });
+        }
     }
 
     // KI-083 (Шаг 6D): вложения чата (RAG)
@@ -438,18 +532,42 @@ function bindEvents() {
             }
         }
 
-        // v1.13.x (KI-205): навигация ←/→ внутри модалки страниц.
+        // v1.13.x (KI-205 + KI-206): навигация ←/→/↑/↓ внутри модалки страниц.
         const pmNav = document.getElementById('chat-pages-modal');
         if (pmNav && !pmNav.hidden) {
-            if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                navigatePagesViewer(-1);
-                return;
-            }
-            if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                navigatePagesViewer(+1);
-                return;
+            // Если фокус в input — не перехватываем.
+            const ae = document.activeElement;
+            const inInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+
+            if (!inInput) {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigatePagesViewer(-1);
+                    return;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigatePagesViewer(+1);
+                    return;
+                }
+                // KI-206: Ctrl+= / Ctrl+- / Ctrl+0 — зум.
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === '=' || e.key === '+') {
+                        e.preventDefault();
+                        setPagesZoom(getPagesZoom() + PAGES_ZOOM_STEP);
+                        return;
+                    }
+                    if (e.key === '-' || e.key === '_') {
+                        e.preventDefault();
+                        setPagesZoom(getPagesZoom() - PAGES_ZOOM_STEP);
+                        return;
+                    }
+                    if (e.key === '0') {
+                        e.preventDefault();
+                        setPagesZoom(1.0);
+                        return;
+                    }
+                }
             }
         }
     });
@@ -4434,12 +4552,10 @@ function formatChipChunks(count) {
     return tpl.replace('{0}', String(count));
 }
 
-// ============ v1.13.x (KI-205): постраничный просмотр PNG сканов ============
+// ============ v1.13.x (KI-205 + KI-206): просмотр PNG-страниц ============
 
 /**
- * Открывает модалку постраничного просмотра PNG для attachment'а.
- * Загружает список страниц через API, рендерит первую.
- * @param {number} attachmentId — id attachment'а.
+ * Открывает модалку просмотра PNG-страниц для attachment'а.
  */
 async function openPagesViewer(attachmentId) {
     if (!state.activeChatId) return;
@@ -4453,12 +4569,19 @@ async function openPagesViewer(attachmentId) {
         return;
     }
 
-    // Модалка сразу — с индикатором загрузки.
-    const bodyEl = modal.querySelector('.chat-pages-modal-body');
-    if (bodyEl) {
-        bodyEl.innerHTML = `<div class="chat-pages-modal-loading">
+    // Восстанавливаем состояние thumbs (KI-206).
+    let thumbsCollapsed = false;
+    try {
+        thumbsCollapsed = localStorage.getItem(LS_KEY_PAGES_THUMBS) === 'true';
+    } catch { /* приватный режим */ }
+    modal.classList.toggle('chat-pages-thumbs-collapsed', thumbsCollapsed);
+
+    const wrap = document.getElementById('chat-pages-image-wrap');
+    if (wrap) {
+        const loading = modal.dataset.labelLoading || 'Loading…';
+        wrap.innerHTML = `<div class="chat-pages-modal-loading">
             <span class="spinner-border spinner-border-sm" role="status"></span>
-            <span>Загрузка…</span></div>`;
+            <span>${escapeHtml(loading)}</span></div>`;
     }
 
     modal.hidden = false;
@@ -4466,12 +4589,13 @@ async function openPagesViewer(attachmentId) {
 
     state.pagesViewer = {
         attachmentId,
-        currentPage: 0,
+        currentPage: 1,
         totalPages: 0,
-        fileName: att.fileName || ''
+        fileName: att.fileName || '',
+        zoom: 1.0,
+        thumbsCollapsed
     };
 
-    // Заголовок — имя файла.
     const titleEl = modal.querySelector('.chat-pages-modal-title');
     if (titleEl) titleEl.textContent = att.fileName || '';
 
@@ -4480,13 +4604,14 @@ async function openPagesViewer(attachmentId) {
             `/api/chat/${state.activeChatId}/attachments/${attachmentId}/pages`);
 
         if (!res.success || !res.data || !res.data.count) {
-            renderPagesViewerError('Страницы не найдены');
+            renderPagesViewerError(modal.dataset.labelNotFound || 'Pages not found');
             return;
         }
 
         state.pagesViewer.totalPages = res.data.count;
         state.pagesViewer.currentPage = 1;
 
+        renderPagesThumbsList(res.data.pages || []);
         renderPagesViewerPage(1);
     } catch (ex) {
         console.error('[chat] openPagesViewer:', ex);
@@ -4495,8 +4620,75 @@ async function openPagesViewer(attachmentId) {
 }
 
 /**
- * Рендерит конкретную страницу в модалке.
- * @param {number} pageNumber — 1-based.
+ * KI-206: рендер списка thumbnails слева.
+ * @param {Array} pages — [{ pageNumber, sizeBytes }, ...]
+ */
+function renderPagesThumbsList(pages) {
+    const listEl = document.getElementById('chat-pages-thumbs-list');
+    if (!listEl) return;
+
+    const viewer = state.pagesViewer;
+    if (!viewer || !state.activeChatId) return;
+
+    listEl.innerHTML = '';
+
+    for (const p of pages) {
+        const item = document.createElement('div');
+        item.className = 'chat-pages-thumb';
+        item.dataset.pageNumber = String(p.pageNumber);
+
+        const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${p.pageNumber}`;
+        item.innerHTML = `
+            <span class="chat-pages-thumb-num">${p.pageNumber}</span>
+            <img class="chat-pages-thumb-img"
+                 data-src="${url}"
+                 alt="Page ${p.pageNumber}"
+                 loading="lazy" />`;
+
+        item.addEventListener('click', () => gotoPagesViewer(p.pageNumber));
+        listEl.appendChild(item);
+    }
+
+    // KI-206: lazy-load thumbnails через IntersectionObserver.
+    const imgs = listEl.querySelectorAll('img[data-src]');
+    if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src && !img.src) {
+                        img.src = img.dataset.src;
+                    }
+                    io.unobserve(img);
+                }
+            }
+        }, { root: listEl, rootMargin: '200px' });
+
+        imgs.forEach(img => io.observe(img));
+    } else {
+        // Fallback: грузим сразу все.
+        imgs.forEach(img => { img.src = img.dataset.src; });
+    }
+}
+
+/**
+ * KI-206: подсветка активного thumbnail.
+ */
+function highlightActiveThumb(pageNumber) {
+    const listEl = document.getElementById('chat-pages-thumbs-list');
+    if (!listEl) return;
+
+    listEl.querySelectorAll('.chat-pages-thumb').forEach(el => {
+        const active = parseInt(el.dataset.pageNumber, 10) === pageNumber;
+        el.classList.toggle('chat-pages-thumb-active', active);
+        if (active) {
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    });
+}
+
+/**
+ * KI-205 (v2, KI-206): рендер страницы.
  */
 function renderPagesViewerPage(pageNumber) {
     const modal = document.getElementById('chat-pages-modal');
@@ -4510,11 +4702,11 @@ function renderPagesViewerPage(pageNumber) {
 
     const prevLabel = modal.dataset.labelPrev || 'Previous';
     const nextLabel = modal.dataset.labelNext || 'Next';
+    const wrap = document.getElementById('chat-pages-image-wrap');
 
-    const bodyEl = modal.querySelector('.chat-pages-modal-body');
-    if (bodyEl) {
+    if (wrap) {
         const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber}`;
-        bodyEl.innerHTML = `
+        wrap.innerHTML = `
             <button type="button"
                     class="chat-pages-modal-nav chat-pages-modal-nav-prev"
                     data-action="prev"
@@ -4522,6 +4714,7 @@ function renderPagesViewerPage(pageNumber) {
                     title="${escapeHtml(prevLabel)}"
                     aria-label="${escapeHtml(prevLabel)}">‹</button>
             <img class="chat-pages-modal-image"
+                 data-page="${pageNumber}"
                  src="${url}"
                  alt="Page ${pageNumber}" />
             <button type="button"
@@ -4531,11 +4724,20 @@ function renderPagesViewerPage(pageNumber) {
                     title="${escapeHtml(nextLabel)}"
                     aria-label="${escapeHtml(nextLabel)}">›</button>`;
 
-        // Обработчики навигации (пересозданные кнопки).
-        bodyEl.querySelector('[data-action="prev"]')
+        wrap.querySelector('[data-action="prev"]')
             ?.addEventListener('click', () => navigatePagesViewer(-1));
-        bodyEl.querySelector('[data-action="next"]')
+        wrap.querySelector('[data-action="next"]')
             ?.addEventListener('click', () => navigatePagesViewer(+1));
+
+        const img = wrap.querySelector('.chat-pages-modal-image');
+        if (img) {
+            // После загрузки — фиксируем naturalSize и применяем текущий zoom.
+            img.addEventListener('load', () => {
+                if (viewer && viewer.currentPage === pageNumber) {
+                    applyPagesZoom();
+                }
+            });
+        }
 
         // Прелоад следующей страницы.
         if (pageNumber < viewer.totalPages) {
@@ -4552,11 +4754,34 @@ function renderPagesViewerPage(pageNumber) {
             .replace('{0}', String(pageNumber))
             .replace('{1}', String(viewer.totalPages));
     }
+
+    // Обновление thumbs: активный.
+    highlightActiveThumb(pageNumber);
+
+    // Обновление input «Стр. N из M».
+    const gotoInput = document.getElementById('chat-pages-goto-input');
+    if (gotoInput) {
+        gotoInput.value = String(pageNumber);
+        gotoInput.max = String(viewer.totalPages);
+    }
 }
 
 /**
- * Навигация по страницам (←/→).
- * @param {number} delta — -1 / +1.
+ * KI-206: переход на конкретную страницу.
+ */
+function gotoPagesViewer(pageNumber) {
+    const viewer = state.pagesViewer;
+    if (!viewer) return;
+
+    if (pageNumber < 1) pageNumber = 1;
+    if (pageNumber > viewer.totalPages) pageNumber = viewer.totalPages;
+    if (pageNumber === viewer.currentPage) return;
+
+    renderPagesViewerPage(pageNumber);
+}
+
+/**
+ * KI-206: навигация.
  */
 function navigatePagesViewer(delta) {
     const viewer = state.pagesViewer;
@@ -4568,17 +4793,125 @@ function navigatePagesViewer(delta) {
     renderPagesViewerPage(next);
 }
 
+// ============================================================
+// KI-206: зум и fit.
+// ============================================================
+
+/** Текущий зум (0.25…4.0). */
+function getPagesZoom() {
+    return state.pagesViewer?.zoom ?? 1.0;
+}
+
 /**
- * Показывает ошибку в модалке.
- * @param {string} message
+ * Устанавливает зум + применяет его к картинке + обновляет label.
+ * @param {number} value — 0.25…4.0
+ */
+function setPagesZoom(value) {
+    const viewer = state.pagesViewer;
+    if (!viewer) return;
+
+    let v = Number(value);
+    if (!Number.isFinite(v) || v <= 0) v = 1.0;
+    v = Math.max(PAGES_ZOOM_MIN, Math.min(PAGES_ZOOM_MAX, v));
+
+    viewer.zoom = v;
+
+    // Обновляем числовой label.
+    const modal = document.getElementById('chat-pages-modal');
+    const label = modal?.querySelector('.chat-pages-zoom-value');
+    if (label) {
+        label.textContent = `${Math.round(v * 100)}%`;
+    }
+
+    applyPagesZoom();
+}
+
+/**
+ * Применяет viewer.zoom к <img> через CSS transform.
+ * При zoom > 1 — viewport позволяет прокрутку (overflow: auto).
+ */
+function applyPagesZoom() {
+    const viewer = state.pagesViewer;
+    if (!viewer) return;
+
+    const img = document.querySelector('#chat-pages-image-wrap .chat-pages-modal-image');
+    if (!img) return;
+
+    const z = viewer.zoom;
+    img.style.transform = `scale(${z})`;
+
+    // Меняем origin для корректного позиционирования скролла.
+    img.style.transformOrigin = 'top left';
+
+    // Пересчёт width/height обёртки для скролла.
+    const wrap = document.getElementById('chat-pages-image-wrap');
+    if (wrap && img.naturalWidth > 0) {
+        const scaledW = img.naturalWidth * z;
+        const scaledH = img.naturalHeight * z;
+        wrap.style.width = `${scaledW}px`;
+        wrap.style.height = `${scaledH}px`;
+        img.style.width = `${img.naturalWidth}px`;
+        img.style.height = `${img.naturalHeight}px`;
+    }
+}
+
+/**
+ * KI-206: fit-width / fit-page.
+ * @param {"width"|"page"} kind
+ */
+function fitPagesViewer(kind) {
+    const viewer = state.pagesViewer;
+    if (!viewer) return;
+
+    const img = document.querySelector('#chat-pages-image-wrap .chat-pages-modal-image');
+    if (!img || img.naturalWidth <= 0) return;
+
+    const viewport = document.querySelector('.chat-pages-viewport');
+    if (!viewport) return;
+
+    // Резервируем 1rem (0.5rem паддинги + 0.5 запаса).
+    const pad = 16;
+    const availW = viewport.clientWidth - pad;
+    const availH = viewport.clientHeight - pad;
+
+    if (kind === 'width') {
+        setPagesZoom(availW / img.naturalWidth);
+    } else if (kind === 'page') {
+        const zW = availW / img.naturalWidth;
+        const zH = availH / img.naturalHeight;
+        setPagesZoom(Math.min(zW, zH));
+    }
+}
+
+/**
+ * KI-206: toggle панели превью.
+ */
+function togglePagesThumbs() {
+    const modal = document.getElementById('chat-pages-modal');
+    if (!modal) return;
+
+    const collapsed = !modal.classList.contains('chat-pages-thumbs-collapsed');
+    modal.classList.toggle('chat-pages-thumbs-collapsed', collapsed);
+
+    if (state.pagesViewer) {
+        state.pagesViewer.thumbsCollapsed = collapsed;
+    }
+
+    try {
+        localStorage.setItem(LS_KEY_PAGES_THUMBS, collapsed ? 'true' : 'false');
+    } catch { /* приватный режим */ }
+}
+
+/**
+ * KI-205: ошибка в модалке.
  */
 function renderPagesViewerError(message) {
     const modal = document.getElementById('chat-pages-modal');
     if (!modal) return;
 
-    const bodyEl = modal.querySelector('.chat-pages-modal-body');
-    if (bodyEl) {
-        bodyEl.innerHTML = `<div class="chat-pages-modal-loading">${escapeHtml(message)}</div>`;
+    const wrap = document.getElementById('chat-pages-image-wrap');
+    if (wrap) {
+        wrap.innerHTML = `<div class="chat-pages-modal-loading">${escapeHtml(message)}</div>`;
     }
 
     const counterEl = modal.querySelector('.chat-pages-modal-counter');
@@ -4586,7 +4919,7 @@ function renderPagesViewerError(message) {
 }
 
 /**
- * Закрывает модалку постраничного просмотра.
+ * KI-205: закрытие модалки.
  */
 function closePagesViewer() {
     const modal = document.getElementById('chat-pages-modal');
@@ -4596,7 +4929,9 @@ function closePagesViewer() {
     document.body.classList.remove('chat-pages-modal-open');
     state.pagesViewer = null;
 
-    // Освобождаем память от <img>.
-    const bodyEl = modal.querySelector('.chat-pages-modal-body');
-    if (bodyEl) bodyEl.innerHTML = '';
+    const wrap = document.getElementById('chat-pages-image-wrap');
+    if (wrap) wrap.innerHTML = '';
+
+    const thumbs = document.getElementById('chat-pages-thumbs-list');
+    if (thumbs) thumbs.innerHTML = '';
 }

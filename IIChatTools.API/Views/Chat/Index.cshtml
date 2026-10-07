@@ -324,26 +324,88 @@
     </div>
 </div>
 
-<!-- v1.13.x (KI-205): постраничный просмотр PNG сканов -->
+<!-- v1.13.x (KI-205 + KI-206): постраничный просмотр PNG сканов -->
 <div id="chat-pages-modal"
      class="chat-pages-modal"
      hidden
      data-label-counter="@Localizer["RagPagesCounter"]"
      data-label-prev="@Localizer["RagPagesPrev"]"
-     data-label-next="@Localizer["RagPagesNext"]">
+     data-label-next="@Localizer["RagPagesNext"]"
+     data-label-thumbs-toggle="@Localizer["RagPagesThumbsToggle"]"
+     data-label-zoom-out="@Localizer["RagPagesZoomOut"]"
+     data-label-zoom-in="@Localizer["RagPagesZoomIn"]"
+     data-label-zoom-reset="@Localizer["RagPagesZoomReset"]"
+     data-label-fit-width="@Localizer["RagPagesFitWidth"]"
+     data-label-fit-page="@Localizer["RagPagesFitPage"]"
+     data-label-page-label="@Localizer["RagPagesPageLabel"]"
+     data-label-page-input="@Localizer["RagPagesPageInput"]"
+     data-label-loading="@Localizer["RagPagesLoading"]"
+     data-label-not-found="@Localizer["RagPagesNotFound"]">
     <div class="chat-pages-modal-backdrop" data-action="close"></div>
     <div class="chat-pages-modal-dialog" role="dialog" aria-modal="true">
         <div class="chat-pages-modal-header">
+            <button type="button"
+                    id="chat-pages-thumbs-toggle"
+                    class="chat-pages-icon-btn"
+                    title="@Localizer["RagPagesThumbsToggle"]"
+                    aria-label="@Localizer["RagPagesThumbsToggle"]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                     viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M2.5 4a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0 4a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0 4a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zM8.5 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H9a.5.5 0 0 1-.5-.5zm0 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H9a.5.5 0 0 1-.5-.5zm0 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H9a.5.5 0 0 1-.5-.5z"/>
+                </svg>
+            </button>
+
             <span class="chat-pages-modal-title">@Localizer["RagPagesTitle"]</span>
+
+            <div class="chat-pages-toolbar">
+                <button type="button" class="chat-pages-icon-btn" data-zoom="out"
+                        title="@Localizer["RagPagesZoomOut"]"
+                        aria-label="@Localizer["RagPagesZoomOut"]">−</button>
+                <button type="button" class="chat-pages-icon-btn chat-pages-zoom-value"
+                        data-zoom="reset"
+                        title="@Localizer["RagPagesZoomReset"]"
+                        aria-label="@Localizer["RagPagesZoomReset"]">100%</button>
+                <button type="button" class="chat-pages-icon-btn" data-zoom="in"
+                        title="@Localizer["RagPagesZoomIn"]"
+                        aria-label="@Localizer["RagPagesZoomIn"]">+</button>
+                <span class="chat-pages-toolbar-sep"></span>
+                <button type="button" class="chat-pages-icon-btn" data-fit="width"
+                        title="@Localizer["RagPagesFitWidth"]"
+                        aria-label="@Localizer["RagPagesFitWidth"]">⇔</button>
+                <button type="button" class="chat-pages-icon-btn" data-fit="page"
+                        title="@Localizer["RagPagesFitPage"]"
+                        aria-label="@Localizer["RagPagesFitPage"]">⛶</button>
+                <span class="chat-pages-toolbar-sep"></span>
+                <label class="chat-pages-goto">
+                    <span>@Localizer["RagPagesPageLabel"]</span>
+                    <input type="number"
+                           id="chat-pages-goto-input"
+                           class="chat-pages-goto-input"
+                           min="1"
+                           step="1"
+                           placeholder="@Localizer["RagPagesPageInput"]" />
+                </label>
+            </div>
+
             <span class="chat-pages-modal-counter"></span>
+
             <button type="button"
                     class="chat-pages-modal-close"
                     data-action="close"
                     title="@Localizer["RagPagesClose"]"
                     aria-label="@Localizer["RagPagesClose"]">✕</button>
         </div>
-        <div class="chat-pages-modal-body">
-            <!-- Заполняется JS -->
+        <div class="chat-pages-modal-content">
+            <aside class="chat-pages-thumbs" id="chat-pages-thumbs">
+                <div class="chat-pages-thumbs-list" id="chat-pages-thumbs-list">
+                    <!-- Заполняется JS -->
+                </div>
+            </aside>
+            <div class="chat-pages-viewport">
+                <div class="chat-pages-image-wrap" id="chat-pages-image-wrap">
+                    <!-- img + nav заполняются JS -->
+                </div>
+            </div>
         </div>
     </div>
 </div>

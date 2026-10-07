@@ -442,6 +442,37 @@
     <data name="RagPagesCounter" xml:space="preserve">
       <value>{0} / {1}</value>
     </data>
+    <!-- KI-206: page viewer UX. -->
+    <data name="RagPagesThumbsToggle" xml:space="preserve">
+      <value>Свернуть/развернуть панель превью</value>
+    </data>
+    <data name="RagPagesZoomOut" xml:space="preserve">
+      <value>Уменьшить</value>
+    </data>
+    <data name="RagPagesZoomIn" xml:space="preserve">
+      <value>Увеличить</value>
+    </data>
+    <data name="RagPagesZoomReset" xml:space="preserve">
+      <value>Сбросить к 100%</value>
+    </data>
+    <data name="RagPagesFitWidth" xml:space="preserve">
+      <value>По ширине</value>
+    </data>
+    <data name="RagPagesFitPage" xml:space="preserve">
+      <value>По странице</value>
+    </data>
+    <data name="RagPagesPageLabel" xml:space="preserve">
+      <value>Стр.</value>
+    </data>
+    <data name="RagPagesPageInput" xml:space="preserve">
+      <value>Номер страницы</value>
+    </data>
+    <data name="RagPagesLoading" xml:space="preserve">
+      <value>Загрузка…</value>
+    </data>
+    <data name="RagPagesNotFound" xml:space="preserve">
+      <value>Страницы не найдены</value>
+    </data>
 
     <!-- ===== RAG / Admin Knowledge Base (v1.5.0, KI-083, Шаг 7B) ===== -->
     <data name="AdminTabKnowledgeBase" xml:space="preserve">
