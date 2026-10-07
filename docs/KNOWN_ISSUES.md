@@ -4102,7 +4102,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-194 — Vision Planner: `done` без фактической проверки результата
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=39, задача «Открой wikipedia.org и кликни по кнопке поиска»).
 - **Файлы:** `VisionSystemPrompt.PlannerPlanNext`, `VisionAgentService.RunTaskAsync`.
 - **Симптом:** Vision Agent возвращает `success=True` в `VisionTaskResultDto`,
@@ -4127,9 +4127,22 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      (например, через второй LLM-вызов «выполнена ли задача X?»).
   3. Для browser-задач — проверять URL через CDP (это уже план KI-161).
 - **Оценка:** ~2-3 ч.
+- **Fix (v1.13.x, 2 коммита):**
+  - **KI-194-fix1** (`952e323`): правило 14 в `PlannerPlanNext` — различает
+    **literal** («кликни X» — достаточно клика) и **goal** («найди X» —
+    нужен результат на экране) задачи. Для goal-задач требует проверить
+    признаки результата (`search_results`, `article_title`, `confirmation`,
+    новые элементы) перед `done`.
+  - **KI-194-fix3** (`9799e55`): правило 8 промпта `VisionUiDescribe` —
+    `article_title` приоритет № 1. Правило 22 — «только видимые языковые
+    ссылки, не выдумывай». Правило 23 — `description` отражает главное.
+  - **Smoke chatId=63:** «Открой wikipedia.org и найди статью про Москву» →
+    VL распознал `article_title: "Москва"`, Planner вернул `done`,
+    `success=true, steps=3, 430957 ms`. **Подтверждено в реальном браузере.**
+  - **Файлы:** `VisionSystemPrompt.cs`.
 - **Связанные:** KI-113 (галлюцинация успеха SubAgent — та же природа),
   KI-187 (детектор цикла — не ловит «промах + done»), KI-161 (CDP-attach
-  для проверки URL).
+  для проверки URL — не потребовался).
 
 ---
 
@@ -4595,7 +4608,42 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ---
 
-## Сводка по статусам
+### KI-203 — RAG: OCR-скан PDF не индексируется (нет текстового слоя)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Обнаружено:** 2026-10-07 (обсуждение Vision Agent + RAG).
+- **Файлы:** `IIChatTools.Services/Implementation/Rag/Parsers/PdfParser.cs`,
+  `IIChatTools.Services/Implementation/Rag/Parsers/RagDocumentParserRegistry.cs`,
+  `IIChatTools.Tests/UnitTests/Rag/Parsers/PdfParserTests.cs`.
+- **Описание:** `PdfParser` (v1.7.1, KI-104, PdfPig 0.1.9) извлекает
+  **текстовый слой** PDF-страниц. Если пользователь прикладывает
+  **скан-документ** (PDF-картинка без текстового слоя — фото договора,
+  отсканированная книга, квитанция) — `page.Text` пустой, чанки в
+  `my_rag_docs` не создаются, RAG не находит содержимое.
+- **Текущее поведение:** чанки пустые / отсутствуют. Пользователь видит
+  «📎 Договор.pdf · 0 чанков». RAG-поиск не находит фрагменты.
+- **Возможные решения:**
+  1. **Tesseract OCR** (.NET-обёртка `Tesseract` 5.2.x, Apache 2.0) —
+     при `page.Text` короче N символов (эвристика: < 50 на страницу):
+     рендерить страницу в PNG через PdfPig → OCR → текст в чанки.
+     Требует установки `tessdata-rus` (~30 MB) + `tessdata-eng`.
+     Оценка: ~4-6 ч.
+  2. **PaddleOCR** (ONNX-runtime, Apache 2.0) — лучше на кириллице,
+     но тянет ~200 MB ONNX runtime + модели. Оценка: ~6-8 ч.
+  3. **External VL** — отдать PDF в Claude / GPT-4V (уже есть
+     `IExternalLlmClient` — text-only; требует multimodal расширения,
+     KI-141). Оценка: ~5-7 ч.
+  4. **Гибридный подход:** Tesseract + `PdfPig` (текстовый слой там,
+     где есть; OCR — только для пустых страниц). Наиболее практично.
+- **Дополнительно:**
+  - Кэшировать OCR-результаты (SHA256 страницы → текст) — чтобы не
+    гонять Tesseract повторно.
+  - Прогресс-индикатор для больших PDF (100+ страниц — это минуты).
+  - Опция `Rag:Ingestion:OcrFallbackEnabled` (default false).
+- **Отличается от KI-137:** KI-137 — OCR **скриншотов** в Vision Agent
+  (для мелкого текста / капчи). KI-203 — OCR **PDF-файлов** в RAG.
+- **Связанные:** KI-104 (PdfParser — Fixed v1.7.1), KI-137 (Vision Agent
+  OCR — Planned), KI-141 (External multimodal — Planned).
 
 | Статус | Кол-во |
 |--------|--------|
@@ -4625,7 +4673,8 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
 | Fixed (v1.12.0) | 1 |              <!-- KI-131 (Vision Agent, MVP: LocalHarness + vision_agent) -->
 | Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
-| Fixed (v1.12.x) | 3 |             <!-- KI-142, KI-148, KI-149, KI-152-->
+| Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
+| Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
 | Planned | 12 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-142, KI-143, KI-146, KI-147 -->
 | In Progress | 0 |                   <!-- — -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
