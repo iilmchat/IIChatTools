@@ -108,6 +108,28 @@
     VL-fallback для canvas / WebGL / shadow-DOM / iframe / desktop.
 
 ### Fixed
+- **v1.13.x (KI-201) — Vision LLM обрывает JSON → ui_elements=[] →
+  клик не валидируется**:
+  - **Симптом:** после KI-200 VL-модель генерирует 8 элементов, но
+    не укладывается в `MaxTokens=768` → обрыв JSON на 8-м элементе
+    → `JObject.Parse` падает → `ui_elements=[]` → Planner click
+    `language_link` отклоняется валидатором → loop до timeout.
+  - **Первопричины (2):** (а) VL-модель генерирует слишком много
+    языковых ссылок после KI-198; (б) парсер не восстанавливает
+    частичный JSON.
+  - **Fix:**
+    - **Правило 22 промпта:** «МАКСИМУМ 3 ЯЗЫКОВЫЕ ССЫЛКИ: Русский,
+      English, Deutsch. Всего ≤ 5 элементов.»
+    - **Правило 23 промпта:** `description` ≤ 100 символов.
+    - **Правило 24 промпта:** «Если уже 5 элементов — НЕМЕДЛЕННО
+      закрой `]` и `}`.»
+    - **`ScreenDescriptionParser.TryRecoverPartialElements`:** новая
+      функция — при провале `JObject.Parse` сканирует текст с
+      балансировкой `{`/`}` и вытаскивает все полные объекты.
+    - **`VisionLlm.MaxTokens` 768 → 1024** (dev).
+  - **Файлы:** `ScreenDescriptionParser.cs`, `VisionSystemPrompt.cs`,
+    `appsettings.Development.json`.
+
 - **v1.13.x (KI-200) — Vision LLM зацикливается на однотипных элементах
   (language_link) + HttpClient.Timeout 100s**:
   - **Симптом:** после KI-198 (правило 22 — «включай языковые ссылки»)

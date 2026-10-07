@@ -80,6 +80,13 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             // десятки копий одного элемента с одинаковым id → max_tokens
             // обрезает JSON на середине массива → парсер получает битый JSON
             // → ui_elements = [] → Planner видит «пустой экран» → fail.
+            //
+            // KI-201 (v1.13.x): та же проблема у Qwen2.5-VL-7B — генерация
+            // 768+ токенов и обрыв JSON на середине 8-го элемента. Парсер
+            // JObject.Parse бросал исключение → fallback с пустым ui_elements.
+            // Решение: (а) сначала пробуем JObject.Parse — норм. путь;
+            // (б) при провале — regex-recovery: вытаскиваем все ПОЛНЫЕ
+            // объекты {...} из ui_elements[] через балансировку скобок.
             const int MaxElements = 8;
             const int MaxIdLength = 40;
 
@@ -98,6 +105,24 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     if (!seenIds.Add(element.Id)) continue;
 
                     elements.Add(element);
+                }
+            }
+
+            // KI-201: если JObject.Parse упал (битый/обрезанный JSON) — не
+            // доходим до этой точки (см. catch выше). Но если JObject.Parse
+            // УСПЕШНО распарсил (JSON оказался валидным), а elementsToken
+            // вернул null (поле переименовано/усечено) — тоже recovery.
+
+            // KI-201: recovery для случая, когда JObject.Parse УСПЕШНО съел
+            // невалидный JSON (например, Newtonsoft толерантен к trailing comma),
+            // но массив ui_elements[] не сформирован. Плюс fallback для
+            // частично-обрезанного ответа.
+            if (elements.Count == 0)
+            {
+                var recovered = TryRecoverPartialElements(text, MaxElements, MaxIdLength);
+                if (recovered.Count > 0)
+                {
+                    elements = recovered;
                 }
             }
 
@@ -267,13 +292,118 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// </summary>
         private static int GetIntIgnoreCase(JObject obj, string name)
         {
-            var token = GetTokenIgnoreCase(obj, name);
-            if (token == null || token.Type == JTokenType.Null) return 0;
-
-            if (token.Type == JTokenType.Integer) return token.Value<int>();
-            if (token.Type == JTokenType.Float) return (int)token.Value<double>();
-            if (token.Type == JTokenType.String && int.TryParse(token.Value<string>(), out var v)) return v;
+            if (obj == null) return 0;
+            foreach (var prop in obj.Properties())
+            {
+                if (string.Equals(prop.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return prop.Value?.Value<int>() ?? 0;
+                }
+            }
             return 0;
+        }
+
+        // ============================================================
+        // KI-201: recovery из обрезанного JSON.
+        // ============================================================
+
+        /// <summary>
+        /// KI-201: восстанавливает частичный <c>ui_elements[]</c> из обрезанного
+        /// JSON. Находит все <b>полные</b> JSON-объекты <c>{...}</c> внутри
+        /// массива <c>ui_elements</c> (или во всём тексте, если массив не найден),
+        /// используя балансировку фигурных скобок. Непарсибельные элементы
+        /// игнорируются.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>Зачем:</b> VL-модели (Qwen2.5-VL-7B) иногда превышают MaxTokens
+        /// и обрывают JSON на середине элемента. <c>JObject.Parse</c> падает,
+        /// <c>ui_elements</c> пустой → Planner не видит UI → валидатор
+        /// отклоняет click.
+        /// </para>
+        /// <para>
+        /// <b>Стратегия:</b> найти в тексте позицию <c>"ui_elements"</c> →
+        /// найти <c>[</c> после неё → сканировать от <c>[</c>, отслеживая
+        /// баланс <c>{</c>/<c>}</c> и <c>[</c>/<c>]</c> (с учётом строк и
+        /// escape-последовательностей) → каждый раз, когда баланс возвращается
+        /// к нулю (закрылась очередная <c>}</c>), пытаться распарсить
+        /// накопленный фрагмент как <c>JObject</c> → если валидно, добавить
+        /// элемент.
+        /// </para>
+        /// </remarks>
+        private static List<UiElementDto> TryRecoverPartialElements(
+            string text, int maxElements, int maxIdLength)
+        {
+            var result = new List<UiElementDto>();
+            if (string.IsNullOrEmpty(text)) return result;
+
+            // 1. Найти начало массива ui_elements.
+            var keyIdx = text.IndexOf("\"ui_elements\"", StringComparison.OrdinalIgnoreCase);
+            if (keyIdx < 0) return result;
+
+            var arrStart = text.IndexOf('[', keyIdx);
+            if (arrStart < 0) return result;
+
+            // 2. Сканировать от arrStart, собирая полные {...} объекты.
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var depth = 0;          // баланс { }
+            var inString = false;
+            var escape = false;
+            var objStart = -1;
+
+            for (int i = arrStart; i < text.Length; i++)
+            {
+                var c = text[i];
+
+                if (inString)
+                {
+                    if (escape) { escape = false; continue; }
+                    if (c == '\\') { escape = true; continue; }
+                    if (c == '"') { inString = false; continue; }
+                    continue;
+                }
+
+                if (c == '"') { inString = true; continue; }
+
+                if (c == '{')
+                {
+                    if (depth == 0) objStart = i;
+                    depth++;
+                }
+                else if (c == '}')
+                {
+                    depth--;
+                    if (depth == 0 && objStart >= 0)
+                    {
+                        // Найден полный объект [objStart..i].
+                        var fragment = text.Substring(objStart, i - objStart + 1);
+                        try
+                        {
+                            var obj = JObject.Parse(fragment);
+                            var element = ParseUiElement(obj);
+                            if (element != null
+                                && element.Id.Length <= maxIdLength
+                                && seenIds.Add(element.Id))
+                            {
+                                result.Add(element);
+                                if (result.Count >= maxElements) break;
+                            }
+                        }
+                        catch
+                        {
+                            // Один невалидный фрагмент — не блокируем остальные.
+                        }
+                        objStart = -1;
+                    }
+                }
+                else if (c == ']' && depth == 0)
+                {
+                    // Конец массива.
+                    break;
+                }
+            }
+
+            return result;
         }
     }
 }
