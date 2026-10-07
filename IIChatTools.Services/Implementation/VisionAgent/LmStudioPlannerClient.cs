@@ -124,7 +124,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(_plannerOptions.TimeoutSeconds));
 
+            // RULES § 4.48 + KI-200: HttpClient.Timeout по умолчанию 100 сек.
+            // Наш таймаут — через cts.CancelAfter(TimeoutSeconds). Без этой
+            // строки два таймаута конкурируют.
             var client = _httpClientFactory.CreateClient();
+            client.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
+
             var url = $"{_lmStudioBaseUrl.TrimEnd('/')}/v1/chat/completions";
 
             _logger.LogDebug(

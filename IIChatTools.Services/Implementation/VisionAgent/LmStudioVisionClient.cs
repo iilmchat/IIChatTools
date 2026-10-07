@@ -126,7 +126,14 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(_visionOptions.TimeoutSeconds));
 
+            // RULES § 4.48 + KI-200: HttpClient.Timeout по умолчанию 100 сек.
+            // Наш таймаут — через cts.CancelAfter(TimeoutSeconds). Без этой
+            // строки два таймаута конкурируют: HttpClient рвёт соединение
+            // через 100 сек, а cts ждёт 300 → TimeoutException приходит
+            // с задержкой и LM Studio видит "Client disconnected".
             var client = _httpClientFactory.CreateClient();
+            client.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
+
             var url = $"{_lmStudioBaseUrl.TrimEnd('/')}/v1/chat/completions";
 
             _logger.LogDebug(
@@ -259,7 +266,10 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(_visionOptions.TimeoutSeconds));
 
+            // RULES § 4.48 + KI-200: см. комментарий в DescribeAsync.
             var client = _httpClientFactory.CreateClient();
+            client.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
+
             var url = $"{_lmStudioBaseUrl.TrimEnd('/')}/v1/chat/completions";
 
             _logger.LogDebug(

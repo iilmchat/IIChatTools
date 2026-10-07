@@ -3879,6 +3879,44 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-200 — Vision LLM зацикливается на однотипных элементах (language_link)
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-07 (smoke KI-198, chatId=58).
+- **Файлы:** `VisionSystemPrompt.cs` (`VisionUiDescribe`, правило 22),
+  `LmStudioVisionClient.cs` (`HttpClient.Timeout`),
+  `LmStudioPlannerClient.cs` (`HttpClient.Timeout`),
+  `appsettings.Development.json` (`VisionLlm.MaxTokens`, `TimeoutSeconds`).
+- **Симптом:** после Fix KI-198 (правило 22 — «включай языковые ссылки»)
+  VL-модель Qwen2.5-VL-7B начала **генерировать все языковые ссылки
+  подряд** (`language_link` × 30+), зациклилась на 693+ токенов, не
+  останавливалась.
+  - LM Studio лог: `n_gen = 693, tg = 8.11 t/s` → `Client disconnected`.
+  - Наш клиент: `Vision LLM не ответила за 300 секунд`.
+- **Два корня (два бага):**
+  1. **Промпт:** правило 22 не ограничивало количество языковых ссылок.
+     VL-модель восприняла буквально «включай языковые ссылки» → включила
+     все 30+ на Wikipedia.
+  2. **HttpClient.Timeout = 100s (дефолт .NET):** `_httpClientFactory.CreateClient()`
+     создаёт клиент с **дефолтным `Timeout = 100s`**. Наш `cts.CancelAfter(300)`
+     не переопределяет его. LM Studio видит disconnect через 100 сек,
+     наш `TimeoutException` приходит через 300 → **RULES § 4.48**.
+- **Fix:**
+  - **Правило 22 промпта:** жёсткое «НЕ БОЛЕЕ 8 элементов ВСЕГО. Если
+    языковых ссылок больше 6 — включай только упомянутые в задаче /
+    самые популярные (Русский, English, Deutsch). НЕ перечисляй все
+    языки подряд.» + правило 23 «Если уже 8 элементов — НЕМЕДЛЕННО закрой `]` и `}`».
+  - **HttpClient.Timeout:** `client.Timeout = Timeout.InfiniteTimeSpan;` в
+    `LmStudioVisionClient` (2 места: DescribeAsync, VerifyTargetAsync) и
+    `LmStudioPlannerClient`. Таймаут — только через `cts.CancelAfter`.
+  - **MaxTokens 1792 → 768:** отсекает зацикливание (останавливает
+    генерацию до того, как модель уйдёт в бесконечный цикл).
+  - **TimeoutSeconds 300 → 180:** реальное время генерации нормального
+    ответа ~70 сек; 180 = 2.5× запас.
+- **Связанные:** KI-197 (работает), KI-198 (правило 22 — работает, но
+  требовало уточнения), KI-192 (пустой `ui_elements` на шаге 1 —
+  подтверждён в этом smoke), KI-199 (center — работает).
+
 ### KI-198 — Vision LLM не распознаёт языковые ссылки на Wikipedia
 
 - **Приоритет:** 🟠 High | **Статус:** Fixed (частично) | **Исправлено в:** v1.13.x

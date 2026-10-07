@@ -108,6 +108,34 @@
     VL-fallback для canvas / WebGL / shadow-DOM / iframe / desktop.
 
 ### Fixed
+- **v1.13.x (KI-200) — Vision LLM зацикливается на однотипных элементах
+  (language_link) + HttpClient.Timeout 100s**:
+  - **Симптом:** после KI-198 (правило 22 — «включай языковые ссылки»)
+    VL-модель Qwen2.5-VL-7B генерировала **все языковые ссылки подряд**
+    (`language_link` × 30+), зациклилась на 693+ токенов. LM Studio лог:
+    `n_gen = 693, tg = 8.11 t/s` → `Client disconnected`.
+    Наш клиент — `Vision LLM не ответила за 300 секунд`.
+  - **Корни (2 бага):**
+    1. Правило 22 не ограничивало количество языковых ссылок —
+       VL-модель включила все 30+ на Wikipedia.
+    2. `HttpClient.Timeout = 100s` (дефолт .NET) конкурировал с нашим
+       `cts.CancelAfter(300)` — **RULES § 4.48**.
+  - **Fix:**
+    - **Правило 22 промпта:** «НЕ БОЛЕЕ 8 элементов ВСЕГО. Если
+      языковых ссылок больше 6 — включай только упомянутые в задаче
+      или самые популярные (Русский, English, Deutsch). НЕ перечисляй
+      все языки подряд.»
+    - **Правило 23 промпта:** «Если уже 8 элементов — НЕМЕДЛЕННО
+      закрой `]` и `}`.»
+    - **`HttpClient.Timeout = Timeout.InfiniteTimeSpan`** в
+      `LmStudioVisionClient` (2 места) и `LmStudioPlannerClient`.
+      Таймаут — только через `cts.CancelAfter`.
+    - **`VisionLlm.MaxTokens` 1792 → 768** (dev) — отсекает зацикливание.
+    - **`VisionLlm.TimeoutSeconds` 300 → 180** (dev) — реальное время
+      генерации ~70 сек, 180 = 2.5× запас.
+  - **Файлы:** `VisionSystemPrompt.cs`, `LmStudioVisionClient.cs`,
+    `LmStudioPlannerClient.cs`, `appsettings.Development.json`.
+
 - **v1.13.x (KI-198, KI-199) — Vision LLM: языковые ссылки + галлюцинация
   `center`**:
   - **KI-198 (High):** на главной странице Wikipedia Vision LLM
