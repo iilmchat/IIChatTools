@@ -80,6 +80,17 @@ namespace IIChatTools.Services.DTO.VisionAgent
 
         /// <summary>Ожидание стабилизации страницы после действия, мс (default: 500).</summary>
         public int PageStabilityCheckMs { get; set; } = 500;
+
+        /// <summary>
+        /// Пауза перед retry при пустом <c>ui_elements</c> на первом кадре
+        /// (KI-192), мс. Default: 2000 (2 сек).
+        /// <para>
+        /// Вынесено в отдельную опцию, чтобы unit-тесты могли выставить
+        /// минимальное значение (иначе 3 retry × 2000 мс = 6 сек на каждый
+        /// тест с пустым <c>DefaultResponse</c>).
+        /// </para>
+        /// </summary>
+        public int EmptyUiElementsRetryDelayMs { get; set; } = 2000;
     }
 
     /// <summary>

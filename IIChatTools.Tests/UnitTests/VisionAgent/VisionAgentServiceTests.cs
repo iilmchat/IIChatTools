@@ -34,7 +34,10 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
                     MaxSteps = maxSteps,
                     MaxTaskSeconds = maxTaskSeconds,
                     MaxTasksPerUserPer5Min = maxTasksPerUser,
-                    ActionDelayMs = actionDelayMs
+                    ActionDelayMs = actionDelayMs,
+                    // KI-192-fix: retry-delay = 1 мс (иначе 3×2000 = 6 сек
+                    // на каждый тест с пустым DefaultResponse).
+                    EmptyUiElementsRetryDelayMs = 1
                 },
                 ActionValidation = new VisionActionValidationOptions
                 {
@@ -421,10 +424,7 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
                 Reason = "ok"
             });
 
-            // PageStabilityCheckMs = 1 → retryDelayMs = Max(500, 4) = 500.
-            // 2 retry × 500 ms ≈ 1 сек — приемлемо для unit-теста.
             var options = DefaultOptions();
-            options.Limits.PageStabilityCheckMs = 1;
 
             var sut = CreateService(backend, visionLlm, planner, options: options);
 

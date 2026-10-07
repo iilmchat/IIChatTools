@@ -334,8 +334,10 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         && (screen.UiElements == null || screen.UiElements.Count == 0))
                     {
                         const int MaxRetries = 3;
-                        var retryDelayMs = Math.Max(500,
-                            _options.Limits.PageStabilityCheckMs * 4);
+                        // KI-192-fix: задержка через отдельную опцию
+                        // (в unit-тестах — 1 мс, в проде — 2000 мс).
+                        var retryDelayMs = Math.Max(10,
+                            _options.Limits.EmptyUiElementsRetryDelayMs);
 
                         for (int attempt = 1; attempt <= MaxRetries; attempt++)
                         {
