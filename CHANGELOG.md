@@ -97,6 +97,15 @@
       (empty URL, whitespace, not-connected, dispose idempotent,
       null query) + 3 skip (реальный Chrome).
     - **Итого:** +26 тестов (1016 → 1042).
+  - **Ф8 (Fixed):** README (раздел «CDP-attach»),
+    `docs/KNOWN_ISSUES.md` (KI-161 → Fixed),
+    `docs/development/RULES.md` (§ 7 — KI-161 Fixed),
+    этот CHANGELOG. **Все 8 фаз KI-161 закрыты.**
+  - **До:** VL-координаты ±20-30 px, `bounds-center` (KI-190) —
+    попадание не для всех элементов.
+  - **После:** DOM-координаты **0 px** для DOM-доступных элементов
+    (button / link / text_input / checkbox / radio / select),
+    VL-fallback для canvas / WebGL / shadow-DOM / iframe / desktop.
 
 ### Fixed
 - **v1.13.x (KI-195, KI-196) — Vision Planner: hotkey-first + no-click-after-Enter**:

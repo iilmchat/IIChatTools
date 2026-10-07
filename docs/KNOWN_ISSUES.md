@@ -3284,18 +3284,87 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-161 — Vision Agent: PuppeteerSharp DOM+Vision (точные координаты для browser)
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
-- **Обнаружено:** 2026-10-05.
-- **Файлы (план):** `LocalHarnessVisionBackend`, новый
-  `PuppeteerSharpCoordinateProvider : ICoordinateProvider`.
-- **Идея:** для browser-задач подключаться к **уже запущенному** Chrome
-  через CDP (`--remote-debugging-port=9222`). Перед SendInput-кликом
-  искать DOM-элемент по эвристике (`button:has-text("Найти")`) →
-  `elementHandle.BoundingBoxAsync()` → точные координаты. Fallback на
-  VL-координаты, если DOM не нашёл (canvas / WebGL / shadow-DOM).
-- **Даёт:** 0 px ошибки для DOM-элементов. Не работает для desktop / canvas.
-- **Оценка:** ~3-4 ч.
-- **Связанные:** KI-131, KI-137, KI-162.
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-05. | **Устранено:** 2026-10-07.
+- **DESIGN:** [`docs/development/v1.13/DESIGN_VISION_CDP_ATTACH.md`](development/v1.13/DESIGN_VISION_CDP_ATTACH.md).
+- **Описание:** VL-модель (Qwen2.5-VL-7B) на полном скриншоте даёт
+  координаты с ошибкой ±20-30 px. Для browser-задач (Wikipedia,
+  GitHub, ...) клик по VL-координатам ненадёжен.
+
+- **Решение (v1.13.x, 7 фаз):**
+  - **Ф1** — контракты + DTO: `IChromeCdpSession`,
+    `ICoordinateProvider`, `CoordinateRequest/Result`,
+    `CdpElementQuery/Result/ViewportInfo`,
+    `VisionCoordinateProviderOptions`, `VisionCdpOptions`
+    (2 интерфейса + 7 DTO).
+  - **Ф2** — `PuppeteerSharpCdpSession` — реализация `IChromeCdpSession`.
+    Подключение к Chrome через `Puppeteer.ConnectAsync`
+    (`--remote-debugging-port=9222`). JS-скрипт поиска
+    DOM-элемента: label (substring) → position (tolerance 200 px) →
+    type. JS-скрипт viewport-метрик (DPR, screenX/Y, chrome UI offset).
+  - **Ф3** — `DomCoordinateProvider` (0 px ошибки через CDP) +
+    `VisionCoordinateProvider` (fallback: bounds-center, KI-190).
+  - **Ф4** — `IVisionBackend` (+2 default-метода), `LocalHarnessVisionBackend`
+    (`--remote-debugging-port`, lazy CDP-подключение, `GetCoordinateProvider` /
+    `GetScreenshotScale` override).
+  - **Ф5** — `VisionAgentService.ResolveCoordinatesAsync` — DOM-first:
+    DOM если доступен → VL-fallback. Mode: `dom` / `vision` / `auto`.
+  - **Ф6** — DI-регистрация + appsettings (prod: `vision`,
+    dev: `auto` + CDP).
+  - **Ф7** — 26 тестов (`DomCoordinateProviderTests`,
+    `VisionCoordinateProviderTests`, `PuppeteerSharpCdpSessionTests`).
+  - **Ф8** — README + docs + финализация KI-161.
+
+- **Что работает:**
+  - DOM-доступные элементы (button / link / text_input / checkbox /
+    radio / select) → 0 px ошибки.
+  - Canvas / WebGL / shadow-DOM / iframe → VL-fallback (bounds-center).
+  - Desktop-приложения (Outlook, Excel) → VL-fallback (только VL).
+
+- **Обратная совместимость:** `VisionAgent:CoordinateProvider:Mode = "vision"`
+  (prod-дефолт) — старое поведение (bounds-center KI-190) без CDP.
+
+- **Известные ограничения (не блокеры):**
+  - **Shadow-DOM / iframe** — не поддерживаются (нет доступа через
+    `document.querySelectorAll`). Fallback на VL.
+  - **Multi-monitor с окном на не-primary мониторе** — `window.screenX`
+    может быть некорректен. Защита: distance-guard 200 px (DESIGN § 9.2).
+  - **DPI ≠ 100%** — компенсируется через `window.devicePixelRatio`,
+    но на 150%+ возможен дрейф 1-2 px.
+
+- **Файлы:**
+  - `IIChatTools.Services/Interfaces/IChromeCdpSession.cs` (new).
+  - `IIChatTools.Services/Interfaces/ICoordinateProvider.cs` (new).
+  - `IIChatTools.Services/DTO/VisionAgent/CoordinateRequest.cs` (new).
+  - `IIChatTools.Services/DTO/VisionAgent/CoordinateResult.cs` (new).
+  - `IIChatTools.Services/DTO/VisionAgent/CdpElementQuery.cs` (new).
+  - `IIChatTools.Services/DTO/VisionAgent/CdpElementResult.cs` (new).
+  - `IIChatTools.Services/DTO/VisionAgent/CdpViewportInfo.cs` (new).
+  - `IIChatTools.Services/DTO/VisionAgent/VisionCoordinateProviderOptions.cs` (new).
+  - `IIChatTools.Services/DTO/VisionAgent/VisionCdpOptions.cs` (new).
+  - `IIChatTools.Services/Implementation/VisionAgent/PuppeteerSharpCdpSession.cs` (new).
+  - `IIChatTools.Services/Implementation/VisionAgent/DomCoordinateProvider.cs` (new).
+  - `IIChatTools.Services/Implementation/VisionAgent/VisionCoordinateProvider.cs` (new).
+  - `IIChatTools.Services/Interfaces/IVisionBackend.cs` (modified).
+  - `IIChatTools.Services/DTO/VisionAgent/VisionAgentOptions.cs` (modified).
+  - `IIChatTools.Services/Implementation/VisionAgent/LocalHarnessVisionBackend.cs` (modified).
+  - `IIChatTools.Services/Implementation/VisionAgent/VisionAgentService.cs` (modified).
+  - `IIChatTools.API/Startup.cs` (modified).
+  - `IIChatTools.API/appsettings.json` (modified).
+  - `IIChatTools.API/appsettings.Development.json` (modified).
+  - 3 файла тестов (new).
+
+- **Тесты:** 1016 → **1042** (+26, 8 Skip).
+- **Связанные:** KI-131, KI-162, KI-190, KI-194, KI-137, KI-163.
+
+- **Коммиты (8):**
+  - `7eab96c` — Ф1 (контракты + DTO) + Ф2 (PuppeteerSharpCdpSession).
+  - `6138542` — Ф3 (DomCoordinateProvider + VisionCoordinateProvider).
+  - `d49550c` — Ф4 (IVisionBackend + LocalHarnessVisionBackend).
+  - `2a14671` — Ф5 (DOM-first в ResolveCoordinatesAsync).
+  - `547f491` — Ф6 (DI + appsettings).
+  - `<commit>` — Ф7 (тесты).
+  - `<commit>` — Ф8 (docs).
 
 ---
 

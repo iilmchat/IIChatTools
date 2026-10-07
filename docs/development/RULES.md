@@ -199,6 +199,7 @@
 | KI-145 | 🟡 | **Fixed (v1.13.1)** | Device picker в `/profile → 🎤 Аудио` | — |
 | KI-146 | 🟢 | Planned | Device picker: fallback-полировка + дедупликация label | v1.13.x |
 | KI-147 | 🟢 | Planned | ARCHITECTURE.md устарел (v1.7.0 → v1.13.1) | v1.13.x |
+| KI-161 | 🟢 | **Fixed (v1.13.x)** | Vision Agent: PuppeteerSharp DOM+Vision (CDP-attach) | — |
 
 **Fixed в v1.7.0:** KI-097 (Database Agent), KI-098 (Admin UI whitelist), KI-101 (per-action approval), KI-102 (Admin UI локализация).
 

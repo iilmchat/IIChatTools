@@ -1549,7 +1549,54 @@ Coordinate-then-Verify (KI-162), Set-of-Mark (KI-163).
 
 **Правило:** для browser-задач сначала пробуй `browser_*`. Если селекторы нестабильны, DOM недоступен (canvas / shadow-DOM), или срабатывает антибот — переключайся на `vision_agent`.
 
-**Планируется (v1.13.x):** **KI-161** — гибрид DOM+Vision: `vision_agent` подключится к уже запущенному Chrome через CDP (`--remote-debugging-port=9222`) и будет использовать DOM-координаты (`elementHandle.BoundingBoxAsync`) с fallback на VL — 0 px ошибки для DOM-элементов.
+### CDP-attach (v1.13.x, KI-161)
+
+**Проблема:** VL-модель (Qwen2.5-VL-7B) на полном скриншоте даёт
+координаты с ошибкой ±20-30 px. Даже bounds-center (KI-190) и
+crop ×2 (KI-162) не помогают для мелких элементов.
+
+**Решение:** для browser-задач `vision_agent` подключается к
+**уже запущенному** Chrome через CDP (`--remote-debugging-port=9222`).
+Перед кликом ищет DOM-элемент (по label / позиции / типу) и берёт
+точные координаты через `getBoundingClientRect`. **0 px ошибки.**
+
+**Как работает:**
+
+1. `LocalHarnessVisionBackend.OpenAsync` запускает Chrome с
+   `--remote-debugging-port=9222` и подключается к нему через
+   `Puppeteer.ConnectAsync`.
+2. `VisionAgentService.ResolveCoordinatesAsync` при `action.Target != null`
+   сначала пробует **DOM**: `DomCoordinateProvider.ResolveAsync` →
+   JS-скрипт в странице → поиск по label (substring) → position
+   (tolerance 200 px) → type (первый видимый).
+3. Если DOM-элемент найден — координаты из DOM, 0 px ошибки.
+4. Если **не найден** (canvas / WebGL / shadow-DOM / iframe) —
+   **VL-fallback**: `Verify` (KI-162-2) → bounds-center (KI-190) → center.
+
+**Ограничения:**
+
+- Работает только для **browser-задач** (Chrome / Edge).
+- **Не работает** для canvas / WebGL / shadow-DOM / iframe —
+  там нет DOM-структуры (fallback на VL).
+- **Не работает** для desktop-приложений (Outlook, Excel) — только VL.
+- **Multi-monitor** — `window.screenX` может быть некорректен для
+  окна на не-primary мониторе (защита: distance-guard 200 px).
+
+**Конфигурация** (`appsettings.json` → `VisionAgent:CoordinateProvider`):
+
+| Ключ | prod | dev | Описание |
+|---|---|---|---|
+| `Mode` | `"vision"` | `"auto"` | `dom` (только DOM) / `vision` (только VL) / `auto` (DOM если доступен) |
+| `Cdp.Enabled` | `false` | `true` | Включить CDP-подключение |
+| `Cdp.BrowserUrl` | `http://127.0.0.1:9222` | то же | URL CDP-эндпоинта |
+| `Cdp.ConnectTimeoutMs` | `5000` | то же | (зарезервировано для будущего Task.WhenAny) |
+| `Cdp.ElementSearchTimeoutMs` | `2000` | то же | Таймаут поиска в DOM |
+
+**Безопасность:** CDP-порт слушает **только loopback** (127.0.0.1) —
+недоступен извне. Chrome запускается с **fresh profile** (KI-155),
+cookies пользователя не переносятся.
+
+**Дизайн:** [`docs/development/v1.13/DESIGN_VISION_CDP_ATTACH.md`](docs/development/v1.13/DESIGN_VISION_CDP_ATTACH.md).
 
 ### Дизайн
 
