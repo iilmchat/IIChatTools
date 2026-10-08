@@ -1,10 +1,10 @@
-# IIChatTools v1.13.4
+# IIChatTools v1.13.5
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.4
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.5
 
 ---
 
@@ -22,7 +22,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **💬 Chat UI** — полноценный чат с LLM (как ChatGPT): sidebar с историей диалогов, стриминг SSE, переименование/удаление чатов, автоскролл, копирование, approvals прямо из чата.
 - **🤖 Multi-Agent (v1.4.0)** — Chat общается с **7 верхнеуровневыми инструментами** (6 специализированных агентов + `consult_secondary_agent`). Каждый агент — со своим system prompt, моделью и белым списком инструментов. Управление через админку `/admin → Агенты`.
 - **⚔️ Actor-Critic Debate (v1.11.0, KI-126)** — автономное взаимодействие Actor (`code_agent`) и Critic (`code_reviewer_agent`) через top-level tool `code_agent_with_review`. До 3 раундов, эскалация на внешнюю LLM при `Uncertain`. UI: селектор «диалог / сворачиваемый», feedback между раундами. SSE-события `debate_started` / `debate_round` / `debate_escalated` / `debate_completed`.
-- **40 инструментов** для LLM (файловая система, код, веб, Git/GitHub, браузер, суб-агенты, утилиты).
+- **65 инструментов** для LLM (40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator).
 - **Tool calling в чате** — LLM сама вызывает инструменты в multi-turn loop (до 5 итераций).
 - **Approvals в чате** — mutating-инструменты требуют подтверждения через модалку (drag-and-drop, countdown, approve/reject).
 - **Суб-агенты** — делегирование многошаговых задач с авто-отладкой.
@@ -384,7 +384,7 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/admin/sql-agent/connections/{name}/reset` | Сбросить к baseline (Admin) |
 ---
 
-## Инструменты (40)
+## Инструменты (65)
 
 | Группа | Кол-во | Требуют подтверждения |
 | :--- | :---: | :---: |
@@ -403,7 +403,11 @@ dotnet run --project IIChatTools.API
 | **+ Mail Agent (v1.8.0)** | **+7** | **3 (send/delete/move)** |
 | **+ External-LLM Agent (v1.8.1)** | **+3** | — |
 | **+ Vision Agent (v1.12.0)** | **+1** | **✅ (per-action)** |
-| **Итого (ToolRegistry)** | **61** | — |
+| **+ `code_reviewer_agent` (v1.11.0)** | **+1** | — |
+| **+ `code_agent_with_review` (v1.11.0)** | **+1** | **✅** |
+| **+ `mail_agent` (v1.8.0)** | **+1** | **✅** |
+| **+ `external_llm_agent` (v1.8.1)** | **+1** | — |
+| **Итого (ToolRegistry)** | **65** | — |
 
 > **Примечание:** Chat видит **16 инструментов**:
 > **9 специализированных агентов** из `SubAgentRegistry` — `file_system_agent`,
@@ -437,7 +441,7 @@ dotnet run --project IIChatTools.API
 - 📝 **Markdown-рендеринг** ответов (`marked` + `DOMPurify`) + **подсветка синтаксиса** (`highlight.js`).
 - 💻 **Code blocks** — шапка с языком + кнопки Copy / Download.
 - 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций, SSE `tool_call` / `tool_result`).
-- 📎 **RAG-вложения** — прикрепить файлы к чату (📎): PlainText (28 расширений, ≤32 MB, ≤5 файлов). Чипы с метриками под полем ввода, кнопка «Очистить RAG». Auto-inject top-K из attached-чанков в system prompt (Шаг 6C).
+- 📎 **RAG-вложения** — прикрепить файлы к чату (📎): PlainText + Pdf + Docx (30 расширений, ≤32 MB, ≤5 файлов). Сканы PDF — OCR через Tesseract (v1.13.x, KI-203). Чипы с метриками под полем ввода, кнопка «Очистить RAG». Auto-inject top-K из attached-чанков в system prompt (Шаг 6C).
 - 📚 **Источники (Sources)** — под ответом ассистента: список использованных LLM источников с указанием имени/URL. Для RAG — `RULES.md · chunk 15 · score 0.71`; для web/wiki — кликабельная ссылка (`Москва — Википедия`, `example.com`). Snippet — в tooltip при hover. **Live-режим** (через SSE `done`) и **F5-режим** (из `ChatMessageDto.Sources`). Покрыто: RAG-чанки, `wikipedia_search`, `web_search`, `fetch_web_content` (включая проброс через агентов).
 - ✅ **Approvals** — mutating-инструменты требуют подтверждения:
   - Модалка с именем инструмента, JSON-параметрами, countdown (5 минут).
@@ -544,8 +548,9 @@ Embeddings — LM Studio (`text-embedding-nomic-embed-text-v1.5`, 768 dim), ве
    Дедупликация по `(type, documentPath, chunkIndex)`. Сохраняются в
    `ChatMessage.MetadataJson` (camelCase), отдаются в `ChatMessageDto.Sources`.
 
-Chat видит **11 инструментов** (6 агентов + `consult_secondary_agent` + 3 RAG-tool
-+ `database_agent` — v1.7.0, KI-097).
+Chat видит **16 инструментов** (9 агентов + `consult_secondary_agent`
++ 3 RAG-tool + `database_agent` — v1.7.0, KI-097 + `code_agent_with_review`
+— v1.11.0, KI-126 + `vision_agent` — v1.12.0, KI-131).
 
 ### Форматы и лимиты
 
@@ -555,7 +560,9 @@ Chat видит **11 инструментов** (6 агентов + `consult_sec
   `.css`, `.scss`, `.dockerfile`, `.gitignore`, `.editorconfig`.
 - **Лимиты (дефолт):** 32 MB на файл, 30 MB суммарно на чат, 5 файлов на чат.
 - **Кодировки:** BOM-детект (UTF-8 / UTF-16 LE/BE), fallback Windows-1251.
-- **PDF / DOCX:** не поддерживаются в MVP (план — v1.5.x).
+- **PDF / DOCX:** поддерживаются с **v1.7.1** (KI-104). PDF — через PdfPig
+  (текстовый слой), DOCX — через OpenXml SDK. **Сканы PDF** (без текстового
+  слоя) — через Tesseract OCR (**v1.13.x**, KI-203; `Rag:Ingestion:Ocr:Enabled`).
 
 ### UI
 
@@ -1096,7 +1103,7 @@ IIChatTools.API  (net10.0)
   └── Startup.cs: DI + 46 инструментов (40 raw + 6 агентов) + Chat services
       ↓ DI
 IIChatTools.Services  (net10.0)
-  ├── ToolRegistry (46 инструментов: 40 raw + 6 агентов)
+  ├── ToolRegistry (65 инструментов: 40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator)
   ├── Agents: SubAgentRegistry (Singleton, v1.4.0)
   ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator (Singleton)
   ├── LmStudioClient (SSE-стриминг + tool calling + ModelOverride)
@@ -1125,8 +1132,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.4
-    docker pull ghcr.io/iilmchat/iichattools:1.13.4
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.5
+    docker pull ghcr.io/iilmchat/iichattools:1.13.5
     docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 
@@ -1439,6 +1446,11 @@ sqlite3 IIChatTools.API\Data\iichattools-dev.db "SELECT Id, Role, TokensIn, Toke
 **v1.12.0 — единственный активный backend.** Открывает **Chrome / Edge** с
 fresh-профилем (`--user-data-dir=%TEMP%\vision-profile-{id}`) — без сохранённых
 паролей, cookies, истории. Управляет мышью/клавиатурой через Win32 `SendInput`.
+
+**CDP-attach (v1.13.x, KI-161):** для browser-задач backend подключается
+к Chrome через `--remote-debugging-port=9222` и берёт координаты из DOM
+(`getBoundingClientRect`) — **0 px ошибки** вместо ±20-30 px у VL.
+Секция конфига `VisionAgent:CoordinateProvider` (`Mode = "vision" | "dom" | "auto"`).
 
 **Whitelist процессов** (FlaUI / `GetForegroundWindow`): действие отменяется,
 если фокус ушёл на `notepad.exe` (не в `AllowedProcesses`).
