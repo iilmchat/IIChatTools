@@ -18,7 +18,20 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+**Группа 1 «Быстрые победы» — v1.13.6 (в работе):**
+KI-212 (RateLimiting для page-viewer) → KI-128 (Browser workflow) → KI-213 (Text layer bbox).
+
+### Fixed
+- **KI-212 — RateLimiting: политика для page-viewer (`/pages/*`)**:
+  - Новая политика `pages-viewer` (300 req/min, per-user) в `RateLimitingOptions`.
+  - `RateLimitingMiddleware.SelectPolicy`: path `/api/chat/*/attachments/*/pages*`
+    → policy `pages-viewer` (проверяется **после** `tools-execute`, **до** `per-user`).
+  - `appsettings.json` (prod): `PagesViewer = 300/min`.
+  - `appsettings.Development.json`: `PagesViewer = 500/min`;
+    `PerUser` возвращён к штатному `100` (было временное `500` для smoke).
+  - **Тесты:** +4 (`RateLimitingMiddlewareTests`): burst 120 / above limit 301
+    / изоляция от per-user / полная изоляция двух политик.
+  - **Итого:** 1101 → **1105** (1097 pass, 8 skip).
 
 ---
 

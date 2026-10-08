@@ -20,6 +20,15 @@ namespace IIChatTools.API.RateLimiting
 
         /// <summary>Политика для /auth/* (защита от brute-force).</summary>
         public RateLimitPolicyOptions Auth { get; set; } = new RateLimitPolicyOptions { PermitLimit = 5, WindowSeconds = 60, QueueLimit = 0 };
+
+        /// <summary>
+        /// Политика для page-viewer (KI-212):
+        /// <c>/api/chat/*/attachments/*/pages/*</c> — высокочастотные запросы
+        /// (thumbnails PNG, OCR JSON, экспорт ZIP/PDF). Отдельная политика,
+        /// чтобы не упираться в общий per-user лимит (100/min) при открытии
+        /// 100+ страничного PDF.
+        /// </summary>
+        public RateLimitPolicyOptions PagesViewer { get; set; } = new RateLimitPolicyOptions { PermitLimit = 300, WindowSeconds = 60, QueueLimit = 0 };
     }
 
     /// <summary>Параметры одной политики rate-limiting.</summary>

@@ -20,6 +20,8 @@ namespace IIChatTools.API.RateLimiting
     /// - <c>per-user</c>: 100 req/min по UserId (fallback: IP) — все API;
     /// - <c>tools-execute</c>: 30 req/min по UserId — <c>/api/tools/execute</c>;
     /// - <c>auth</c>: 5 req/min по IP — <c>/auth/*</c> (brute-force);
+    /// - <c>pages-viewer</c>: 300 req/min по UserId — <c>/api/chat/*/attachments/*/pages/*</c>
+    ///   (KI-212: thumbnails PNG, OCR JSON, экспорт ZIP/PDF);
     /// - <c>/health/*</c> — без лимита (Docker healthcheck).
     ///
     /// Настраивается секцией <c>RateLimiting</c> в appsettings.json.
@@ -260,6 +262,22 @@ namespace IIChatTools.API.RateLimiting
                 policyOptions = _options.ToolsExecute;
                 partitionKey = userId != null ? $"user:{userId}" : $"ip:{ip}";
                 return "tools-execute";
+            }
+
+            // KI-212: page-viewer — высокочастотные запросы (thumbnail PNG,
+            // OCR JSON, экспорт ZIP/PDF). Покрывает:
+            //   - /api/chat/{chatId}/attachments/{id}/pages          (список)
+            //   - /api/chat/{chatId}/attachments/{id}/pages/{N}      (PNG)
+            //   - /api/chat/{chatId}/attachments/{id}/pages/{N}/ocr  (JSON)
+            //   - /api/chat/{chatId}/attachments/{id}/pages/zip      (ZIP)
+            //   - /api/chat/{chatId}/attachments/{id}/pages/all-text (TXT)
+            if (path.StartsWith("/api/chat", StringComparison.OrdinalIgnoreCase)
+                && path.IndexOf("/attachments/", StringComparison.OrdinalIgnoreCase) >= 0
+                && path.IndexOf("/pages", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                policyOptions = _options.PagesViewer;
+                partitionKey = userId != null ? $"user:{userId}" : $"ip:{ip}";
+                return "pages-viewer";
             }
 
             // Всё остальное — per-user

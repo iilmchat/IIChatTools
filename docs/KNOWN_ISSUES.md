@@ -4657,7 +4657,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-212 — RateLimiting: выделить политику для page-viewer (`/pages/*`)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.6
 - **Обнаружено:** 2026-10-08 (smoke KI-208).
 - **Файлы (план):** `RateLimitingMiddleware.cs`, `appsettings.json`
   (секция `RateLimiting:Policies`), `appsettings.Development.json`.
@@ -4682,6 +4682,21 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      открывают 28-страничные PDF.
 - **Оценка:** ~1 ч (политика 1) / ~30 мин (политика 3, только dev).
 - **Связанные:** KI-205 (page viewer), KI-207 (поиск), KI-208 (экспорт).
+- **Решение (v1.13.6, 2026-10-08):**
+  - Новая политика `pages-viewer` (300 req/min, per-user) в `RateLimitingOptions`.
+  - `RateLimitingMiddleware.SelectPolicy`: path `/api/chat/*/attachments/*/pages*`
+    → policy `pages-viewer`. Порядок: **после** `tools-execute`, **до** `per-user`.
+  - `appsettings.json` (prod): `PagesViewer = 300/min`.
+  - `appsettings.Development.json`: `PagesViewer = 500/min`,
+    `PerUser = 500 → 100` (возврат к штатному, было временное повышение).
+  - **Тесты:** +4 (`RateLimitingMiddlewareTests`):
+    `PagesViewer_Burst120_NotThrottled`,
+    `PagesViewer_AboveLimit_Throttled`,
+    `PagesViewer_DoesNotAffectPerUser_OtherEndpoints`,
+    `PagesViewer_AndPerUser_AreIsolated`.
+  - **Файлы:** `RateLimitingOptions.cs`, `RateLimitingMiddleware.cs`,
+    `appsettings.json`, `appsettings.Development.json`,
+    `RateLimitingMiddlewareTests.cs` (новый).
 
 ---
 
