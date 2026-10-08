@@ -5144,8 +5144,9 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ### KI-216 — Vision Agent: `MaxTaskSeconds = 500` недостаточно для сложных задач
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-08 (smoke KI-137 — Wikipedia-портал).
+  **Устранено:** 2026-10-08.
 - **Файлы:** `IIChatTools.API/appsettings.Development.json` (секция
   `VisionAgent:Limits:MaxTaskSeconds`), при необходимости — конфиг LM Studio.
 - **Симптом:** smoke KI-137 (task `vt_dfcaf3f3`, Wikipedia-портал):
@@ -5178,7 +5179,19 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
      быстрее (примерно 2×), но менее точная.
   4. **GPU-offload в LM Studio** — выкрутить все слои на GPU
      (в smoke использовались дефолтные настройки).
-- **Оценка:** ~30 мин (решение 1) / ~2-3 ч (решения 2-4).
+
+- **Fix (Вариант 1 — увеличение таймаута в dev):**
+  - `appsettings.Development.json`: `MaxTaskSeconds` **500 → 900**.
+  - Обоснование: ~100 с/VL-вызов × 6 вызовов ≈ 600 с (типичный loop
+    на Wikipedia-портале). 900 = 1.5× запас.
+  - **Prod** (`appsettings.json`): не меняем — в нём
+    `VisionAgent:Enabled = false`, конфигурация затронута не будет.
+  - **Не сделано (варианты 2-4, отложены):** оптимизация промпта
+    `VisionUiDescribe`, переход на меньшую VL-модель, GPU-offload.
+    Если 900 с окажется мало при холодном старте модели — вернёмся
+    к ним.
+
+- **Оценка:** ~15 мин (Вариант 1). Варианты 2-4 — отложены.
 - **Связанные:** KI-137 (обнаружено при smoke), KI-215 (VL `center`
   expression — Fixed), KI-117 (`Context Length ≥ 16384`).
 
@@ -5217,8 +5230,8 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
 | Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
-| Fixed (v1.13.x, KI-137/203/215) | 3 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression) -->
-| Planned | 14 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214, KI-216 -->
+| Fixed (v1.13.x, KI-137/203/215/216) | 4 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression), KI-216 (MaxTaskSeconds) -->
+| Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
 | In Progress | 1 |                   <!-- KI-137 (Vision OCR) -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->

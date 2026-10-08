@@ -200,7 +200,7 @@
 | KI-146 | 🟢 | Planned | Device picker: fallback-полировка + дедупликация label | v1.13.x |
 | KI-214 | 🟢 | Planned | Интеграция KNOWN_ISSUES.md с GitHub Issues (витрина) | v1.14 |
 | KI-215 | 🟠 | ✅ **Fixed (v1.13.x)** | Vision LLM: `center` как expression ломает JSON | — |
-| KI-216 | 🟡 | Planned | Vision Agent: `MaxTaskSeconds=500` недостаточно для сложных задач | v1.13.x |
+| KI-216 | 🟡 | ✅ **Fixed (v1.13.x)** | Vision Agent: `MaxTaskSeconds=500` недостаточно для сложных задач | — |
 | KI-147 | 🟢 | Planned | ARCHITECTURE.md устарел (v1.7.0 → v1.13.1) | v1.13.x |
 | KI-161 | 🟢 | **Fixed (v1.13.x)** | Vision Agent: PuppeteerSharp DOM+Vision (CDP-attach) | — |
 | KI-194 | 🟡 | ✅ **Fixed (v1.13.x)** | Vision Planner: `done` без проверки результата. Literal/goal + article_title. | — |

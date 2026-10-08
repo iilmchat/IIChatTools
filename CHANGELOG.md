@@ -190,6 +190,20 @@
     большим сканам.
 
 ### Fixed
+- **v1.13.x (KI-216) — Vision Agent: `MaxTaskSeconds` 500 → 900 (dev)**:
+  - **Симптом:** smoke KI-137 (Wikipedia-портал): Vision Agent упёрся
+    в `MaxTaskSeconds=500` на 2 шагах loop'а. Каждый VL-вызов
+    (`qwen2.5-vl-7b-instruct`, Q4_K_M, 1920×1200) — ~100 с
+    (`eval time = 88819 ms / 678 tokens`). Типичный loop — 4-6 вызовов
+    (2-3 describe + 2-3 planner) — 400-600 с, что близко к лимиту.
+  - **Fix:** `appsettings.Development.json` → `VisionAgent:Limits:MaxTaskSeconds`
+    **500 → 900**. 1.5× запас от типичного сценария.
+  - **Prod:** не затронут (`VisionAgent:Enabled=false`).
+  - **Отложено (варианты 2-4):** оптимизация промпта `VisionUiDescribe`,
+    переход на меньшую VL-модель, GPU-offload — если 900 с окажется
+    мало при холодном старте.
+  - **Тесты:** без изменений (config-only).
+
 - **v1.13.x (KI-205) — RAG: постраничный просмотр PNG сканов**:
   - **Проблема:** временные PNG-страницы удалялись в `finally`. Пользователь
     не видел, что распознал OCR. При ошибках не понимал, где проблема
