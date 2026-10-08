@@ -364,6 +364,17 @@
             <span class="chat-pages-modal-title">@Localizer["RagPagesTitle"]</span>
 
             <div class="chat-pages-toolbar">
+                <!-- KI-207-fix4: кнопка открытия поиска (Ctrl+F). -->
+                <button type="button" class="chat-pages-icon-btn"
+                        id="chat-pages-search-open"
+                        title="@Localizer["RagPagesSearchOpen"]"
+                        aria-label="@Localizer["RagPagesSearchOpen"]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                         viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                    </svg>
+                </button>
+                <span class="chat-pages-toolbar-sep"></span>
                 <button type="button" class="chat-pages-icon-btn" data-zoom="out"
                         title="@Localizer["RagPagesZoomOut"]"
                         aria-label="@Localizer["RagPagesZoomOut"]">−</button>

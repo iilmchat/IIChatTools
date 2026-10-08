@@ -313,6 +313,10 @@ function bindEvents() {
         document.getElementById('chat-pages-thumbs-toggle')
             ?.addEventListener('click', togglePagesThumbs);
 
+        // KI-207-fix4: кнопка открытия поиска в toolbar модалки.
+        document.getElementById('chat-pages-search-open')
+            ?.addEventListener('click', openPagesSearch);
+
         // KI-206: зум (кнопки + / − / 100%).
         pagesModal.querySelectorAll('[data-zoom]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -518,9 +522,11 @@ function bindEvents() {
     // KI-078B: Ctrl+K (⌘K-модалка поиска по всем чатам).
     // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B/F/K.
     // Работает только на /chat (модуль подключён только там).
-    // KI-207-fix3: capture: true — перехватываем Ctrl+F до браузера.
-    // Иначе Chrome открывает свой нативный поиск (серый ящик снаружи модалки).
-    document.addEventListener('keydown', (e) => {
+    // KI-207-fix4: window + capture + stopImmediatePropagation.
+    // document+capture не всегда перехватывал Ctrl+F до Chrome —
+    // иногда нативный поиск успевал открыться (нестабильно после F5).
+    // window — самый ранний уровень (capture идёт от window вниз).
+    window.addEventListener('keydown', (e) => {
         // ==================================================================
         // KI-207-fix: модалка страниц — ПРИОРИТЕТ №1.
         // Блок вынесен в начало: иначе Ctrl+F (и другие) перехватываются
@@ -534,6 +540,8 @@ function bindEvents() {
                 && e.key.toLowerCase() === 'f')
             {
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
                 openPagesSearch();
                 return;
             }
@@ -635,7 +643,7 @@ function bindEvents() {
                 return;
             }
         }
-    }, true);   // ← KI-207-fix3: capture phase
+    }, true);   // KI-207-fix4: capture phase на window
 
     // KI-078A: клик вне панели поиска — закрыть (кроме клика по самой панели
     // и по кнопке-триггеру 🔍 в header).
@@ -4658,7 +4666,13 @@ async function openPagesViewer(attachmentId) {
         totalPages: 0,
         fileName: att.fileName || '',
         zoom: 1.0,
-        thumbsCollapsed
+        thumbsCollapsed,
+        // KI-207-fix4: состояние поиска.
+        searchQuery: '',
+        searchHits: [],
+        searchIndex: -1,
+        searchPrefetch: null,
+        searchPrefetchAbort: 0
     };
 
     const titleEl = modal.querySelector('.chat-pages-modal-title');
@@ -5120,16 +5134,43 @@ async function loadPagesTextLayer(pageNumber) {
 
         renderTextLayer(wrap, normalized);
 
-        // KI-207-fix3: если был активен поиск — применяем его к новой
-        // странице (кросс-страничный поиск, как в Acrobat).
+        // KI-207-fix4: если есть активный поиск — подсвечиваем query
+        // локально + скроллим к текущему совпадению в документе.
         if (viewer.searchQuery) {
-            applyPagesSearch(viewer.searchQuery);
+            applyLocalHighlights(viewer.textLayer, viewer.searchQuery);
+
+            // Если текущее совпадение — на этой странице, скроллим.
+            if (viewer.searchHits && viewer.searchHits.length > 0
+                && viewer.searchIndex >= 0)
+            {
+                const hit = viewer.searchHits[viewer.searchIndex];
+                if (hit && hit.pageNumber === pageNumber) {
+                    scrollToSearchHitOnCurrentPage(hit.wordIndex, viewer.searchIndex);
+                }
+            }
         }
     } catch (ex) {
         console.debug('[chat] loadPagesTextLayer fail (ignore):', ex);
     }
 }
 
+/**
+ * KI-207-fix4: только локальная подсветка (без перезапуска префетча).
+ */
+function applyLocalHighlights(layer, query) {
+    if (!layer || !query) return;
+    clearPagesSearchHighlights(layer);
+    const spans = layer.querySelectorAll('.chat-pages-text-word');
+    for (const span of spans) {
+        const text = (span.textContent || '').toLowerCase();
+        if (text.includes(query)) {
+            const mark = document.createElement('mark');
+            mark.className = 'chat-pages-search-hit';
+            while (span.firstChild) mark.appendChild(span.firstChild);
+            span.appendChild(mark);
+        }
+    }
+}
 /**
  * KI-207: рендерит прозрачный text layer поверх <img>.
  * @param {HTMLElement} wrap
@@ -5232,9 +5273,10 @@ function closePagesSearch() {
     if (viewer) {
         viewer.searchHits = [];
         viewer.searchIndex = -1;
-        // KI-207-fix3: сбрасываем query — иначе после закрытия поиска
-        // при смене страницы он снова применится.
         viewer.searchQuery = '';
+        // KI-207-fix4: сбрасываем кеш префетча (освобождаем память).
+        viewer.searchPrefetch = null;
+        viewer.searchPrefetchAbort = (viewer.searchPrefetchAbort || 0) + 1;
     }
 
     updatePagesSearchCounter(0, 0);
@@ -5264,42 +5306,161 @@ function applyPagesSearch(query) {
     const viewer = state.pagesViewer;
     if (!viewer) return;
 
-    // KI-207-fix3: сохраняем query — применится к следующей странице.
     const q = (query || '').trim().toLowerCase();
     viewer.searchQuery = q;
 
-    if (!viewer.textLayer) return;
+    // Локальная подсветка на текущей странице (быстрый feedback).
+    if (viewer.textLayer) {
+        clearPagesSearchHighlights(viewer.textLayer);
+        if (q) {
+            const spans = viewer.textLayer.querySelectorAll('.chat-pages-text-word');
+            for (const span of spans) {
+                const text = (span.textContent || '').toLowerCase();
+                if (text.includes(q)) {
+                    const mark = document.createElement('mark');
+                    mark.className = 'chat-pages-search-hit';
+                    while (span.firstChild) mark.appendChild(span.firstChild);
+                    span.appendChild(mark);
+                }
+            }
+        }
+    }
 
-    const layer = viewer.textLayer;
-    clearPagesSearchHighlights(layer);
-    viewer.searchHits = [];
-    viewer.searchIndex = -1;
-
+    // Пустой query — сбрасываем всё.
     if (!q) {
+        viewer.searchHits = [];
+        viewer.searchIndex = -1;
         updatePagesSearchCounter(0, 0);
         return;
     }
 
-    const spans = layer.querySelectorAll('.chat-pages-text-word');
-    const hits = [];
-    for (const span of spans) {
-        const text = (span.textContent || '').toLowerCase();
-        if (text.includes(q)) {
-            const mark = document.createElement('mark');
-            mark.className = 'chat-pages-search-hit';
-            while (span.firstChild) mark.appendChild(span.firstChild);
-            span.appendChild(mark);
-            hits.push(span);
+    // KI-207-fix4: полный поиск по документу (async префетч всех страниц).
+    startDocumentSearch(q);
+}
+
+/**
+ * KI-207-fix4: async-поиск по всему документу.
+ * Префетчит page-N.json, считает общее число совпадений по документу,
+ * обновляет счётчик «текущее_в_документе / всего_в_документе».
+ *
+ * @param {string} query — поисковый запрос (lowercase).
+ */
+async function startDocumentSearch(query) {
+    const viewer = state.pagesViewer;
+    if (!viewer || !query) return;
+
+    // Отменяем предыдущий префетч (если был).
+    viewer.searchPrefetchAbort = (viewer.searchPrefetchAbort || 0) + 1;
+    const myAbort = viewer.searchPrefetchAbort;
+    const queryAtStart = query;
+
+    // Кеш слоёв: { [pageNumber]: { width, height, words } }.
+    viewer.searchPrefetch = viewer.searchPrefetch || {};
+    const cache = viewer.searchPrefetch;
+
+    // Прогресс: сколько страниц уже готовы (кеш + фетч).
+    let fetched = 0;
+    const pagesToFetch = [];
+    for (let p = 1; p <= viewer.totalPages; p++) {
+        if (cache[p]) fetched++;
+        else pagesToFetch.push(p);
+    }
+
+    // Все страницы уже в кеше → сразу считаем.
+    if (pagesToFetch.length > 0) {
+        updatePagesSearchCounter(0, 0, /*loading*/ true, fetched, viewer.totalPages);
+    }
+
+    // Async фетч (параллельно, лимит 5).
+    const CONCURRENCY = 5;
+    for (let i = 0; i < pagesToFetch.length; i += CONCURRENCY) {
+        // Отмена: query поменялся или модалка закрылась.
+        if (viewer.searchQuery !== queryAtStart) return;
+        if (viewer.searchPrefetchAbort !== myAbort) return;
+
+        const batch = pagesToFetch.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(batch.map(async (p) => {
+            try {
+                const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${p}/ocr`;
+                const resp = await fetch(url, { credentials: 'same-origin' });
+                if (!resp.ok) return null;
+                const ct = resp.headers.get('content-type') || '';
+                if (!ct.includes('application/json')) return null;
+                const dto = await resp.json();
+                if (dto && dto.success === false) return null;
+
+                const width = dto.width ?? dto.Width;
+                const height = dto.height ?? dto.Height;
+                const rawWords = dto.words ?? dto.Words ?? [];
+                if (!Array.isArray(rawWords) || !width || !height) return null;
+
+                const norm = {
+                    width, height,
+                    words: rawWords.map(w => ({
+                        text: w.text ?? w.Text,
+                        x: w.x ?? w.X,
+                        y: w.y ?? w.Y,
+                        w: w.w ?? w.W,
+                        h: w.h ?? w.H
+                    }))
+                };
+                cache[p] = norm;
+                return norm;
+            } catch {
+                return null;
+            }
+        }));
+
+        fetched += results.filter(r => r !== null).length;
+
+        // Обновляем счётчик с прогрессом.
+        if (viewer.searchQuery === queryAtStart
+            && viewer.searchPrefetchAbort === myAbort)
+        {
+            updatePagesSearchCounter(0, 0, /*loading*/ true,
+                fetched, viewer.totalPages);
         }
     }
 
-    viewer.searchHits = hits;
-    viewer.searchIndex = hits.length > 0 ? 0 : -1;
+    // Отмена?
+    if (viewer.searchQuery !== queryAtStart) return;
+    if (viewer.searchPrefetchAbort !== myAbort) return;
 
-    updatePagesSearchCounter(hits.length > 0 ? 1 : 0, hits.length);
+    // Считаем все совпадения по документу.
+    const allHits = [];
+    for (let p = 1; p <= viewer.totalPages; p++) {
+        const layer = cache[p];
+        if (!layer) continue;
+        for (let i = 0; i < layer.words.length; i++) {
+            const text = (layer.words[i].text || '').toLowerCase();
+            if (text.includes(queryAtStart)) {
+                allHits.push({ pageNumber: p, wordIndex: i });
+            }
+        }
+    }
 
-    if (hits.length > 0) {
-        scrollToSearchHit(0);
+    viewer.searchHits = allHits;
+    viewer.searchIndex = -1;
+
+    if (allHits.length === 0) {
+        updatePagesSearchCounter(0, 0);
+        return;
+    }
+
+    // Ищем первое совпадение на текущей странице.
+    const idxOnCurrent = allHits.findIndex(h => h.pageNumber === viewer.currentPage);
+    if (idxOnCurrent >= 0) {
+        viewer.searchIndex = idxOnCurrent;
+        updatePagesSearchCounter(idxOnCurrent + 1, allHits.length);
+        scrollToSearchHitOnCurrentPage(allHits[idxOnCurrent].wordIndex, idxOnCurrent);
+    } else {
+        // Первое совпадение в документе — переходим на его страницу.
+        viewer.searchIndex = 0;
+        updatePagesSearchCounter(1, allHits.length);
+        const hit = allHits[0];
+        if (hit.pageNumber !== viewer.currentPage) {
+            gotoPagesViewer(hit.pageNumber);
+        }
     }
 }
 
@@ -5307,37 +5468,72 @@ function applyPagesSearch(query) {
  * KI-207: перейти к предыдущему / следующему совпадению.
  * @param {number} delta  -1 = вверх, +1 = вниз (циклически).
  */
-async function navigatePagesSearch(delta) {
+function navigatePagesSearch(delta) {
     const viewer = state.pagesViewer;
     if (!viewer) return;
 
-    // KI-207-fix3: если на текущей странице нет совпадений, но есть
-    // сохранённый query — переходим на соседнюю страницу и ищем там.
+    // KI-207-fix4: поиск по документу — все hits в viewer.searchHits.
     if (!viewer.searchHits || viewer.searchHits.length === 0) {
-        if (viewer.searchQuery) {
-            await searchAdjacentPage(delta > 0 ? 1 : -1, viewer.searchQuery);
-        }
+        // Если префетч ещё идёт — прогресс уже показан, ничего не делаем.
         return;
     }
 
     const n = viewer.searchHits.length;
     let idx = (viewer.searchIndex ?? 0) + delta;
 
-    // KI-207-fix3: переход через границу страницы — кросс-страничный поиск.
-    if (idx < 0) {
-        await searchAdjacentPage(-1, viewer.searchQuery);
-        return;
-    }
-    if (idx >= n) {
-        await searchAdjacentPage(+1, viewer.searchQuery);
-        return;
-    }
+    // Циклический переход по документу.
+    idx = ((idx % n) + n) % n;
 
     viewer.searchIndex = idx;
     updatePagesSearchCounter(idx + 1, n);
-    scrollToSearchHit(idx);
+
+    const hit = viewer.searchHits[idx];
+    if (hit.pageNumber === viewer.currentPage) {
+        scrollToSearchHitOnCurrentPage(hit.wordIndex, idx);
+    } else {
+        // Переходим на другую страницу; после loadPagesTextLayer
+        // подсветка/скролл сработают автоматически через
+        // scrollToSearchHitOnCurrentPage в applyPagesSearch.
+        gotoPagesViewer(hit.pageNumber);
+    }
 }
 
+/**
+ * KI-207-fix4: скроллит и подсвечивает слово по его индексу в words[]
+ * текущей страницы.
+ *
+ * @param {number} wordIndex — индекс в words[] (natural, не в DOM).
+ * @param {number} globalIdx — индекс в viewer.searchHits (для active-mark).
+ */
+function scrollToSearchHitOnCurrentPage(wordIndex, globalIdx) {
+    const viewer = state.pagesViewer;
+    if (!viewer?.textLayer) return;
+
+    // Снимаем active со всех.
+    viewer.textLayer.querySelectorAll('.chat-pages-search-hit-active')
+        .forEach(el => el.classList.remove('chat-pages-search-hit-active'));
+
+    // Ищем span по data-word-index.
+    const span = viewer.textLayer.querySelector(
+        `.chat-pages-text-word[data-word-index="${wordIndex}"]`);
+    if (!span) return;
+
+    const mark = span.querySelector('.chat-pages-search-hit');
+    if (mark) mark.classList.add('chat-pages-search-hit-active');
+
+    // Скролл.
+    const viewport = document.querySelector('.chat-pages-viewport');
+    if (viewport) {
+        const spanRect = span.getBoundingClientRect();
+        const viewRect = viewport.getBoundingClientRect();
+        if (spanRect.top < viewRect.top || spanRect.bottom > viewRect.bottom) {
+            const targetY = span.offsetTop * (viewer.zoom || 1)
+                - viewport.clientHeight / 2
+                + (span.offsetHeight * (viewer.zoom || 1)) / 2;
+            viewport.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        }
+    }
+}
 /**
  * KI-207-fix3: ищет query на соседней странице (кросс-страничный
  * поиск, как в Acrobat). При отсутствии совпадений рекурсивно
@@ -5439,10 +5635,16 @@ function scrollToSearchHit(index) {
 /**
  * KI-207: обновляет счётчик поиска.
  */
-function updatePagesSearchCounter(current, total) {
+function updatePagesSearchCounter(current, total, loading, fetched, totalPages) {
     const counter = document.getElementById('chat-pages-search-counter');
     const bar = document.getElementById('chat-pages-search-bar');
     if (!counter) return;
+
+    // KI-207-fix4: режим префетча — показываем прогресс.
+    if (loading) {
+        counter.textContent = `Поиск… ${fetched || 0}/${totalPages || 0}`;
+        return;
+    }
 
     if (total === 0) {
         const noResults = bar?.dataset.labelNoresults || 'No matches';

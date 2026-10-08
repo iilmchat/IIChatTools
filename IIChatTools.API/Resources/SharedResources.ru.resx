@@ -492,6 +492,9 @@
     <data name="RagPagesSearchClose" xml:space="preserve">
       <value>Закрыть поиск</value>
     </data>
+    <data name="RagPagesSearchOpen" xml:space="preserve">
+      <value>Поиск (Ctrl+F)</value>
+    </data>
 
     <!-- ===== RAG / Admin Knowledge Base (v1.5.0, KI-083, Шаг 7B) ===== -->
     <data name="AdminTabKnowledgeBase" xml:space="preserve">

@@ -2618,9 +2618,8 @@ body.chat-pages-modal-open {
     pointer-events: none;
     overflow: hidden;
     transform-origin: top left;
-    /* Слой рендерится поверх <img>. z-index гарантирует порядок. */
-    z-index: 1;
-    /* Не мешать кликам по кнопкам навигации (они absolute с z-index: 2). */
+    /* Слой рендерится поверх <img> благодаря порядку в DOM.
+       z-index не нужен (и создавал stacking context, ломавший blend). */
 }
 
 /* Одно слово. Все координаты — в natural PNG px. */
@@ -2637,21 +2636,19 @@ body.chat-pages-modal-open {
 
 /* Подсветка найденного слова. */
 .chat-pages-text-word > mark.chat-pages-search-hit {
-    /* KI-207-fix2: подсветка текста (а не «плашка»).
-       mix-blend-mode: multiply — жёлтый умножается на содержимое под ним.
-       Чёрный текст PNG-подложки → чёрный. Белый фон → жёлтый.
-       Раньше color: transparent без blend давал «плашку без текста». */
-    background: #ffeb3b;
+    /* KI-207-fix4: полупрозрачный фон вместо mix-blend-mode.
+       mix-blend-mode не работал: .chat-pages-text-layer создавал свой
+       stacking context (z-index), и mark смешивался с ним, а не с <img>.
+       Полупрозрачный жёлтый — текст img просвечивает через него. */
+    background: rgba(255, 235, 59, 0.4);
     color: transparent;
     padding: 0;
     border-radius: 1px;
-    mix-blend-mode: multiply;
 }
 
 .chat-pages-text-word > mark.chat-pages-search-hit.chat-pages-search-hit-active {
-    background: #ff9800;
+    background: rgba(255, 152, 0, 0.55);
     box-shadow: 0 0 0 2px #0d6efd;
-    mix-blend-mode: multiply;
 }
 
 /* Поисковая панель — overlay в правом верхнем углу viewport. */
