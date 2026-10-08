@@ -2571,6 +2571,10 @@ body.chat-pages-modal-open {
     margin: auto;
     display: block;
     flex-shrink: 0;
+    /* KI-207-fix3: position: relative — text-layer позиционируется
+       относительно wrap (а не viewport). Раньше при zoom < 100%
+       подсветка «уезжала» в левый верхний угол viewport (см. скрин 8/28). */
+    position: relative;
 }
 
 .chat-pages-modal-image {

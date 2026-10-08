@@ -518,6 +518,8 @@ function bindEvents() {
     // KI-078B: Ctrl+K (⌘K-модалка поиска по всем чатам).
     // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B/F/K.
     // Работает только на /chat (модуль подключён только там).
+    // KI-207-fix3: capture: true — перехватываем Ctrl+F до браузера.
+    // Иначе Chrome открывает свой нативный поиск (серый ящик снаружи модалки).
     document.addEventListener('keydown', (e) => {
         // ==================================================================
         // KI-207-fix: модалка страниц — ПРИОРИТЕТ №1.
@@ -633,7 +635,7 @@ function bindEvents() {
                 return;
             }
         }
-    });
+    }, true);   // ← KI-207-fix3: capture phase
 
     // KI-078A: клик вне панели поиска — закрыть (кроме клика по самой панели
     // и по кнопке-триггеру 🔍 в header).
@@ -4766,6 +4768,7 @@ function renderPagesViewerPage(pageNumber) {
     const prevLabel = modal.dataset.labelPrev || 'Previous';
     const nextLabel = modal.dataset.labelNext || 'Next';
     const wrap = document.getElementById('chat-pages-image-wrap');
+    const viewport = modal.querySelector('.chat-pages-viewport');
 
     if (wrap) {
         // Сброс inline-стилей (могли остаться от старого applyPagesZoom
@@ -4777,28 +4780,15 @@ function renderPagesViewerPage(pageNumber) {
         wrap.style.transformOrigin = '';
 
         const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber}`;
+        // KI-207-fix3: только img внутри wrap. Nav-кнопки — в viewport
+        // (чтобы position:absolute центрировался относительно всего
+        // viewport, а не относительно img — иначе при zoom < 100%
+        // они «уезжают» вместе с wrap).
         wrap.innerHTML = `
-            <button type="button"
-                    class="chat-pages-modal-nav chat-pages-modal-nav-prev"
-                    data-action="prev"
-                    ${pageNumber <= 1 ? 'disabled' : ''}
-                    title="${escapeHtml(prevLabel)}"
-                    aria-label="${escapeHtml(prevLabel)}">‹</button>
             <img class="chat-pages-modal-image"
                  data-page="${pageNumber}"
                  src="${url}"
-                 alt="Page ${pageNumber}" />
-            <button type="button"
-                    class="chat-pages-modal-nav chat-pages-modal-nav-next"
-                    data-action="next"
-                    ${pageNumber >= viewer.totalPages ? 'disabled' : ''}
-                    title="${escapeHtml(nextLabel)}"
-                    aria-label="${escapeHtml(nextLabel)}">›</button>`;
-
-        wrap.querySelector('[data-action="prev"]')
-            ?.addEventListener('click', () => navigatePagesViewer(-1));
-        wrap.querySelector('[data-action="next"]')
-            ?.addEventListener('click', () => navigatePagesViewer(+1));
+                 alt="Page ${pageNumber}" />`;
 
         const img = wrap.querySelector('.chat-pages-modal-image');
         if (img) {
@@ -4811,8 +4801,7 @@ function renderPagesViewerPage(pageNumber) {
             };
 
             // KI-207-fix: если PNG уже в кеше браузера, событие `load`
-            // НЕ сработает. Проверяем img.complete — иначе text layer
-            // не загрузится (баг: на чате 59 запросов /ocr было всего 2).
+            // НЕ сработает. Проверяем img.complete.
             if (img.complete && img.naturalWidth > 0) {
                 onImgReady();
             } else {
@@ -4825,9 +4814,38 @@ function renderPagesViewerPage(pageNumber) {
             const pre = new Image();
             pre.src = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${pageNumber + 1}`;
         }
+    }
 
-        // KI-207: сразу сбрасываем поиск (слой будет заменён).
-        closePagesSearch();
+    // KI-207-fix3: nav-кнопки — в .chat-pages-viewport (не в wrap).
+    // Создаём один раз, обновляем disabled.
+    if (viewport) {
+        let navPrev = viewport.querySelector('.chat-pages-modal-nav-prev');
+        let navNext = viewport.querySelector('.chat-pages-modal-nav-next');
+
+        if (!navPrev) {
+            viewport.insertAdjacentHTML('beforeend', `
+                <button type="button"
+                        class="chat-pages-modal-nav chat-pages-modal-nav-prev"
+                        data-action="prev"
+                        title="${escapeHtml(prevLabel)}"
+                        aria-label="${escapeHtml(prevLabel)}">‹</button>`);
+            navPrev = viewport.querySelector('.chat-pages-modal-nav-prev');
+            navPrev?.addEventListener('click', () => navigatePagesViewer(-1));
+        }
+
+        if (!navNext) {
+            viewport.insertAdjacentHTML('beforeend', `
+                <button type="button"
+                        class="chat-pages-modal-nav chat-pages-modal-nav-next"
+                        data-action="next"
+                        title="${escapeHtml(nextLabel)}"
+                        aria-label="${escapeHtml(nextLabel)}">›</button>`);
+            navNext = viewport.querySelector('.chat-pages-modal-nav-next');
+            navNext?.addEventListener('click', () => navigatePagesViewer(+1));
+        }
+
+        if (navPrev) navPrev.disabled = pageNumber <= 1;
+        if (navNext) navNext.disabled = pageNumber >= viewer.totalPages;
     }
 
     // Счётчик «N / M».
@@ -4849,18 +4867,9 @@ function renderPagesViewerPage(pageNumber) {
         gotoInput.max = String(viewer.totalPages);
     }
 
-    // KI-207-fix2: принудительный сброс поиска при смене страницы.
-    // Дублирует closePagesSearch() — на случай, если он уже был вызван
-    // (не полагаемся на одну точку отказа). Явно очищаем input +
-    // скрываем панель + обнуляем счётчик.
-    const searchBar = document.getElementById('chat-pages-search-bar');
-    if (searchBar) searchBar.hidden = true;
-
-    const searchInput = document.getElementById('chat-pages-search-input');
-    if (searchInput) searchInput.value = '';
-
-    const searchCounter = document.getElementById('chat-pages-search-counter');
-    if (searchCounter) searchCounter.textContent = '';
+    // KI-207-fix3: панель поиска НЕ сбрасываем при смене страницы —
+    // пользователь ожидает кросс-страничный поиск (как в Acrobat).
+    // Реальный сброс — только в closePagesSearch().
 }
 
 /**
@@ -5110,6 +5119,12 @@ async function loadPagesTextLayer(pageNumber) {
         if (viewer.currentPage !== pageNumber) return;
 
         renderTextLayer(wrap, normalized);
+
+        // KI-207-fix3: если был активен поиск — применяем его к новой
+        // странице (кросс-страничный поиск, как в Acrobat).
+        if (viewer.searchQuery) {
+            applyPagesSearch(viewer.searchQuery);
+        }
     } catch (ex) {
         console.debug('[chat] loadPagesTextLayer fail (ignore):', ex);
     }
@@ -5217,6 +5232,9 @@ function closePagesSearch() {
     if (viewer) {
         viewer.searchHits = [];
         viewer.searchIndex = -1;
+        // KI-207-fix3: сбрасываем query — иначе после закрытия поиска
+        // при смене страницы он снова применится.
+        viewer.searchQuery = '';
     }
 
     updatePagesSearchCounter(0, 0);
@@ -5224,8 +5242,7 @@ function closePagesSearch() {
 
 /**
  * KI-207: снимает <mark> со всех слов.
- */
-function clearPagesSearchHighlights(layer) {
+ */function clearPagesSearchHighlights(layer) {
     layer.querySelectorAll('mark.chat-pages-search-hit').forEach(mark => {
         const parent = mark.parentNode;
         if (!parent) return;
@@ -5245,14 +5262,19 @@ function clearPagesSearchHighlights(layer) {
  */
 function applyPagesSearch(query) {
     const viewer = state.pagesViewer;
-    if (!viewer?.textLayer) return;
+    if (!viewer) return;
+
+    // KI-207-fix3: сохраняем query — применится к следующей странице.
+    const q = (query || '').trim().toLowerCase();
+    viewer.searchQuery = q;
+
+    if (!viewer.textLayer) return;
 
     const layer = viewer.textLayer;
     clearPagesSearchHighlights(layer);
     viewer.searchHits = [];
     viewer.searchIndex = -1;
 
-    const q = (query || '').trim().toLowerCase();
     if (!q) {
         updatePagesSearchCounter(0, 0);
         return;
@@ -5285,17 +5307,98 @@ function applyPagesSearch(query) {
  * KI-207: перейти к предыдущему / следующему совпадению.
  * @param {number} delta  -1 = вверх, +1 = вниз (циклически).
  */
-function navigatePagesSearch(delta) {
+async function navigatePagesSearch(delta) {
     const viewer = state.pagesViewer;
-    if (!viewer?.searchHits || viewer.searchHits.length === 0) return;
+    if (!viewer) return;
+
+    // KI-207-fix3: если на текущей странице нет совпадений, но есть
+    // сохранённый query — переходим на соседнюю страницу и ищем там.
+    if (!viewer.searchHits || viewer.searchHits.length === 0) {
+        if (viewer.searchQuery) {
+            await searchAdjacentPage(delta > 0 ? 1 : -1, viewer.searchQuery);
+        }
+        return;
+    }
 
     const n = viewer.searchHits.length;
     let idx = (viewer.searchIndex ?? 0) + delta;
-    idx = ((idx % n) + n) % n;
-    viewer.searchIndex = idx;
 
+    // KI-207-fix3: переход через границу страницы — кросс-страничный поиск.
+    if (idx < 0) {
+        await searchAdjacentPage(-1, viewer.searchQuery);
+        return;
+    }
+    if (idx >= n) {
+        await searchAdjacentPage(+1, viewer.searchQuery);
+        return;
+    }
+
+    viewer.searchIndex = idx;
     updatePagesSearchCounter(idx + 1, n);
     scrollToSearchHit(idx);
+}
+
+/**
+ * KI-207-fix3: ищет query на соседней странице (кросс-страничный
+ * поиск, как в Acrobat). При отсутствии совпадений рекурсивно
+ * переходит к следующей/предыдущей, пока не пройдёт весь документ.
+ *
+ * @param {number} direction +1 = вперёд, -1 = назад.
+ * @param {string} query — поисковый запрос.
+ * @param {number} triedCount — счётчик попыток (защита от зацикливания).
+ * @returns {Promise<boolean>} true — нашли совпадение.
+ */
+async function searchAdjacentPage(direction, query, triedCount = 0) {
+    const viewer = state.pagesViewer;
+    if (!viewer || !query) return false;
+    if (triedCount >= viewer.totalPages) return false;   // прошли всё — не нашли
+
+    let nextPage = viewer.currentPage + direction;
+    if (nextPage < 1) nextPage = viewer.totalPages;
+    if (nextPage > viewer.totalPages) nextPage = 1;
+
+    // Защита: не зациклиться.
+    if (nextPage === viewer.currentPage) return false;
+
+    renderPagesViewerPage(nextPage);
+
+    // Ждём загрузки text-layer (polling с таймаутом).
+    const loaded = await waitForTextLayer(nextPage, 5000);
+    if (!loaded) return false;
+
+    // applyPagesSearch вызывается из loadPagesTextLayer, но на случай
+    // кешированного запроса — вызываем явно.
+    applyPagesSearch(query);
+
+    if (viewer.searchHits.length > 0) {
+        const idx = direction > 0 ? 0 : viewer.searchHits.length - 1;
+        viewer.searchIndex = idx;
+        updatePagesSearchCounter(idx + 1, viewer.searchHits.length);
+        scrollToSearchHit(idx);
+        return true;
+    }
+
+    // На этой странице нет — идём дальше.
+    return searchAdjacentPage(direction, query, triedCount + 1);
+}
+
+/**
+ * KI-207-fix3: ждёт, пока text-layer для указанной страницы загрузится.
+ * Polling каждые 100 мс, таймаут.
+ *
+ * @param {number} pageNumber
+ * @param {number} timeoutMs
+ * @returns {Promise<boolean>} true — загрузился.
+ */
+async function waitForTextLayer(pageNumber, timeoutMs = 5000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        const viewer = state.pagesViewer;
+        if (!viewer || viewer.currentPage !== pageNumber) return false;
+        if (viewer.textLayer && viewer.textLayerDto) return true;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    return false;
 }
 
 /**
