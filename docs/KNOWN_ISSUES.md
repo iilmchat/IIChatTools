@@ -3170,7 +3170,18 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-147 — ARCHITECTURE.md устарел (v1.7.0 → v1.13.1)
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.4
+- **Обновлено (v1.13.4, 2026-10-08):** полная актуализация до v1.13.3:
+  § 1 (OCR-fallback KI-137 + RAG OCR KI-203), § 2 (TesseractOcrService,
+  OcrProgressTracker), § 4 (+IOcrService, +IOcrProgressTracker, оба
+  Singleton), § 6 (счётчик инструментов 61 → **65**), § 7 (+Tesseract 5.2.0,
+  +PDFtoImage 5.0.0), § 8 (+3 ADR: OCR PDF, OCR-fallback Vision, Sync Issues),
+  § 9 (+DESIGN_VISION_OCR.md, +DESIGN_VISION_CDP_ATTACH.md, +KI_GITHUB_SYNC.md).
+  Шапка и футер → v1.13.3.
+- **Попутный fix:** счётчик инструментов в ARCHITECTURE.md (61 → 65) —
+  в документе не учитывались 4 инструмента: `code_reviewer_agent` (v1.11.0),
+  `code_agent_with_review` (v1.11.0), `mail_agent` (v1.8.0),
+  `external_llm_agent` (v1.8.1).
 - **Обнаружено:** 2026-10-04 (при релизе v1.13.1).
 - **Файлы:** `docs/development/ARCHITECTURE.md`.
 - **Описание:** Документ описывает состояние проекта на **v1.7.0**

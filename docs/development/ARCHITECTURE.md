@@ -1,6 +1,6 @@
 # Архитектура IIChatTools
 
-**Версия:** 1.13.1 (обновлено 2026-10-05)
+**Версия:** 1.13.3 (обновлено 2026-10-08)
 **Статус:** Living document — обновляется при значимых архитектурных изменениях.
 **Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md), [DESIGN v1.7 (Database Agent)](v1.7/DESIGN_DB_AGENT.md).
 
@@ -14,8 +14,9 @@
 **Database Agent — read-only SQL (v1.7)**, **Mail Agent — IMAP/SMTP (v1.8.0)**,
 **External-LLM — DeepSeek / OpenAI / Groq / Together / Ollama (v1.8.1) + Anthropic Claude (v1.9.0) + Google Gemini (v1.10.0)**,
 **Actor-Critic Debate — `code_agent_with_review` (v1.11.0)**,
-**Vision Agent — computer-use pattern (v1.12.0)**,
-**Speech Recognition — офлайн STT через Whisper.net (v1.13.0 → v1.13.1)**.
+**Vision Agent — computer-use pattern (v1.12.0; OCR-fallback для мелкого текста в v1.13.x, KI-137)**,
+**Speech Recognition — офлайн STT через Whisper.net (v1.13.0 → v1.13.1)**,
+**RAG OCR — распознавание сканов PDF через Tesseract (v1.13.x, KI-203)**.
 
 **Ключевая идея:** LLM работает в **изолированной песочнице** (`Workspace`) и не имеет
 прямого доступа к системе. Все действия — через инструменты с подтверждениями (`Approvals`).
@@ -32,6 +33,7 @@
 - **PdfPig 0.1.9** + **DocumentFormat.OpenXml 3.1.0** — PDF/DOCX в RAG (v1.7.1, KI-104)
 - **Whisper.net 1.8.1** + **Whisper.net.Runtime** — офлайн STT (v1.13.0, KI-140)
 - **System.Drawing.Common 10.0.0** — GDI-скриншоты Vision Agent (v1.12.0, KI-131)
+- **Tesseract 5.2.0** + **PDFtoImage 5.0.0** — OCR сканов PDF в RAG (v1.13.x, KI-203)
 
 ---
 
@@ -66,14 +68,16 @@
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  IIChatTools.Services  (net10.0)                                    │
-│  ├── ToolRegistry (61 = 40 raw + 9 агентов + 3 RAG + 1 SqlAgent    │
+│  ├── ToolRegistry (65 = 40 raw + 9 агентов + 3 RAG + 1 SqlAgent    │
 │  │                + 7 mail-tools + 3 external-llm-tools + 1 vision +│
 │  │                1 code_agent_with_review)                        │
 │  ├── SubAgentRegistry (Singleton, v1.4.0)                           │
 │  ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator, │
 │  │         ChatTitleService, ChatRetentionService                   │
 │  ├── RAG (v1.5): EmbeddingService, InMemoryVectorStore,             │
-│  │              DocumentIngestionService, RetrievalService          │
+│  │              DocumentIngestionService, RetrievalService,         │
+│  │              TesseractOcrService (v1.13.x, KI-203),              │
+│  │              OcrProgressTracker (v1.13.x, KI-204)                │
 │  ├── SqlAgent (v1.7): SqlAgentService, SqlQueryValidator,           │
 │  │              SqlConnectionProvider, SqlAgentOptionsProvider,     │
 │  │              AdminSqlAgentService, AppPathProvider               │
@@ -228,6 +232,8 @@ dotnet ef database update --project IIChatTools.Data --startup-project IIChatToo
 | `IVisionScreenshotStore` (v1.12.0) | **Scoped** | Зависит от `IWorkspaceResolver` |
 | `IVisionAgentService` (v1.12.0) | **Scoped** | Зависит от Scoped backend + store |
 | `IVisionOverlayLauncher` (v1.12.0) | **Singleton** | Wpf (реальный, KI-142) или Noop (fallback) |
+| `IOcrService` (v1.13.x, KI-203) | **Singleton** | `TesseractOcrService` — ленивая инициализация engine; на Linux `IsReady=false` (graceful skip) |
+| `IOcrProgressTracker` (v1.13.x, KI-204) | **Singleton** | In-memory progress (`ConcurrentDictionary` + `AsyncLocal<string>`) для трекинга OCR-страниц |
 
 **Background services** (`BackgroundService`):
 - `AuditRetentionService` — чистит `AuditLogs` + JSONL-файлы.
@@ -330,7 +336,7 @@ CodeAgentWithReviewTool
 
 ## § 6. Инструменты
 
-### § 6.1. Группы (61 = 40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-llm + 1 vision + 1 review-orchestrator)
+### § 6.1. Группы (65 = 40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-llm + 1 vision + 1 review-orchestrator)
 
 | Группа | Кол-во | Требуют approval |
 |---|:---:|:---:|
@@ -353,7 +359,7 @@ CodeAgentWithReviewTool
 | + `code_agent_with_review` (v1.11.0, top-level) | +1 | ✅ |
 | + `mail_agent` (v1.8.0) | +1 | ✅ |
 | + `external_llm_agent` (v1.8.1) | +1 | — |
-| **Итого (ToolRegistry)** | **61** | — |
+| **Итого (ToolRegistry)** | **65** | — |
 
 ### § 6.2. Multi-Agent (v1.4.0)
 
@@ -434,7 +440,9 @@ Chat видит **1 top-level инструмент** `database_agent` (не на
 | **Prometheus** | Метрики | `/metrics` публичный |
 | **MailKit 4.18.1** (v1.8.0, KI-125) | IMAP/SMTP | Требует `Mail:Enabled` |
 | **Whisper.net 1.8.1** (v1.13.0) | Офлайн STT | Требует `ggml-*.bin` модель |
-| **PdfPig 0.1.9** (v1.7.1) | PDF-парсер для RAG | Сканы без текстового слоя — не поддерживаются |
+| **PdfPig 0.1.9** (v1.7.1) | PDF-парсер для RAG | Текстовый слой; сканы — через Tesseract (v1.13.x, KI-203) |
+| **Tesseract 5.2.0** (v1.13.x, KI-203) | OCR сканов PDF | Windows-only native lib; на Linux — graceful skip (`IsReady=false`) |
+| **PDFtoImage 5.0.0** (v1.13.x, KI-203) | Рендер PDF-страниц в PNG | PDFium; кроссплатформенно |
 | **DocumentFormat.OpenXml 3.1.0** (v1.7.1) | DOCX-парсер для RAG | `.doc` (старый формат) — не поддерживается |
 
 ---
@@ -569,14 +577,44 @@ prefix-eviction).
 (`lmstudio` / `external` / `auto`) — в DI-factory.
 
 ### ADR-021. WPF overlay — WS_EX_NOACTIVATE + NamedPipe IPC (v1.12.x, KI-142)
-**Проблема:** реальный on-screen indicator **обязателен** (DESIGN § 6.4).
-Клик по overlay не должен забирать фокус у Chrome.
-**Решение:** отдельный проект `IIChatTools.VisionOverlay` (WPF,
-`net10.0-windows`, WinExe). IPC — NamedPipe `iichattools-vision-overlay-{taskId}`
-(JSON, `\n`-разделитель). Overlay — сервер, API — клиент. `WS_EX_NOACTIVATE |
-WS_EX_TOOLWINDOW` через `OverlayWin32.cs`. `ShowActivated="False"` в XAML.
-`STOP` → `CancellationToken` через `IVisionOverlayHandle.StopToken`
-(связывается с `timeoutCts` через `CreateLinkedTokenSource`).
+[...без изменений...]
+
+### ADR-022. OCR для сканов PDF — Tesseract с graceful skip на Linux (v1.13.x, KI-203)
+**Проблема:** `PdfPig` извлекает только текстовый слой. Сканы (фото договора,
+отсканированные книги) дают пустой `page.Text` → RAG не находит содержимое.
+**Решение:** `TesseractOcrService` (Singleton, `Lazy<TesseractEngine>`).
+Триггер — `page.Text.Length < MinTextCharsPerPage` (default 50). Рендер
+страницы в PNG через `PDFtoImage` (PDFium) → Tesseract (`rus+eng`).
+**Платформа:** Tesseract native lib в NuGet — только Windows; на Linux
+`IsReady = false`, парсер работает как раньше (graceful degradation).
+Опция `Rag:Ingestion:Ocr:Enabled` — `false` в prod, `true` в dev.
+**Прогресс:** `IOcrProgressTracker` (Singleton, `ConcurrentDictionary` +
+`AsyncLocal<string>` для передачи ключа через `PdfParser`).
+
+### ADR-023. OCR-fallback в Vision Agent — full-res PNG для мелкого текста (v1.13.x, KI-137)
+**Проблема:** VL-модель плохо читает мелкий текст (8-10 px) на downscaled
+скриншоте 1024×768.
+**Решение:** `IVisionBackend.ScreenshotFullResolutionAsync()` — default → null,
+override в `LocalHarnessVisionBackend` (GDI без downscale). Триггеры:
+(A) пустой `ui_elements` или короткий label (< 3 симв.);
+(B) `action=fail` от Planner. `OcrVlMergeHelper` матчит OCR-слова
+с `ui_elements` VL через центр bbox (`MergeMaxDistancePx=30`).
+Один OCR-проход на задачу (`ocrWasRun`). Общий сервис `IOcrService`
+(переиспользуется с RAG, ADR-022).
+
+### ADR-024. Sync KNOWN_ISSUES.md с GitHub Issues — подход «витрина» (v1.13.3, KI-214)
+**Проблема:** `KNOWN_ISSUES.md` — плоский Markdown на 195 секций, неудобно
+фильтровать/сортировать. Полная миграция на Issues потеряла бы `git-blame`
+и MD-историю.
+**Решение:** подход B (витрина). `KNOWN_ISSUES.md` — источник истины;
+`scripts/sync-known-issues.ps1` парсит MD и создаёт/обновляет Issues
+(`gh issue create` / `gh issue edit`). Двусторонней синхронизации нет.
+Idempotent: дедуп по KI-id, обновление body + labels + state. Labels:
+`ki`, `priority-*`, `status-*`. Состояние: closed для
+Fixed/Resolved/Implemented/Documented/Deferred/Won't Fix; open для
+Planned/In Progress/Partially Fixed/Unknown.
+**CI-триггер:** `.github/workflows/sync-issues.yml` на push в `main`
+при изменении `docs/KNOWN_ISSUES.md` (+ `workflow_dispatch`).
 
 ---
 
@@ -595,6 +633,8 @@ WS_EX_TOOLWINDOW` через `OverlayWin32.cs`. `ShowActivated="False"` в XAML.
 - [DESIGN v1.11 — Actor-Critic](v1.11/DESIGN_MULTI_AGENT_DEBATE.md) — code_agent_with_review (✅ v1.11.0)
 - [DESIGN v1.12 — Vision Agent](v1.12/DESIGN_VISION_AGENT.md) — computer-use (✅ v1.12.0, MVP)
 - [DESIGN v1.13 — Speech Recognition](v1.13/DESIGN_SPEECH_RECOGNITION.md) — Whisper.net (✅ v1.13.0)
+- [DESIGN v1.13 — Vision OCR](v1.13/DESIGN_VISION_OCR.md) — OCR-fallback (✅ v1.13.x, KI-137)
+- [DESIGN v1.13 — Vision CDP-attach](v1.13/DESIGN_VISION_CDP_ATTACH.md) — DOM+Vision hybrid (✅ v1.13.x, KI-161)
 
 ### Правила и процессы
 - [RULES.md](RULES.md) — правила разработки (v1.4.28)
@@ -603,9 +643,10 @@ WS_EX_TOOLWINDOW` через `OverlayWin32.cs`. `ShowActivated="False"` в XAML.
 
 ### Реестры
 - [`../KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — реестр проблем
+- [`KI_GITHUB_SYNC.md`](KI_GITHUB_SYNC.md) — синхронизация KI с GitHub Issues (v1.13.3, KI-214)
 - [`../../CHANGELOG.md`](../../CHANGELOG.md) — история версий
 - [`../../README.md`](../../README.md) — обзор проекта
 
 ---
 
-**© 2026 RuChating (iilmchat) · IIChatTools v1.13.1**
+**© 2026 RuChating (iilmchat) · IIChatTools v1.13.3**

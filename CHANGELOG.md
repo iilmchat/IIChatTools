@@ -22,6 +22,39 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.4] — 2026-10-08
+
+**Актуализация `docs/development/ARCHITECTURE.md` (KI-147).**
+Документ приведён к состоянию **v1.13.3**: OCR-сервисы (KI-203, KI-204),
+OCR-fallback Vision Agent (KI-137), Issue-sync workflow (KI-214),
+Tesseract + PDFtoImage в стеке. Попутный fix — счётчик инструментов
+в § 2 и § 6.1 (**61 → 65**).
+
+**Тесты:** без изменений (docs-only).
+
+### Fixed
+- **KI-147 — ARCHITECTURE.md устарел (v1.7.0 → v1.13.1)**:
+  - § 1 (Обзор) — добавлены OCR-fallback Vision Agent (KI-137) и RAG OCR (KI-203).
+  - § 2 (Слои) — добавлены `TesseractOcrService` и `OcrProgressTracker`
+    (RAG-секция); исправлен счётчик `ToolRegistry` (61 → **65**).
+  - § 4 (DI) — +`IOcrService` (Singleton, KI-203), +`IOcrProgressTracker`
+    (Singleton, KI-204).
+  - § 6 (Инструменты) — счётчик 61 → **65** (в заголовке § 6.1 и итоговой
+    строке таблицы). Причина: не учитывались 4 инструмента —
+    `code_reviewer_agent`, `code_agent_with_review` (v1.11.0),
+    `mail_agent` (v1.8.0), `external_llm_agent` (v1.8.1).
+  - § 7 (Внешние) — +Tesseract 5.2.0, +PDFtoImage 5.0.0.
+  - § 8 (ADR) — +ADR-022 (OCR PDF, KI-203), +ADR-023 (OCR-fallback Vision,
+    KI-137), +ADR-024 (Sync KNOWN_ISSUES.md с Issues, KI-214).
+  - § 9 (Ссылки) — +DESIGN_VISION_OCR.md, +DESIGN_VISION_CDP_ATTACH.md,
+    +KI_GITHUB_SYNC.md.
+  - Шапка / футер — v1.13.1 → **v1.13.3**.
+
+### Changed
+- **Bump version 1.13.3 → 1.13.4** (`Directory.Build.props`, `README.md`).
+
+---
+
 ## [1.13.3] — 2026-10-08
 
 **Синхронизация `KNOWN_ISSUES.md` с GitHub Issues (KI-214) + fix regex.**
