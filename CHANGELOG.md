@@ -48,6 +48,16 @@
   - **Не меняется:** ни один сервис / интерфейс (это Ф2/Ф3/Ф4).
   - **Build 0/0. Тесты 1080/1080 (без изменений).**
 
+- **v1.13.x (KI-137, Ф2) — Vision Agent: full-res скриншот для OCR**:
+  - `IVisionBackend.ScreenshotFullResolutionAsync()` — новый default-метод
+    (→ `null`, обратная совместимость для Sandbox / VncMcp fakes).
+  - `LocalHarnessVisionBackend` override — GDI-захват экрана **без** downscale
+    (для OCR мелкого текста, 8-10 px). Не применяет `VisionImageResizer.Resize`
+    и не проверяет `MaxScreenshotBytes` (PNG — внутренний, не уходит в VL).
+  - **RULES § 4.34:** существующие fakes (`FakeVisionBackend`) не сломаны —
+    default-метод возвращает `null`.
+  - **Build 0/0. Тесты 1080/1080 (без изменений).**
+
 - **v1.13.x (KI-207) — RAG: Page viewer — text layer + поиск + выделение**:
   - **Проблема (smoke KI-205):** PNG — «тупая картинка», нельзя
     выделить текст или найти фразу в документе.

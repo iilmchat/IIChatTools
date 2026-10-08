@@ -579,6 +579,72 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         }
 
         // ============================================================
+        // KI-137 — full-resolution screenshot для OCR
+        // ============================================================
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// <para>
+        /// v1.13.x (KI-137). GDI-захват экрана <b>без downscale</b> — нужен
+        /// для OCR мелкого текста (8-10 px шрифты сжимаются в 4-5 px при
+        /// downscale 1920×1200 → 1024×640, Tesseract их не распознаёт).
+        /// </para>
+        /// <para>
+        /// <b>Не применяет</b> <c>VisionImageResizer.Resize</c> и не проверяет
+        /// <c>Limits.MaxScreenshotBytes</c>: PNG не уходит в Vision LLM (это
+        /// внутренний вызов для OCR), base64 не тратится. Размер типичного
+        /// GDI-скриншота 1920×1200 ≈ 200-400 KB PNG.
+        /// </para>
+        /// <para>
+        /// Если в будущем понадобится ограничение — ввести отдельный
+        /// параметр <c>VisionAgent:Limits:MaxFullResolutionBytes</c>.
+        /// </para>
+        /// </remarks>
+        public Task<FullResolutionScreenshotDto> ScreenshotFullResolutionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // 1. Размеры экрана.
+            var width = GetSystemMetrics(SM_CXSCREEN);
+            var height = GetSystemMetrics(SM_CYSCREEN);
+            if (width <= 0 || height <= 0)
+            {
+                throw new InvalidOperationException(
+                    $"Некорректные размеры экрана: {width}×{height}.");
+            }
+
+            // 2. GDI-захват без downscale.
+            byte[] pngBytes;
+            using (var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb))
+            {
+                using (var g = Graphics.FromImage(bitmap))
+                {
+                    g.CopyFromScreen(
+                        sourceX: 0, sourceY: 0,
+                        destinationX: 0, destinationY: 0,
+                        blockRegionSize: new Size(width, height),
+                        copyPixelOperation: CopyPixelOperation.SourceCopy);
+                }
+
+                using var ms = new MemoryStream();
+                bitmap.Save(ms, ImageFormat.Png);
+                pngBytes = ms.ToArray();
+            }
+
+            _logger.LogDebug(
+                "VisionAgent: full-res screenshot {W}×{H}, {Bytes} байт",
+                width, height, pngBytes.Length);
+
+            return Task.FromResult(new FullResolutionScreenshotDto
+            {
+                Png = pngBytes,
+                Width = width,
+                Height = height
+            });
+        }
+
+        // ============================================================
         // KI-161 — DOM+Vision hybrid
         // ============================================================
 

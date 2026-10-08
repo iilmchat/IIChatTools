@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Services.DTO.VisionAgent;
 
 namespace IIChatTools.Services.Interfaces
 {
@@ -35,6 +36,38 @@ namespace IIChatTools.Services.Interfaces
         /// <param name="cancellationToken">Токен отмены.</param>
         /// <returns>PNG-байты.</returns>
         Task<byte[]> ScreenshotAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Full-resolution скриншот экрана — БЕЗ downscale. Нужен для OCR
+        /// мелкого текста (8-10 px шрифты не видны на downscaled 1280×720).
+        /// </summary>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// <see cref="FullResolutionScreenshotDto"/> (PNG + Width + Height)
+        /// или <c>null</c>, если backend не поддерживает full-res.
+        /// </returns>
+        /// <remarks>
+        /// <para>
+        /// v1.13.x (KI-137). Default-метод (C# 8+): возвращает <c>null</c>.
+        /// <c>LocalHarnessVisionBackend</c> переопределяет — GDI-захват
+        /// без downscale. <c>SandboxVisionBackend</c> / <c>VncMcpVisionBackend</c>
+        /// могут не переопределять (OCR-функциональность опциональна).
+        /// </para>
+        /// <para>
+        /// <b>RULES § 4.46:</b> default interface method виден только через
+        /// интерфейсную переменную. <c>VisionAgentService</c> держит
+        /// <c>IVisionBackend</c> — вызов корректен.
+        /// </para>
+        /// <para>
+        /// <b>Отличие от <see cref="ScreenshotAsync"/>:</b> не применяет
+        /// <c>VisionImageResizer.Resize</c> и не проверяет
+        /// <c>MaxScreenshotBytes</c> — это внутренний PNG для OCR, не уходит
+        /// в Vision LLM (base64 не тратится).
+        /// </para>
+        /// </remarks>
+        Task<FullResolutionScreenshotDto> ScreenshotFullResolutionAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<FullResolutionScreenshotDto>(null);
 
         /// <summary>Клик по координатам (левая кнопка мыши).</summary>
         Task ClickAsync(int x, int y, CancellationToken cancellationToken = default);
