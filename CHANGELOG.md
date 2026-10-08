@@ -45,6 +45,24 @@ KI-207) и серия Vision Planner fixes (KI-176..KI-202).
   - **Оценка:** ~3.5 ч (8 фаз). См. DESIGN § 10.
 
 ### Added
+- **v1.14 (KI-214) — Sync KNOWN_ISSUES.md с GitHub Issues (витрина)**:
+  - `scripts/sync-known-issues.ps1` — парсит `docs/KNOWN_ISSUES.md`
+    и создаёт/обновляет GitHub Issues как витрину.
+  - **Подход B (витрина):** KNOWN_ISSUES.md — source of truth; Issues —
+    read-only зеркало. Двусторонней синхронизации нет.
+  - **Что делает:**
+    - Секции `### KI-XXX — Title` → Issues `KI-XXX: Title`.
+    - Priority (эмодзи) → label `priority-{critical|high|medium|low}`.
+    - Status → label `status-*` + state (closed для Fixed/Documented/Deferred,
+      open для Planned/Open/In Progress).
+    - Body — копия секции MD (полная).
+  - **Параметры:** `-DryRun`, `-SkipExisting`, `-Filter`, `-Repo`.
+  - **Idempotent:** повторный прогон не создаёт дубли, обновляет
+    существующие Issues.
+  - **Docs:** `docs/development/KI_GITHUB_SYNC.md`.
+  - **Отложено:** CI-триггер на push в `main` (опционально, отдельным
+    коммитом).
+
 - **v1.13.x (KI-137) — Vision Agent: OCR-fallback завершён**:
   - **8 фаз, 5 коммитов** (Ф1: `dceb49b`, Ф2: `897bb58`,
     Ф3+Ф4+Ф5: `973626b`, Ф6: `5d082c2`, Ф7: `e1e2cd8`).
