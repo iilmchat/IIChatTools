@@ -4750,9 +4750,41 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ### KI-207 — RAG: Page viewer — выделение текста и поиск (text layer)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.x)** | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-205 — нет выделения/поиска, как в Acrobat).
-- **Файлы:** `IOcrService.cs`, `TesseractOcrService.cs`, `PdfParser.cs`,
+- **Коммиты:** `68c79a8` (базовая реализация) → `ee13c68` (fix2) →
+  `3dacb8d` (fix3) → `4e6f402` (fix4) → `288b934` (fix5) →
+  `53b7a2e` (fix6) → `4f44cb5` (fix7).
+- **Что реализовано:**
+  - **Backend:**
+    - `PageTextLayerDto` + `WordBoxDto` — слова + bbox в natural PNG px.
+    - `IOcrService.RecognizeWithLayoutAsync` — Tesseract word boxes через `PageIterator`.
+    - `PdfParser` — text layer для OCR-страниц (Tesseract) и текстовых PDF
+      (PdfPig `NearestNeighbourWordExtractor`); сохранение `page-N.json`
+      рядом с `page-N.png` (camelCase через `CamelCasePropertyNamesContractResolver`).
+    - `GET /api/chat/{chatId}/attachments/{id}/pages/{N}/ocr` — сырой JSON.
+  - **Frontend:**
+    - Прозрачный text layer (`.chat-pages-text-layer`) поверх `<img>`,
+      синхронизируется через `transform: scale()` (без `z-index` — иначе
+      `mix-blend-mode` ломался).
+    - `findMatchesInLayer` — гибридный поиск: одно слово → все вхождения;
+      фраза целиком → диапазоны; fallback OR по токенам (ловит разрыв
+      слов между страницами).
+    - Async префетч всех `page-N.json` (лимит 5 параллельно) — сквозной
+      счётчик по документу + прогресс `Поиск… N/M`.
+    - Навигация ↑/↓ / Enter / Shift+Enter — по всему документу,
+      с автоперелистыванием.
+    - Подсветка через `rgba(255, 235, 59, 0.4)` (не `mix-blend-mode`).
+    - Кнопка 🔍 в toolbar модалки + hotkey `Ctrl+F`.
+    - `e.code === 'KeyF'` (layout-независимо — RU/EN работают одинаково).
+    - `window.addEventListener(..., { capture: true })` + `stopImmediatePropagation`.
+  - **Известное ограничение (латентное, не критичное):**
+    - Если ввести query **до** того, как `viewer.totalPages` проставлен
+      (модалка только открылась, список страниц ещё грузится) — префетч
+      стартует с `totalPages = 0` и находит 0 hits. При повторном вводе
+      (или после загрузки списка) — работает. Симптом: «поиск отвалился,
+      потом заработал». Планируется поправить в KI-208 (защита от
+      `totalPages === 0`).- **Файлы:** `IOcrService.cs`, `TesseractOcrService.cs`, `PdfParser.cs`,
   `ChatAttachmentsController.cs`, `chat.js`, `chat.css`, `Index.cshtml`,
   `.resx` (RU + EN).
 - **Описание:** Пользователь хочет **выделение текста** (как в Acrobat),

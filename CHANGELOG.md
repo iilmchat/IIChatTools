@@ -18,6 +18,44 @@
 
 ## [Unreleased]
 
+### Added
+- **v1.13.x (KI-207) — RAG: Page viewer — text layer + поиск + выделение**:
+  - **Проблема (smoke KI-205):** PNG — «тупая картинка», нельзя
+    выделить текст или найти фразу в документе.
+  - **Backend:**
+    - `PageTextLayerDto` + `WordBoxDto` — слова + bbox в natural PNG px.
+    - `IOcrService.RecognizeWithLayoutAsync` — Tesseract word boxes.
+    - `PdfParser` — text layer для OCR-страниц (Tesseract) и текстовых
+      PDF (PdfPig `NearestNeighbourWordExtractor`). Сохранение
+      `page-N.json` рядом с `page-N.png`.
+    - `GET .../pages/{N}/ocr` — сырой JSON PageTextLayerDto.
+  - **Frontend:**
+    - Прозрачный text layer поверх PNG (выделение + Ctrl+C).
+    - Ctrl+F / кнопка 🔍 в toolbar — поисковая панель в модалке.
+    - Гибридный поиск: фраза целиком → fallback OR по токенам
+      (ловит разрыв слов между страницами).
+    - Async префетч всех страниц → сквозной счётчик по документу
+      (`Поиск… N/M` → `K / M`).
+    - Навигация ↑/↓ / Enter / Shift+Enter по всему документу
+      с автоперелистыванием.
+    - Подсветка через `rgba(255, 235, 59, 0.4)`.
+    - `e.code === 'KeyF'` — RU/EN раскладки работают одинаково.
+    - `window.addEventListener(..., { capture: true })` —
+      перехват Ctrl+F до браузера.
+  - **7 итераций fix'ов** (`68c79a8` → `4f44cb5`): camelCase JSON,
+    приоритет Ctrl+F, img-cache race, position relative для text-layer,
+    keyboard layout, compound query, сохранение hits при переходах.
+  - **Известное ограничение:** при вводе query до полной загрузки
+    списка страниц (`totalPages === 0`) префетч находит 0 hits.
+    Фикс запланирован в KI-208.
+  - **Тесты:** 1080/1080 (без изменений — backend без новых unit-тестов,
+    frontend smoke).
+
+- **v1.13.x (KI-206) — RAG: Page viewer UX (thumbnails, zoom, scroll)**:
+  - **Проблема (smoke KI-205):** базовая модалка без thumbnails, зума,
+    скролла колесом. Пользователь не может быстро навигировать по
+    большим сканам.
+
 ### Fixed
 - **v1.13.x (KI-205) — RAG: постраничный просмотр PNG сканов**:
   - **Проблема:** временные PNG-страницы удалялись в `finally`. Пользователь
