@@ -5204,8 +5204,9 @@ function renderTextLayer(wrap, dto) {
 
     viewer.textLayer = layer;
     viewer.textLayerDto = dto;
-    viewer.searchHits = [];
-    viewer.searchIndex = -1;
+    // KI-207-fix7: НЕ сбрасываем searchHits/searchIndex — они принадлежат
+    // поисковому сеансу, а не конкретной странице. Иначе после перехода
+    // на другую страницу кнопки поиска «не работают» (hits = []).
 
     applyTextLayerScale();
 }
@@ -5290,49 +5291,93 @@ function closePagesSearch() {
 }
 
 /**
- * KI-207-fix6: находит все вхождения query в text layer'е страницы.
+ * KI-207-fix7: находит все вхождения query в text layer'е страницы.
  *
  * <para>
- * Одно слово → все его вхождения (каждое — отдельный hit).
- * Несколько слов → AND: если ВСЕ слова присутствуют на странице,
- * это ОДИН hit (вся страница). Подсветка — все токены.
+ * Стратегия:
+ * <list type="number">
+ *   <item>Одно слово → все вхождения (каждое — отдельный hit).</item>
+ *   <item>Много слов → сначала пробуем найти <b>фразу целиком</b>
+ *         (substring в flat-text). Если нашли — hits по диапазонам.</item>
+ *   <item>Если фразы нет → fallback на <b>OR</b> по отдельным словам
+ *         (каждое вхождение — отдельный hit). Это ловит случаи
+ *         переноса слов между строками/страницами («добровольных
+ *         имущественных» разорвано на границе стр. 1/2).</item>
+ * </list>
  * </para>
  *
  * @param {object} layer — { width, height, words: [...] }
  * @param {string} query
- * @returns {Array<{ type: 'word'|'page', wordIndexes: number[], tokens: string[] }>}
+ * @returns {Array<{ type: 'word'|'phrase', wordIndexes: number[] }>}
  */
 function findMatchesInLayer(layer, query) {
-    const tokens = (query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0 || !layer || !Array.isArray(layer.words)) return [];
+    const q = (query || '').trim().toLowerCase();
+    if (!q || !layer || !Array.isArray(layer.words)) return [];
 
-    // Одно слово — все вхождения.
-    if (tokens.length === 1) {
-        const t = tokens[0];
+    const words = layer.words;
+
+    // 1. Одно слово — все его вхождения.
+    if (!q.includes(' ')) {
         const out = [];
-        for (let i = 0; i < layer.words.length; i++) {
-            const text = (layer.words[i].text || '').toLowerCase();
-            if (text.includes(t)) {
-                out.push({ type: 'word', wordIndexes: [i], tokens: [t] });
+        for (let i = 0; i < words.length; i++) {
+            const text = (words[i].text || '').toLowerCase();
+            if (text.includes(q)) {
+                out.push({ type: 'word', wordIndexes: [i] });
             }
         }
         return out;
     }
 
-    // AND: все токены должны быть на странице.
-    const flat = layer.words.map(w => (w.text || '').toLowerCase()).join(' ');
-    const allPresent = tokens.every(t => flat.includes(t));
-    if (!allPresent) return [];
+    // 2. Много слов — пробуем фразу целиком (substring в flat-text).
+    //    flat = «word1 word2 ... wordN» (lowercase), starts[i] = смещение i-го слова.
+    const starts = new Array(words.length);
+    let pos = 0;
+    for (let i = 0; i < words.length; i++) {
+        starts[i] = pos;
+        pos += (words[i].text || '').length + 1;   // +1 за пробел
+    }
+    const flat = words.map(w => (w.text || '').toLowerCase()).join(' ');
 
-    // Собираем wordIndexes всех токенов (для подсветки).
-    const wordIndexes = [];
-    for (let i = 0; i < layer.words.length; i++) {
-        const text = (layer.words[i].text || '').toLowerCase();
-        if (tokens.some(t => text.includes(t))) {
-            wordIndexes.push(i);
+    const phraseHits = [];
+    let idx = flat.indexOf(q);
+    while (idx >= 0) {
+        const end = idx + q.length;
+        let startWord = -1;
+        let endWord = -1;
+        for (let i = 0; i < words.length; i++) {
+            const ws = starts[i];
+            const we = ws + (words[i].text || '').length;
+            if (we <= idx) continue;
+            if (ws >= end) break;
+            if (startWord < 0) startWord = i;
+            endWord = i;
+        }
+        if (startWord >= 0) {
+            const wordIndexes = [];
+            for (let i = startWord; i <= endWord; i++) wordIndexes.push(i);
+            phraseHits.push({ type: 'phrase', wordIndexes });
+        }
+        idx = flat.indexOf(q, idx + 1);
+    }
+
+    if (phraseHits.length > 0) {
+        return phraseHits;
+    }
+
+    // 3. Фразы нет — fallback OR по отдельным токенам.
+    //    Каждое вхождение каждого токена — отдельный hit.
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const orHits = [];
+    for (let i = 0; i < words.length; i++) {
+        const text = (words[i].text || '').toLowerCase();
+        for (const t of tokens) {
+            if (text.includes(t)) {
+                orHits.push({ type: 'word', wordIndexes: [i] });
+                break;   // одно слово — один hit
+            }
         }
     }
-    return [{ type: 'page', wordIndexes, tokens }];
+    return orHits;
 }
 
 /**
@@ -5518,6 +5563,7 @@ async function startDocumentSearch(query) {
 function markActiveHit(hit) {
     const viewer = state.pagesViewer;
     if (!viewer?.textLayer || !hit) return;
+    if (viewer.currentPage !== hit.pageNumber) return;   // ← fix7: страница не та
 
     // Снимаем active со всех.
     viewer.textLayer.querySelectorAll('.chat-pages-search-hit-active')
@@ -5561,6 +5607,9 @@ function navigatePagesSearch(delta) {
 
     const hit = viewer.searchHits[idx];
     if (hit.pageNumber === viewer.currentPage) {
+        // KI-207-fix7: убеждаемся, что text-layer для этой страницы уже загружен.
+        // Если нет — markActiveHit no-op, но searchIndex уже переключён.
+        // При загрузке loadPagesTextLayer сам активирует нужный hit.
         markActiveHit(hit);
     } else {
         gotoPagesViewer(hit.pageNumber);
