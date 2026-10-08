@@ -5781,17 +5781,35 @@ async function exportPagesPdf() {
         const fontkit = await loadFontkit();
         const { PDFDocument, rgb } = PDFLib;
 
-        // 2. Шрифт Roboto Regular (TTF, с кириллицей).
-        const fontBytes = await fetch('/lib/pdf-lib/Roboto-Regular.ttf')
-            .then(r => {
-                if (!r.ok) throw new Error('Font not found');
-                return r.arrayBuffer();
-            });
-
         // 3. Создаём документ.
         const pdfDoc = await PDFDocument.create();
         pdfDoc.registerFontkit(fontkit);
-        const customFont = await pdfDoc.embedFont(fontBytes, { subset: true });
+
+        // KI-208-fix: пробуем загрузить TTF с кириллицей, но не падаем,
+        // если его нет — используем встроенный Helvetica (Latin-1).
+        // В этом случае text layer не сможет нарисовать кириллицу,
+        // но PNG-страницы будут видны, PDF создастся.
+        let customFont = null;
+        let fontIsCyrillic = false;
+
+        try {
+            const fontResp = await fetch('/lib/pdf-lib/Roboto-Regular.ttf');
+            if (fontResp.ok) {
+                const fontBytes = await fontResp.arrayBuffer();
+                customFont = await pdfDoc.embedFont(fontBytes, { subset: true });
+                fontIsCyrillic = true;
+                console.log('[chat] PDF export: используется Roboto-Regular.ttf');
+            } else {
+                console.warn('[chat] PDF export: Roboto-Regular.ttf не найден (HTTP ' +
+                    fontResp.status + '), fallback на Helvetica (без кириллицы)');
+            }
+        } catch (ex) {
+            console.warn('[chat] PDF export: ошибка загрузки TTF, fallback на Helvetica:', ex);
+        }
+
+        if (!customFont) {
+            customFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        }
 
         // 4. Для каждой страницы: PNG + text layer.
         for (let p = 1; p <= viewer.totalPages; p++) {
@@ -5848,9 +5866,10 @@ async function exportPagesPdf() {
                             opacity: 0,
                         });
                     } catch (ex) {
-                        // Некоторые символы могут не входить в subset шрифта.
-                        console.debug('[pdf] drawText fail:', text, ex);
-                    }
+                        // KI-208-fix: с Helvetica (Latin-1) кириллица не
+                        // отрисуется — drawText бросит. Тихо пропускаем.
+                        console.debug('[pdf] drawText skip:', text, ex);
+                    }                
                 }
             }
         }
