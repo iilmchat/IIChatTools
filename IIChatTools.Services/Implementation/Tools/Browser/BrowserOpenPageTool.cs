@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.Extensions;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Implementation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
@@ -150,26 +151,23 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--remote-allow-origins=*"   // критично для новых версий Chromium
+                "--remote-allow-origins=*",
+
+                // v1.13.6 (KI-218): anti-detection — всегда.
+                "--disable-blink-features=AutomationControlled",
+                "--window-size=1920,1080"
             };
 
             if (string.Equals(_configuration["Browser:IgnoreCertificateErrors"], "true", StringComparison.OrdinalIgnoreCase))
                 args.Add("--ignore-certificate-errors");
 
+            // v1.13.6 (KI-218): placeholder 'CHANGE_ME_VIA_USER_SECRETS'
+            // не должен попадать в --proxy-server.
             var proxy = _configuration["Browser:ProxyServer"];
-            if (!string.IsNullOrWhiteSpace(proxy))
+            if (BrowserProxyHelper.IsRealProxyUrl(proxy))
             {
-                var normalized = proxy.Trim();
-                if (!normalized.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-                    !normalized.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-                    !normalized.StartsWith("socks", StringComparison.OrdinalIgnoreCase))
-                {
-                    normalized = "http://" + normalized;
-                }
-                args.Add($"--proxy-server={normalized}");
+                args.Add($"--proxy-server={proxy}");
                 args.Add("--proxy-bypass-list=<-loopback>");
-                args.Add("--disable-blink-features=AutomationControlled");
-                args.Add("--window-size=1920,1080");
             }
 
             return args.ToArray();

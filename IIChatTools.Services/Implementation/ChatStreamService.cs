@@ -165,13 +165,25 @@ namespace IIChatTools.Services.Implementation
             "→ вызови `code_agent` (он найдёт содержимое через `search_knowledge_base`). " +
             "НЕ вызывай `file_system_agent`.\n" +
             "\n" +
-            "9. Открыть сайт / кликнуть по элементу / ввести текст в поле / " +
-            "сделать скриншот страницы в браузере — используй " +
-            "`consult_secondary_agent` (внутри — `browser_*`). " +
-            "`vision_agent` — ТОЛЬКО для desktop-приложений (Outlook, Excel, 1С) " +
-            "и случаев, когда DOM недоступен (canvas / WebGL / shadow-DOM). " +
-            "Для обычных сайтов (wikipedia.org, deepseek.com, github.com) — " +
-            "`consult_secondary_agent`, НЕ `vision_agent`.\n" +
+            "9. ЗАДАЧИ В БРАУЗЕРЕ (открыть сайт, кликнуть, ввести текст, " +
+            "заполнить форму, найти что-то на странице, сделать скриншот " +
+            "веб-страницы в файл) — используй ТОЛЬКО `browser_agent`. " +
+            "Это реальный Chromium (PuppeteerSharp) с DOM-доступом. " +
+            "`vision_agent` для таких задач НЕ ИСПОЛЬЗУЙ.\n" +
+            "\n" +
+            "   Чёткое правило:\n" +
+            "   • САЙТ (wikipedia.org, rzd.ru, gismeteo.ru, github.com, " +
+            "любой URL) → `browser_agent`.\n" +
+            "   • DESKTOP-приложение (Outlook, Excel, 1С, Paint, Проводник) " +
+            "→ `vision_agent`.\n" +
+            "   • Сайт, который НЕ отдаёт DOM (canvas / WebGL / shadow-DOM) " +
+            "→ `vision_agent`.\n" +
+            "   • Приложение IIChatTools (`localhost:5001`) → НЕ вызывай " +
+            "`vision_agent` (он в изолированном браузере без cookies — " +
+            "вернёт «Не могу выполнить»).\n" +
+            "\n" +
+            "   ВАЖНО: `web_agent` тоже НЕ подходит — он только читает HTML " +
+            "через HTTP-запрос, не умеет кликать / вводить / делать скриншоты.\n" +
             "\n" +
             "ПРИМЕР 3: «Создай папку `c:\\projects\\test\\` и положи туда " +
             "`script.bat` с содержимым `echo Hello`» → вызови `code_agent` " +
@@ -190,8 +202,8 @@ namespace IIChatTools.Services.Implementation
             "   ✅ Правильно:   vision_agent(action='run_task', task='Найти погоду', url='https://www.gismeteo.ru/weather-serpukhov-4370/')\n" +
             "\n" +
             "ПРИМЕР 5: «Найди погоду в Серпухове на gismeteo.ru» →\n" +
-            "   `vision_agent(action='run_task', task='Найти погоду в Серпухове', url='https://www.gismeteo.ru/weather-serpukhov-4370/')`\n" +
-            "   Аргумент `url` — обязателен, отдельно от `task`.\n" +
+            "   `browser_agent(task='Найти погоду в Серпухове на gismeteo.ru')`\n" +
+            "   НЕ `vision_agent`! Это САЙТ — используй `browser_agent`.\n" +
             "\n" +
             "   ВАЖНО (KI-183): НЕ ВЫДУМЫВАЙ URL. Если задача — про интерфейс\n" +
             "   приложения IIChatTools (`localhost:5001`, «создай новый чат»,\n" +
@@ -221,9 +233,18 @@ namespace IIChatTools.Services.Implementation
             "    а не из более старых вызовов в истории. ID могут меняться между\n" +
             "    кадрами (KI-160). Если сомневаешься — вызови describe заново.\n" +
             "\n" +
-            "13. Для UI-задач в приложении IIChatTools (`localhost:5001`,\n" +
-            "    «создай новый чат», «открой профиль») — используй `vision_agent`.\n" +
-            "    НЕ используй `planner_agent` для UI.\n" +
+            "13. `vision_agent` — ТОЛЬКО для:\n" +
+            "    (а) desktop-приложений (Outlook, Excel, 1С, Paint);\n" +
+            "    (б) сайтов БЕЗ DOM (canvas / WebGL / shadow-DOM);\n" +
+            "    (в) UI-задач в IIChatTools (`localhost:5001`), но С ОГОВОРКОЙ:\n" +
+            "        Vision Agent работает в изолированном Chrome profile\n" +
+            "        без cookies — увидит неавторизованную главную страницу.\n" +
+            "        Кнопки «Новый чат», «Профиль», «Админка» для него НЕДОСТУПНЫ.\n" +
+            "        Поэтому для UI IIChatTools — возвращай честный ответ,\n" +
+            "        НЕ вызывай vision_agent.\n" +
+            "\n" +
+            "    Для ВСЕХ остальных задач (сайты с DOM, браузерные сценарии) —\n" +
+            "    используй `browser_agent`, НЕ `vision_agent`.\n" +
             "\n" +
             "    ВАЖНО (KI-185): Vision Agent работает в ИЗОЛИРОВАННОМ Chrome\n" +
             "    profile БЕЗ cookies аутентификации. Поэтому UI IIChatTools\n" +

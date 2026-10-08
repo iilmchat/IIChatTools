@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -255,26 +256,33 @@ namespace IIChatTools.Services.Implementation
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--remote-allow-origins=*"   // критично для новых версий Chromium
+                "--remote-allow-origins=*",   // критично для новых версий Chromium
+
+                // v1.13.6 (KI-218): anti-detection + размер окна — всегда,
+                // не только при заданном прокси. Раньше эти аргументы
+                // ошибочно добавлялись только внутри `if (proxy != null)`.
+                "--disable-blink-features=AutomationControlled",
+                "--window-size=1920,1080"
             };
 
             if (string.Equals(_configuration["Browser:IgnoreCertificateErrors"], "true", StringComparison.OrdinalIgnoreCase))
                 args.Add("--ignore-certificate-errors");
 
+            // v1.13.6 (KI-218): placeholder 'CHANGE_ME_VIA_USER_SECRETS'
+            // не должен попадать в --proxy-server (регрессия KI-059).
             var proxy = _configuration["Browser:ProxyServer"];
-            if (!string.IsNullOrWhiteSpace(proxy))
+            if (BrowserProxyHelper.IsRealProxyUrl(proxy))
             {
-                var normalized = proxy.Trim();
-                if (!normalized.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-                    !normalized.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-                    !normalized.StartsWith("socks", StringComparison.OrdinalIgnoreCase))
-                {
-                    normalized = "http://" + normalized;
-                }
-                args.Add($"--proxy-server={normalized}");
+                _logger.LogInformation("PuppeteerSharp: используется прокси {Proxy}", proxy);
+                args.Add($"--proxy-server={proxy}");
                 args.Add("--proxy-bypass-list=<-loopback>");
-                args.Add("--disable-blink-features=AutomationControlled");
-                args.Add("--window-size=1920,1080");
+            }
+            else if (!string.IsNullOrWhiteSpace(proxy))
+            {
+                _logger.LogDebug(
+                    "PuppeteerSharp: Browser:ProxyServer игнорируется " +
+                    "(placeholder или невалидный URL): {Proxy}",
+                    proxy);
             }
 
             return args.ToArray();
@@ -545,11 +553,18 @@ namespace IIChatTools.Services.Implementation
                         return ToolResult.Ok(new { result = evalResult });
                     }
 
+                    // KI-219 (v1.13.7): лимит HTML снижен с 200 000 до 10 000 символов.
+                    // Причина: RZD возвращает ~200 000 символов (56k токенов) → 400
+                    // exceed_context_size_error на следующем шаге. Параметр maxLength
+                    // позволяет поднять лимит осознанно (до 100 000).
+                    // Для поиска селекторов — использовать get_selectors (ниже).
                     case "get_content":
                     {
+                        var maxLen = arguments.GetInt("maxLength", 10000);
+                        if (maxLen <= 0 || maxLen > 100000) maxLen = 10000;
+
                         var html = await page.GetContentAsync();
                         var truncated = false;
-                        const int maxLen = 200000;
                         if (html != null && html.Length > maxLen)
                         {
                             html = html.Substring(0, maxLen);
@@ -560,8 +575,66 @@ namespace IIChatTools.Services.Implementation
                             url = page.Url,
                             title = await SafeGetTitleAsync(page),
                             htmlLength = html?.Length ?? 0,
+                            maxLength = maxLen,
                             truncated,
+                            hint = truncated
+                                ? "HTML обрезан. Для поиска селекторов используй get_selectors (эффективнее)."
+                                : null,
                             html
+                        });
+                    }
+
+                    // KI-219 (v1.13.7): список интерактивных элементов с готовыми
+                    // CSS-селекторами. Возвращает ~20-30 элементов (~3k символов,
+                    // ~800 токенов) вместо 200k символов HTML (56k токенов).
+                    // Это основной инструмент для поиска селекторов в browser_agent.
+                    case "get_selectors":
+                    {
+                        const string selectorScript = @"(() => {
+                            const seen = new Set();
+                            const out = [];
+                            const MAX = 30;
+                            const els = document.querySelectorAll('input, button, textarea, select, a[href]');
+                            for (const el of els) {
+                                if (out.length >= MAX) break;
+                                const rect = el.getBoundingClientRect();
+                                if (rect.width === 0 || rect.height === 0) continue;
+                                const style = window.getComputedStyle(el);
+                                if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+                                const id = el.id || null;
+                                const name = el.getAttribute('name') || null;
+                                let selector = null;
+                                if (id) selector = '#' + CSS.escape(id);
+                                else if (name) selector = el.tagName.toLowerCase() + '[name=""' + name + '""]';
+                                const key = selector || (el.tagName + '|' + (el.textContent || '').trim().slice(0, 50));
+                                if (seen.has(key)) continue;
+                                seen.add(key);
+                                out.push({
+                                    tag: el.tagName.toLowerCase(),
+                                    id: id,
+                                    name: name,
+                                    type: el.getAttribute('type') || null,
+                                    text: ((el.textContent || '').trim().slice(0, 100)) || null,
+                                    placeholder: el.getAttribute('placeholder') || null,
+                                    ariaLabel: el.getAttribute('aria-label') || null,
+                                    selector: selector
+                                });
+                            }
+                            return out;
+                        })()";
+
+                        var elements = await page.EvaluateExpressionAsync<object>(selectorScript);
+                        var count = (elements as System.Collections.IList)?.Count ?? 0;
+
+                        return ToolResult.Ok(new
+                        {
+                            url = page.Url,
+                            title = await SafeGetTitleAsync(page),
+                            count,
+                            hint = count == 0
+                                ? "Интерактивных элементов не найдено. Возможно, страница ещё грузится — вызови wait (evaluate('new Promise(r => setTimeout(r, 2000))'))."
+                                : null,
+                            elements
                         });
                     }
 
@@ -578,6 +651,57 @@ namespace IIChatTools.Services.Implementation
                             format = "png",
                             sizeBytes = bytes.Length,
                             base64
+                        });
+                    }
+
+                    // KI-128 (v1.13.6): скриншот с сохранением в workspace пользователя.
+                    // Отличие от "screenshot": не отдаёт base64 в LLM (экономит контекст),
+                    // возвращает { path, sizeBytes, url, title }.
+                    case "screenshot_to_file":
+                    {
+                        var relativePath = arguments.GetString("path");
+                        if (string.IsNullOrWhiteSpace(relativePath))
+                            return ToolResult.Fail("Не указан path для screenshot_to_file");
+
+                        if (string.IsNullOrWhiteSpace(context.WorkspaceRoot))
+                            return ToolResult.Fail(
+                                "context.WorkspaceRoot пуст — некуда сохранять файл. " +
+                                "Инструмент должен вызываться из Chat (там WorkspaceRoot заполняется автоматически).");
+
+                        // RULES § 1.9: все пути — через PathHelper.TryGetSafeFullPath
+                        // (защита от traversal: "..", абсолютные пути, backslash на Linux).
+                        if (!PathHelper.TryGetSafeFullPath(relativePath, context.WorkspaceRoot, out var safePath))
+                        {
+                            return ToolResult.Fail(
+                                $"Путь '{relativePath}' выходит за пределы workspace или некорректен. " +
+                                $"Используйте относительный путь, например: 'minsk.png' или 'screens/minsk.png'.");
+                        }
+
+                        // Создаём подкаталог, если указан составной путь.
+                        var directory = Path.GetDirectoryName(safePath);
+                        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                        {
+                            Directory.CreateDirectory(directory);
+                        }
+
+                        var bytes = await page.ScreenshotDataAsync(new ScreenshotOptions
+                        {
+                            Type = ScreenshotType.Png,
+                            FullPage = false
+                        });
+
+                        await File.WriteAllBytesAsync(safePath, bytes, context.CancellationToken);
+
+                        _logger.LogInformation(
+                            "browser screenshot_to_file: сессия {SessionId}, путь {Path}, {Bytes} байт",
+                            sessionId, relativePath, bytes.Length);
+
+                        return ToolResult.Ok(new
+                        {
+                            path = relativePath,
+                            sizeBytes = bytes.Length,
+                            url = page.Url,
+                            title = await SafeGetTitleAsync(page)
                         });
                     }
 

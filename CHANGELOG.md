@@ -18,6 +18,41 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.13.6] — 2026-10-09
+
+**KI-219 — `browser_agent` не переполняет контекст на реальных сайтах.**
+Новая команда `get_selectors` (список интерактивных элементов с готовыми
+CSS-селекторами) вместо `get_content` (200k символов HTML = 56k токенов).
+Лимит `get_content` снижен до 10 000 символов + параметр `maxLength`.
+SystemPrompt `browser_agent` переписан — акцент на `get_selectors` +
+блок «НЕ ВЫДУМЫВАЙ УСПЕХ».
+
+**Тесты:** без изменений (1080 → 1105 — см. предыдущие релизы; новых нет).
+
+### Fixed
+- **KI-219 — `browser_agent`: `get_content` переполняет контекст**:
+  - Команда `get_selectors`: JS-скрипт собирает видимые
+    `input/button/textarea/select/a[href]` (≤ 30 элементов), для каждого —
+    `tag, id, name, type, text, placeholder, ariaLabel, selector`.
+    Селектор — `#id` или `tag[name="..."]` (готов к использованию в
+    `click` / `type` / `wait_for_selector`). Размер ответа: ~3k символов
+    (~800 токенов) вместо 200k (~56k).
+  - Команда `get_content`: лимит 200 000 → **10 000 символов**.
+    Параметр `maxLength` (default 10000, max 100000). В ответе —
+    флаг `truncated` + `hint` про `get_selectors`.
+  - `BrowserSessionControlTool.Description` — обновлён: акцент на
+    `get_selectors`, добавлен `maxLength` в Parameters.
+  - SystemPrompt `browser_agent` (appsettings + .Development):
+    правило 3 переписано на «сначала `get_selectors`, НЕ `get_content`».
+    Блок «НЕ ВЫДУМЫВАЙ УСПЕХ (KI-113)»: запрет писать «скриншот сохранён»
+    без фактического `screenshot_to_file`.
+
+---
+
 **Группа 1 «Быстрые победы» — v1.13.6 (в работе):**
 KI-212 (RateLimiting для page-viewer) → KI-128 (Browser workflow) → KI-213 (Text layer bbox).
 

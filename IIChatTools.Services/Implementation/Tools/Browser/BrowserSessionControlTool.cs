@@ -41,7 +41,13 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
 
         /// <inheritdoc />
         public string Description =>
-            "Управляет сессией браузера. Команды: goto, click, type, wait_for_selector, evaluate, get_content, screenshot, get_url, go_back, go_forward, reload.";
+            "Управляет сессией браузера. Команды: goto, click, type, wait_for_selector, evaluate, " +
+            "get_selectors (список интерактивных элементов с готовыми CSS-селекторами — используй для поиска!), " +
+            "get_content (HTML, по умолчанию 10 000 символов), " +
+            "screenshot, screenshot_to_file (сохранить PNG в workspace), " +
+            "get_url, go_back, go_forward, reload. " +
+            "Для поиска селекторов используй get_selectors — НЕ get_content."+
+            "Для сохранения PNG в workspace пользователя используйте команду screenshot_to_file с относительным path (например, 'minsk.png').";
 
         /// <inheritdoc />
         public bool RequiresApprovalByDefault => true;
@@ -55,6 +61,8 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
             new ToolParameterDescriptor { Name = "selector", Type = "string", Description = "CSS-селектор (для click/type/wait_for_selector).", Required = false },
             new ToolParameterDescriptor { Name = "text", Type = "string", Description = "Текст для ввода (для команды type).", Required = false },
             new ToolParameterDescriptor { Name = "script", Type = "string", Description = "JS-код для evaluate.", Required = false },
+            new ToolParameterDescriptor { Name = "path", Type = "string", Description = "Относительный путь в workspace для screenshot_to_file (например, 'minsk.png').", Required = false },
+            new ToolParameterDescriptor { Name = "maxLength", Type = "integer", Description = "Максимум символов HTML для get_content (default 10000, max 100000).", Required = false },
             new ToolParameterDescriptor { Name = "timeoutMs", Type = "integer", Description = "Таймаут операции (мс).", Required = false, Default = 15000 }
         };
 

@@ -1,10 +1,10 @@
-# IIChatTools v1.13.5
+# IIChatTools v1.13.6
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.5
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.6
 
 ---
 
@@ -1132,8 +1132,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.5
-    docker pull ghcr.io/iilmchat/iichattools:1.13.5
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.6
+    docker pull ghcr.io/iilmchat/iichattools:1.13.6
     docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 
@@ -1241,8 +1241,9 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 1016/1016 тестов проходят (unit + integration), 5 Skip (реальные
-провайдеры — DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini).
+**Статус**: 1105/1105 тестов проходят (unit + integration), 8 Skip (реальные
+провайдеры — DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini;
+Chrome CDP — KI-161).
 
 ---
 
@@ -1559,7 +1560,7 @@ Coordinate-then-Verify (KI-162), Set-of-Mark (KI-163).
 | Динамический UI с нестабильными селекторами | `vision_agent` | VL-модель находит элемент визуально |
 | Многошаговые browser-задачи с предсказуемым DOM | `browser_*` | Быстрее и надёжнее VLM-loop (3-10 сек / шаг) |
 
-**Правило:** для browser-задач сначала пробуй `browser_*`. Если селекторы нестабильны, DOM недоступен (canvas / shadow-DOM), или срабатывает антибот — переключайся на `vision_agent`.
+**Правило:** для browser-задач сначала пробуй `browser_agent` (обёртка над `browser_session_*` с собственным system prompt и multi-step loop). Если DOM недоступен (canvas / shadow-DOM) или срабатывает антибот — переключайся на `vision_agent`.
 
 ### CDP-attach (v1.13.x, KI-161)
 

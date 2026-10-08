@@ -807,6 +807,14 @@ namespace IIChatTools.API
             // См. DESIGN_MULTI_AGENT_DEBATE.md § 2.2, § 6.
             services.AddScoped<ITool, CodeReviewerAgentTool>();
 
+            // v1.13.6 (KI-128): браузерный агент (browser_agent).
+            // Обёртка над browser_session_* (PuppeteerSharp) — открывает сайты,
+            // кликает, заполняет формы, делает скриншоты в workspace.
+            // Отличие от web_agent (только HTTP/HTML) и vision_agent (VL-координаты).
+            // Обязательно в DI — иначе ToolDefinitionsBuilder.Build выкинет его
+            // из tools[] для Chat (см. RULES § 4.44).
+            services.AddScoped<ITool, BrowserAgentTool>();
+
             // v1.8.0 (KI-107, Фаза 5): почтовый агент (mail_agent).
             // Регистрируется безусловно (как 6 других агентов); видимость в Chat
             // управляется через SubAgents:mail_agent:Enabled.
@@ -1086,28 +1094,16 @@ namespace IIChatTools.API
 
         /// <summary>
         /// Проверяет, что строка является РЕАЛЬНЫМ URL прокси, а не placeholder.
-        /// Placeholder-значения (<c>CHANGE_ME_VIA_USER_SECRETS</c>, пустые строки)
-        /// игнорируются — иначе <see cref="System.Net.WebProxy"/> пытается
-        /// установить CONNECT-туннель к несуществующему хосту (KI-059).
+        ///
+        /// <para>
+        /// v1.13.6 (KI-218): переиспользует общий <see cref="BrowserProxyHelper"/> —
+        /// единый источник истины для <c>HttpClientFactory</c> и PuppeteerSharp.
+        /// Прецедент — KI-059 (placeholder в <c>Browser:ProxyServer</c>).
+        /// </para>
         /// </summary>
         /// <param name="url">Значение из конфигурации</param>
         /// <returns>true, если URL валиден и не является placeholder</returns>
-        private static bool IsRealProxyUrl(string url)
-        {
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                return false;
-            }
-
-            // Placeholder из appsettings.json (см. README → User Secrets).
-            if (url.StartsWith("CHANGE_ME", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            // Должен быть абсолютный URL со схемой http/https.
-            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
-                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-        }
+        private static bool IsRealProxyUrl(string url) =>
+            BrowserProxyHelper.IsRealProxyUrl(url);
     }
 }

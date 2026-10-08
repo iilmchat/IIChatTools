@@ -3169,6 +3169,67 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-219 — `browser_agent`: `get_content` переполняет контекст на реальных сайтах
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.7
+- **Обнаружено:** 2026-10-09 (smoke KI-128/KI-218 — `browser_agent` на rzd.ru).
+- **Файлы:** `BrowserSessionManager.cs`, `BrowserSessionControlTool.cs`,
+  `appsettings.json`, `appsettings.Development.json`.
+- **Описание:** На реальных сайтах (RZD, Госуслуги, маркетплейсы) команда
+  `browser_session_control(get_content)` возвращает HTML целиком.
+  RZD отдаёт ~200 000 символов (~56 357 токенов). На следующем шаге
+  LM Studio возвращает `400 exceed_context_size_error`
+  (context size 16384). SubAgent падает, LLM галлюцинирует успех:
+  «Скриншот сохранён как rzd.png», хотя файл не создан.
+- **Решение (v1.13.7):**
+  - **Новая команда `get_selectors`** — список интерактивных элементов
+    (`input, button, textarea, select, a[href]`) с готовыми CSS-селекторами
+    (`#id`, `tag[name="..."]`). Возвращает ≤ 30 элементов (~3k символов,
+    ~800 токенов вместо 56k).
+  - **`get_content` — лимит 200 000 → 10 000 символов.** Параметр
+    `maxLength` (default 10000, max 100000). В ответе — `hint`, что
+    для селекторов нужно использовать `get_selectors`.
+  - **SystemPrompt `browser_agent`:** правило 3 переписано —
+    «после открытия страницы СНАЧАЛА вызови `get_selectors()`,
+    НЕ используй `get_content` для поиска селекторов». Плюс блок
+    «НЕ ВЫДУМЫВАЙ УСПЕХ (KI-113)» — запрет писать «скриншот сохранён»
+    без фактического вызова `screenshot_to_file`.
+- **Связанные:** KI-128 (`browser_agent`), KI-218 (proxy placeholder),
+  KI-113 (галлюцинация успеха SubAgent).
+
+---
+
+### KI-218 — Browser-инструменты игнорируют placeholder прокси (регрессия KI-059)
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.6
+- **Обнаружено:** 2026-10-09 (smoke KI-128 — `browser_agent` на rzd.ru).
+- **Файлы:** `BrowserSessionManager.cs`, `BrowserOpenPageTool.cs`,
+  новый `BrowserProxyHelper.cs`.
+- **Описание:** `Browser:ProxyServer = "CHANGE_ME_VIA_USER_SECRETS"`
+  (placeholder из appsettings) трактовался как реальный прокси.
+  `BrowserSessionManager.BuildChromiumArgs()` передавал его в Chromium
+  как `--proxy-server=http://CHANGE_ME_VIA_USER_SECRETS` → навигация
+  падала с `net::ERR_PROXY_CONNECTION_FAILED`.
+  **KI-059 (v1.3.0)** закрыл эту проблему для `HttpClientFactory`, но
+  **browser-инструменты идут в обход** (`PuppeteerSharp` + собственный
+  `BuildChromiumArgs`). Проверка `IsRealProxyUrl` там не применялась.
+- **Бонус-баг:** аргументы `--disable-blink-features=AutomationControlled`
+  и `--window-size=1920,1080` (anti-detection) добавлялись **только
+  внутри** `if (proxy != null)` — без прокси Chromium их не получал.
+- **Решение (v1.13.6):**
+  - Новый `BrowserProxyHelper.IsRealProxyUrl(string)` в
+    `IIChatTools.Services/Implementation/` — единый источник истины
+    (переиспользуется из `Startup.IsRealProxyUrl`).
+  - `BrowserSessionManager.BuildChromiumArgs()`: `if (IsRealProxyUrl(proxy))`
+    вместо `if (!string.IsNullOrWhiteSpace(proxy))`.
+  - Anti-detection аргументы (`--disable-blink-features=AutomationControlled`,
+    `--window-size=1920,1080`) вынесены из блока прокси — добавляются
+    **всегда**.
+  - То же в `BrowserOpenPageTool.BuildChromiumArgs()`.
+  - `Startup.IsRealProxyUrl` → тонкая обёртка над `BrowserProxyHelper`
+    (DRY).
+- **Связанные:** KI-059 (первоисточник, Fixed v1.3.0), KI-128 (smoke).
+
+---
+
 ### KI-217 — README.md устарел (счётчики инструментов, PDF/DOCX, Chat-visible tools)
 - **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.5
 - **Обнаружено:** 2026-10-08 (пользователь, при актуализации KI-147).
