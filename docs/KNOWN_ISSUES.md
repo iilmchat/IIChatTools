@@ -3170,7 +3170,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-219 — `browser_agent`: `get_content` переполняет контекст на реальных сайтах
-- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.7
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.6
 - **Обнаружено:** 2026-10-09 (smoke KI-128/KI-218 — `browser_agent` на rzd.ru).
 - **Файлы:** `BrowserSessionManager.cs`, `BrowserSessionControlTool.cs`,
   `appsettings.json`, `appsettings.Development.json`.
@@ -3180,7 +3180,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   LM Studio возвращает `400 exceed_context_size_error`
   (context size 16384). SubAgent падает, LLM галлюцинирует успех:
   «Скриншот сохранён как rzd.png», хотя файл не создан.
-- **Решение (v1.13.7):**
+- **Решение (v1.13.6):**
   - **Новая команда `get_selectors`** — список интерактивных элементов
     (`input, button, textarea, select, a[href]`) с готовыми CSS-селекторами
     (`#id`, `tag[name="..."]`). Возвращает ≤ 30 элементов (~3k символов,
