@@ -409,20 +409,35 @@ function bindEvents() {
             searchInput?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
+                    e.stopPropagation();   // KI-207-fix5: не даём уйти на modal
                     navigatePagesSearch(e.shiftKey ? -1 : +1);
                 } else if (e.key === 'Escape') {
                     e.preventDefault();
                     e.stopPropagation();
+                    e.stopImmediatePropagation();
                     closePagesSearch();
                 }
             });
 
-            searchBar.querySelector('[data-action="prev"]')
-                ?.addEventListener('click', () => navigatePagesSearch(-1));
-            searchBar.querySelector('[data-action="next"]')
-                ?.addEventListener('click', () => navigatePagesSearch(+1));
-            searchBar.querySelector('[data-action="close"]')
-                ?.addEventListener('click', closePagesSearch);
+            // KI-207-fix5: data-search-action — отдельный атрибут, чтобы не
+            // ловить общий [data-action="close"] модалки (иначе ✕ в поиске
+            // закрывал всю модалку — обе функции на одной кнопке).
+            searchBar.querySelector('[data-search-action="prev"]')
+                ?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    navigatePagesSearch(-1);
+                });
+            searchBar.querySelector('[data-search-action="next"]')
+                ?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    navigatePagesSearch(+1);
+                });
+            searchBar.querySelector('[data-search-action="close"]')
+                ?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    closePagesSearch();
+                });
         }
     }
 
@@ -522,23 +537,21 @@ function bindEvents() {
     // KI-078B: Ctrl+K (⌘K-модалка поиска по всем чатам).
     // Проверяем !shiftKey/!altKey, чтобы не перехватывать Ctrl+Shift+B/F/K.
     // Работает только на /chat (модуль подключён только там).
-    // KI-207-fix4: window + capture + stopImmediatePropagation.
-    // document+capture не всегда перехватывал Ctrl+F до Chrome —
-    // иногда нативный поиск успевал открыться (нестабильно после F5).
-    // window — самый ранний уровень (capture идёт от window вниз).
+    // KI-207-fix5: e.code (физический код) вместо e.key (зависит от раскладки).
+    // На РУССКОЙ раскладке клавиша F даёт e.key === 'а' (кириллица) →
+    // наш обработчик не срабатывал, Chrome открывал нативный поиск.
+    // Это объясняло «нестабильность»: на EN работало, на RU — нет.
+    const isKey = (e, code, ...legacyKeys) => {
+        if (e.code) return e.code === code;
+        // Fallback для старых браузеров без KeyboardEvent.code.
+        return legacyKeys.some(k => e.key && e.key.toLowerCase() === k);
+    };
+
     window.addEventListener('keydown', (e) => {
-        // ==================================================================
-        // KI-207-fix: модалка страниц — ПРИОРИТЕТ №1.
-        // Блок вынесен в начало: иначе Ctrl+F (и другие) перехватываются
-        // ранее стоящими обработчиками (Ctrl+B/F/K ниже) и до модалки
-        // не долетают (плюс Chrome успевает открыть нативный поиск).
-        // ==================================================================
         const pmNav = document.getElementById('chat-pages-modal');
         if (pmNav && !pmNav.hidden) {
             // Ctrl+F — открыть поиск по text layer.
-            if (e.ctrlKey && !e.shiftKey && !e.altKey
-                && e.key.toLowerCase() === 'f')
-            {
+            if (e.ctrlKey && !e.shiftKey && !e.altKey && isKey(e, 'KeyF', 'f')) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
@@ -548,17 +561,20 @@ function bindEvents() {
 
             // Ctrl+= / Ctrl+- / Ctrl+0 — зум.
             if (e.ctrlKey || e.metaKey) {
-                if (e.key === '=' || e.key === '+') {
+                if (isKey(e, 'Equal', '=', '+')
+                    || isKey(e, 'NumpadAdd')) {
                     e.preventDefault();
                     setPagesZoom(getPagesZoom() + PAGES_ZOOM_STEP);
                     return;
                 }
-                if (e.key === '-' || e.key === '_') {
+                if (isKey(e, 'Minus', '-', '_')
+                    || isKey(e, 'NumpadSubtract')) {
                     e.preventDefault();
                     setPagesZoom(getPagesZoom() - PAGES_ZOOM_STEP);
                     return;
                 }
-                if (e.key === '0') {
+                if (isKey(e, 'Digit0', '0')
+                    || isKey(e, 'Numpad0')) {
                     e.preventDefault();
                     setPagesZoom(1.0);
                     return;
@@ -568,6 +584,8 @@ function bindEvents() {
             // Escape — закрыть поиск (если открыт) / потом модалку.
             if (e.key === 'Escape') {
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
                 const psb = document.getElementById('chat-pages-search-bar');
                 if (psb && !psb.hidden) {
                     closePagesSearch();
@@ -593,12 +611,9 @@ function bindEvents() {
                 }
             }
 
-            // Прочие Ctrl-хоткеи и Escape не обрабатываем, пока модалка
-            // открыта (чтобы не мешать браузеру/пользователю).
-            // Например, Ctrl+B / Ctrl+K — просто игнорируем.
+            // Прочие Ctrl-хоткеи — игнорируем.
             if (e.ctrlKey && !e.shiftKey && !e.altKey) {
-                const k = e.key.toLowerCase();
-                if (k === 'b' || k === 'k') {
+                if (isKey(e, 'KeyB', 'b') || isKey(e, 'KeyK', 'k')) {
                     e.preventDefault();
                     return;
                 }
@@ -609,18 +624,17 @@ function bindEvents() {
         // Ниже — глобальные hotkeys страницы /chat (модалка страниц закрыта).
         // ==================================================================
         if (e.ctrlKey && !e.shiftKey && !e.altKey) {
-            const k = e.key.toLowerCase();
-            if (k === 'b') {
+            if (isKey(e, 'KeyB', 'b')) {
                 e.preventDefault();
                 toggleSidebar();
                 return;
             }
-            if (k === 'f') {
+            if (isKey(e, 'KeyF', 'f')) {
                 e.preventDefault();
                 openChatSearch();
                 return;
             }
-            if (k === 'k') {
+            if (isKey(e, 'KeyK', 'k')) {
                 e.preventDefault();
                 openGlobalSearch();
                 return;
@@ -628,14 +642,12 @@ function bindEvents() {
         }
 
         if (e.key === 'Escape') {
-            // Приоритет 1: ⌘K-модалка.
             const gsModal = document.getElementById('chat-global-search');
             if (gsModal && !gsModal.hidden) {
                 e.preventDefault();
                 closeGlobalSearch();
                 return;
             }
-            // Приоритет 2: панель поиска по активному чату.
             const bar = document.getElementById('chat-search-bar');
             if (bar && !bar.hidden) {
                 e.preventDefault();
@@ -643,7 +655,7 @@ function bindEvents() {
                 return;
             }
         }
-    }, true);   // KI-207-fix4: capture phase на window
+    }, true);
 
     // KI-078A: клик вне панели поиска — закрыть (кроме клика по самой панели
     // и по кнопке-триггеру 🔍 в header).
@@ -5134,7 +5146,7 @@ async function loadPagesTextLayer(pageNumber) {
 
         renderTextLayer(wrap, normalized);
 
-        // KI-207-fix4: если есть активный поиск — подсвечиваем query
+        // KI-207-fix5: если есть активный поиск — подсвечиваем query
         // локально + скроллим к текущему совпадению в документе.
         if (viewer.searchQuery) {
             applyLocalHighlights(viewer.textLayer, viewer.searchQuery);
@@ -5145,7 +5157,7 @@ async function loadPagesTextLayer(pageNumber) {
             {
                 const hit = viewer.searchHits[viewer.searchIndex];
                 if (hit && hit.pageNumber === pageNumber) {
-                    scrollToSearchHitOnCurrentPage(hit.wordIndex, viewer.searchIndex);
+                    scrollToSearchHitOnCurrentPage(hit.startWord, hit.endWord);
                 }
             }
         }
@@ -5155,22 +5167,21 @@ async function loadPagesTextLayer(pageNumber) {
 }
 
 /**
- * KI-207-fix4: только локальная подсветка (без перезапуска префетча).
+ * KI-207-fix5: локальная подсветка через findMatchesInLayer
+ * (поддерживает compound-запросы).
  */
 function applyLocalHighlights(layer, query) {
     if (!layer || !query) return;
+    const viewer = state.pagesViewer;
+    if (!viewer || !viewer.textLayerDto) return;
+
     clearPagesSearchHighlights(layer);
-    const spans = layer.querySelectorAll('.chat-pages-text-word');
-    for (const span of spans) {
-        const text = (span.textContent || '').toLowerCase();
-        if (text.includes(query)) {
-            const mark = document.createElement('mark');
-            mark.className = 'chat-pages-search-hit';
-            while (span.firstChild) mark.appendChild(span.firstChild);
-            span.appendChild(mark);
-        }
+    const ranges = findMatchesInLayer(viewer.textLayerDto, query);
+    for (const r of ranges) {
+        highlightRange(layer, r.startWord, r.endWord, false);
     }
 }
+
 /**
  * KI-207: рендерит прозрачный text layer поверх <img>.
  * @param {HTMLElement} wrap
@@ -5295,12 +5306,93 @@ function closePagesSearch() {
 }
 
 /**
- * KI-207: применяет поиск: подсвечивает слова, содержащие query (case-insensitive).
+ * KI-207-fix5: находит все вхождения query в text layer'е страницы.
+ * Поддерживает составные запросы («добровольных имущественных») через
+ * join слов с пробелом + поиск по плоской строке.
  *
- * <para>
- * MVP — поиск внутри одного слова. Кросс-словесный поиск (по flat text)
- * — отложен в следующую итерацию.
- * </para>
+ * @param {object} layer — { width, height, words: [...] }
+ * @param {string} query — поисковый запрос.
+ * @returns {Array<{startWord: number, endWord: number}>}
+ *          Диапазоны слов (индексы в layer.words), покрывающие вхождение.
+ */
+function findMatchesInLayer(layer, query) {
+    const q = (query || '').trim().toLowerCase();
+    if (!q || !layer || !Array.isArray(layer.words)) return [];
+
+    // Простой случай: одно слово (без пробелов в query) — быстрый includes.
+    if (!q.includes(' ')) {
+        const out = [];
+        for (let i = 0; i < layer.words.length; i++) {
+            const text = (layer.words[i].text || '').toLowerCase();
+            if (text.includes(q)) {
+                out.push({ startWord: i, endWord: i });
+            }
+        }
+        return out;
+    }
+
+    // Составной запрос: склеиваем слова пробелом, ищем по плоской строке.
+    const words = layer.words;
+    const starts = new Array(words.length);
+    let pos = 0;
+    for (let i = 0; i < words.length; i++) {
+        starts[i] = pos;
+        pos += (words[i].text || '').length + 1;   // +1 за пробел
+    }
+    const flat = words.map(w => (w.text || '').toLowerCase()).join(' ');
+
+    const matches = [];
+    let idx = flat.indexOf(q);
+    while (idx >= 0) {
+        const end = idx + q.length;
+        let startWord = -1;
+        let endWord = -1;
+        for (let i = 0; i < words.length; i++) {
+            const ws = starts[i];
+            const we = ws + (words[i].text || '').length;
+            if (we <= idx) continue;    // слово целиком до начала
+            if (ws >= end) break;        // слово целиком после конца
+            if (startWord < 0) startWord = i;
+            endWord = i;
+        }
+        if (startWord >= 0) {
+            matches.push({ startWord, endWord });
+        }
+        idx = flat.indexOf(q, idx + 1);
+    }
+    return matches;
+}
+
+/**
+ * KI-207-fix5: подсвечивает конкретный диапазон слов (для активного совпадения).
+ */
+function highlightRange(layer, startWord, endWord, active) {
+    if (!layer) return;
+    for (let i = startWord; i <= endWord; i++) {
+        const span = layer.querySelector(
+            `.chat-pages-text-word[data-word-index="${i}"]`);
+        if (!span) continue;
+        let mark = span.querySelector('.chat-pages-search-hit');
+        if (!mark) {
+            // Если ещё не обёрнуто — оборачиваем.
+            if (span.querySelector('.chat-pages-search-hit') == null) {
+                const textNodes = Array.from(span.childNodes);
+                if (textNodes.length === 0) continue;
+                mark = document.createElement('mark');
+                mark.className = 'chat-pages-search-hit';
+                while (span.firstChild) mark.appendChild(span.firstChild);
+                span.appendChild(mark);
+            } else {
+                mark = span.querySelector('.chat-pages-search-hit');
+            }
+        }
+        if (active) mark.classList.add('chat-pages-search-hit-active');
+    }
+}
+
+/**
+ * KI-207: применяет поиск: подсвечивает слова, содержащие query (case-insensitive).
+ * KI-207-fix5: поддержка составных запросов.
  */
 function applyPagesSearch(query) {
     const viewer = state.pagesViewer;
@@ -5313,15 +5405,11 @@ function applyPagesSearch(query) {
     if (viewer.textLayer) {
         clearPagesSearchHighlights(viewer.textLayer);
         if (q) {
-            const spans = viewer.textLayer.querySelectorAll('.chat-pages-text-word');
-            for (const span of spans) {
-                const text = (span.textContent || '').toLowerCase();
-                if (text.includes(q)) {
-                    const mark = document.createElement('mark');
-                    mark.className = 'chat-pages-search-hit';
-                    while (span.firstChild) mark.appendChild(span.firstChild);
-                    span.appendChild(mark);
-                }
+            // KI-207-fix5: через findMatchesInLayer — compound-запросы.
+            const localLayer = viewer.textLayerDto;
+            const ranges = findMatchesInLayer(localLayer, q);
+            for (const r of ranges) {
+                highlightRange(viewer.textLayer, r.startWord, r.endWord, false);
             }
         }
     }
@@ -5426,16 +5514,19 @@ async function startDocumentSearch(query) {
     if (viewer.searchQuery !== queryAtStart) return;
     if (viewer.searchPrefetchAbort !== myAbort) return;
 
-    // Считаем все совпадения по документу.
+    // KI-207-fix5: считаем все совпадения по документу, сохраняя
+    // диапазон слов (для compound-запросов).
     const allHits = [];
     for (let p = 1; p <= viewer.totalPages; p++) {
         const layer = cache[p];
         if (!layer) continue;
-        for (let i = 0; i < layer.words.length; i++) {
-            const text = (layer.words[i].text || '').toLowerCase();
-            if (text.includes(queryAtStart)) {
-                allHits.push({ pageNumber: p, wordIndex: i });
-            }
+        const ranges = findMatchesInLayer(layer, queryAtStart);
+        for (const r of ranges) {
+            allHits.push({
+                pageNumber: p,
+                startWord: r.startWord,
+                endWord: r.endWord
+            });
         }
     }
 
@@ -5452,7 +5543,8 @@ async function startDocumentSearch(query) {
     if (idxOnCurrent >= 0) {
         viewer.searchIndex = idxOnCurrent;
         updatePagesSearchCounter(idxOnCurrent + 1, allHits.length);
-        scrollToSearchHitOnCurrentPage(allHits[idxOnCurrent].wordIndex, idxOnCurrent);
+        const hit = allHits[idxOnCurrent];
+        scrollToSearchHitOnCurrentPage(hit.startWord, hit.endWord);
     } else {
         // Первое совпадение в документе — переходим на его страницу.
         viewer.searchIndex = 0;
@@ -5472,16 +5564,12 @@ function navigatePagesSearch(delta) {
     const viewer = state.pagesViewer;
     if (!viewer) return;
 
-    // KI-207-fix4: поиск по документу — все hits в viewer.searchHits.
     if (!viewer.searchHits || viewer.searchHits.length === 0) {
-        // Если префетч ещё идёт — прогресс уже показан, ничего не делаем.
         return;
     }
 
     const n = viewer.searchHits.length;
     let idx = (viewer.searchIndex ?? 0) + delta;
-
-    // Циклический переход по документу.
     idx = ((idx % n) + n) % n;
 
     viewer.searchIndex = idx;
@@ -5489,7 +5577,7 @@ function navigatePagesSearch(delta) {
 
     const hit = viewer.searchHits[idx];
     if (hit.pageNumber === viewer.currentPage) {
-        scrollToSearchHitOnCurrentPage(hit.wordIndex, idx);
+        scrollToSearchHitOnCurrentPage(hit.startWord, hit.endWord);
     } else {
         // Переходим на другую страницу; после loadPagesTextLayer
         // подсветка/скролл сработают автоматически через
@@ -5499,13 +5587,10 @@ function navigatePagesSearch(delta) {
 }
 
 /**
- * KI-207-fix4: скроллит и подсвечивает слово по его индексу в words[]
- * текущей страницы.
- *
- * @param {number} wordIndex — индекс в words[] (natural, не в DOM).
- * @param {number} globalIdx — индекс в viewer.searchHits (для active-mark).
+ * KI-207-fix5: скроллит и подсвечивает диапазон слов [startWord, endWord]
+ * на текущей странице.
  */
-function scrollToSearchHitOnCurrentPage(wordIndex, globalIdx) {
+function scrollToSearchHitOnCurrentPage(startWord, endWord) {
     const viewer = state.pagesViewer;
     if (!viewer?.textLayer) return;
 
@@ -5513,23 +5598,35 @@ function scrollToSearchHitOnCurrentPage(wordIndex, globalIdx) {
     viewer.textLayer.querySelectorAll('.chat-pages-search-hit-active')
         .forEach(el => el.classList.remove('chat-pages-search-hit-active'));
 
-    // Ищем span по data-word-index.
-    const span = viewer.textLayer.querySelector(
-        `.chat-pages-text-word[data-word-index="${wordIndex}"]`);
-    if (!span) return;
+    // Подсвечиваем весь диапазон.
+    let firstSpan = null;
+    for (let i = startWord; i <= endWord; i++) {
+        const span = viewer.textLayer.querySelector(
+            `.chat-pages-text-word[data-word-index="${i}"]`);
+        if (!span) continue;
 
-    const mark = span.querySelector('.chat-pages-search-hit');
-    if (mark) mark.classList.add('chat-pages-search-hit-active');
+        let mark = span.querySelector('.chat-pages-search-hit');
+        if (!mark) {
+            // Ещё не обёрнуто — оборачиваем.
+            mark = document.createElement('mark');
+            mark.className = 'chat-pages-search-hit';
+            while (span.firstChild) mark.appendChild(span.firstChild);
+            span.appendChild(mark);
+        }
+        mark.classList.add('chat-pages-search-hit-active');
+        if (!firstSpan) firstSpan = span;
+    }
 
-    // Скролл.
+    // Скролл к первому слову диапазона.
+    if (!firstSpan) return;
     const viewport = document.querySelector('.chat-pages-viewport');
     if (viewport) {
-        const spanRect = span.getBoundingClientRect();
+        const spanRect = firstSpan.getBoundingClientRect();
         const viewRect = viewport.getBoundingClientRect();
         if (spanRect.top < viewRect.top || spanRect.bottom > viewRect.bottom) {
-            const targetY = span.offsetTop * (viewer.zoom || 1)
+            const targetY = firstSpan.offsetTop * (viewer.zoom || 1)
                 - viewport.clientHeight / 2
-                + (span.offsetHeight * (viewer.zoom || 1)) / 2;
+                + (firstSpan.offsetHeight * (viewer.zoom || 1)) / 2;
             viewport.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
         }
     }

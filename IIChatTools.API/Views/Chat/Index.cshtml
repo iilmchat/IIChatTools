@@ -435,13 +435,15 @@
                            autocomplete="off"
                            placeholder="@Localizer["RagPagesSearchPlaceholder"]" />
                     <span class="chat-pages-search-counter" id="chat-pages-search-counter">0 / 0</span>
-                    <button type="button" class="chat-pages-search-btn" data-action="prev"
+                    <!-- KI-207-fix5: data-search-action — свой атрибут, чтобы не
+                         конфликтовать с общим [data-action="close"] на модалке. -->
+                    <button type="button" class="chat-pages-search-btn" data-search-action="prev"
                             title="@Localizer["RagPagesSearchPrev"]"
                             aria-label="@Localizer["RagPagesSearchPrev"]">↑</button>
-                    <button type="button" class="chat-pages-search-btn" data-action="next"
+                    <button type="button" class="chat-pages-search-btn" data-search-action="next"
                             title="@Localizer["RagPagesSearchNext"]"
                             aria-label="@Localizer["RagPagesSearchNext"]">↓</button>
-                    <button type="button" class="chat-pages-search-btn" data-action="close"
+                    <button type="button" class="chat-pages-search-btn" data-search-action="close"
                             title="@Localizer["RagPagesSearchClose"]"
                             aria-label="@Localizer["RagPagesSearchClose"]">✕</button>
                 </div>
