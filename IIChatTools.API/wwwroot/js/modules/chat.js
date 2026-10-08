@@ -5110,7 +5110,14 @@ async function loadPagesTextLayer(pageNumber) {
         // apiGet умеет парсить { success, data }; но endpoint возвращает
         // «сырой» JSON PageTextLayerDto при успехе. Поэтому fetch напрямую.
         const response = await fetch(url, { credentials: 'same-origin' });
-        if (!response.ok) return;   // 404 / 500 — тихо пропускаем.
+        // KI-208-fix3: 404 (нет text layer) / 429 (rate limit) / 500 —
+        // тихо пропускаем. Frontend просто не рендерит слой.
+        if (!response.ok) {
+            if (response.status === 429) {
+                console.debug('[chat] text layer: rate limit (429) на page', pageNumber);
+            }
+            return;
+        }
 
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) return;
@@ -5814,8 +5821,25 @@ async function exportPagesPdf() {
         // 4. Для каждой страницы: PNG + text layer.
         for (let p = 1; p <= viewer.totalPages; p++) {
             // 4.1. Загружаем PNG.
+            // KI-208-fix3: проверка content-type. При 429 / 500 сервер
+            // отдаёт JSON, и embedPng падает с невнятной ошибкой
+            // «The input is not a PNG file!». Читаем тип + понятный throw.
             const pngUrl = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${p}`;
-            const pngBuf = await fetch(pngUrl).then(r => r.arrayBuffer());
+            const pngResp = await fetch(pngUrl);
+
+            if (!pngResp.ok) {
+                throw new Error(
+                    `страница ${p}: HTTP ${pngResp.status}` +
+                    (pngResp.status === 429 ? ' (превышен лимит запросов, попробуйте через минуту)' : ''));
+            }
+
+            const ct = pngResp.headers.get('content-type') || '';
+            if (!ct.includes('image/png')) {
+                throw new Error(
+                    `страница ${p}: ожидался PNG, получен ${ct || 'unknown'}`);
+            }
+
+            const pngBuf = await pngResp.arrayBuffer();
             const pngImage = await pdfDoc.embedPng(pngBuf);
 
             const pageW = pngImage.width;
