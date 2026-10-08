@@ -2158,37 +2158,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
-### KI-127 — Chat LLM не выбирает `code_agent_with_review` для кодинг-задач
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Обнаружено:** 2026-10-01
-- **Файлы:** `SubAgents:code_agent_with_review:Description` (appsettings.json +
-    appsettings.Development.json), `ChatStreamService.DefaultSystemPrompt`.
-- **Описание:** Chat LLM (qwen3-4b) при запросе «Напиши функцию на Python для
-    проверки палиндрома» выбирает **`code_agent`** напрямую, а не
-    `code_agent_with_review`. Даже когда задача явно требует review
-    (edge cases — регистр, пробелы, unicode). Аналогично KI-118
-    (`code_agent` не вызывается для простых задач).
-- **Симптом:** в DevTools видно `Approval required: code_agent` (не
-    `code_agent_with_review`); таблица `AgentDebateSessions` пуста; SSE
-    `debate_*` события не эмитятся (persistence by design при
-    `ChatId != null` не срабатывает — потому что tool не вызван).
-- **Не баг:** `code_agent_with_review` зарегистрирован, виден через
-    `/api/tools`, работает через прямой вызов `/api/tools/execute`
-    (правда, без persistence — ChatId = null) и через Chat при явном
-    вызове LLM. Ограничение выбора модели.
-- **Возможные решения (митигация — Шаг 1E-fix3, v1.11.0):**
-    - Усилить `Description`: явно просить использовать **`code_agent_with_review`**
-        для задач со словами «алгоритм», «парсер», «валидация», «безопасность»,
-        «edge cases», «обработать исключения».
-    - Добавить в `ChatStreamService.DefaultSystemPrompt` правило:
-        «Для сложных задач кодинга (алгоритмы, парсеры, security-критичный код,
-        обработка edge cases) используй `code_agent_with_review`. Для простых
-        (rename, add import) — `code_agent`.»
-    - Опционально: `SubAgents:code_agent_with_review:AlwaysReview = true`
-        (в DEVELOPMENT) — жёсткий форсинг для smoke-тестов.
-- **Связанные:** KI-118 (`code_agent` для простых задач), KI-126 (Шаг 1E).
-
----
-
 ### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate)
 
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
@@ -3043,36 +3012,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
-### KI-144 — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone)
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
-- **Обнаружено:** 2026-10-04 (smoke Speech Recognition, Chrome)
-- **Файлы:** клиентская конфигурация браузера + Windows.
-- **Описание:** На машинах с установленным Steam / VB-Cable / OBS Virtual Audio /
-  VoiceMeeter Chrome может выбрать по умолчанию **виртуальное** audio-устройство
-  (например, «Микрофон (Steam Streaming Microphone)»). Такое устройство
-  возвращает валидный `MediaStreamTrack` через `getUserMedia`, но **все сэмплы
-  = 0** (`maxAbs=0.000000`) — оно не связано с реальным железом.
-  Симптом: `[speech] track.read() #N: ... maxAbs=0.000000`, ранний выход
-  `Входной сигнал полностью нулевой`, Whisper не вызывается.
-  Yandex Browser ведёт себя иначе (либо игнорирует virtual, либо использует
-  другой default) — тот же код работает.
-- **Не баг приложения:** `speech.js` корректен, диагностика (maxAbs в первых
-  3 чанках + ранний выход при `RMS < 1e-5`) сработала, Whisper не
-  сгаллюцинировал на нулевом входе. Проблема в конфигурации браузера + Windows.
-- **Решение (для пользователя):**
-  1. `chrome://settings/content/microphone` → найти `localhost:5001` (или свой
-     домен) → в выпадающем списке выбрать **физический** микрофон
-     (не Steam Streaming / VB-Cable / Virtual Audio / VoiceMeeter).
-  2. Проверить `Параметры Windows → Конфиденциальность → Микрофон` —
-     Chrome должен иметь разрешение.
-- **Профилактика (v1.13.1-fix7):**
-  - `speech.js` логирует `label` и `deviceId` устройства при старте записи.
-  - Сообщение об ошибке при нулевом сигнале содержит имя устройства + ссылку
-    на `chrome://settings/content/microphone`.
-- **Связанные:** KI-140 (Speech Recognition).
-
----
-
 ### KI-140 — Голосовой ввод в чате (офлайн-распознавание речи, Whisper.net)
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.0
 - **Реализовано:** 2026-10-04. Backend (`WhisperNetTranscriptionService` +
@@ -3497,6 +3436,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-155 — Vision Agent: Chrome остаётся без фокуса после `OpenAsync` (v1.12.x)
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
+- **Примечание (2026-10-08):** семантический дубль **KI-148**. Оставлен
+  для истории (KI-id уже задействован, см. правило ведения § 7 «даже если
+  это не баг — запись нужна»). Актуальные детали — в KI-148.
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `LocalHarnessVisionBackend.TryRefocusChromeAsync`, `Win32Interop.cs`.
 - **Симптом:** Перед mutation-действием (`ClickAsync` / `TypeAsync` /
@@ -4818,7 +4760,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-214 — Интеграция KNOWN_ISSUES.md с GitHub Issues (витрина)
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.3
 - **Обнаружено:** 2026-10-08 (обсуждение с пользователем).
 - **Файлы (план):**
   - `scripts/sync-known-issues.ps1` (новый).
@@ -4934,7 +4876,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **102** |
+| **Всего** | **195** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
@@ -4942,7 +4884,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content), KI-069 (inline-edit в sidebar).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 **Implemented (v1.7.0):** KI-088 (`docs/TESTING.md` — чек-лист ручной приёмки).
-**Всего в реестре:** 102 KI.
+**Всего в реестре:** 195 KI.
 
 ---
 

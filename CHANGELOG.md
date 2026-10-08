@@ -22,6 +22,39 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.3] — 2026-10-08
+
+**Синхронизация `KNOWN_ISSUES.md` с GitHub Issues (KI-214) + fix regex.**
+Витрина Issues создана: **195 секций → 193 создано, 2 обновлено, 0 ошибок**.
+Попутно: fix regex статуса для `**Статус:** ✅ **Fixed (v1.13.x)**` (KI-207/208),
+CI-триггер `.github/workflows/sync-issues.yml`, обновлён
+`docs/development/KI_GITHUB_SYNC.md` до v1.1.
+
+**Тесты:** без изменений (docs-only + скрипт + workflow).
+
+### Added
+- **CI-триггер `.github/workflows/sync-issues.yml`** — автоматический
+  запуск `scripts/sync-known-issues.ps1` на push в `main` при изменении
+  `docs/KNOWN_ISSUES.md` (manual trigger `workflow_dispatch` — тоже
+  доступен). Permissions: `contents: read`, `issues: write`.
+- **`docs/development/KI_GITHUB_SYNC.md` v1.1** — новый § 8 «Результат
+  первого прогона» (метрики, артефакты), fix-кейс в § 7 про
+  `status-unknown` (regex с эмодзи), актуализация: 102 KI → **195**.
+
+### Fixed
+- **Regex статуса в `scripts/sync-known-issues.ps1`** — не матчил
+  `**Статус:** ✅ **Fixed (v1.13.x)**` (эмодзи перед `**Fixed**`).
+  Из-за этого KI-207/208 получили label `status-unknown`. Regex расширен:
+  `\*\*Статус:\*\*\s*[✅❌⚠️📝🔄\s]*\*{0,2}\s*([^|*\n]+)`.
+
+### Changed
+- **KI-214 → Fixed (v1.13.3)** в `docs/KNOWN_ISSUES.md`.
+- **KI-155** — пометка «семантический дубль KI-148» (для истории).
+- **Сводка в `docs/KNOWN_ISSUES.md`** — `102` → `195` KI (устарела на
+  несколько десятков; реальное число секций подтверждено прогоном скрипта).
+
+---
+
 ## [1.13.2] — 2026-10-08
 
 **Vision Agent: OCR-fallback для мелкого текста (KI-137).**

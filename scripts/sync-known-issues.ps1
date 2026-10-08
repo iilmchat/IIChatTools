@@ -123,7 +123,7 @@ for ($i = 0; $i -lt $lines.Length; $i++) {
     $status = "unknown"
     $statusLine = $bodyLines | Where-Object { $_ -match '\*\*Статус:\*\*' } | Select-Object -First 1
     if ($statusLine) {
-        if ($statusLine -match '\*\*Статус:\*\*\s*\*{0,2}\s*([^|*\n]+)') {
+        if ($statusLine -match '\*\*Статус:\*\*\s*[✅❌⚠️📝🔄\s]*\*{0,2}\s*([^|*\n]+)') {
             $rawStatus = $Matches[1].Trim().TrimEnd('*').Trim()
             $s = $rawStatus.ToLowerInvariant()
 
