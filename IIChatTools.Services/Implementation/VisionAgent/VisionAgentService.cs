@@ -61,6 +61,10 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <param name="rateLimiter">Rate limiter (5 задач / 5 мин per-user).</param>
         /// <param name="screenshotStore">Хранилище скриншотов (workspace).</param>
         /// <param name="overlayLauncher">Launcher on-screen indicator'а (Ф6.8: Noop).</param>
+        /// <param name="ocr">
+        /// OCR-сервис для full-res распознавания текста (KI-137). Используется
+        /// при Trigger A / B — обогащение VL-описания мелким текстом.
+        /// </param>
         /// <param name="options">Настройки Vision Agent.</param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если один из параметров null.</exception>

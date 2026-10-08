@@ -100,6 +100,16 @@
   - **Fix CS1734** в `OcrVlMergeHelper`: `<paramref name="maxDistancePx"/>`
     в `<remarks>` класса → `<c>maxDistancePx</c>` (параметр — в методе
     `Merge`, не в классе).
+  - **Fix CS1573** в `VisionAgentService`: добавлен `<param name="ocr">`
+    в XML-doc конструктора (был пропущен в Ф4).
+  - **Build 0/0. Тесты 1080/1080 (без изменений).**
+
+- **v1.13.x (KI-137, Ф6) — Vision Agent: секция `VisionAgent:Ocr` в appsettings**:
+  - `appsettings.json` (prod): `VisionAgent:Ocr:Enabled = false` —
+    OCR выключен по умолчанию, безопасный дефолт.
+  - `appsettings.Development.json`: `Enabled = true` — для smoke-тестов.
+  - Все параметры: `TessDataPath`, `Languages`, `TriggerA`, `TriggerB`,
+    `ShortLabelThreshold = 3`, `MergeMaxDistancePx = 30`.
   - **Build 0/0. Тесты 1080/1080 (без изменений).**
 
 - **v1.13.x (KI-207) — RAG: Page viewer — text layer + поиск + выделение**:
