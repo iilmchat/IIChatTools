@@ -18,6 +18,18 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.13.2] — 2026-10-08
+
+**Vision Agent: OCR-fallback для мелкого текста (KI-137).**
+Триггеры A (проактивный) и B (реактивный), full-res PNG для OCR,
+merge OCR-слов в `ui_elements` через центр bbox, `OcrText` в результат.
+Плюс накопленные RAG page viewer доработки (KI-203, KI-205, KI-206,
+KI-207) и серия Vision Planner fixes (KI-176..KI-202).
+
 ### Documented
 - **v1.13.x (KI-137) — Vision Agent: OCR-fallback для мелкого текста**:
   зарегистрирован DESIGN-документ

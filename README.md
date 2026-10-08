@@ -1,10 +1,10 @@
-# IIChatTools v1.13.1
+# IIChatTools v1.13.2
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.1
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.2
 
 ---
 
@@ -1125,8 +1125,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.1
-    docker pull ghcr.io/iilmchat/iichattools:1.13.1
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.2
+    docker pull ghcr.io/iilmchat/iichattools:1.13.2
     docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 
