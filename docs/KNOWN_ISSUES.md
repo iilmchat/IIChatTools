@@ -2780,10 +2780,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-137 — Vision Agent: OCR-fallback для мелкого текста
-- **Приоритет:** 🟢 Low | **Статус:** In Progress | **Запланировано:** v1.13.x
-- **Обнаружено:** 2026-10-03
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-03 | **Устранено:** 2026-10-08
 - **DESIGN:** [`docs/development/v1.13/DESIGN_VISION_OCR.md`](development/v1.13/DESIGN_VISION_OCR.md)
-  (v1.0 Draft, 2026-10-08).
+  (v1.0 Implemented, 2026-10-08).
 - **Описание:** VL-модели (Qwen2.5-VL-7B, Ministral-3B) **плохо читают
   мелкий текст** на скриншотах — 8-10px шрифты в формах, капчу (не для обхода,
   а для чтения «введите код»), таблицы с плотной вёрсткой. VL-модель даёт общее
@@ -2809,10 +2809,53 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     своя секция конфига `VisionAgent:Ocr` (не смешивается с `Rag:Ingestion:Ocr`).
 - **Что НЕ входит:** PII masking (KI-138), External VL (KI-139/141),
   Set-of-Mark (KI-163), OCR-first для текстовых элементов.
-- **Оценка:** ~3.5 ч (8 фаз).
-- **Связанные:** KI-131 (Vision Agent), KI-203 (RAG OCR — общий сервис),
-  KI-161 (CDP-attach — не конфликтует), KI-138 (PII — отдельно),
-  KI-139 (External VL — альтернатива).
+
+- **Реализация (8 фаз, 6 коммитов + регистрация):**
+  - **Ф1** (`dceb49b`) — DTO (`FullResolutionScreenshotDto`,
+    `VisionOcrOptions`) + поля (`UiElementDto.Source`,
+    `ScreenDescriptionDto.OcrText` / `OcrWordsCount`,
+    `VisionTaskResultDto.OcrText`, `VisionAgentOptions.Ocr`).
+  - **Ф2** (`897bb58`) — `IVisionBackend.ScreenshotFullResolutionAsync`
+    (default → `null`) + override в `LocalHarnessVisionBackend`
+    (GDI без downscale).
+  - **Ф3** — `OcrVlMergeHelper` (static; merge через центр bbox).
+  - **Ф4+Ф5** (`973626b`) — `VisionAgentService`: `+IOcrService`,
+    `ShouldRunOcrA`, `EnrichWithOcrAsync`, Trigger A/B; fakes + тесты.
+  - **Ф6** (`5d082c2`) — секция `VisionAgent:Ocr` в обоих `appsettings`.
+  - **Ф7** (`e1e2cd8`) — `OcrVlMergeHelperTests` (14) +
+    `VisionAgentServiceTests` (+3).
+  - **Тесты:** 1080 → **1097**.
+
+- **Smoke (2026-10-08, Wikipedia-портал):**
+  - ✅ `TesseractOcrService` инициализируется (`tools/tessdata`,
+    `rus+eng`).
+  - ✅ `ScreenshotFullResolutionAsync` возвращает PNG 1920×1200
+    (без downscale).
+  - ✅ Trigger A срабатывает: `ui_elements=[]` на первом кадре →
+    OCR → 186 слов распознано.
+  - ✅ `OcrVlMergeHelper.Merge` не падает: `0 элементов обогащено`
+    (обоснованно — VL вернул `ui_elements=[]`, матчить не с чем).
+  - ✅ Graceful: без exception, задача завершилась по timeout.
+  - ⚠️ **Общий успех задачи — нет.** Причина **не в OCR**, а в
+    KI-215 (VL эмитил `center` как expression → `ui_elements=[]`)
+    и KI-216 (медленная VL → `MaxTaskSeconds=500` исчерпан на 2 шагах).
+    См. «Известные ограничения».
+
+- **Известные ограничения (не блокеры):**
+  - `MergeMaxDistancePx=30` — консервативно; на маленьких кнопках
+    (29×29 px) OCR-слово может не привязаться к элементу.
+  - `OcrText` заполняется (186 слов), но `Planner` его не использует
+    (нужны координаты, не строки).
+  - **Особенность:** если VL вернул `ui_elements=[]` — OCR обогащает
+    `OcrText`, но не создаёт элементы (в `ui_elements` нечего
+    матчить). Это by design (DESIGN § 2.2, п. 4).
+  - Полная ценность OCR проявится, когда VL вернёт **невалидные
+    label'ы** (пустые/короткие), а не пустой список.
+
+- **Связанные:** KI-215 (VL `center` expression — Fixed), KI-216
+  (`MaxTaskSeconds` — Planned), KI-131 (Vision Agent), KI-203
+  (RAG OCR — общий сервис), KI-161 (CDP-attach — не конфликтует),
+  KI-138 (PII — отдельно), KI-139 (External VL — альтернатива).
 
 ---
 
@@ -5063,6 +5106,85 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ---
 
+
+### KI-214 — Интеграция KNOWN_ISSUES.md с GitHub Issues (витрина)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
+- **Обнаружено:** 2026-10-08 (обсуждение с пользователем).
+- **Файлы (план):**
+  - `scripts/sync-known-issues.ps1` (новый).
+  - `.github/workflows/sync-issues.yml` (опционально).
+  - `docs/development/KI_GITHUB_SYNC.md` (новый — документация).
+- **Описание:** `docs/KNOWN_ISSUES.md` — единый реестр 100+ KI в плоском
+  Markdown. Просматривать его неудобно: нет фильтрации, сортировки,
+  поиска по label'ам. GitHub Issues дают нативный UI, но полный
+  рефакторинг на Issues потеряет `git-blame` и Markdown-историю.
+- **Подход B (витрина, согласован):**
+  - `KNOWN_ISSUES.md` — **единственный source of truth** (скрипт его
+    только читает).
+  - `scripts/sync-known-issues.ps1` **парсит** MD и создаёт/обновляет
+    GitHub Issues — витрину.
+  - Двусторонней синхронизации **нет** (правки в Issues игнорируются).
+- **Решения при реализации (уточняемы):**
+  1. **Триггер:** manual-only (`pwsh scripts/sync-known-issues.ps1`).
+     CI-триггер на push в `main` — опционально, отдельным решением.
+  2. **Комментарии:** отключены (avoid divergence с MD).
+  3. **Все KI** (включая Fixed) получают Issues. Fixed — закрытые.
+  4. **Формат title:** `KI-XXX: Название`.
+  5. **Milestones:** не используем (пока).
+  6. **Body:** копия секции MD (полная), без ссылок на строки.
+  7. **Labels:** `ki` + `priority-{critical|high|medium|low}` +
+     `status-{fixed|planned|documented|deferred|in-progress|open}`.
+- **Оценка:** ~2-3 ч.
+- **Связанные:** KI-215 (найден до регистрации витрины — становится
+  первым кандидатом на «демо»), KI-137.
+
+---
+
+
+### KI-216 — Vision Agent: `MaxTaskSeconds = 500` недостаточно для сложных задач
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-08 (smoke KI-137 — Wikipedia-портал).
+- **Файлы:** `IIChatTools.API/appsettings.Development.json` (секция
+  `VisionAgent:Limits:MaxTaskSeconds`), при необходимости — конфиг LM Studio.
+- **Симптом:** smoke KI-137 (task `vt_dfcaf3f3`, Wikipedia-портал):
+  Vision Agent упёрся в `MaxTaskSeconds=500` на **2 шагах** loop'а:
+
+      VisionAgent[vt_dfcaf3f3]: timeout 500s, steps=2
+      VisionAgent[vt_dfcaf3f3]: завершено (success=False, steps=2, ms=500028):
+        Превышен лимит времени задачи (500 с).
+
+  Каждый VL-вызов (`qwen2.5-vl-7b-instruct`, Q4_K_M) на полном
+  скриншоте 1920×1200 занимает **~100 секунд**:
+
+      qwen2.5-vl-7b-instruct: prompt eval time = 24716 ms / 3396 tokens
+                              eval time       = 88819 ms / 678 tokens
+                              total           = 100727 ms
+
+  При 4 ожидаемых VL-вызовах (2 describe + 2 planner) — 400 с, плюс
+  planner (~30-50 с), плюс planner на реальной задаче — легко
+  переваливает за 500 с.
+
+- **Дополнительно:** в логе LM Studio модель загружена с
+  `n_ctx_slot = 8192` (вместо ожидаемых 16384 для агентов — см.
+  KI-117). Возможно, требуется ручная перенастройка в UI LM Studio.
+- **Возможные решения:**
+  1. **Увеличить `MaxTaskSeconds` в dev** (500 → 900). Дёшево,
+     но замедляет «плохие» сценарии.
+  2. **Оптимизировать промпт `VisionUiDescribe`** — сократить
+     description до 1 предложения, ограничить bounds-контекст.
+  3. **Перейти на меньшую VL-модель** (`qwen2.5-vl-3b-instruct`) —
+     быстрее (примерно 2×), но менее точная.
+  4. **GPU-offload в LM Studio** — выкрутить все слои на GPU
+     (в smoke использовались дефолтные настройки).
+- **Оценка:** ~30 мин (решение 1) / ~2-3 ч (решения 2-4).
+- **Связанные:** KI-137 (обнаружено при smoke), KI-215 (VL `center`
+  expression — Fixed), KI-117 (`Context Length ≥ 16384`).
+
+---
+
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -5095,12 +5217,12 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
 | Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
-| Fixed (v1.13.x, KI-203/215) | 2 | <!-- KI-203 (RAG PDF OCR), KI-215 (VL center expression) -->
-| Planned | 12 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205 -->
+| Fixed (v1.13.x, KI-137/203/215) | 3 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression) -->
+| Planned | 14 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214, KI-216 -->
 | In Progress | 1 |                   <!-- KI-137 (Vision OCR) -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **100** |
+| **Всего** | **102** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).

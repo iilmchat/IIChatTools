@@ -33,6 +33,29 @@
   - **Оценка:** ~3.5 ч (8 фаз). См. DESIGN § 10.
 
 ### Added
+- **v1.13.x (KI-137) — Vision Agent: OCR-fallback завершён**:
+  - **8 фаз, 5 коммитов** (Ф1: `dceb49b`, Ф2: `897bb58`,
+    Ф3+Ф4+Ф5: `973626b`, Ф6: `5d082c2`, Ф7: `e1e2cd8`).
+  - **Сервисы:** `IOcrService.RecognizeWithLayoutAsync` переиспользован
+    из KI-203 (RAG OCR); общий `TesseractOcrService` (Singleton).
+  - **Новые DTO:** `FullResolutionScreenshotDto`, `VisionOcrOptions`.
+  - **Расширенные:** `UiElementDto.Source` (`"vl"|"ocr"|"merged"`),
+    `ScreenDescriptionDto.OcrText` + `OcrWordsCount`,
+    `VisionTaskResultDto.OcrText`, `VisionAgentOptions.Ocr`.
+  - **Новый метод backend:** `IVisionBackend.ScreenshotFullResolutionAsync`
+    (default → `null`) + override в `LocalHarnessVisionBackend`.
+  - **Новый helper:** `OcrVlMergeHelper` (static; merge через центр bbox).
+  - **VisionAgentService:** Trigger A (проактивный) + Trigger B
+    (реактивный); `ShouldRunOcrA`, `EnrichWithOcrAsync`.
+  - **Тесты:** 1080 → **1097** (+17: 14 `OcrVlMergeHelperTests` +
+    3 `VisionAgentServiceTests`).
+  - **Smoke (2026-10-08, Wikipedia-портал):** feature работает —
+    Trigger A, full-res screenshot 1920×1200, Tesseract `rus+eng`
+    (186 слов), merge без ошибок. Задача не завершилась по причине
+    KI-215 (VL `center` expression) и KI-216 (`MaxTaskSeconds=500`).
+  - **Связанные:** KI-215 (Fixed), KI-216 (Planned), KI-203 (общий
+    `IOcrService`), KI-161 (CDP — не конфликтует).
+
 - **v1.13.x (KI-137, Ф1) — Vision Agent: DTO + опции для OCR-fallback**:
   - **Новые DTO:**
     - `FullResolutionScreenshotDto` (PNG + Width + Height) —

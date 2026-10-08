@@ -191,13 +191,16 @@
 | KI-103 | 🟡 | Documented | `/status` — hardcoded RU в `status.js` | v1.7.x |
 | KI-128 | 🟡 | Planned | Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`) | v1.11.x |
 | KI-131 | 🟡 | Planned | Vision Agent (Vision LLM + Planner LLM + 3 backend'а) | **v1.12.0** |
-| KI-137 | 🟢 | In Progress | Vision Agent: OCR-fallback для мелкого текста | v1.13.x |
+| KI-137 | 🟢 | ✅ **Fixed (v1.13.x)** | Vision Agent: OCR-fallback для мелкого текста | — |
 | KI-138 | 🟢 | Planned | Vision Agent: маскирование PII на скриншотах | v1.12.x |
 | KI-139 | 🟢 | Planned | Vision Agent: внешние VL (Claude Computer Use / OpenAI CUA) | v1.12.x |
 | KI-140 | 🟢 | **Fixed (v1.13.0)** | Speech Recognition — офлайн STT (Whisper.net) | — |
 | KI-144 | 🟢 | Documented | Chrome может выбрать virtual audio device (Steam Streaming, `maxAbs=0`) | — |
 | KI-145 | 🟡 | **Fixed (v1.13.1)** | Device picker в `/profile → 🎤 Аудио` | — |
 | KI-146 | 🟢 | Planned | Device picker: fallback-полировка + дедупликация label | v1.13.x |
+| KI-214 | 🟢 | Planned | Интеграция KNOWN_ISSUES.md с GitHub Issues (витрина) | v1.14 |
+| KI-215 | 🟠 | ✅ **Fixed (v1.13.x)** | Vision LLM: `center` как expression ломает JSON | — |
+| KI-216 | 🟡 | Planned | Vision Agent: `MaxTaskSeconds=500` недостаточно для сложных задач | v1.13.x |
 | KI-147 | 🟢 | Planned | ARCHITECTURE.md устарел (v1.7.0 → v1.13.1) | v1.13.x |
 | KI-161 | 🟢 | **Fixed (v1.13.x)** | Vision Agent: PuppeteerSharp DOM+Vision (CDP-attach) | — |
 | KI-194 | 🟡 | ✅ **Fixed (v1.13.x)** | Vision Planner: `done` без проверки результата. Literal/goal + article_title. | — |

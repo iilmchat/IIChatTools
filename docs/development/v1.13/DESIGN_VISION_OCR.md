@@ -1,9 +1,9 @@
 # DESIGN v1.13 — Vision Agent: OCR-fallback для мелкого текста (KI-137)
 
-**Версия:** 1.0 (Draft)
+**Версия:** 1.0 (Implemented)
 **Дата:** 2026-10-08
-**Статус:** Draft — ожидает согласования
-**Связанные KI:** KI-137 (этот документ), KI-131 (Vision Agent), KI-203 (RAG OCR), KI-161 (CDP-attach), KI-160 (нестабильность VL), KI-190 (bounds-center)
+**Статус:** Implemented (v1.13.x) — 8 фаз, 6 коммитов, +17 тестов
+**Связанные KI:** KI-137 (этот документ), KI-131 (Vision Agent), KI-203 (RAG OCR), KI-161 (CDP-attach), KI-160 (нестабильность VL), KI-190 (bounds-center), KI-215 (VL `center` expression — Fixed), KI-216 (`MaxTaskSeconds` — Planned)
 **Целевой релиз:** v1.13.x
 **Связанные документы:** [DESIGN_VISION_AGENT.md](../v1.12/DESIGN_VISION_AGENT.md) · [DESIGN_VISION_CDP_ATTACH.md](DESIGN_VISION_CDP_ATTACH.md) · [RULES.md](../RULES.md) · [KNOWN_ISSUES.md](../../KNOWN_ISSUES.md)
 
@@ -1151,6 +1151,27 @@ private async Task<ScreenDescriptionDto> EnrichWithOcrAsync(
 - `docs/development/v1.12/DESIGN_VISION_AGENT.md`
 - `docs/development/v1.13/DESIGN_VISION_CDP_ATTACH.md`
 - `docs/development/RULES.md`
+
+---
+
+## § 13. Реализация (2026-10-08)
+
+**Все 8 фаз завершены.** Коммиты:
+
+- `dceb49b` — Ф1 (DTO + опции).
+- `897bb58` — Ф2 (`ScreenshotFullResolutionAsync`).
+- `⟨Ф3⟩` — `OcrVlMergeHelper`.
+- `973626b` — Ф4+Ф5 (VisionAgentService + fakes + тесты).
+- `5d082c2` — Ф6 (appsettings).
+- `e1e2cd8` — Ф7 (тесты OCR).
+
+**Тесты:** 1080 → **1097** (+17).
+
+**Smoke (Wikipedia-портал):** все компоненты KI-137 работают
+(Trigger A, full-res screenshot, Tesseract, merge, `OcrText`).
+Задача не завершилась по причине **KI-215** (VL эмитил `center` как
+expression → `ui_elements=[]`) и **KI-216** (медленная VL, `MaxTaskSeconds`
+исчерпан). См. KI-137 в `KNOWN_ISSUES.md`.
 
 ---
 
