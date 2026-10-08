@@ -24,11 +24,15 @@
   - `Program.cs` со старым `Host.CreateDefaultBuilder` + `Startup.cs` — **работает без переписывания** на top-level statements (отложено на отдельную задачу).
 - **Результат:** все 4 проекта собираются под .NET 10, приложение стартует, миграции SQLite проходят, 40 инструментов доступны, аутентификация и аудит работают. Подтверждено end-to-end.
 
+---
+
 ### KI-016 — `global.json` в `configs/` не находился `dotnet`
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Файлы:** `configs/global.json` → `global.json`
 - **Причина:** `dotnet` ищет `global.json` вверх по дереву от текущей директории. Из подпапки `configs/` файл не подхватывался.
 - **Решение:** `git mv configs/global.json global.json`.
+
+---
 
 ### KI-017 — `NuGet.Config` в `configs/` игнорировался
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.1.0
@@ -36,17 +40,23 @@
 - **Причина:** NuGet резолвит конфиги от cwd вверх по дереву. Файл в подпапке не работал → restore ходил в `nuget.org` вместо `LocalPackages`.
 - **Решение:** `git mv configs/NuGet.Config NuGet.Config`, путь `LocalPackages` сделан относительным.
 
+---
+
 ### KI-018 — Дублирование `PuppeteerSharpVersion` в `Directory.Build.props`
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Файлы:** `Directory.Build.props`
 - **Причина:** Свойство `PuppeteerSharpVersion` было объявлено дважды (2.0.4 и 7.1.0). MSBuild брал последнее значение, но дубль сбивал с толку.
 - **Решение:** удалено старое значение, оставлено 7.1.0.
 
+---
+
 ### KI-019 — NU1510: избыточные ссылки на `Microsoft.Extensions.Logging.*`
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Файлы:** `IIChatTools.API/IIChatTools.API.csproj`
 - **Причина:** Начиная с .NET 6+, `Microsoft.NET.Sdk.Web` включает логирование в shared framework. Явные `PackageReference` избыточны.
 - **Решение:** удалены `Microsoft.Extensions.Logging`, `.Console`, `.Debug` из API-проекта.
+
+---
 
 ### KI-020 — `LocalPackages` в формате global-packages folder вместо source
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.0
@@ -58,11 +68,15 @@
   3. Копирование `.nupkg` из кэша в `LocalPackages` с сохранением иерархии `<id>/<version>/`.
 - **Артефакты:** `NuGet.Config.online` добавлен в `.gitignore`.
 
+---
+
 ### KI-021 — Кодировка PowerShell искажает вывод `dotnet`
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Файлы:** `$PROFILE` PowerShell
 - **Причина:** PS 7.6.6 Core наследует кодовую страницу 866 от русской локали Windows. `dotnet` пишет UTF-8, PS читает как cp866 → «╨б╨▒╨╛╤А╨║╨░».
 - **Решение:** в `$PROFILE`: `chcp 65001`, `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`, `$OutputEncoding = ...`.
+
+---
 
 ### KI-022 — NU1903: уязвимость в `SQLitePCLRaw.lib.e_sqlite3` 2.1.11
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -72,11 +86,15 @@
 - **Решение:** Явное переопределение транзитивной зависимости через `SQLitePCLRaw.bundle_e_sqlite3` **2.1.13** в API и Tests. Версия вынесена в `Directory.Build.props` (`$(SQLitePCLRawVersion)`). `.nupkg` добавлены в `LocalPackages` для offline-сборки.
 - **Результат:** `dotnet list IIChatTools.sln package --vulnerable --include-transitive` — пусто.
 
+---
+
 ### KI-030 — Двойной `©` в логе запуска
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Файлы:** `IIChatTools.API/Program.cs`
 - **Причина:** В формате `LogInformation("© {Copyright}", ...)` уже был символ `©`, и в `AppVersion.Copyright` он тоже есть.
 - **Решение:** убран литерал `© ` из строки формата.
+
+---
 
 ### KI-031 — Версия `1.0.2` / `v1.0` в UI и логах вместо `1.1.0`
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.0
@@ -89,11 +107,15 @@
   - Ключ `"Добро пожаловать в IIChatTools v1.0"` → `"WelcomeTitle"` с плейсхолдером `{0}`.
   - В `Home/Index.cshtml` — `@string.Format(Localizer["WelcomeTitle"].Value, AppVersion.Current)`.
 
+---
+
 ### KI-031a — Версия в **ключе** .resx ломает локализацию при смене версии
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Файлы:** `SharedResources.resx`, `SharedResources.ru.resx`
 - **Причина:** Ключ `"Добро пожаловать в IIChatTools v1.0"` содержит версию. При смене версии пришлось бы править ключ и все ссылки в Razor.
 - **Решение:** ключ переименован в `WelcomeTitle`, версия вынесена в плейсхолдер `{0}`.
+
+---
 
 ### KI-032 — `Unprotect ticket failed` (старые cookies от .NET Core 3.1)
 - **Приоритет:** 🟡 Medium | **Статус:** Documented
@@ -101,14 +123,20 @@
 - **Причина:** DataProtection не может расшифровать cookie, выданные на .NET Core 3.1 (изменились ключи/алгоритм).
 - **Решение:** очистить cookies для `localhost:5001` в браузере. Опционально — задать общий key ring через `DataProtection:KeysPath` в appsettings.
 
+---
+
 ### KI-033 — `favicon.ico` → 404
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Файлы:** `_Layout.cshtml`
 - **Решение:** в `<head>` добавлен `<link rel="icon" href="data:," />` — браузер не дёргает 404.
 
+---
+
 ### KI-034 — ASP.NET Core developer certificate не доверен
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.1.0
 - **Решение:** `dotnet dev-certs https --trust`.
+
+---
 
 ### KI-035 — 4 интеграционных теста ApprovalService падали
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.0
@@ -118,6 +146,8 @@
 - **Причина:** `ApprovalService.CreatePendingActionAsync` (строка 52) содержит защитную проверку существования пользователя (введена для предотвращения FK-ошибок SQLite). Тесты используют `userId=1`, но `TestDbContextFactory.Create()` создавал пустой контекст без пользователей. Тесты устарели относительно реализации — падали и до миграции, просто их не запускали.
 - **Решение:** `TestDbContextFactory.Create(bool seedUsers = true)` — по умолчанию сидирует трёх пользователей с детерминированными Id=1, 2, 3. Параметр позволяет отключить сидирование для тестов, которым нужна пустая БД.
 - **Результат:** 14 тестов пройдено, 0 падений.
+
+---
 
 ### KI-036 — Хардкод прокси-credentials в `Program.cs`
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -131,6 +161,8 @@
   - Логировать факт наличия/отсутствия прокси без вывода секретов.
   - Обновить `.gitignore`/`User Secrets` документацией.
 - **Статус:** не блокер v1.1.0, но требует исправления до публичного релиза.
+
+---
 
 ### KI-037 — Дублирование строк подключения
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -256,6 +288,8 @@
 ---
 
 ## v1.3.0 — Chat UI (реализовано 2026-09-23)
+
+---
 
 ### KI-055 — Tool calling в чате — реализовано в v1.3.0
 - **Приоритет:** — | **Статус:** Implemented | **Реализовано в:** v1.3.0 Фаза 1.6.A
@@ -584,6 +618,8 @@
 
 ## v1.4.0 — Multi-Agent (roadmap)
 
+---
+
 ### KI-052 — Специализированные суб-агенты по группам инструментов
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.4.0
 - **Реализовано:** 2026-09-24 (Фазы 0-9)
@@ -641,6 +677,8 @@
 
 ## v1.3.x — Post-release fixes (2026-09-23)
 
+---
+
 ### KI-071 — Даты в JSON без `Z` → неверное относительное время
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.3.x
 - **Обнаружено:** 2026-09-23 | **Устранено:** 2026-09-23
@@ -668,6 +706,8 @@
 ---
 
 ## v1.3.2 — Performance (2026-09-24)
+
+---
 
 ### KI-073 — Медленный первый `dotnet test` на Windows (testhost boot)
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.4.0 (dev-environment)
@@ -1033,9 +1073,7 @@
   - **prod-SqlServer** — БД ещё не разворачивалась в проекте, блокер не критичен.
   - **dev-SqlServer** — разработчики не могут применить миграции.
 - **⚠️ План починки (НЕ ВЫПОЛНЯТЬ до v1.5.0-rc):**
-
   > **Важно:** шаги ниже — это **описание плана**, а не инструкция к исполнению. Выполнять только при старте задачи починки. Точные команды согласуются в отдельном чате.
-
   **Шаг 1.** Сделать бэкап dev-SqlServer БД (если есть данные) или убедиться, что БД не нужна (dev — пересоздаётся).
   **Шаг 2.** Дропнуть dev-SqlServer БД через SSMS или `sqlcmd`. Имя: `IIChatTools_Dev`. Данные теряются.
   **Шаг 3.** Удалить из git сломанные SqlServer-миграции (`AddUserSettings`, `SRVFixPendingChanges`, `AddChatMessageStats`, `AddDocumentChunks`).
@@ -1044,7 +1082,6 @@
   **Шаг 6.** Сгенерировать одну сводную миграцию `AddUserSettings_AgentStats_Rag` (охватывает всё, что было в удалённых).
   **Шаг 7.** Применить `dotnet ef database update` на свежей БД. Проверить, что все таблицы + индексы на месте.
   **Шаг 8.** Вернуть `Provider = "Sqlite"`.
-
 - **Риск:** переписывание истории миграций. Другие машины с применёнными старыми миграциями сломаются. Для проекта — приемлемо: SqlServer нигде не разворачивался.
 - **Обоснование отсрочки:** RAG (v1.5.0) в активной разработке. Прерывание на инфраструктурный долг — потеря фокуса. Чинить перед релизом, когда будет полная картина.
 - **Связанные:** KI-090 (snapshot drift — источник), KI-083 (RAG).
@@ -1078,6 +1115,8 @@
 ---
 
 ## v1.6.1 — Sources / citations (Web-tools)
+
+---
 
 ### KI-094 — `wikipedia_search` intermittent timeout в агенте (SSL через прокси)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.6.2
@@ -1147,6 +1186,8 @@
 ---
 
 ## v1.7.0 — Database Agent (roadmap)
+
+---
 
 ### KI-097 — Database Agent (read-only SQL)
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.7.0
@@ -1248,7 +1289,6 @@
 - **Описание:** В Фазе 2 (KI-097) `SqlConnectionProvider` резолвит connection
   string из `IConfiguration` **как есть**. Для Sqlite значение по умолчанию —
   `Data Source=Data/iichattools-dev.db;Mode=ReadOnly` (**относительный** путь).
-
   Проблема: SQLite открывает файл **относительно `Environment.CurrentDirectory`
   процесса**, а не относительно `ContentRootPath`. Сейчас в dev это работает
   (`dotnet run` из `IIChatTools.API` → CWD = ContentRoot). Но при запуске:
@@ -1256,7 +1296,6 @@
   - как Windows-службы (CWD = `C:\Windows\System32`),
   - через `docker run -w /app` (Dockerfile может задать свой WORKDIR),
   - через IIS / Kestrel за reverse-proxy,
-
   SQLite либо не найдёт файл (`SQLite Error 14: unable to open database`), либо
   откроет **пустую новую БД** (если `Mode=ReadOnly` не задан). Ошибка проявится
   **только при первом `execute_query`** — при старте приложения ничего не сломается.
@@ -1304,11 +1343,9 @@
   - `execute_query` — требует approval (пользователь видит сам SQL);
   - `list_databases` / `list_tables` / `describe_table` — **не** требуют
     (read-only метаданные, approval = лишний клик).
-
   **Проблема:** в текущей архитектуре `ChatStreamService` флаг approval —
   **свойство всего tool** (`ToolDescriptor.RequiresApprovalByDefault`), а не
   отдельного вызова. Chat не имеет механизма «решить по args, нужен ли approval».
-
   **Текущее решение (Фаза 5):** `DatabaseAgentTool.RequiresApprovalByDefault = true` —
   все 4 действия требуют approval. Безопасно, работает, но для `list_tables`
   пользователь видит лишнюю модалку.
@@ -1361,13 +1398,11 @@
   toasts, `formatLastRun` (агенты), валидации (SQL Agent). Причина — hardcoded
   RU-строки в `.js`, **не проходящие через `IStringLocalizer`** (RULES § 1.14) и
   **не использующие `data-*` для локализации JS** (RULES § 4.17).
-
   **Дополнительный баг (критичный):** в `admin.js` (`loadWhitelist` — empty-state)
   был literal `@Localizer["Убрать из белого списка"]` — синтаксис Razor,
   **не обрабатываемый в .js-файлах**. Проявлялся как текст
   `@Localizer["Убрать из белого списка"]` при добавлении любого инструмента
   в whitelist.
-
 - **Решение (2026-09-29, Фаза 6E):**
   - **`Admin.cshtml`** — добавлены `data-label-*` на 4 панели
     (`pane-users`, `pane-settings`, `pane-whitelist`, `pane-agents`).
@@ -1403,11 +1438,9 @@
   - «Ожидают подтверждения: N»;
   - Заголовки колонок таблицы «Последние действия»: «Пользователь»,
     «Инструмент», «Статус», «Длительность», «Дата».
-
   Причина — hardcoded RU-строки в `status.js`
   (нарушение RULES § 1.14 / § 4.17). Не входит в Фазу 6E — она касалась
   только `/admin`.
-
 - **Решение (2026-09-29, v1.7.1):**
   - Анализ показал, что в `Status.cshtml` **почти всё** уже через
     `@Localizer[...]` (карточки, заголовки таблицы, секции). Hardcoded
@@ -1499,7 +1532,6 @@
   `System.IO.Packaging 8.0.0`:
   - [`GHSA-f32c-w444-8ppv`](https://github.com/advisories/GHSA-f32c-w444-8ppv) — DoS;
   - [`GHSA-qj66-m88j-hmgj`](https://github.com/advisories/GHSA-qj66-m88j-hmgj) — DoS.
-
   Симптом в логе: `warning NU1903: У пакета "System.IO.Packaging" 8.0.0 есть
   известная уязвимость ... (уровень серьезности: высокий)` — в 3 проектах
   (Services, API, Tests) × 2 advisory = **6 warnings**.
@@ -1518,36 +1550,6 @@
   - **Регламент:** перед добавлением нового NuGet-пакета — прогнать скрипт;
     при NU1903 в логе dotnet restore — завести KI + Fixed.
   - **Связанные:** KI-104 (парсеры PDF/DOCX), KI-022 (SQLitePCLRaw override).
-
----
-
-### KI-106 — Оригинальное имя файла в источниках RAG для attachments
-- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.7.1
-- **Обнаружено:** 2026-09-29 | **Устранено:** 2026-09-29
-- **Файлы:**
-  - `IIChatTools.Services/Implementation/ChatTools/ChatAttachmentService.cs` —
-    helper `BuildRagDocumentPath` + правки в `UploadAsync` / `DeleteAsync`.
-- **Описание:** В UI-блоке «📚 Источники» для приложенных к чату файлов
-  показывалось имя вида `a2a41a0134154822996c08fe750692cf.docx` (GUID)
-  вместо оригинального `Договор.docx`.
-- **Причина:** `ChatAttachmentService.UploadAsync` сохраняет файл на диск
-  как `{guid}.ext` (by design, KI-083 Шаг 6A — защита от коллизий и
-  path-traversal в имени). В `DocumentIngestionService` в `DocumentPath`
-  попадал `Source = "chat-attachments/{chatId}/{guid}.ext"`, а
-  `RagSourceBuilder.BuildLabel` берёт имя файла из `DocumentPath`.
-- **Решение (2026-09-29, v1.7.1):**
-  - Новый helper `ChatAttachmentService.BuildRagDocumentPath(chatId, fileName, subfolder)`
-    → `"chat-attachments/{chatId}/{fileName}"` (с оригинальным именем).
-  - `UploadAsync`: в `IngestionRequest.Source` передаётся **RAG-путь**
-    (оригинальное имя), не `StoragePath` (GUID).
-  - `DeleteAsync`: сначала удаляет по новому пути; если 0 чанков —
-    fallback на `entity.StoragePath` (legacy-записи до v1.7.1).
-  - **Физический файл** на диске — по-прежнему `{guid}.ext` (`StoragePath`
-    не меняется — защита от коллизий сохраняется).
-  - **Старые записи** (до v1.7.1): остаются с GUID в `DocumentPath`.
-    Одноразовая миграция не делается (косметика, оригинал всё равно виден
-    в `ChatAttachment.FileName`). При удалении — сработает fallback.
-- **Связанные:** KI-083 (RAG / attachments), KI-086 (sources / citations).
 
 ---
 
@@ -1802,7 +1804,6 @@
 прочитал** письмо (MaxSteps исчерпан), но вернул `finalAnswer`:
 > «К сожалению, я не могу предоставить содержимое письма, ... **Однако я
 > успешно идентифицировал** последнее письмо из INBOX ...»
-
 Формально — идентифицировал. Семантически — задачу **не выполнил**.
 qwen3-4b предпочитает «мягкий» ответ вместо честного «не смогла, нужны доп. шаги».
 - **Дополнительно** (см. KI-114): `AgentToolBase` возвращает `ToolResult.Ok`
@@ -1882,7 +1883,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   3. При следующей итерации — снова `list_emails`, обещает read_email, но
      исчерпывает `MaxSteps=5`.
   4. Только на **третьей** итерации делает `read_email(uid=45)` — успех.
-
   Итого: **3 сообщения вместо 1**. Технически всё работает, но UX плохой.
 - **Причина:** `qwen3-4b-2507` — слишком маленькая для составных инструкций
   («прочитай» → 2 tool-вызова подряд). Не следует правилу 7 в SystemPrompt
@@ -1908,9 +1908,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Описание:** `gemma-4-12b-coder-fable5-composer2.5-v1` в LM Studio
   **не генерирует `tool_calls[]`** — она расписывает вызов функции
   **как plain text** в поле `content`, оставляя `tool_calls: []`.
-
   Доказательство (лог LM Studio от 2026-09-29 22:38:31):
-
       "model": "gemma-4-12b-coder-fable5-composer2.5-v1",
       "choices": [{
         "message": {
@@ -1920,7 +1918,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
           "tool_calls": []
         }
       }]
-
   В `reasoning_content` модель **правильно планирует** цепочку tool-вызовов,
   но **не вызывает их** через API.
 - **Подтверждено (2026-09-29, smoke):**
@@ -1975,7 +1972,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      + 3 RAG + `database_agent`).
   2. Затем пишет: «Однако в описании указано, что доступны только 10 инструментов».
   3. Выдаёт: «Правильный ответ: 10 инструментов».
-
   Модель **сама себя переубеждает** на основе того, что «помнит» из training data /
   весов. В `ChatStreamService` **нет** `DefaultSystemPrompt` с зашитым числом —
   только `chat.SystemPrompt` из БД (per-chat, по умолчанию пустой).
@@ -2252,7 +2248,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-127 — Chat LLM не выбирает `code_agent_with_review` для сложных задач
-
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-01 (smoke Шага 1E-part2)
 - **Файлы:** `SubAgents:code_agent_with_review:Description`, `SubAgents:code_agent:Description` (оба `appsettings*.json`).
@@ -2277,7 +2272,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-128 — Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.x
 - **Обнаружено:** 2026-10-02 (smoke Chat — «Открой rzd.ru и сделай скриншот»)
 - **Файлы (план):** `Startup.cs` (`RegisterSpecializedAgentTools`),
@@ -2287,7 +2281,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Описание:** Chat (qwen3-4b) отказывается от задачи «Открой rzd.ru,
   найди расписание и сделай скриншот в `minsk.png`», отвечая
   «Я не могу открыть веб-сайты». При этом **технически** capability есть:
-
   - `browser_session_open` / `browser_session_control` / `browser_session_close` /
     `browser_open_page` зарегистрированы в DI и доступны через
     `consult_secondary_agent` (`AllowedTools` = все browser-tools).
@@ -2295,7 +2288,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     (см. `BrowserSessionManager.ExecuteCommandAsync`).
   - `/test` корректно рендерит PNG с кнопками «Открыть» / «Скачать»
     (см. `test.js` → `renderResult`).
-
   **Реальные причины отказа:**
   1. **Нет `browser_agent` в SubAgents.** Browser-tools доступны только
      через `consult_secondary_agent`, у которого Description обобщённый
@@ -2311,7 +2303,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      browser. 4B-модель не может «догадаться» про инструменты.
   4. **Общая склонность qwen3-4b к отказу** (см. KI-118, KI-120, KI-127) —
      шаблонный ответ «не могу» вместо исследования инструментов.
-
 - **Решение (Фаза 1, план):**
   1. **`browser_agent`** — новый специализированный агент (наследник
      `AgentToolBase`), `AllowedTools = [browser_session_open,
@@ -2335,7 +2326,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-129 — Debate blocks not restored on F5 (session/rounds in DB, UI ignores them)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-02 (smoke Шага 1G.1) | **Устранено:** 2026-10-03
 - **Файлы (итог):**
@@ -2360,7 +2350,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Описание:** Блок Actor-Critic отображался только в live-режиме (SSE).
   При F5 история сообщений загружалась из БД, но данные debate-сессий
   **не восстанавливались** в UI — блок исчезал.
-
   **При этом сами сессии УЖЕ сохранялись в БД** (Шаг 1E-part2):
   `AgentDebateSession` + `AgentDebateRound` (persistence через
   `IAgentDebateSessionService`).
@@ -2393,7 +2382,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-130 — code_agent / code_agent_with_review не могут читать вложения чата (RAG)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-02 (smoke Chat — «исправь файл `code-1790941591651.py`»)
 - **Fixed:** 2026-10-02 (полный фикс — `indexName` в `SearchKnowledgeBaseTool` +
@@ -2406,16 +2394,13 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `my_rag_docs` и физически сохраняется в `chat-attachments/{chatId}/{guid}.ext`.
   RAG находит его (виден в «Источники»), но **ни один code-агент не может
   получить содержимое**:
-
   - `code_agent.AllowedTools = [run_javascript, run_python, execute_command]` —
     нет `read_file`, нет `search_knowledge_base`.
   - `code_agent_with_review` использует того же `code_agent` (actor).
   - Файл физически не в `workspace/{userId}/`, а в служебной подпапке
     `chat-attachments/{chatId}/` (GUID-имя — by design, KI-083 Шаг 6A).
-
   **Симптом:** LLM отвечает «файл не найден, передайте содержимое» — что
   честно, но не помогает пользователю.
-
 - **Возможные решения:**
   1. **Добавить `search_knowledge_base` в `AllowedTools` `code_agent`** —
      агент сам ищет содержимое через RAG. Минимальная правка конфига.
@@ -2441,31 +2426,24 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `file_system_agent`, а не `code_agent`. Правило 5 в SystemPrompt
   `code_agent` не сработало, т.к. сам агент не был вызван.
   → Добавлено правило 7 в `ChatStreamService.DefaultSystemPrompt`.
-
 - **⚠️ Smoke 2026-10-02 #2** (после правила 7): Chat **теперь правильно
   выбирает `code_agent_with_review`** ✅. Но actor (`code_agent`) внутри
   всё равно не может получить содержимое файла:
-
   **Реальные архитектурные gap'ы (3 связанных):**
-
   1. **`search_knowledge_base` ищет НЕ там.** Добавлен в `AllowedTools`
      `code_agent` (мой первый quick-fix), но он ищет в `project_docs`
      (документация проекта). Вложения чата лежат в `my_rag_docs` —
      **tool'а для этого индекса вообще не существует**.
-
   2. **Auto-inject RAG работает только для Chat, не для SubAgent.**
      `ChatStreamService.BuildMessagesAsync` вставляет top-K из
      `my_rag_docs` в system prompt **Chat**. Когда Chat вызывает
      `code_agent`, subagent стартует с нуля — БЕЗ RAG-контекста и
      БЕЗ знания о вложениях.
-
   3. **Chat не пробрасывает содержимое вложения в `context` агента.**
      LLM qwen3-4b не догадывается: «я уже видел содержимое через
      auto-inject, надо передать его в `context` аргумента `code_agent`».
-
   **Симптом:** actor отвечает «файл не найден, предоставьте содержимое» —
   что честно (см. KI-113), но не помогает пользователю.
-
 - **Правильное решение (план v1.11.x / v1.12.x):**
   1. **Новый tool `search_chat_attachments`** — ищет в `my_rag_docs`
      с `chatId` из контекста. Добавить в `AllowedTools` `code_agent`.
@@ -2502,6 +2480,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ## v1.0.2 и ранее
+
+---
+
 ### KI-001 — Неинформативное сообщение при отклонении действия
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.1.1
 - **Обнаружено:** 2026-09-16 | **Устранено:** 2026-09-18
@@ -2515,21 +2496,29 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - UX-улучшение: `Cancel` в диалоге ввода причины больше не закрывает модалку — можно передумать.
 - **Результат:** причина отклонения видна в поле «Результат» на `/test`.
 
+---
+
 ### KI-002 — 407 Proxy Authentication Required для веб-инструментов
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.0.2
 - **Файлы:** `IIChatTools.API/Startup.cs`
 - **Решение:** `HttpClientFactoryOptions.HttpMessageHandlerBuilderActions` + `WebProxy.Credentials`.
+
+---
 
 ### KI-003 — 403 Forbidden от Wikipedia API
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.0.2
 - **Файлы:** `WikipediaSearchTool.cs`
 - **Решение:** User-Agent `IIChatTools/1.0 (https://github.com/RuChating/IIChatTools; iilmchat@localhost)`.
 
+---
+
 ### KI-004 — Git-инструменты не поддерживали подкаталоги
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.0.2
 - **Файлы:** `BaseGitTool.cs` + 7 `Git*Tool.cs`
 - **Решение:** Параметр `path` + `GitContextValidationResult` + `RunGitInDirAsync`.
 - **API-изменения:** `git_diff.path` → `filePath`; `git_log.path` → `filePath`; `git_add.paths` → `files`; `git_checkout.paths` → `files`.
+
+---
 
 ### KI-005 — Неявный `git add -A` при пустом списке файлов
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.1
@@ -2544,24 +2533,34 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Обновлён `ToolDescriptor` (описание параметров).
 - **API-изменение**: LLM теперь должна явно запрашивать `all: true` для `git add -A`.
 
+---
+
 ### KI-006 — gh-инструменты не поддерживали подкаталоги
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.0.2
 - **Файлы:** `BaseGhTool.cs` + 6 `Gh*Tool.cs`
 - **Решение:** Параметр `path` + `GhContextValidationResult` + `RunGhInDirAsync`.
 
+---
+
 ### KI-007 — gh issue create требует заранее созданные метки
 - **Приоритет:** 🟢 Low | **Статус:** Documented
 - **Причина:** Ограничение `gh` CLI. Метки должны быть созданы заранее.
+
+---
 
 ### KI-008 — Хрупкость git-истории при манипуляциях
 - **Приоритет:** 🟢 Low | **Статус:** Resolved
 - **Причина:** `--allow-unrelated-histories` + `reset --hard` + пересоздание веток → расхождение историй.
 - **Решение:** Чистый `git clone` восстанавливает целостность.
 
+---
+
 ### KI-009 — ERR_CONNECTION_RESET на сайтах с SSO
 - **Приоритет:** 🟡 Medium | **Статус:** Documented
 - **Причина:** Kinopoisk и подобные сайты требуют SSO-редирект, Chromium через прокси сбрасывает соединение.
 - **Решение:** Использовать нейтральные сайты. Инъекция cookies — v1.1.
+
+---
 
 ### KI-010 — Репозиторий раздулся до 154 МБ из-за бинарных артефактов
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.0.2
@@ -2570,18 +2569,26 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Решение:** `.gitignore` расширен; `git filter-repo --invert-paths` (три прохода); `git gc --prune=now --aggressive`; создан `.gitattributes`.
 - **Результат:** размер упал с 154 МБ до 1.51 МБ.
 
+---
+
 ### KI-011 — `Workspace/` попал в индекс как gitlink
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.0.2
 - **Описание:** `Workspace/users/1/git-test/` (с вложенным `.git`) попал в индекс как `mode 160000`.
 - **Решение:** `git rm -r --cached Workspace/users/1/git-test` + правило `Workspace/` в `.gitignore`.
 
+---
+
 ### KI-012 — Множественные `obj/` в индексе
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.0.2
 - **Решение:** `git rm -r --cached <path>/obj` для каждого проекта + правило `**/obj/`.
 
+---
+
 ### KI-013 — Нереорганизованная структура репозитория
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.0.2
 - **Решение:** `docs/`, `scripts/`, `configs/`, `assets/images/`.
+
+---
 
 ### KI-014 — Временные файлы отладки в корне
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.0.2
@@ -2590,7 +2597,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-132 — Chat LLM context overflow из-за раздутого tool_result от code_agent_with_review
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-03 (smoke Actor-Critic, chatId=2)
 - **Симптом:** после одобрения критиком `code_agent_with_review` возвращал
@@ -2605,8 +2611,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `GET /api/chats/{id}` → `DebateSessions[].Rounds` (F5).
 - **Связанные:** KI-126 (Actor-Critic), KI-117 (требование 16384 в LM Studio).
 
-### KI-133 — Skip feedback не разблокирует сервер
+---
 
+### KI-133 — Skip feedback не разблокирует сервер
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-03 (smoke Actor-Critic, chatId=3)
 - **Симптом:** в inline-блоке feedback между раундами кнопка
@@ -2622,7 +2629,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-134 — Tool-сообщение не сохраняется в БД при отмене SSE
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-03 (smoke KI-129 Шаг 2 — F5 посреди feedback)
 - **Симптом:** при F5 (или Stop) в момент выполнения tool'а
@@ -2637,8 +2643,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `toolResult.Success` при записи `debateSessionId` (см. KI-135).
 - **Связанные:** KI-129 (F5 persistence), KI-135.
 
-### KI-135 — Orphaned-сессия Actor-Critic не восстанавливается при F5
+---
 
+### KI-135 — Orphaned-сессия Actor-Critic не восстанавливается при F5
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-03 (smoke KI-129 Шаг 2)
 - **Симптом:** при F5 в момент ожидания feedback (между раундами
@@ -2663,7 +2670,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-136 — Tool-сообщение не сохраняется в БД: yield ToolResult раньше AddMessageAsync
-
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.11.0
 - **Обнаружено:** 2026-10-03 (smoke KI-129 Шаг 2, повторная проверка F5)
 - **Симптом:** при F5 (или Stop) в момент выполнения tool'а
@@ -2688,6 +2694,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ## v1.12.0 — Vision Agent (roadmap)
+
+---
 
 ### KI-131 — Vision Agent (Vision LLM + Planner LLM + 3 backend'а)
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed (v1.12.0, MVP-scope) | **Запланировано:** v1.12.0
@@ -2748,7 +2756,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Не выполняет многошаговые задачи: «купи билет РЖД до Камчатки»,
     «заполни заявление на госуслугах», «настрой 1С».
   - Не управляет десктопными приложениями (Outlook, Excel, 1С).
-
 - **Что входит (v1.12.0, Фазы 0–9, ~62 ч):**
   - **Top-level инструмент** `vision_agent` (не `AgentToolBase` — по образцу
     `DatabaseAgentTool` / `CodeAgentWithReviewTool`).
@@ -2769,7 +2776,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Конфигурация:** `appsettings.json` → секция `VisionAgent`
     (Backend / VisionLlm / PlannerLlm / Limits / Whitelist / ActionValidation / Privacy).
     Admin override через `AppSettings` (по образцу `SubAgents.*` / `SqlAgent.*`).
-
 - **Что НЕ входит:** Linux desktop, macOS desktop, OCR без VL, обход капчи,
   real-time streaming, fine-tuning.
 - **Оценка:** ~62 ч (≈8 рабочих дней), 9 фаз + DESIGN.
@@ -2809,7 +2815,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     своя секция конфига `VisionAgent:Ocr` (не смешивается с `Rag:Ingestion:Ocr`).
 - **Что НЕ входит:** PII masking (KI-138), External VL (KI-139/141),
   Set-of-Mark (KI-163), OCR-first для текстовых элементов.
-
 - **Реализация (8 фаз, 6 коммитов + регистрация):**
   - **Ф1** (`dceb49b`) — DTO (`FullResolutionScreenshotDto`,
     `VisionOcrOptions`) + поля (`UiElementDto.Source`,
@@ -2825,7 +2830,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Ф7** (`e1e2cd8`) — `OcrVlMergeHelperTests` (14) +
     `VisionAgentServiceTests` (+3).
   - **Тесты:** 1080 → **1097**.
-
 - **Smoke (2026-10-08, Wikipedia-портал):**
   - ✅ `TesseractOcrService` инициализируется (`tools/tessdata`,
     `rus+eng`).
@@ -2840,7 +2844,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     KI-215 (VL эмитил `center` как expression → `ui_elements=[]`)
     и KI-216 (медленная VL → `MaxTaskSeconds=500` исчерпан на 2 шагах).
     См. «Известные ограничения».
-
 - **Известные ограничения (не блокеры):**
   - `MergeMaxDistancePx=30` — консервативно; на маленьких кнопках
     (29×29 px) OCR-слово может не привязаться к элементу.
@@ -2851,7 +2854,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     матчить). Это by design (DESIGN § 2.2, п. 4).
   - Полная ценность OCR проявится, когда VL вернёт **невалидные
     label'ы** (пустые/короткие), а не пустой список.
-
 - **Связанные:** KI-215 (VL `center` expression — Fixed), KI-216
   (`MaxTaskSeconds` — Planned), KI-131 (Vision Agent), KI-203
   (RAG OCR — общий сервис), KI-161 (CDP-attach — не конфликтует),
@@ -2869,7 +2871,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Паспортные данные, СНИЛС, ИНН.
   - Пароли, токены в адресной строке (частично закрывается `MaskUrlBar`).
   - Личные сообщения (мессенджеры, почта).
-
   Даже при `PersistScreenshots = false` (default — скриншоты НЕ сохраняются
   в `ChatMessage.MetadataJson`) VL-модель видит PII в момент анализа. Утечка
   возможна через:
@@ -2917,8 +2918,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ## v1.12.x — Vision Agent (roadmap)
 
-### KI-141 — External VL providers: multimodal image support
+---
 
+### KI-141 — External VL providers: multimodal image support
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
 - **Обнаружено:** 2026-10-04 (Ф5.3 KI-131).
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 3.2.
@@ -2929,7 +2931,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - более точное распознавание сложного UI (canvas, shadow-DOM, антибот);
   - fallback, когда локальная Ministral-3B ошибается;
   - работу на слабом железе (без GPU).
-
   **Ограничение:** `IExternalLlmClient` (v1.8.1, KI-109) — **text-only**.
   Требуется:
   1. Расширить `ExternalLlmRequest` — nullable поле `ImageBase64DataUrl`
@@ -2948,8 +2949,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   KI-110a (Anthropic), KI-110b (Gemini), KI-139 (External VL для GUI — дублирует
   часть scope, консолидировать при старте).
 
-### KI-142 — WPF overlay для Vision Agent (реальный on-screen indicator)
+---
 
+### KI-142 — WPF overlay для Vision Agent (реальный on-screen indicator)
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x (Ф6.7)
 - **Обнаружено:** 2026-10-04 (при релизе v1.12.0 — MVP-компромисс).
 - **Реализовано:** 2026-10-05. Отдельный проект `IIChatTools.VisionOverlay`
@@ -2991,8 +2993,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Связанные:** KI-131 (Vision Agent), KI-143 (Avalonia — cross-platform
   альтернатива).
 
-### KI-143 — Cross-platform overlay на Avalonia (альтернатива KI-142)
+---
 
+### KI-143 — Cross-platform overlay на Avalonia (альтернатива KI-142)
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14.x
 - **Обнаружено:** 2026-10-04 (обсуждение WPF vs Avalonia).
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md)
@@ -3038,8 +3041,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ## v1.13.0 — Speech Recognition (roadmap)
 
-### KI-144 — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone)
+---
 
+### KI-144 — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-10-04 (smoke Speech Recognition, Chrome)
 - **Файлы:** клиентская конфигурация браузера + Windows.
@@ -3070,7 +3074,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-140 — Голосовой ввод в чате (офлайн-распознавание речи, Whisper.net)
-
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.0
 - **Реализовано:** 2026-10-04. Backend (`WhisperNetTranscriptionService` +
   `SpeechController`) + frontend (`speech.js` + кнопка 🎤) + скрипт
@@ -3086,7 +3089,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     GGML-модель (`ggml-base.bin`, ~142 MB).
   - **Никаких Python / ffmpeg / внешних CLI** — только NuGet `Whisper.net` +
     `Whisper.net.Runtime` (native libs, ~5 MB).
-
 - **Что входит (v1.13.0, Фазы 1–3, ~3 ч):**
   - **Backend:** `ISpeechRecognitionService` + `WhisperNetTranscriptionService`
     (Singleton, ленивая загрузка модели) + `SpeechController` +
@@ -3101,13 +3103,11 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     `SpeechErrorBrowser`).
   - **Unit-тесты:** `SpeechControllerTests` (4) + опциональные
     `WhisperNetTranscriptionServiceTests` (3, Skip в CI — требуют модель).
-
 - **Что НЕ входит (Phase 4, опционально):**
   - Хоткей `Ctrl+Shift+Space`.
   - VAD (auto-stop по тишине).
   - Streaming (промежуточная транскрибация).
   - GPU-ускорение (`Whisper.net.Runtime.Cuda`).
-
 - **Принятые решения (2026-10-03, см. DESIGN § 11.1):**
   1. Модель по умолчанию — `base` (142 MB).
   2. Язык — `"auto"` в `appsettings.Development.json`, `"ru"` в prod.
@@ -3116,25 +3116,21 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   5. Ресемплинг WAV — через `OfflineAudioContext` (§ 4.2).
   6. Auto-stop 60 сек — enforced на клиенте (`MAX_RECORDING_MS`).
   7. `RequestSizeLimit(20 MB)` — hard cap; реальный лимит — 10 MB в опциях.
-
 - **Отложено (Phase 4, см. DESIGN § 11.2):**
   - VAD (auto-stop по тишине) — высокий приоритет, чистый JS (~30 строк).
   - Хоткей `Ctrl+Shift+Space`.
   - GPU (`Whisper.net.Runtime.Cuda`).
   - Streaming (chunked upload + пересборка транскрипта).
-
 - **Технический долг (не блокер MVP, см. DESIGN § 11.3):**
   - Fail-fast при старте (сейчас — ленивая инициализация).
   - Валидация magic bytes WAV (сейчас — только `file.Length`).
   - `TranscriptionResult.DurationMs` = 0 (не заполняется).
-
 - **Связанные:** KI-126 (Chat UI — где живёт кнопка), KI-109 (External-LLM —
   принципиально НЕ используется, офлайн-only).
 
 ---
 
 ### KI-144 — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone)
-
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-10-04 (smoke Speech Recognition, Chrome — 3 скрина + логи).
 - **Файлы:** клиентская конфигурация браузера + Windows.
@@ -3165,7 +3161,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-145 — Выбор микрофона в /profile (device picker)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.1
 - **Обнаружено:** 2026-10-04 (после KI-144 — virtual audio device в Chrome)
 - **DESCRIPTION:** KI-144 показал проблему: Chrome по умолчанию выбирает
@@ -3204,7 +3199,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-146 — Device picker: fallback + дедупликация label
-
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-04 (smoke KI-145, 2 наблюдения)
 - **Файлы:** `wwwroot/js/modules/speech.js`, `wwwroot/js/modules/profile-audio.js`.
@@ -3237,7 +3231,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-147 — ARCHITECTURE.md устарел (v1.7.0 → v1.13.1)
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-04 (при релизе v1.13.1).
 - **Файлы:** `docs/development/ARCHITECTURE.md`.
@@ -3281,7 +3274,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-148 — Vision Agent: Chrome остаётся без фокуса после `OpenAsync`
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `LocalHarnessVisionBackend.cs` (`TryFocusChromeAsync`),
@@ -3305,7 +3297,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-149 — WPF overlay перехватывает фокус при клике (WS_EX_NOACTIVATE)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `IIChatTools.VisionOverlay/OverlayWin32.cs` (новый),
@@ -3323,7 +3314,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-150 — Vision Agent: downscale уменьшает байты, но не разрешение
-
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `VisionImageResizer.cs`, `LocalHarnessVisionBackend.ScreenshotAsync`.
@@ -3341,14 +3331,12 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-161 — Vision Agent: PuppeteerSharp DOM+Vision (точные координаты для browser)
-
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05. | **Устранено:** 2026-10-07.
 - **DESIGN:** [`docs/development/v1.13/DESIGN_VISION_CDP_ATTACH.md`](development/v1.13/DESIGN_VISION_CDP_ATTACH.md).
 - **Описание:** VL-модель (Qwen2.5-VL-7B) на полном скриншоте даёт
   координаты с ошибкой ±20-30 px. Для browser-задач (Wikipedia,
   GitHub, ...) клик по VL-координатам ненадёжен.
-
 - **Решение (v1.13.x, 7 фаз):**
   - **Ф1** — контракты + DTO: `IChromeCdpSession`,
     `ICoordinateProvider`, `CoordinateRequest/Result`,
@@ -3372,16 +3360,13 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Ф7** — 26 тестов (`DomCoordinateProviderTests`,
     `VisionCoordinateProviderTests`, `PuppeteerSharpCdpSessionTests`).
   - **Ф8** — README + docs + финализация KI-161.
-
 - **Что работает:**
   - DOM-доступные элементы (button / link / text_input / checkbox /
     radio / select) → 0 px ошибки.
   - Canvas / WebGL / shadow-DOM / iframe → VL-fallback (bounds-center).
   - Desktop-приложения (Outlook, Excel) → VL-fallback (только VL).
-
 - **Обратная совместимость:** `VisionAgent:CoordinateProvider:Mode = "vision"`
   (prod-дефолт) — старое поведение (bounds-center KI-190) без CDP.
-
 - **Известные ограничения (не блокеры):**
   - **Shadow-DOM / iframe** — не поддерживаются (нет доступа через
     `document.querySelectorAll`). Fallback на VL.
@@ -3389,7 +3374,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     может быть некорректен. Защита: distance-guard 200 px (DESIGN § 9.2).
   - **DPI ≠ 100%** — компенсируется через `window.devicePixelRatio`,
     но на 150%+ возможен дрейф 1-2 px.
-
 - **Файлы:**
   - `IIChatTools.Services/Interfaces/IChromeCdpSession.cs` (new).
   - `IIChatTools.Services/Interfaces/ICoordinateProvider.cs` (new).
@@ -3411,10 +3395,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - `IIChatTools.API/appsettings.json` (modified).
   - `IIChatTools.API/appsettings.Development.json` (modified).
   - 3 файла тестов (new).
-
 - **Тесты:** 1016 → **1042** (+26, 8 Skip).
 - **Связанные:** KI-131, KI-162, KI-190, KI-194, KI-137, KI-163.
-
 - **Коммиты (8):**
   - `7eab96c` — Ф1 (контракты + DTO) + Ф2 (PuppeteerSharpCdpSession).
   - `6138542` — Ф3 (DomCoordinateProvider + VisionCoordinateProvider).
@@ -3427,7 +3409,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-162 — Vision Agent: Coordinate-then-Verify
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-05.
 - **Идея:** VL вернула `center: {x, y}`. Снимаем crop 100×100 вокруг
@@ -3441,7 +3422,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-163 — Vision Agent: Set-of-Mark (упрощённый, Tesseract-based)
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14.x
 - **Обнаружено:** 2026-10-05.
 - **Идея:** нарисовать нумерованные метки (1, 2, 3, …) поверх скриншота
@@ -3456,7 +3436,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-160 — Vision Agent: слабые VL-модели зацикливаются, JSON обрезается
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Qwen2.5-VL-3B / 7B).
 - **Файлы:** `ScreenDescriptionParser.cs`, `VisionSystemPrompt.cs`,
@@ -3479,7 +3458,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-159 — Vision Agent: координатная сетка на скриншоте (Won't Fix)
-
 - **Приоритет:** 🟢 Low | **Статус:** Won't Fix | **Обнаружено:** 2026-10-05.
 - **Файлы:** `LocalHarnessVisionBackend.DrawCoordinateGrid` (удалён).
 - **Попытка:** нарисовать сетку с числами каждые 100 px поверх скриншота,
@@ -3497,7 +3475,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-152 — Vision Agent: timeout не различается от ошибки в локальном catch
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke KI-148/149).
 - **Файлы:** `VisionAgentService.cs` (внутренний loop, 3 локальных catch).
@@ -3519,7 +3496,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-155 — Vision Agent: Chrome остаётся без фокуса после `OpenAsync` (v1.12.x)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `LocalHarnessVisionBackend.TryRefocusChromeAsync`, `Win32Interop.cs`.
@@ -3531,8 +3507,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   mutation-действием (retry 3 × 300 мс). При неудаче — `InvalidOperationException`.
 - **Связанные:** KI-142, KI-148, KI-149.
 
-### KI-156 — Vision Agent: логотип IIChatTools в overlay вместо эмодзи (v1.12.x)
+---
 
+### KI-156 — Vision Agent: логотип IIChatTools в overlay вместо эмодзи (v1.12.x)
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `IIChatTools.VisionOverlay/MainWindow.xaml`, `Resources/…`.
@@ -3542,8 +3519,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   из KI-081).
 - **Связанные:** KI-142, KI-081.
 
-### KI-157 — Vision Agent: scale координат VL-модели ×1.875 (v1.12.x)
+---
 
+### KI-157 — Vision Agent: scale координат VL-модели ×1.875 (v1.12.x)
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `LocalHarnessVisionBackend`, `VisionAgentService.ResolveCoordinates`.
@@ -3556,8 +3534,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   масштабирует центр элемента перед передачей в backend.
 - **Связанные:** KI-142, KI-150, KI-160.
 
-### KI-158 — Vision Agent: маска overlay на скриншоте (v1.12.x)
+---
 
+### KI-158 — Vision Agent: маска overlay на скриншоте (v1.12.x)
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `LocalHarnessVisionBackend.ScreenshotAsync`,
@@ -3573,7 +3552,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-164 — Vision Agent: drag-select (выделение текста мышью)
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «DeepSeek API»).
 - **Файлы (план):** `IVisionBackend` (+`DragAsync`), `LocalHarnessVisionBackend`,
@@ -3590,8 +3568,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Оценка:** ~1 ч.
 - **Связанные:** KI-131 (Vision Agent), KI-165 (read clipboard).
 
-### KI-165 — Vision Agent: чтение буфера обмена (read clipboard)
+---
 
+### KI-165 — Vision Agent: чтение буфера обмена (read clipboard)
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «DeepSeek API»).
 - **Файлы (план):** `IIChatTools.Services/Implementation/Tools/VisionAgent/ReadClipboardTool.cs` (новый),
@@ -3612,8 +3591,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Оценка:** ~30 мин.
 - **Связанные:** KI-131 (Vision Agent), KI-164 (drag-select).
 
-### KI-166 — Vision Agent: детекция иконок в taskbar (Win+1, crop, fallback)
+---
 
+### KI-166 — Vision Agent: детекция иконок в taskbar (Win+1, crop, fallback)
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «Начало дня»).
 - **Файлы (план):** `VisionSystemPrompt.PlannerPlanNext` (few-shot),
@@ -3624,21 +3604,17 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   (KI-150) иконка становится ~10×10 px — VL её либо не видит, либо путает
   с соседней.
 - **Возможные решения (3 варианта, по возрастанию сложности):**
-
   **(A) Anchor-clicks (рекомендуется):** научить Planner использовать
   `hotkey(["Win","1"])` … `hotkey(["Win","9"])` — открывает приложение
   по позиции в taskbar. Детерминированно, 0 px ошибки. Требует: (а) правила
   в `PlannerPlanNext`; (б) пользователь должен знать порядок иконок
   (или использовать Win+1…Win+9 последовательно).
-
   **(B) Crop + upscale:** при `ScreenshotAsync` вырезать нижние 48 px экрана
   (taskbar), upscale ×3, отдельный VL-prompt «перечисли иконки слева направо».
   +1 VL-вызов на задачу, +возможность ошибиться на похожих иконках.
-
   **(C) Fallback `execute_command`:** `start "" "C:\totalcmd\TOTALCMD64.EXE"`
   — не vision, но **гарантированно**. Годится как «последний шанс», если
   A и B не сработали.
-
 - **Оценка:** (A) ~1 ч, (B) ~2 ч, (C) ~15 мин.
 - **Связанные:** KI-131 (Vision Agent), KI-150 (downscale), KI-160
   (anti-loop — taskbar иконки могут зациклить).
@@ -3646,119 +3622,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-167 — `file_system_agent` галлюцинирует успех вне workspace (рецидив KI-113)
-
-- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
-- **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
-- **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`,
-  `IIChatTools.Services/Implementation/SubAgentService.cs`,
-  `appsettings.Development.json` (`SubAgents:file_system_agent:SystemPrompt`).
-- **Симптом:** Задача «Создай папку `c:\projects\test\` и положи файл
-  `script.bat` с `echo "Hello World"`».
-  - LLM → `file_system_agent`.
-  - Внутри агента: `list_directory` → `make_directory` → `save_file`.
-  - `make_directory` / `save_file` **провалились** (path-traversal — RULES § 1.9,
-    `PathHelper.TryGetSafeFullPath` отклоняет `c:\projects\test\` — вне workspace).
-  - Но агент вернул финальный ответ: «Папка `c:\projects\test\` успешно создана
-    и в неё помещён файл `script.bat`».
-  - **Реальность (проверено):** ни `c:\projects\test\`, ни `script.bat` не существует.
-- **Диагностика (2026-10-05):**
-  - `Test-Path 'c:\projects\test\'` → `False` (файла нет).
-  - `AuditLogs`: `agent.file_system_agent | Status=Success | {completed:true, steps:4, usedToolsCount:3}`.
-  - Файл не найден ни в workspace, ни в `bin/Debug/net10.0`.
-- **Корни (2 связанных):**
-  1. **KI-113** — qwen3-4b предпочитает «мягкий» успех вместо честного «не смогла».
-  2. **KI-114** — `AgentToolBase` возвращает `ToolResult.Ok` даже при `Completed=false`.
-- **Возможные решения:**
-  1. **KI-114 (главное):** `AgentToolBase.ExecuteAsync` — если `result.Completed == false`,
-     возвращать `ToolResult.Fail` (сообщение с `finalAnswer`).
-  2. **Усилить SystemPrompt** `file_system_agent`: правило «если `make_directory`
-     не создал путь или `save_file` вернул Fail — **НЕ говори “успешно”**.
-     Скажи: “не удалось, путь вне workspace”».
-  3. **Few-shot** в `SystemPrompt` — показать правильный ответ при path-traversal.
-- **Fix (v1.13.x, 2026-10-05):**
-  1. **SystemPrompt** `file_system_agent` (dev + prod) — добавлены
-     правила 4 (жёсткий запрет внешних путей + честный Fail), 5 (не врать
-     про успех), 6 (перечислить частичный результат).
-  2. **KI-114** — `AgentToolBase` → `Fail` при `Completed=false` (устраняет
-     «усилитель» в самом ядре).
-  3. **Description** `file_system_agent` — явно сказано «работает ТОЛЬКО
-     внутри workspace, для внешних путей — `code_agent`».
-- **Требуется** ре-smoke сценария #3 (с путём **внутри workspace**
-  — `%USERPROFILE%\IIChatToolsWorkspace\test\` — для чистоты проверки).
-- **Связанные:** KI-113, KI-114, KI-168 (tool-selection), KI-169 (audit gap).
-
-### KI-168 — Chat LLM выбирает `file_system_agent` для задач вне workspace
-
-- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
-- **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
-- **Файлы:** `IIChatTools.Services/Implementation/ChatTools/ChatStreamService.cs`
-  (`DefaultSystemPrompt`), `appsettings.Development.json`
-  (`SubAgents:file_system_agent:Description`).
-- **Симптом:** Задача с путём **вне workspace** (`c:\projects\test\`) →
-  Chat LLM выбирает `file_system_agent` (который не может писать вне workspace),
-  а не `code_agent` / `execute_command` (которые могут).
-- **Причина:** `DefaultSystemPrompt` не разграничивает «внутри workspace →
-  `file_system_agent`» / «вне workspace → `execute_command`». `Description`
-  у `file_system_agent` упоминает workspace, но LLM не связывает это с
-  конкретным путём в задаче.
-- **Возможные решения:**
-  1. **Правило 8 в `DefaultSystemPrompt`:** «Если задача требует записи в путь
-     вне workspace (`c:\...`, `/usr/...`) — используй `execute_command`
-     (`cmd /c mkdir ...`, `echo ... > file`) или `code_agent`. НЕ используй
-     `file_system_agent` — он работает только в workspace».
-  2. **Уточнить `Description`** `file_system_agent`: явно указать «работает
-     ТОЛЬКО в workspace; для внешних путей — `execute_command`».
-  3. **Проверить `execute_command` whitelist** — в `appsettings.json`
-     `Tools:Whitelist: []` (пусто). Проверить `ExecuteCommandTool` — что
-     реально блокируется (`EnableShellCommands = true`).
-- **❗ Открытие при фиксе (2026-10-05):** `ExecuteCommandTool.AllowedCommands`
-  содержит **только**: `git, gh, dotnet, node, npm, npx, python3, pip3`.
-  **`cmd` и `powershell` — НЕ в белом списке.** Значит правило «внешние
-  пути → `execute_command`» **не сработает**. Правильный инструмент для
-  внешних путей — **`code_agent`** (`run_python` / `run_javascript`): Python /
-  Node пишут файлы без sandbox-ограничений.
-- **Fix (v1.13.x, 2026-10-05):**
-  - **`ChatStreamService.DefaultSystemPrompt`** — добавлено правило 8:
-    «внешние пути (`c:\...`, `D:\...`, `/tmp/`, `/usr/...`) → `code_agent`
-    с `run_python` / `run_javascript`. НЕ `file_system_agent` (вне workspace
-    не может). НЕ `execute_command` (`cmd`/`powershell` не в whitelist)».
-  - **ПРИМЕР 3** в промпте — как разобрать эту задачу через `code_agent`.
-  - **`Description`** `file_system_agent` (dev + prod) — уточнено:
-    «работает ТОЛЬКО внутри workspace, для внешних путей — `code_agent`».
-- **Связанные:** KI-167 (галлюцинация — следствие), KI-118, KI-120, KI-127
-  (аналогичные проблемы tool-selection у qwen3-4b).
-
-### KI-169 — SubAgent: внутренние tool-вызовы не попадают в AuditLogs
-
-- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
-- **Обнаружено:** 2026-10-05 (smoke #3 — при диагностике KI-167).
-- **Файлы:** `IIChatTools.Services/Implementation/SubAgentService.cs`,
-  `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`.
-- **Описание:** В `AuditLogs` пишется **одна запись на весь агент**
-  (`agent.file_system_agent`), но **внутренние tool-вызовы** SubAgent'а
-  (`list_directory`, `make_directory`, `save_file`) отдельными записями
-  **не фиксируются**. Из-за этого при отладке KI-167 нельзя было точно
-  определить, что вернул `save_file` — Success или Fail.
-- **Влияние:** снижает наблюдаемость (observability) при разборе инцидентов
-  с SubAgent. Видно только финальный `Status` агента.
-- **Не баг:** by design (агент — единица аудита). Но при расследовании
-  конкретных сбоев этого недостаточно.
-- **Возможные решения:**
-  1. Логировать каждый внутренний tool-вызов в `AuditLogs` с
-     `ToolName = "agent.{AgentName}.{InnerTool}"` — отдельная категория.
-  2. Логировать в `ILogger` на уровне Debug (частично делается — в
-     `ToolRegistry` есть «Выполнение инструмента X», но без `ResultJson`).
-- **Примечание (2026-10-05):** без этой диагностики невозможно было
-  однозначно определить, что вернул `save_file` — `Success` или `Fail`.
-  Именно из-за этого первая версия KI-167 содержала **две** гипотезы
-  корня (галлюцинация LLM vs path-traversal). Это заметно увеличило
-  время диагностики.
-- **Связанные:** KI-167, KI-076 (AgentStats — использует AuditLogs).
-
----
-
-### KI-167 — `file_system_agent` галлюцинирует успех вне workspace (рецидив KI-113)
-
 - **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`,
@@ -3792,8 +3655,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   3. **Few-shot** в `SystemPrompt` — показать правильный ответ при path-traversal.
 - **Связанные:** KI-113, KI-114, KI-168 (tool-selection), KI-169 (audit gap).
 
-### KI-168 — Chat LLM выбирает `file_system_agent` для задач вне workspace
+---
 
+### KI-168 — Chat LLM выбирает `file_system_agent` для задач вне workspace
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
 - **Файлы:** `IIChatTools.Services/Implementation/ChatTools/ChatStreamService.cs`
@@ -3819,8 +3683,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Связанные:** KI-167 (галлюцинация — следствие), KI-118, KI-120, KI-127
   (аналогичные проблемы tool-selection у qwen3-4b).
 
-### KI-169 — SubAgent: внутренние tool-вызовы не попадают в AuditLogs
+---
 
+### KI-169 — SubAgent: внутренние tool-вызовы не попадают в AuditLogs
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-10-05 (smoke #3 — при диагностике KI-167).
 - **Файлы:** `IIChatTools.Services/Implementation/SubAgentService.cs`,
@@ -3844,7 +3709,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-172 — Chat LLM выбирает `vision_agent` для browser-задач
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #1 «DeepSeek API»).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
@@ -3864,7 +3728,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-197 — Vision Planner: галлюцинация actions вне whitelist (`navigate`, `goto`, `open`)
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-161, chatId=53/54/55/56).
 - **Файлы:** `VisionSystemPrompt.cs` (`PlannerPlanNext`),
@@ -3874,7 +3737,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `{"action": "navigate", "target": "wikipedia_org", "reason": "Открыть википедию"}`.
   `VisionActionParser` видит неизвестный action → `fail` с явным
   списком допустимых actions. `success=false, steps=0`.
-
 - **Лог (LM Studio, task 5296):**
   ```json
   {
@@ -3882,14 +3744,12 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     "content": "{\n  \"action\": \"navigate\",\n  \"target\": \"wikipedia_org\",\n  \"reason\": \"Открыть википедию\"\n}"
   }
   ```
-
 - **Лог (терминал):**
   ```
   VisionAgent[vt_debc2174]: завершено (success=False, steps=0, ms=46006):
   Неизвестный action: «navigate». Допустимые: click, double_click,
   right_click, move_mouse, type, press_key, hotkey, scroll, wait, done, fail.
   ```
-
 - **Причина:** qwen3-4b видит задачу «Открой wikipedia.org» →
   интерпретирует её как **навигацию** (браузерный контекст → знакомый
   паттерн `navigate` из Playwright / Puppeteer / других browser-API).
@@ -3900,10 +3760,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      что именно НЕ существует).
   3. Нет объяснения: URL передаётся в `run_task(url=...)` **до** loop'а;
      Planner не занимается навигацией.
-
 - **Воспроизведение:** 100% (4 smoke-прогона подряд: chatId=53/54/55/56,
   все падали на step 2 после `wait`).
-
 - **Fix (v1.13.x):**
   - **Fix 1 (main):** новый блок «КРИТИЧНО — СПИСОК ACTIONS ЗАКРЫТ»
     в `PlannerPlanNext` (вставлен перед «ГЛАВНОЕ ПРАВИЛО»):
@@ -3921,14 +3779,12 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     Плюс `LogWarning` в `LmStudioPlannerClient` при пустом/невалидном
     action от LLM.
     **⚠️ Требует файл `VisionActionParser.cs`** (не в контексте).
-
 - **Smoke (ожидание):** «Открой wikipedia.org и кликни по ссылке "Русский"»:
   - Step 1: `wait` (страница грузится).
   - Step 2: `click search_button` **ИЛИ** `type search_input` + `click search_button`
     (в зависимости от task'а).
   - Не должно быть `navigate` / `goto` / `open`.
   - `success=true`, ≥ 2 шага.
-
 - **Связанные:** KI-161 (CDP-attach — работает), KI-192 (пустой
   `ui_elements` — наблюдается, но Planner корректно вернул `wait`),
   KI-194 (Planner `done` без проверки — не проявляется в этом smoke),
@@ -3938,7 +3794,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-202 — Vision Planner возвращает `fail` вместо `done` после успешного клика
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-201, chatId=60).
 - **Файлы:** `VisionSystemPrompt.cs` (`PlannerPlanNext`, правило 10).
@@ -3965,8 +3820,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   работает), KI-200 (HttpClient — работает), KI-201 (JSON recovery —
   работает).
 
-### KI-201 — Vision LLM обрывает JSON → ui_elements=[] → клик не валидируется
+---
 
+### KI-201 — Vision LLM обрывает JSON → ui_elements=[] → клик не валидируется
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-200, chatId=59).
 - **Файлы:** `ScreenDescriptionParser.cs` (recovery из обрезанного JSON),
@@ -3999,8 +3855,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   работает), KI-192 (пустой ui_elements на первом шаге — частично
   покрыт recovery).
 
-### KI-200 — Vision LLM зацикливается на однотипных элементах (language_link)
+---
 
+### KI-200 — Vision LLM зацикливается на однотипных элементах (language_link)
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-198, chatId=58).
 - **Файлы:** `VisionSystemPrompt.cs` (`VisionUiDescribe`, правило 22),
@@ -4037,8 +3894,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   требовало уточнения), KI-192 (пустой `ui_elements` на шаге 1 —
   подтверждён в этом smoke), KI-199 (center — работает).
 
-### KI-198 — Vision LLM не распознаёт языковые ссылки на Wikipedia
+---
 
+### KI-198 — Vision LLM не распознаёт языковые ссылки на Wikipedia
 - **Приоритет:** 🟠 High | **Статус:** Fixed (частично) | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-197, chatId=57).
 - **Файлы:** `VisionSystemPrompt.cs` (`VisionUiDescribe`, правило 8),
@@ -4072,8 +3930,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   fallback для DOM-элементов), KI-160 (нестабильность VL),
   KI-199 (галлюцинация `center`).
 
-### KI-199 — Vision LLM возвращает некорректный `center` (не соответствует `bounds`)
+---
 
+### KI-199 — Vision LLM возвращает некорректный `center` (не соответствует `bounds`)
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-197, chatId=57, шаг 2).
 - **Файлы:** `ScreenDescriptionParser.cs` (нормализация),
@@ -4095,45 +3954,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Связанные:** KI-131, KI-162-fix2 (verify-координаты тоже ненадёжны),
   KI-190 (bounds-center надёжнее), KI-198 (та же VL-модель).
 
-### KI-192 — Vision Agent: VL возвращает пустой `ui_elements` на медленно
-  грузящихся страницах
-
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
-- **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=41/42).
-- **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — loop),
-  `VisionSystemPrompt.cs` (`PlannerPlanNext`).
-- **Симптом:** после успешного `type search_input "Москва"` → `click
-  search_button` Wikipedia загружает страницу результатов **дольше**,
-  чем длится один VL-цикл. На следующем шаге `DescribeAsync` возвращает
-  `{ description: "…", ui_elements: [] }`. Planner LLM (qwen3-4b) получает
-  «пустой экран» → `action=wait` → снова пусто → через 2-3 итерации
-  `action=fail`.
-  - chatId=41: `ui_elements=0` с **первого** кадра после `OpenAsync`
-    (Chrome не успел отрендерить страницу) → `fail` за 1 шаг.
-  - chatId=42: 6 → 2 → 3 → 0 элементов, затем `fail` за 3 шага.
-- **Причина:**
-  - Qwen2.5-VL-7B на этом железе: **8.6 t/s**, один Describe — 37–81 сек
-    (LM Studio Developer Logs: `eval time = 26198 ms / 228 tokens`).
-  - Между Describe и Describe страница может завершить навигацию, но
-    следующий кадр ловится в промежуточном состоянии (белый экран,
-    спиннер) → VL честно возвращает `ui_elements: []`.
-  - Loop **не различает** «пустой экран = страница ещё грузится» и
-    «пустой экран = задача невыполнима».
-- **Возможные решения:**
-  1. В `VisionAgentService.RunTaskAsync` при `screen.UiElements.Count == 0`
-     и `history.Count == 0` — сделать паузу `Limits.PageStabilityCheckMs × 4`
-     (≈2 сек) и повторить `DescribeAsync` **без** вызова Planner.
-     Счётчик retry — до 3 раз.
-  2. В `PlannerPlanNext` добавить few-shot: «Если `ui_elements=[]` и это
-     первый кадр — верни `wait`, не `fail`».
-  3. Комбинация: retry в loop + правило в промпте.
-- **Связанные:** KI-131 (Vision Agent), KI-160 (слабые VL),
-  KI-194 (Planner premature done), KI-162 (verify — диагностика).
-
 ---
 
 ### KI-193 — Vision LLM: id drift между кадрами (`search_btn` → `search_button`)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=36, задача «Открой wikipedia.org и кликни по кнопке поиска»).
 - **Файлы:** `VisionSystemPrompt.VisionUiDescribe` (правило 21), `VisionActionValidator`,
@@ -4159,7 +3982,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-194 — Vision Planner: `done` без фактической проверки результата
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=39, задача «Открой wikipedia.org и кликни по кнопке поиска»).
 - **Файлы:** `VisionSystemPrompt.PlannerPlanNext`, `VisionAgentService.RunTaskAsync`.
@@ -4205,7 +4027,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-196 — Vision Planner: повторный click по submit после `press_key Enter`
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed (в этом коммите)
 - **Обнаружено:** 2026-10-07 (smoke KI-195, chatId=46).
 - **Файлы:** `VisionSystemPrompt.cs` (`PlannerPlanNext`, правило 13).
@@ -4228,7 +4049,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-192 — Vision Agent: VL возвращает пустой `ui_elements` на медленно грузящихся страницах
-
 - **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=41/42).
 - **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — loop), `VisionSystemPrompt.cs`
@@ -4262,7 +4082,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-187 — Vision Planner зацикливается на `wait` после успешного action
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit G)
 - **Обнаружено:** 2026-10-06 (smoke #1 — wikipedia.org, «Найди статью про Москву»).
 - **Файлы:** `VisionAgentService.cs` (детектор цикла).
@@ -4286,8 +4105,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 - **Долгосрочно:** в KI-161 (CDP-attach к Chrome) — можно проверять URL
   страницы напрямую через CDP → определять переход.
 
-### KI-188 — `Pipe is broken` при STOP от overlay
+---
 
+### KI-188 — `Pipe is broken` при STOP от overlay
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit G)
 - **Обнаружено:** 2026-10-06 (smoke #1 — пользователь нажал STOP).
 - **Файлы:** `WpfVisionOverlayHandle.cs` (`SendCommand`, `SetFinalStatus`).
@@ -4299,8 +4119,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   `try/catch (Exception)` в `SetFinalStatus` → `LogDebug` вместо throw.
 - **Связанные:** KI-142 (WPF overlay), KI-152 (timeout vs отмена).
 
-### KI-189 — После STOP от overlay Chat возвращает корректный ответ (Documented)
+---
 
+### KI-189 — После STOP от overlay Chat возвращает корректный ответ (Documented)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-10-06 (smoke #1 — пользователь нажал STOP).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
@@ -4312,8 +4133,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   Chat **не** пыталась делать лишние vision_agent actions или planner_agent.
 - **Не баг:** это ожидаемое поведение — документация для истории.
 
-### KI-185 — Chat LLM делает лишние vision_agent actions после Fail
+---
 
+### KI-185 — Chat LLM делает лишние vision_agent actions после Fail
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit F)
 - **Обнаружено:** 2026-10-06 (smoke — «Нажми кнопку Новый чат»).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правило 13).
@@ -4329,8 +4151,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   «после fail от vision_agent — верни честный ответ и жди указаний
   пользователя. НЕ вызывай другие vision_agent actions».
 
-### KI-186 — Vision Agent не может работать с UI IIChatTools (fresh profile)
+---
 
+### KI-186 — Vision Agent не может работать с UI IIChatTools (fresh profile)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-10-06 (smoke — «Нажми кнопку Новый чат»).
 - **Файлы:** `LocalHarnessVisionBackend.cs` (fresh Chrome profile).
@@ -4355,8 +4178,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   вызывать `vision_agent` для UI IIChatTools. Возвращать честный ответ.
 - **Связанные:** KI-161 (DOM+Vision hybrid), KI-185 (лишние actions).
 
-### KI-182 — Vision Planner зацикливается на одном target
+---
 
+### KI-182 — Vision Planner зацикливается на одном target
 - **Приоритет:** 🟠 High | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x (Commit E)
 - **Обнаружено:** 2026-10-06 (smoke — «Создай новый чат с заголовком "Тест"»).
 - **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — детектор цикла, план — Commit F),
@@ -4376,8 +4200,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   пропустить шаг; 3+ подряд → fail.
 - **Связанные:** KI-160 (нестабильность VL), KI-131 (Vision Agent).
 
-### KI-183 — Chat LLM выдумывает URL для `vision_agent(action=describe)`
+---
 
+### KI-183 — Chat LLM выдумывает URL для `vision_agent(action=describe)`
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit E)
 - **Обнаружено:** 2026-10-06 (smoke — «Создай новый чат с заголовком "Тест"»).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правило 10).
@@ -4390,8 +4215,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   работает на текущем экране».
 - **Связанные:** KI-181 (правило 13 — UI-задачи через vision_agent).
 
-### KI-184 — Chat LLM делает лишние вызовы `planner_agent` после Fail
+---
 
+### KI-184 — Chat LLM делает лишние вызовы `planner_agent` после Fail
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.13.x (Commit E)
 - **Обнаружено:** 2026-10-06 (smoke — «Создай новый чат с заголовком "Тест"»).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правило 11).
@@ -4403,96 +4229,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   НЕ вызывай planner_agent / save_memory. Верни честный ответ пользователю».
 - **Связанные:** KI-183 (следствие той же сессии).
 
-### KI-180 — Approval-модалка попадает в скриншот Vision Agent
-
-- **Приоритет:** 🟡 Medium | **Статус:** Documented | **Запланировано:** v1.13.x
-- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
-- **Файлы:** `VisionAgentTool.cs` (ClickAsync / DescribeAsync), `ChatStreamService` (approval flow).
-- **Симптом:** при `vision_agent(action='click', target='X')` — действие требует
-  approval → показывается модалка IIChatTools. Пользователь нажимает «Подтвердить»
-  → Bootstrap закрывает модалку с анимацией ~300 мс. Но tool выполняется **сразу**
-  после `WaitForDecisionAsync` — snapshot GDI успевает захватить **исчезающую**
-  модалку. Vision LLM возвращает `[confirm_dialog, cancel_button, confirm_button]`
-  вместо реальных UI-элементов страницы → `target='X'` не найден → FAIL.
-- **Доказательство (LM Studio logs 2026-10-06 17:19:37):**
-```text
-description: "Скриншот веб-страницы с подтверждением действия и элементами
-инструмента IIChatTools."
-ui_elements: [ confirm_dialog, cancel_button, confirm_button ]
-```
-- **Fix (план, v1.13.x):**
-- **Вариант A (простой):** в `VisionAgentTool.ClickAsync` при первом describe
-  добавить `await Task.Delay(500)` — модалка успеет закрыться.
-- **Вариант B:** маскировать approval-модалку на скриншоте (по аналогии с
-  overlay mask из KI-158). Нужно найти bounds модалки через CDP или JS-канал.
-- **Вариант C (архитектурный):** Chat должен передавать ChatId в tool, tool
-  проверяет `pendingApproval` для текущего чата и ждёт его завершения.
-- **Связанные:** KI-175 (рендер PNG), KI-177 (target не найден).
-
-### KI-177 — Vision Agent: `click(target=X)` — target не найден (следствие KI-180)
-
-- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
-- **Fix (2026-10-06, Commit D):** пауза 400 мс в `VisionAgentTool.cs`
-  перед `ScreenshotAsync` в `HandleDescribeAsync`, `HandleScreenshotAsync`
-  и `HandleCoordinateActionAsync` (при `hasTarget=true`). Это даёт
-  Bootstrap-модалке approval время на закрытие (hide-transition 300 мс),
-  и GDI-capture не попадает в момент анимации.
-- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
-- **Файлы:** `VisionAgentTool.cs` (`ClickAsync`), `VisionAgentService.ResolveCoordinates`.
-- **Симптом:** LLM вызывает `vision_agent(describe)` → 5 элементов, включая
-`new_chat_button`. Затем `vision_agent(click, target='new_chat_button')` →
-**FAIL: «target 'new_chat_button' не найден в ui_elements»**.
-- **Root cause (уточнён 2026-10-06):** **KI-180** — свежий describe внутри
-`vision_agent(click)` захватывает approval-модалку, Vision LLM возвращает
-`[confirm_dialog, cancel_button, confirm_button]`, target `new_chat_button`
-там отсутствует.
-- **Что сделано в v1.13.x (Commit C):**
-1. Правило 12 в Chat DefaultSystemPrompt — использовать id из **последнего**
-   describe, не из старых.
-2. Правило 21 в VisionUiDescribe — **стабильные id** (не переименовывать
-   элементы между кадрами).
-- **Что осталось (следующий коммит):** fix самого tool — кэш последнего
-`ScreenDescriptionDto` в `VisionAgentService` (TTL 30 сек), использовать его
-при `target != null` вместо свежего describe. **Или** — фикс KI-180
-(маскировка модалки).
-- **Связанные:** KI-180 (модалка в кадре — настоящий корень), KI-160
-(нестабильность VL), KI-131 (Vision Agent).
-
-### KI-178 — Vision LLM timeout 300 сек при `Qwen2.5-VL-7B`
-
-- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
-- **Обнаружено:** 2026-10-06 (smoke #1 — три timeout за сессию).
-- **Файлы:** `appsettings.Development.json` (`VisionAgent:VisionLlm:MaxTokens`).
-- **Симптом:** `Qwen2.5-VL-7B` на этом железе даёт ~8.5 t/s. При prompt
-~2000 токенов + `MaxTokens=1024` реальное время генерации достигает 240+ сек.
-На сложных экранах модель может зацикливаться (повторять элементы) и
-не укладываться даже в 300 сек.
-- **Доказательство (LM Studio logs):**
-- Один describe: prompt 13.5 с + eval 59 с = **72 с** ✅
-- Другой: prompt 8.1 с + eval 39 с = **47 с** ✅
-- Третий: клиент disconnected после `n_gen = 773` — timeout 300 с ❌
-- **Fix (v1.13.x):** `MaxTokens` 1024 → **768** (реально нужно ~500-650 для
-`ui_elements[]`; 768 = запас 20%). Плюс — в `VisionSystemPrompt.VisionUiDescribe`
-добавлено правило 22 (стоп-условие, не дублировать элементы).
-- **Связанные:** KI-131, KI-174 (первый timeout 180→300), KI-160 (зацикливание).
-
-### KI-179 — Chat LLM зацикливается на Vision-задачах
-
-- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
-- **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
-- **Файлы:** `ChatStreamService.DefaultSystemPrompt` (правила 11-12).
-- **Симптом:** qwen3-4b вызывает `describe → click(Fail) → describe →
-click(Fail) → describe → click(Fail)` — лимит 5 итераций. В финальном
-ответе — галлюцинация «Успешно определил текущий экран...» + извинение
-за лимит. Рецидив KI-118/120/127/168.
-- **Fix (v1.13.x):**
-- Правило 11: «При `success=false` — НЕ повторяй то же действие. Сделай
-  describe / смени target / переключись на другой tool».
-- Правило 12: «Используй id из САМОГО ПОСЛЕДНЕГО describe».
-- **Связанные:** KI-118, KI-120, KI-127, KI-168 (tool-selection у qwen3-4b).
+---
 
 ### KI-176 — base64 в history ломает чат (Critical)
-
 - **Приоритет:** 🔴 Critical | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #1, chatId=29).
 - **Файлы:** `ChatStreamService.cs` (`SanitizeToolResultForLlm` +
@@ -4517,7 +4256,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-175 — Скриншот не рендерится в Chat UI
-
 - **Приоритет:** 🟡 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #1, chatId=29).
 - **Файлы:** `wwwroot/js/modules/chat.js` (обработчик `tool_result`).
@@ -4543,7 +4281,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-177 — Vision Agent: click(target=X) не находит X в свежем describe
-
 - **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
 - **Файлы:** `VisionAgentTool.cs` (`ClickAsync`), `VisionAgentService.ResolveCoordinates`.
@@ -4561,7 +4298,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-178 — Vision LLM timeout 300 сек при 2000+ токенах промпта
-
 - **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-06 (smoke #1 — три timeout за сессию).
 - **Файлы:** `appsettings.Development.json` (`VisionAgent:VisionLlm:MaxTokens`),
@@ -4577,7 +4313,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-179 — Chat LLM зацикливается на Vision-задачах
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
@@ -4593,7 +4328,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-180 — Approval-модалка попадает в скриншот Vision Agent
-
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
 - **Обнаружено:** 2026-10-06 (smoke #1).
 - **Симптом:** при `click(target=X)` выполняется `DescribeAsync` **после**
@@ -4610,7 +4344,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-173 — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout
-
 - **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #1 вторая попытка — gismeteo).
 - **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — fallback URL из task),
@@ -4629,8 +4362,9 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 - **Связанные:** KI-172 (Chat LLM выбирает vision_agent для browser),
   KI-131 (Vision Agent).
 
-### KI-174 — Vision LLM timeout 180s не покрывает Qwen2.5-VL-7B
+---
 
+### KI-174 — Vision LLM timeout 180s не покрывает Qwen2.5-VL-7B
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-05 (smoke #1 вторая попытка — logs LM Studio).
 - **Файлы:** `appsettings.Development.json` (`VisionAgent:VisionLlm:TimeoutSeconds`).
@@ -4648,7 +4382,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-151 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked)
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
 - **Обнаружено:** 2026-10-05 (smoke Ф6.7 KI-142).
 - **Файлы:** `LocalHarnessVisionBackend.CloseBrowser`.
@@ -4667,7 +4400,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-204 — RAG: нет индикации прогресса OCR при загрузке PDF
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-203 — сканы PDF обрабатываются ~20 сек без обратной связи).
 - **Файлы:** `wwwroot/js/modules/chat.js` (`uploadFiles`, `renderAttachmentsBar`),
@@ -4693,7 +4425,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-205 — RAG: постраничный просмотр PNG сканов
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-203 — temp PNG страниц удаляются, пользователь не видит распознанное).
 - **Файлы (план):** `PdfParser.cs` (`RenderPageToPng`),
@@ -4719,8 +4450,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   - Кроссплатформенно (PDFtoImage → SkiaSharp).
   - Опция выключена по умолчанию.
 - **Связанные:** KI-203 (RAG PDF OCR — Fixed v1.13.x), KI-204.
-
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (обсуждение Vision Agent + RAG).
 - **Файлы (итог):** `IIChatTools.Services/Interfaces/IOcrService.cs`,
@@ -4782,7 +4511,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-206 — RAG: Page viewer — thumbnails, зум, скролл (улучшения UX)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-205 — UI без sidebar thumbnails/zoom).
 - **Файлы:** `chat.js`, `chat.css`, `Index.cshtml`, `.resx` (RU + EN).
@@ -4807,7 +4535,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-207 — RAG: Page viewer — выделение текста и поиск (text layer)
-
 - **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.x)** | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-205 — нет выделения/поиска, как в Acrobat).
 - **Коммиты:** `68c79a8` (базовая реализация) → `ee13c68` (fix2) →
@@ -4871,7 +4598,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-208 — RAG: Page viewer — экспорт (ZIP, TXT, PDF с text layer)
-
 - **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v1.13.x)** | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (обсуждение KI-207).
 - **Коммиты:** один коммит (см. ниже).
@@ -4909,7 +4635,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-209 — RAG: Page viewer — экспорт отдельной страницы
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
 - **Обнаружено:** 2026-10-08 (обсуждение KI-208).
 - **Файлы (план):** `chat.js` (контекстное меню на thumb или кнопка в модалке),
@@ -4921,8 +4646,9 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   на активном thumbnail (правый клик / иконка) или в шапке модалки.
 - **Оценка:** ~30 мин.
 
-### KI-210 — RAG: Batch-экспорт нескольких attachment'ов
+---
 
+### KI-210 — RAG: Batch-экспорт нескольких attachment'ов
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
 - **Обнаружено:** 2026-10-08 (обсуждение KI-208).
 - **Файлы (план):** `ChatAttachmentsController.cs` (endpoint
@@ -4935,8 +4661,9 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   в `#chat-attachments-bar`).
 - **Оценка:** ~1-2 ч.
 
-### KI-211 — RAG: Page viewer — прогресс экспорта 100+ страниц
+---
 
+### KI-211 — RAG: Page viewer — прогресс экспорта 100+ страниц
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
 - **Обнаружено:** 2026-10-08 (обсуждение KI-208).
 - **Файлы (план):** `chat.js` (progress-бар в модалке / toast с %),
@@ -4954,7 +4681,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-212 — RateLimiting: выделить политику для page-viewer (`/pages/*`)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
 - **Обнаружено:** 2026-10-08 (smoke KI-208).
 - **Файлы (план):** `RateLimitingMiddleware.cs`, `appsettings.json`
@@ -4965,7 +4691,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   - 28 OCR JSON (префетч поиска);
   - 28 PNG + 28 OCR (экспорт PDF);
   - ~5 PNG + 5 OCR (просмотр отдельных страниц).
-
   **Итого ~120+ запросов** за 1-2 минуты. Текущий per-user лимит (100/min)
   срабатывает → **429** на середине операций. В dev временно подняли до 500
   (чтобы smoke прошёл), но это плохое решение для prod (DoS-риск).
@@ -4985,7 +4710,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 ### KI-213 — RAG: Page viewer — подгонка text layer под bbox (выделение)
-
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
 - **Обнаружено:** 2026-10-08 (smoke KI-207/208).
 - **Файлы (план):** `chat.js` (`renderTextLayer`, `exportPagesPdf`),
@@ -4997,13 +4721,11 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   - **размер не тот** — выделение выше/ниже оригинала;
   - **baseline сдвинут** — подсветка не совпадает с нижней границей букв;
   - при протяжке мышью границы выделения не совпадают с bbox слов.
-
   **Причина:** сейчас `font-size = h * 0.9` (от **высоты** bbox), а
   `width` — через CSS `width` (в браузере) или через `size` (в PDF).
   Chrome / Adobe / любой viewer используют **реальные метрики глифов**
   (не CSS width) для построения прямоугольника выделения. Если ширина
   текста при заданном `size` ≠ `bbox.w` — выделение уходит вбок.
-
 - **Industry best practice** (что делают OCRmyPDF, PDF.js, tesseract-pdf):
   1. **Шрифт** — моноширинный (Courier / `DejaVuSansMono`): метрики
      предсказуемы (равная `charWidth`), погрешность выделения минимальна.
@@ -5022,7 +4744,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   5. Дополнительно: **пословный** `drawText` (не по буквам) — современные
   ридеры умеют разбивать слово по буквам при выделении, но
   ширина самого слова должна точно совпадать.
-
   - **Что нужно сделать (KI-213):**
   - **a)** В `renderTextLayer` (браузерный слой, `chat.js`) —
   заменить `span.style.fontSize = h * 0.9` на подгонку через
@@ -5040,16 +4761,12 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   - **d)** В `chat.css` — стили для `.chat-pages-text-word` с
   `transform-origin: left top` (уже есть у родителя, но нужно и на
   span для корректного scaleX).
-
   - **Оценка:** ~1-2 ч (пп. a, b — обязательно; п. c — опционально).
-
   - **Связанные:** KI-205 (page viewer), KI-207 (text layer), KI-208 (экспорт).
 
 ---
 
-
 ### KI-215 — Vision LLM: `center` как expression (`546 + (378 / 2)`) ломает JSON
-
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-08 (smoke KI-137 — Wikipedia-портал).
 - **Файлы:** `IIChatTools.Services/Implementation/VisionAgent/ScreenDescriptionParser.cs`
@@ -5059,20 +4776,16 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 - **Симптом:** VL-модель (`qwen2.5-vl-7b-instruct`, Q4_K_M) в 4 из 4 ответов
   возвращала `"center"` как **арифметическое выражение** вместо числа.
   Пример одного элемента:
-
       "id": "article_title",
       "bounds": { "x": 546, "y": 120, "w": 378, "h": 49 },
       "center": { "x": 546 + (378 / 2), "y": 120 + (49 / 2) }
-
   `"546 + (378 / 2)"` — строка-выражение **без кавычек**. JSON невалиден:
   `JObject.Parse` бросает → `ScreenDescriptionParser` возвращает fallback
   с `UiElements = []` → Planner видит «пустой экран» → не может кликнуть.
-
 - **Воспроизведение:** smoke KI-137 (task `vt_dfcaf3f3`, Wikipedia-портал).
   Симптом стабильный: в логах LM Studio — 4 ответа VL подряд, все с этой
   проблемой. Каждый VL-вызов ~100 с (7B, Q4_K_M); задача упёрлась в
   `MaxTaskSeconds=500` после 2 шагов, где оба раза `ui_elements=[]`.
-
 - **Root cause (двойной):**
   1. **Промпт** (правило 11 `VisionUiDescribe`): просил «вычислить center как
      `bounds.x + bounds.w/2`» — модель восприняла **буквально** и написала
@@ -5080,7 +4793,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   2. **Парсер:** `JObject.Parse` не толерантен к non-numeric JSON. Реализация
      `TryRecoverPartialElements` (KI-201) — тоже (те же невалидные значения
      на каждом фрагменте). Итог — `UiElements=[]`.
-
 - **Fix (Вариант B — regex-strip):**
   - **`ScreenDescriptionParser.ExtractJsonObject`:** regex
     `"center"\s*:\s*\{[^{}]*\}\s*,?` → `` — удаляет блок `"center"` целиком
@@ -5093,7 +4805,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   - **Обоснование regex-strip:** KI-199 уже **игнорирует** VL-центр и
     пересчитывает его из `bounds` (в `ParseUiElement`). Значит, VL-центр
     не нужен — а его невалидность ломает парсер. Удаляем без потери данных.
-
 - **Что НЕ входит:** `bounds` с expression-значениями (в этом smoke их нет;
   если появятся — отдельный KI).
 - **Оценка:** ~30 мин.
@@ -5106,9 +4817,7 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ---
 
-
 ### KI-214 — Интеграция KNOWN_ISSUES.md с GitHub Issues (витрина)
-
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
 - **Обнаружено:** 2026-10-08 (обсуждение с пользователем).
 - **Файлы (план):**
@@ -5141,9 +4850,7 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ---
 
-
 ### KI-216 — Vision Agent: `MaxTaskSeconds = 500` недостаточно для сложных задач
-
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-08 (smoke KI-137 — Wikipedia-портал).
   **Устранено:** 2026-10-08.
@@ -5151,22 +4858,17 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
   `VisionAgent:Limits:MaxTaskSeconds`), при необходимости — конфиг LM Studio.
 - **Симптом:** smoke KI-137 (task `vt_dfcaf3f3`, Wikipedia-портал):
   Vision Agent упёрся в `MaxTaskSeconds=500` на **2 шагах** loop'а:
-
       VisionAgent[vt_dfcaf3f3]: timeout 500s, steps=2
       VisionAgent[vt_dfcaf3f3]: завершено (success=False, steps=2, ms=500028):
         Превышен лимит времени задачи (500 с).
-
   Каждый VL-вызов (`qwen2.5-vl-7b-instruct`, Q4_K_M) на полном
   скриншоте 1920×1200 занимает **~100 секунд**:
-
       qwen2.5-vl-7b-instruct: prompt eval time = 24716 ms / 3396 tokens
                               eval time       = 88819 ms / 678 tokens
                               total           = 100727 ms
-
   При 4 ожидаемых VL-вызовах (2 describe + 2 planner) — 400 с, плюс
   planner (~30-50 с), плюс planner на реальной задаче — легко
   переваливает за 500 с.
-
 - **Дополнительно:** в логе LM Studio модель загружена с
   `n_ctx_slot = 8192` (вместо ожидаемых 16384 для агентов — см.
   KI-117). Возможно, требуется ручная перенастройка в UI LM Studio.
@@ -5179,7 +4881,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
      быстрее (примерно 2×), но менее точная.
   4. **GPU-offload в LM Studio** — выкрутить все слои на GPU
      (в smoke использовались дефолтные настройки).
-
 - **Fix (Вариант 1 — увеличение таймаута в dev):**
   - `appsettings.Development.json`: `MaxTaskSeconds` **500 → 900**.
   - Обоснование: ~100 с/VL-вызов × 6 вызовов ≈ 600 с (типичный loop
@@ -5190,7 +4891,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
     `VisionUiDescribe`, переход на меньшую VL-модель, GPU-offload.
     Если 900 с окажется мало при холодном старте модели — вернёмся
     к ним.
-
 - **Оценка:** ~15 мин (Вариант 1). Варианты 2-4 — отложены.
 - **Связанные:** KI-137 (обнаружено при smoke), KI-215 (VL `center`
   expression — Fixed), KI-117 (`Context Length ≥ 16384`).
@@ -5232,7 +4932,6 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
 | Fixed (v1.13.x, KI-137/203/215/216) | 4 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression), KI-216 (MaxTaskSeconds) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
-| In Progress | 1 |                   <!-- KI-137 (Vision OCR) -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **102** |
@@ -5243,7 +4942,7 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content), KI-069 (inline-edit в sidebar).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 **Implemented (v1.7.0):** KI-088 (`docs/TESTING.md` — чек-лист ручной приёмки).
-**Всего в реестре:** 48 KI.
+**Всего в реестре:** 102 KI.
 
 ---
 
