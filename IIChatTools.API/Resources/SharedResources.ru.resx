@@ -495,6 +495,25 @@
     <data name="RagPagesSearchOpen" xml:space="preserve">
       <value>Поиск (Ctrl+F)</value>
     </data>
+    <!-- KI-208: экспорт страниц. -->
+    <data name="RagPagesExportZip" xml:space="preserve">
+      <value>Скачать все страницы (ZIP)</value>
+    </data>
+    <data name="RagPagesExportText" xml:space="preserve">
+      <value>Скачать текст (TXT)</value>
+    </data>
+    <data name="RagPagesExportPdf" xml:space="preserve">
+      <value>Скачать PDF с текстом</value>
+    </data>
+    <data name="RagPagesExportPdfProgress" xml:space="preserve">
+      <value>Готовим PDF…</value>
+    </data>
+    <data name="RagPagesExportPdfSuccess" xml:space="preserve">
+      <value>PDF готов: страниц {0}</value>
+    </data>
+    <data name="RagPagesExportPdfError" xml:space="preserve">
+      <value>Ошибка экспорта PDF: {0}</value>
+    </data>
 
     <!-- ===== RAG / Admin Knowledge Base (v1.5.0, KI-083, Шаг 7B) ===== -->
     <data name="AdminTabKnowledgeBase" xml:space="preserve">

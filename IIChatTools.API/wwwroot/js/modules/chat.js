@@ -317,6 +317,14 @@ function bindEvents() {
         document.getElementById('chat-pages-search-open')
             ?.addEventListener('click', openPagesSearch);
 
+        // KI-208: экспорт страниц.
+        document.getElementById('chat-pages-export-zip')
+            ?.addEventListener('click', exportPagesZip);
+        document.getElementById('chat-pages-export-text')
+            ?.addEventListener('click', exportPagesText);
+        document.getElementById('chat-pages-export-pdf')
+            ?.addEventListener('click', exportPagesPdf);
+
         // KI-206: зум (кнопки + / − / 100%).
         pagesModal.querySelectorAll('[data-zoom]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -5418,6 +5426,14 @@ function applyPagesSearch(query) {
     const viewer = state.pagesViewer;
     if (!viewer) return;
 
+    // KI-208 (race-fix KI-207): если список страниц ещё не загружен
+    // (totalPages === 0), префетч стартует с 0 страниц и находит 0 hits.
+    // Симптом — «поиск отвалился, потом заработал». Ждём.
+    if (!viewer.totalPages || viewer.totalPages === 0) {
+        console.debug('[chat] applyPagesSearch: totalPages ещё не загружен');
+        return;
+    }
+
     const q = (query || '').trim().toLowerCase();
     viewer.searchQuery = q;
 
@@ -5450,6 +5466,7 @@ function applyPagesSearch(query) {
 async function startDocumentSearch(query) {
     const viewer = state.pagesViewer;
     if (!viewer || !query) return;
+    if (!viewer.totalPages || viewer.totalPages === 0) return;   // KI-208
 
     // Отмена предыдущего префетча.
     viewer.searchPrefetchAbort = (viewer.searchPrefetchAbort || 0) + 1;
@@ -5704,4 +5721,214 @@ function updatePagesSearchCounter(current, total, loading, fetched, totalPages) 
     counter.textContent = template
         .replace('{0}', String(current))
         .replace('{1}', String(total));
+}
+
+// ============================================================
+// v1.13.x (KI-208): экспорт страниц — ZIP, TXT, PDF.
+// ============================================================
+
+/**
+ * KI-208: скачивает все PNG-страницы одним ZIP-архивом.
+ * Endpoint: GET .../pages/zip (сервер собирает архив).
+ */
+function exportPagesZip() {
+    const viewer = state.pagesViewer;
+    if (!viewer || !state.activeChatId) return;
+
+    const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/zip`;
+    triggerDownload(url);
+}
+
+/**
+ * KI-208: скачивает распознанный текст всех страниц одним .txt-файлом.
+ * Endpoint: GET .../pages/all-text (сервер склеивает page-N.json).
+ */
+function exportPagesText() {
+    const viewer = state.pagesViewer;
+    if (!viewer || !state.activeChatId) return;
+
+    const url = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/all-text`;
+    triggerDownload(url);
+}
+
+/**
+ * KI-208: собирает PDF-файл на клиенте через pdf-lib.
+ * Накладывает PNG-страницы + невидимый текстовый слой (из page-N.json).
+ * Шрифт — Roboto Regular (TTF, с кириллицей), регистрируется через fontkit.
+ *
+ * <para>
+ * Ленивая загрузка:
+ *   • /lib/pdf-lib/pdf-lib.min.js (~220 KB);
+ *   • /lib/pdf-lib/fontkit.umd.min.js (~120 KB);
+ *   • /lib/pdf-lib/Roboto-Regular.ttf (~170 KB).
+ * Скачиваются один раз скриптом scripts/setup/download-pdf-lib.ps1.
+ * </para>
+ */
+async function exportPagesPdf() {
+    const viewer = state.pagesViewer;
+    if (!viewer || !state.activeChatId) return;
+
+    const modal = document.getElementById('chat-pages-modal');
+    const progressTpl = modal?.dataset.labelExportPdfProgress || 'Preparing PDF…';
+    const successTpl = modal?.dataset.labelExportPdfSuccess || 'PDF ready: {0} pages';
+    const errorTpl = modal?.dataset.labelExportPdfError || 'PDF export failed: {0}';
+
+    toast(progressTpl, 'info');
+
+    try {
+        // 1. Ленивая загрузка pdf-lib и fontkit.
+        const PDFLib = await loadPdfLib();
+        const fontkit = await loadFontkit();
+        const { PDFDocument, rgb } = PDFLib;
+
+        // 2. Шрифт Roboto Regular (TTF, с кириллицей).
+        const fontBytes = await fetch('/lib/pdf-lib/Roboto-Regular.ttf')
+            .then(r => {
+                if (!r.ok) throw new Error('Font not found');
+                return r.arrayBuffer();
+            });
+
+        // 3. Создаём документ.
+        const pdfDoc = await PDFDocument.create();
+        pdfDoc.registerFontkit(fontkit);
+        const customFont = await pdfDoc.embedFont(fontBytes, { subset: true });
+
+        // 4. Для каждой страницы: PNG + text layer.
+        for (let p = 1; p <= viewer.totalPages; p++) {
+            // 4.1. Загружаем PNG.
+            const pngUrl = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${p}`;
+            const pngBuf = await fetch(pngUrl).then(r => r.arrayBuffer());
+            const pngImage = await pdfDoc.embedPng(pngBuf);
+
+            const pageW = pngImage.width;
+            const pageH = pngImage.height;
+            const page = pdfDoc.addPage([pageW, pageH]);
+
+            // 4.2. Накладываем PNG (страница = PNG 1:1 в pt).
+            page.drawImage(pngImage, {
+                x: 0, y: 0, width: pageW, height: pageH
+            });
+
+            // 4.3. Невидимый text layer (opacity: 0) — выделяемый.
+            let layerDto = null;
+            try {
+                const ocrUrl = `/api/chat/${state.activeChatId}/attachments/${viewer.attachmentId}/pages/${p}/ocr`;
+                const ocrResp = await fetch(ocrUrl);
+                if (ocrResp.ok) {
+                    const ct = ocrResp.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) {
+                        const j = await ocrResp.json();
+                        if (j && j.success !== false) layerDto = j;
+                    }
+                }
+            } catch { /* нет JSON — пропускаем */ }
+
+            if (layerDto) {
+                const rawWords = layerDto.words ?? layerDto.Words ?? [];
+                for (const w of rawWords) {
+                    const text = w.text ?? w.Text;
+                    const x = w.x ?? w.X ?? 0;
+                    const y = w.y ?? w.Y ?? 0;
+                    const h = w.h ?? w.H ?? 10;
+                    if (!text || h <= 0) continue;
+
+                    // pdf-lib origin — bottom-left. Наш bbox — top-left.
+                    // pdfY_baseline ≈ pngH - y - h*0.9 (baseline чуть выше bottom).
+                    const pdfY = pageH - y - h * 0.9;
+                    const fontSize = h * 0.9;
+                    if (fontSize < 1) continue;
+
+                    try {
+                        page.drawText(String(text), {
+                            x: x,
+                            y: pdfY,
+                            size: fontSize,
+                            font: customFont,
+                            color: rgb(0, 0, 0),
+                            opacity: 0,
+                        });
+                    } catch (ex) {
+                        // Некоторые символы могут не входить в subset шрифта.
+                        console.debug('[pdf] drawText fail:', text, ex);
+                    }
+                }
+            }
+        }
+
+        // 5. Сохраняем и скачиваем.
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        const baseName = (viewer.fileName || 'document').replace(/\.[^.]+$/, '');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${baseName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast(successTpl.replace('{0}', String(viewer.totalPages)), 'success');
+    } catch (ex) {
+        console.error('[chat] PDF export failed:', ex);
+        toast(errorTpl.replace('{0}', ex.message || 'unknown'), 'error');
+    }
+}
+
+/**
+ * KI-208: скачивает файл через <a download>.
+ * Content-Disposition: attachment — уже задан на сервере.
+ */
+function triggerDownload(url) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+/**
+ * KI-208: ленивая загрузка pdf-lib (UMD).
+ * @returns {Promise<object>} window.PDFLib
+ */
+async function loadPdfLib() {
+    if (window.PDFLib) return window.PDFLib;
+
+    await loadScriptOnce('/lib/pdf-lib/pdf-lib.min.js', 'pdf-lib');
+    if (!window.PDFLib) throw new Error('pdf-lib: window.PDFLib не определён');
+    return window.PDFLib;
+}
+
+/**
+ * KI-208: ленивая загрузка @pdf-lib/fontkit (UMD).
+ * @returns {Promise<object>} window.fontkit
+ */
+async function loadFontkit() {
+    if (window.fontkit) return window.fontkit;
+
+    await loadScriptOnce('/lib/pdf-lib/fontkit.umd.min.js', 'fontkit');
+    if (!window.fontkit) throw new Error('fontkit: window.fontkit не определён');
+    return window.fontkit;
+}
+
+/**
+ * KI-208: idempotent подгрузка <script>. Если уже загружен — resolve.
+ */
+const _loadedScripts = new Map();
+function loadScriptOnce(src, key) {
+    if (_loadedScripts.has(key)) return _loadedScripts.get(key);
+
+    const p = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`Не удалось загрузить ${src}`));
+        document.head.appendChild(s);
+    });
+
+    _loadedScripts.set(key, p);
+    return p;
 }

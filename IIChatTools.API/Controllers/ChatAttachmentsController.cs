@@ -621,6 +621,225 @@ namespace IIChatTools.API.Controllers
             }
         }
 
+        // ============================================================
+        // v1.13.x (KI-208): экспорт страниц — ZIP + all-text
+        // ============================================================
+
+        /// <summary>
+        /// Скачивает все PNG-страницы вложения одним ZIP-архивом.
+        /// Внутри архива — подпапка с именем файла (без расширения),
+        /// страницы упорядочены по номеру (page-1, page-2, ..., page-N).
+        /// </summary>
+        /// <param name="chatId">Идентификатор чата.</param>
+        /// <param name="attachmentId">Идентификатор вложения.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>application/zip с Content-Disposition: attachment.</returns>
+        [HttpGet("{attachmentId:int}/pages/zip")]
+        public async Task<IActionResult> GetPagesZipAsync(
+            int chatId,
+            int attachmentId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                var chat = await _chatService.GetChatAsync(chatId, userId, cancellationToken);
+                if (chat == null) return NotFound();
+
+                var attachments = await _attachmentService.GetForChatAsync(
+                    chatId, userId, cancellationToken);
+                var attachment = attachments.FirstOrDefault(a => a.Id == attachmentId);
+                if (attachment == null) return NotFound();
+
+                var workspaceRoot = await _workspaceResolver
+                    .GetWorkspacePathAsync(userId);
+                var pagesDir = BuildPagesDirectory(
+                    workspaceRoot, chatId, attachment.FileName);
+
+                if (!System.IO.Directory.Exists(pagesDir))
+                    return NotFound();
+
+                // Упорядочиваем PNG по номеру страницы (page-1, page-2, ..., page-N).
+                // Лексикографическая сортировка даст page-1, page-10, page-2 — неверно.
+                var pngPaths = System.IO.Directory
+                    .EnumerateFiles(pagesDir, "*.png")
+                    .Select(path =>
+                    {
+                        var name = System.IO.Path.GetFileNameWithoutExtension(path);
+                        int n = int.MaxValue;
+                        if (name.StartsWith("page-", StringComparison.Ordinal))
+                            int.TryParse(name.Substring("page-".Length), out n);
+                        return new { Path = path, N = n };
+                    })
+                    .Where(x => x.N != int.MaxValue)
+                    .OrderBy(x => x.N)
+                    .Select(x => x.Path)
+                    .ToList();
+
+                if (pngPaths.Count == 0)
+                    return NotFound();
+
+                // Собираем ZIP в память. Страницы по 0.3–1 MB, для 100+ страниц
+                // это ~100 MB — терпимо для dev/prod. Стриминг — отдельная задача (KI-211).
+                using var ms = new System.IO.MemoryStream();
+                using (var zip = new System.IO.Compression.ZipArchive(
+                    ms,
+                    System.IO.Compression.ZipArchiveMode.Create,
+                    leaveOpen: true))
+                {
+                    var safeName = System.IO.Path.GetFileNameWithoutExtension(
+                        attachment.FileName);
+
+                    foreach (var pngPath in pngPaths)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var fileName = System.IO.Path.GetFileName(pngPath);
+                        var entryName = $"{safeName}/{fileName}";
+                        var entry = zip.CreateEntry(
+                            entryName,
+                            System.IO.Compression.CompressionLevel.Optimal);
+
+                        using var entryStream = entry.Open();
+                        using var fileStream = System.IO.File.OpenRead(pngPath);
+                        await fileStream.CopyToAsync(entryStream, cancellationToken);
+                    }
+                }
+
+                var zipName = System.IO.Path.GetFileNameWithoutExtension(
+                    attachment.FileName) + ".zip";
+
+                _logger.LogInformation(
+                    "ZIP-экспорт: chatId={ChatId}, attachmentId={Id}, " +
+                    "pages={Pages}, sizeBytes={Size}",
+                    chatId, attachmentId, pngPaths.Count, ms.Length);
+
+                return File(ms.ToArray(), "application/zip", zipName);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Ошибка ZIP-экспорта: chatId={ChatId}, attachmentId={Id}",
+                    chatId, attachmentId);
+                return NotFound();
+            }
+        }
+
+        /// <summary>
+        /// Скачивает весь распознанный текст документа одним .txt-файлом.
+        /// Формат: заголовок с именем файла + разделители «=== Page N ===»
+        /// + текст каждой страницы (склейка слов пробелом).
+        /// </summary>
+        /// <param name="chatId">Идентификатор чата.</param>
+        /// <param name="attachmentId">Идентификатор вложения.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>text/plain; charset=utf-8 с Content-Disposition: attachment.</returns>
+        [HttpGet("{attachmentId:int}/pages/all-text")]
+        public async Task<IActionResult> GetPagesAllTextAsync(
+            int chatId,
+            int attachmentId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                var chat = await _chatService.GetChatAsync(chatId, userId, cancellationToken);
+                if (chat == null) return NotFound();
+
+                var attachments = await _attachmentService.GetForChatAsync(
+                    chatId, userId, cancellationToken);
+                var attachment = attachments.FirstOrDefault(a => a.Id == attachmentId);
+                if (attachment == null) return NotFound();
+
+                var workspaceRoot = await _workspaceResolver
+                    .GetWorkspacePathAsync(userId);
+                var pagesDir = BuildPagesDirectory(
+                    workspaceRoot, chatId, attachment.FileName);
+
+                if (!System.IO.Directory.Exists(pagesDir))
+                    return NotFound();
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"# {attachment.FileName}");
+                sb.AppendLine();
+
+                var jsonPaths = System.IO.Directory
+                    .EnumerateFiles(pagesDir, "page-*.json")
+                    .Select(path =>
+                    {
+                        var name = System.IO.Path.GetFileNameWithoutExtension(path);
+                        int n = int.MaxValue;
+                        if (name.StartsWith("page-", StringComparison.Ordinal))
+                            int.TryParse(name.Substring("page-".Length), out n);
+                        return new { Path = path, N = n };
+                    })
+                    .Where(x => x.N != int.MaxValue)
+                    .OrderBy(x => x.N)
+                    .ToList();
+
+                foreach (var j in jsonPaths)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    sb.AppendLine($"=== Page {j.N} ===");
+
+                    try
+                    {
+                        var json = await System.IO.File.ReadAllTextAsync(
+                            j.Path, System.Text.Encoding.UTF8, cancellationToken);
+                        var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
+
+                        // camelCase (новые) или PascalCase (старые).
+                        var words = (obj["words"] ?? obj["Words"])
+                            as Newtonsoft.Json.Linq.JArray;
+
+                        if (words != null)
+                        {
+                            var text = string.Join(" ", words.Select(w =>
+                                (string)(w["text"] ?? w["Text"]) ?? ""));
+                            sb.AppendLine(text);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "All-text: не удалось распарсить {Path}", j.Path);
+                        sb.AppendLine("(не удалось распарсить text layer)");
+                    }
+
+                    sb.AppendLine();
+                }
+
+                var textBytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+                var txtName = System.IO.Path.GetFileNameWithoutExtension(
+                    attachment.FileName) + ".txt";
+
+                _logger.LogInformation(
+                    "All-text-экспорт: chatId={ChatId}, attachmentId={Id}, " +
+                    "pages={Pages}, sizeBytes={Size}",
+                    chatId, attachmentId, jsonPaths.Count, textBytes.Length);
+
+                return File(textBytes, "text/plain; charset=utf-8", txtName);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Ошибка all-text-экспорта: chatId={ChatId}, attachmentId={Id}",
+                    chatId, attachmentId);
+                return NotFound();
+            }
+        }
+
         /// <summary>
         /// v1.13.x (KI-205): путь к папке PNG-страниц вложения.
         /// </summary>

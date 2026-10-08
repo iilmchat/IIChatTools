@@ -346,7 +346,10 @@
      data-label-search-noresults="@Localizer["RagPagesSearchNoResults"]"
      data-label-search-prev="@Localizer["RagPagesSearchPrev"]"
      data-label-search-next="@Localizer["RagPagesSearchNext"]"
-     data-label-search-close="@Localizer["RagPagesSearchClose"]">
+     data-label-search-close="@Localizer["RagPagesSearchClose"]"
+     data-label-export-pdf-progress="@Localizer["RagPagesExportPdfProgress"]"
+     data-label-export-pdf-success="@Localizer["RagPagesExportPdfSuccess"]"
+     data-label-export-pdf-error="@Localizer["RagPagesExportPdfError"]">
     <div class="chat-pages-modal-backdrop" data-action="close"></div>
     <div class="chat-pages-modal-dialog" role="dialog" aria-modal="true">
         <div class="chat-pages-modal-header">
@@ -392,6 +395,20 @@
                 <button type="button" class="chat-pages-icon-btn" data-fit="page"
                         title="@Localizer["RagPagesFitPage"]"
                         aria-label="@Localizer["RagPagesFitPage"]">⛶</button>
+                <span class="chat-pages-toolbar-sep"></span>
+                <!-- KI-208: экспорт страниц. -->
+                <button type="button" class="chat-pages-icon-btn"
+                        id="chat-pages-export-zip"
+                        title="@Localizer["RagPagesExportZip"]"
+                        aria-label="@Localizer["RagPagesExportZip"]">📦</button>
+                <button type="button" class="chat-pages-icon-btn"
+                        id="chat-pages-export-text"
+                        title="@Localizer["RagPagesExportText"]"
+                        aria-label="@Localizer["RagPagesExportText"]">📄</button>
+                <button type="button" class="chat-pages-icon-btn"
+                        id="chat-pages-export-pdf"
+                        title="@Localizer["RagPagesExportPdf"]"
+                        aria-label="@Localizer["RagPagesExportPdf"]">📕</button>
                 <span class="chat-pages-toolbar-sep"></span>
                 <label class="chat-pages-goto">
                     <span>@Localizer["RagPagesPageLabel"]</span>
