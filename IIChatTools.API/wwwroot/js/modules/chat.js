@@ -4848,6 +4848,19 @@ function renderPagesViewerPage(pageNumber) {
         gotoInput.value = String(pageNumber);
         gotoInput.max = String(viewer.totalPages);
     }
+
+    // KI-207-fix2: принудительный сброс поиска при смене страницы.
+    // Дублирует closePagesSearch() — на случай, если он уже был вызван
+    // (не полагаемся на одну точку отказа). Явно очищаем input +
+    // скрываем панель + обнуляем счётчик.
+    const searchBar = document.getElementById('chat-pages-search-bar');
+    if (searchBar) searchBar.hidden = true;
+
+    const searchInput = document.getElementById('chat-pages-search-input');
+    if (searchInput) searchInput.value = '';
+
+    const searchCounter = document.getElementById('chat-pages-search-counter');
+    if (searchCounter) searchCounter.textContent = '';
 }
 
 /**
@@ -5191,9 +5204,17 @@ function closePagesSearch() {
     const bar = document.getElementById('chat-pages-search-bar');
     if (bar) bar.hidden = true;
 
+    // KI-207-fix2: очищаем input — иначе при повторном Ctrl+F панель
+    // открывается со старым значением и прежним счётчиком (на скрине
+    // «1/4» после смены страницы).
+    const input = document.getElementById('chat-pages-search-input');
+    if (input) input.value = '';
+
     const viewer = state.pagesViewer;
     if (viewer?.textLayer) {
         clearPagesSearchHighlights(viewer.textLayer);
+    }
+    if (viewer) {
         viewer.searchHits = [];
         viewer.searchIndex = -1;
     }

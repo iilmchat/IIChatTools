@@ -2633,15 +2633,21 @@ body.chat-pages-modal-open {
 
 /* Подсветка найденного слова. */
 .chat-pages-text-word > mark.chat-pages-search-hit {
-    background: #fff3a3;
+    /* KI-207-fix2: подсветка текста (а не «плашка»).
+       mix-blend-mode: multiply — жёлтый умножается на содержимое под ним.
+       Чёрный текст PNG-подложки → чёрный. Белый фон → жёлтый.
+       Раньше color: transparent без blend давал «плашку без текста». */
+    background: #ffeb3b;
     color: transparent;
     padding: 0;
     border-radius: 1px;
+    mix-blend-mode: multiply;
 }
 
 .chat-pages-text-word > mark.chat-pages-search-hit.chat-pages-search-hit-active {
-    background: #ffb84d;
+    background: #ff9800;
     box-shadow: 0 0 0 2px #0d6efd;
+    mix-blend-mode: multiply;
 }
 
 /* Поисковая панель — overlay в правом верхнем углу viewport. */
