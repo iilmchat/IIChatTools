@@ -58,6 +58,50 @@
     default-метод возвращает `null`.
   - **Build 0/0. Тесты 1080/1080 (без изменений).**
 
+- **v1.13.x (KI-137, Ф3) — Vision Agent: OcrVlMergeHelper**:
+  - Новый `OcrVlMergeHelper` (`Implementation/VisionAgent/`) — static helper,
+    без DI.
+  - **Merge:** OCR-слова матчатся с `ui_elements` VL через центр bbox
+    (расстояние ≤ `maxDistancePx`, default 30 px в screenshot-space).
+    Не матчившиеся — в `ScreenDescriptionDto.OcrText` (общий текст со
+    экрана), к `ui_elements` не привязываются.
+  - **Source:** элемент получает `"ocr"` (у VL был пустой label) или
+    `"merged"` (VL дал label, OCR обогатил).
+  - **`BuildFullText`:** OCR-слова группируются в строки по overlap
+    y-диапазона (tolerance 5 px), внутри строки — по X. Строки через `\n`.
+  - **Конвертация координат:** OCR-слова приходят в full-res PNG pixels,
+    helper конвертирует их в screenshot-space через `scaleX`/`scaleY`
+    (защита от деления на 0: значения ≤ 0 → 1.0).
+  - **Изолированный модуль.** Ни один существующий файл не меняется.
+  - **Build 0/0. Тесты 1080/1080 (без изменений).**
+
+- **v1.13.x (KI-137, Ф4+Ф5) — Vision Agent: OCR в loop'е + fakes + тесты**:
+  - **`VisionAgentService`:**
+    - `+IOcrService _ocr` (позиция — после `overlayLauncher`, до `IOptions`).
+    - **Флаги в `RunTaskAsync`:** `ocrEnabled`, `ocrWasRun`,
+      `forceOcrOnNextDescribe`, `lastScreen`.
+    - **Trigger A** (проактивный): `ShouldRunOcrA(screen)` — пустой
+      `ui_elements` ИЛИ хотя бы один label < `ShortLabelThreshold`.
+      Вызывается перед `PlanNextAsync`.
+    - **Trigger B** (реактивный): при `actionType == "fail"` — не `break`,
+      а `continue` с флагом `forceOcrOnNextDescribe = true`. Следующая
+      итерация делает OCR (один раз за задачу — `ocrWasRun`).
+    - `result.OcrText = lastScreen?.OcrText` — в `finally`.
+    - **Новые private-методы:** `ShouldRunOcrA` + `EnrichWithOcrAsync`
+      (full-res screenshot → `IOcrService.RecognizeWithLayoutAsync` →
+      `OcrVlMergeHelper.Merge`; graceful fallback на исходный screen).
+  - **`FakeVisionBackend`:** override `ScreenshotFullResolutionAsync`
+    (настраиваемый `ScreenshotFullResolution`, default `null` —
+    обратная совместимость).
+  - **`VisionAgentServiceTests`:** `CreateService` +опциональный
+    `IOcrService ocr = null`; default — `new FakeOcrService { IsReady = false }`
+    (OCR не запускается в существующих 16 тестах). Grep по
+    `new VisionAgentService(` — 1 место (внутри `CreateService`).
+  - **Fix CS1734** в `OcrVlMergeHelper`: `<paramref name="maxDistancePx"/>`
+    в `<remarks>` класса → `<c>maxDistancePx</c>` (параметр — в методе
+    `Merge`, не в классе).
+  - **Build 0/0. Тесты 1080/1080 (без изменений).**
+
 - **v1.13.x (KI-207) — RAG: Page viewer — text layer + поиск + выделение**:
   - **Проблема (smoke KI-205):** PNG — «тупая картинка», нельзя
     выделить текст или найти фразу в документе.

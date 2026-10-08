@@ -47,6 +47,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         private readonly IVisionRateLimiter _rateLimiter;
         private readonly IVisionScreenshotStore _screenshotStore;
         private readonly IVisionOverlayLauncher _overlayLauncher;
+        private readonly IOcrService _ocr;                 // ← НОВОЕ (KI-137)
         private readonly VisionAgentOptions _options;
         private readonly ILogger<VisionAgentService> _logger;
 
@@ -71,6 +72,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             IVisionRateLimiter rateLimiter,
             IVisionScreenshotStore screenshotStore,
             IVisionOverlayLauncher overlayLauncher,
+            IOcrService ocr,                                    // ← НОВОЕ (KI-137)
             IOptions<VisionAgentOptions> options,
             ILogger<VisionAgentService> logger)
         {
@@ -81,6 +83,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
             _screenshotStore = screenshotStore ?? throw new ArgumentNullException(nameof(screenshotStore));
             _overlayLauncher = overlayLauncher ?? throw new ArgumentNullException(nameof(overlayLauncher));
+            _ocr = ocr ?? throw new ArgumentNullException(nameof(ocr));  // ← НОВОЕ (KI-137)
             if (options == null) throw new ArgumentNullException(nameof(options));
             _options = options.Value;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -155,6 +158,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             var maxSteps = request.MaxSteps.HasValue && request.MaxSteps.Value > 0
                 ? Math.Min(request.MaxSteps.Value, _options.Limits.MaxSteps)
                 : _options.Limits.MaxSteps;
+
+            // KI-137: флаги OCR (один запуск на задачу).
+            var ocrEnabled = _options.Ocr?.Enabled == true && _ocr.IsReady;
+            var ocrWasRun = false;
+            var forceOcrOnNextDescribe = false;
+            ScreenDescriptionDto lastScreen = null;
 
             var history = new List<VisionStepDto>();
             var result = new VisionTaskResultDto
@@ -401,6 +410,29 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         }
                     }
 
+                    // KI-137: сохраняем последний screen — для result.OcrText.
+                    lastScreen = screen;
+
+                    // KI-137: OCR Trigger A (проактивный) + reactive flag (Trigger B).
+                    if (ocrEnabled && !ocrWasRun)
+                    {
+                        var shouldRunA = _options.Ocr.TriggerA && ShouldRunOcrA(screen);
+                        if (shouldRunA || forceOcrOnNextDescribe)
+                        {
+                            screen = await EnrichWithOcrAsync(screen, effectiveCts.Token)
+                                .ConfigureAwait(false);
+                            ocrWasRun = true;
+
+                            _logger.LogInformation(
+                                "VisionAgent[{TaskId}]: OCR запущен (TriggerA={A}, reactive={R}), " +
+                                "words={Words}, ui_elements={Ui}",
+                                taskId, shouldRunA, forceOcrOnNextDescribe,
+                                screen.OcrWordsCount,
+                                screen.UiElements?.Count ?? 0);
+                        }
+                    }
+                    forceOcrOnNextDescribe = false;
+
                     // 4.3. Следующее действие.
                     VisionActionDto action;
                     try
@@ -478,6 +510,22 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     }
                     if (actionType == "fail")
                     {
+                        // KI-137: OCR Trigger B (реактивный).
+                        // Не break'аем сразу — если OCR ещё не запускался,
+                        // устанавливаем флаг и продолжаем loop. Следующая
+                        // итерация сделает OCR перед PlanNextAsync.
+                        if (ocrEnabled && !ocrWasRun && _options.Ocr.TriggerB)
+                        {
+                            forceOcrOnNextDescribe = true;
+                            _logger.LogInformation(
+                                "VisionAgent[{TaskId}]: Planner вернул fail " +
+                                "(reason='{Reason}'). Следующий шаг — OCR (KI-137, TriggerB).",
+                                taskId,
+                                string.IsNullOrWhiteSpace(effectiveAction.Reason)
+                                    ? "(пусто)" : effectiveAction.Reason);
+                            continue;
+                        }
+
                         result.Success = false;
                         result.Error = string.IsNullOrWhiteSpace(effectiveAction.Reason)
                             ? "Planner LLM вернула fail."
@@ -603,6 +651,10 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     catch { /* overlay не критичен */ }
                 }
 
+                // KI-137: пробрасываем OCR-текст в результат — Chat LLM
+                // использует его для финального ответа.
+                result.OcrText = lastScreen?.OcrText;
+
                 _logger.LogInformation(
                     "VisionAgent[{TaskId}]: завершено (success={Success}, steps={Steps}, ms={Ms}): {Error}",
                     taskId, result.Success, history.Count, result.TotalDurationMs,
@@ -627,6 +679,84 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             }
 
             return result;
+        }
+
+        // ============================================================
+        // KI-137 — OCR-fallback
+        // ============================================================
+
+        /// <summary>
+        /// KI-137: проверка Trigger A — нужно ли запустить OCR.
+        /// <list type="bullet">
+        ///   <item><c>ui_elements</c> пуст → true;</item>
+        ///   <item>хотя бы один label пустой / короче <c>ShortLabelThreshold</c> → true.</item>
+        /// </list>
+        /// </summary>
+        /// <param name="screen">VL-описание текущего экрана.</param>
+        /// <returns>true — OCR нужно запустить (по Trigger A).</returns>
+        private bool ShouldRunOcrA(ScreenDescriptionDto screen)
+        {
+            if (screen == null) return false;
+            if (screen.UiElements == null || screen.UiElements.Count == 0) return true;
+
+            var threshold = Math.Max(1, _options.Ocr?.ShortLabelThreshold ?? 3);
+            return screen.UiElements.Any(el =>
+                string.IsNullOrWhiteSpace(el.Label) ||
+                el.Label.Trim().Length < threshold);
+        }
+
+        /// <summary>
+        /// KI-137: делает full-res скриншот, запускает OCR, merge'ит в VL-описание.
+        /// При любой ошибке возвращает исходный <paramref name="screen"/>
+        /// без изменений (graceful fallback — задача продолжается по VL-данным).
+        /// </summary>
+        /// <param name="screen">VL-описание текущего экрана.</param>
+        /// <param name="ct">Токен отмены.</param>
+        /// <returns>Обогащённый screen (или исходный при ошибке).</returns>
+        private async Task<ScreenDescriptionDto> EnrichWithOcrAsync(
+            ScreenDescriptionDto screen,
+            CancellationToken ct)
+        {
+            try
+            {
+                var fullPng = await _backend
+                    .ScreenshotFullResolutionAsync(ct)
+                    .ConfigureAwait(false);
+
+                if (fullPng == null || fullPng.Png == null || fullPng.Png.Length == 0)
+                {
+                    _logger.LogDebug(
+                        "VisionAgent: ScreenshotFullResolutionAsync вернул null — OCR пропущен");
+                    return screen;
+                }
+
+                var ocrLayer = await _ocr
+                    .RecognizeWithLayoutAsync(fullPng.Png, fullPng.Width, fullPng.Height, ct)
+                    .ConfigureAwait(false);
+
+                var (scaleX, scaleY) = _backend.GetScreenshotScale();
+                var maxDist = Math.Max(1, _options.Ocr?.MergeMaxDistancePx ?? 30);
+
+                var merged = OcrVlMergeHelper.Merge(screen, ocrLayer, scaleX, scaleY, maxDist);
+
+                var matchedCount = merged.UiElements?
+                    .Count(el => string.Equals(el.Source, "ocr", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(el.Source, "merged", StringComparison.OrdinalIgnoreCase)) ?? 0;
+
+                _logger.LogInformation(
+                    "VisionAgent: OCR завершён — {Words} слов, {Matched} элементов обогащено, " +
+                    "scale=({Sx:F3}, {Sy:F3})",
+                    merged.OcrWordsCount, matchedCount, scaleX, scaleY);
+
+                return merged;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "VisionAgent: OCR Enrich упал — продолжаем с VL-описанием");
+                return screen;
+            }
         }
 
         // ============================================================

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Services.DTO.VisionAgent;
 using IIChatTools.Services.Interfaces;
 
 namespace IIChatTools.Tests.Fakes
@@ -21,6 +22,19 @@ namespace IIChatTools.Tests.Fakes
         public Exception ScreenshotException { get; set; }
         public Exception ActionException { get; set; }
 
+        /// <summary>
+        /// KI-137: ответ <see cref="ScreenshotFullResolutionAsync"/>.
+        /// По умолчанию <c>null</c> — OCR-fallback активируется как
+        /// «backend не поддерживает full-res» (graceful).
+        /// </summary>
+        public FullResolutionScreenshotDto ScreenshotFullResolution { get; set; }
+
+        /// <summary>
+        /// KI-137: если задано — <see cref="ScreenshotFullResolutionAsync"/>
+        /// бросит это исключение (тестирование fallback'а).
+        /// </summary>
+        public Exception ScreenshotFullResolutionException { get; set; }
+
         public Task OpenAsync(string url, CancellationToken ct = default)
         {
             CallLog.Add($"Open({url})");
@@ -33,6 +47,20 @@ namespace IIChatTools.Tests.Fakes
             CallLog.Add("Screenshot");
             if (ScreenshotException != null) throw ScreenshotException;
             return Task.FromResult(ScreenshotBytes);
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// KI-137: по умолчанию возвращает <c>null</c> — OCR-fallback
+        /// активируется как «backend не поддерживает full-res». Тест может
+        /// задать <see cref="ScreenshotFullResolution"/> или выбросить
+        /// исключение через <see cref="ScreenshotFullResolutionException"/>.
+        /// </remarks>
+        public Task<FullResolutionScreenshotDto> ScreenshotFullResolutionAsync(CancellationToken ct = default)
+        {
+            CallLog.Add("ScreenshotFullResolution");
+            if (ScreenshotFullResolutionException != null) throw ScreenshotFullResolutionException;
+            return Task.FromResult(ScreenshotFullResolution);
         }
 
         public Task ClickAsync(int x, int y, CancellationToken ct = default)

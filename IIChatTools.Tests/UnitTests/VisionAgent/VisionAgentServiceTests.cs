@@ -55,13 +55,19 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
             FakePlannerLlmClient plannerLlm,
             FakeVisionScreenshotStore store = null,
             IVisionRateLimiter rateLimiter = null,
-            VisionAgentOptions options = null)
+            VisionAgentOptions options = null,
+            IOcrService ocr = null)
         {
             options ??= DefaultOptions();
             store ??= new FakeVisionScreenshotStore();
             rateLimiter ??= new InMemoryVisionRateLimiter(
                 Options.Create(options),
                 NullLogger<InMemoryVisionRateLimiter>.Instance);
+
+            // KI-137: default — OCR отключён (options.Ocr.Enabled = false
+            // из DefaultOptions) и FakeOcrService.IsReady = false (двойная
+            // защита). Существующие 16 тестов не запускают OCR.
+            ocr ??= new FakeOcrService { IsReady = false };
 
             var validator = new VisionActionValidator(
                 Options.Create(options),
@@ -71,7 +77,7 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
 
             return new VisionAgentService(
                 backend, visionLlm, plannerLlm, validator, rateLimiter,
-                store, overlay, Options.Create(options),
+                store, overlay, ocr, Options.Create(options),
                 NullLogger<VisionAgentService>.Instance);
         }
 
