@@ -23,5 +23,19 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// Planner LLM выбирает <c>target</c> из этих ID.
         /// </summary>
         public List<UiElementDto> UiElements { get; set; } = new List<UiElementDto>();
+
+        /// <summary>
+        /// Общий текст со всего экрана (KI-137), распознанный OCR.
+        /// Строки соединены через <c>\n</c>, порядок — сверху вниз.
+        /// Может быть <c>null</c>, если OCR не запускался.
+        /// Используется Chat LLM для финального ответа пользователю.
+        /// </summary>
+        public string OcrText { get; set; }
+
+        /// <summary>
+        /// Количество слов, распознанных OCR (KI-137).
+        /// <c>0</c> — OCR не запускался / не нашёл слов.
+        /// </summary>
+        public int OcrWordsCount { get; set; }
     }
 }

@@ -58,6 +58,12 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// В БД не сохраняется — ChatStreamService.SanitizeToolResultForLlm
         /// (KI-176) вырезает поле base64 из Content перед записью.
         /// </summary>
-        public string Base64 { get; set; }        
+        public string Base64 { get; set; }
+
+        /// <summary>
+        /// OCR-текст последнего экрана (KI-137). Chat LLM использует для
+        /// финального ответа. <c>null</c> — OCR не запускался в задаче.
+        /// </summary>
+        public string OcrText { get; set; }
     }
 }

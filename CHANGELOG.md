@@ -33,6 +33,21 @@
   - **Оценка:** ~3.5 ч (8 фаз). См. DESIGN § 10.
 
 ### Added
+- **v1.13.x (KI-137, Ф1) — Vision Agent: DTO + опции для OCR-fallback**:
+  - **Новые DTO:**
+    - `FullResolutionScreenshotDto` (PNG + Width + Height) —
+      для `IVisionBackend.ScreenshotFullResolutionAsync`.
+    - `VisionOcrOptions` (секция `VisionAgent:Ocr`: `Enabled`,
+      `TessDataPath`, `Languages`, `TriggerA`, `TriggerB`,
+      `ShortLabelThreshold`, `MergeMaxDistancePx`).
+  - **Расширенные DTO:**
+    - `UiElementDto.Source` — `"vl"` (default) / `"ocr"` / `"merged"`.
+    - `ScreenDescriptionDto.OcrText` + `OcrWordsCount`.
+    - `VisionTaskResultDto.OcrText` — для Chat LLM.
+    - `VisionAgentOptions.Ocr` — секция `VisionOcrOptions`.
+  - **Не меняется:** ни один сервис / интерфейс (это Ф2/Ф3/Ф4).
+  - **Build 0/0. Тесты 1080/1080 (без изменений).**
+
 - **v1.13.x (KI-207) — RAG: Page viewer — text layer + поиск + выделение**:
   - **Проблема (smoke KI-205):** PNG — «тупая картинка», нельзя
     выделить текст или найти фразу в документе.

@@ -35,6 +35,17 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// </summary>
         public bool? Enabled { get; set; }
 
+        /// <summary>
+        /// Источник данных об этом элементе (KI-137):
+        /// <list type="bullet">
+        ///   <item><c>"vl"</c> (default) — только Vision LLM;</item>
+        ///   <item><c>"ocr"</c> — label добавлен OCR (у VL был пустой label);</item>
+        ///   <item><c>"merged"</c> — label обновлён OCR (у VL был короткий label).</item>
+        /// </list>
+        /// Устанавливается в <c>OcrVlMergeHelper.Merge</c>.
+        /// </summary>
+        public string Source { get; set; } = "vl";
+
         /// <summary>Прямоугольник элемента на скриншоте (для валидации координат).</summary>
         public UiElementBoundsDto Bounds { get; set; }
 

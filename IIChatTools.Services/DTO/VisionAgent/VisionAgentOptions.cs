@@ -56,6 +56,12 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// </remarks>
         public VisionCoordinateProviderOptions CoordinateProvider { get; set; }
             = new VisionCoordinateProviderOptions();
+
+        /// <summary>
+        /// Конфигурация OCR-fallback (KI-137): full-res PNG для OCR,
+        /// merge OCR-слов в <c>ui_elements</c>, триггеры A/B.
+        /// </summary>
+        public VisionOcrOptions Ocr { get; set; } = new VisionOcrOptions();
     }
 
     /// <summary>
