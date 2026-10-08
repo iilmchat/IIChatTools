@@ -4926,6 +4926,70 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 
 ---
 
+### KI-213 — RAG: Page viewer — подгонка text layer под bbox (выделение)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Обнаружено:** 2026-10-08 (smoke KI-207/208).
+- **Файлы (план):** `chat.js` (`renderTextLayer`, `exportPagesPdf`),
+  `chat.css` (`.chat-pages-text-word`), `scripts/setup/download-pdf-lib.ps1`
+  (добавить моноширинный шрифт).
+- **Описание:** при выделении текста (в браузерном text layer или в
+  скачанном PDF) подсветка «уезжает» от реальных букв на картинке:
+  - буквы выделяются **другим шрифтом** (DejaVu/Roboto ≠ глифы на PNG);
+  - **размер не тот** — выделение выше/ниже оригинала;
+  - **baseline сдвинут** — подсветка не совпадает с нижней границей букв;
+  - при протяжке мышью границы выделения не совпадают с bbox слов.
+
+  **Причина:** сейчас `font-size = h * 0.9` (от **высоты** bbox), а
+  `width` — через CSS `width` (в браузере) или через `size` (в PDF).
+  Chrome / Adobe / любой viewer используют **реальные метрики глифов**
+  (не CSS width) для построения прямоугольника выделения. Если ширина
+  текста при заданном `size` ≠ `bbox.w` — выделение уходит вбок.
+
+- **Industry best practice** (что делают OCRmyPDF, PDF.js, tesseract-pdf):
+  1. **Шрифт** — моноширинный (Courier / `DejaVuSansMono`): метрики
+     предсказуемы (равная `charWidth`), погрешность выделения минимальна.
+     Или — «invisible font» с нулевыми глифами, но с правильными метриками.
+  2. **Подгонка `size` по ширине bbox**, не по высоте:
+  ```Text
+  refSize = 1
+  refWidth = font.widthOfTextAtSize(text, refSize)
+  size = bbox.w / refWidth // ширина текста == bbox.w
+  ```
+  3. Если `size` выходит за разумные пределы `[bbox.h * 0.5, bbox.h * 1.5]` —
+  компенсировать через **horizontal scaling** (в PDF — `Tz` в
+  текстовом операторе; в CSS — `transform: scaleX(...)`).
+  4. **Baseline** = `bbox.y + bbox.h * 0.82` (не 0.9 — baseline почти
+  внизу глифа, чуть выше нижней границы).
+  5. Дополнительно: **пословный** `drawText` (не по буквам) — современные
+  ридеры умеют разбивать слово по буквам при выделении, но
+  ширина самого слова должна точно совпадать.
+
+  - **Что нужно сделать (KI-213):**
+  - **a)** В `renderTextLayer` (браузерный слой, `chat.js`) —
+  заменить `span.style.fontSize = h * 0.9` на подгонку через
+  `transform: scaleX(k)`, где `k = bbox.w / naturalTextWidth`. Для этого:
+  - Создать span с `font-size: bbox.h` и измерить `offsetWidth` (после
+  `appendChild`). Затем `k = bbox.w / offsetWidth`, применить
+  `transform: scaleX(k)`, `transform-origin: left top`.
+  - Или проще: `letter-spacing` через итеративный подбор (менее точно).
+  - **b)** В `exportPagesPdf` (`chat.js`) — заменить `fontSize = h * 0.9`
+  на `size = bbox.w / font.widthOfTextAtSize(text, 1)`, клампить в
+  `[h * 0.5, h * 1.5]`. Baseline = `pageH - y - h * 0.82`.
+  - **c)** Добавить в `scripts/setup/download-pdf-lib.ps1` скачивание
+  **моноширинного** шрифта (DejaVu Sans Mono, Apache 2.0) — как
+  fallback, если хочется идеальной точности выделения.
+  - **d)** В `chat.css` — стили для `.chat-pages-text-word` с
+  `transform-origin: left top` (уже есть у родителя, но нужно и на
+  span для корректного scaleX).
+
+  - **Оценка:** ~1-2 ч (пп. a, b — обязательно; п. c — опционально).
+
+  - **Связанные:** KI-205 (page viewer), KI-207 (text layer), KI-208 (экспорт).
+
+---
+
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
