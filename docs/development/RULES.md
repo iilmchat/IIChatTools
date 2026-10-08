@@ -191,7 +191,7 @@
 | KI-103 | 🟡 | Documented | `/status` — hardcoded RU в `status.js` | v1.7.x |
 | KI-128 | 🟡 | Planned | Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`) | v1.11.x |
 | KI-131 | 🟡 | Planned | Vision Agent (Vision LLM + Planner LLM + 3 backend'а) | **v1.12.0** |
-| KI-137 | 🟢 | Planned | Vision Agent: OCR-fallback для мелкого текста | v1.12.x |
+| KI-137 | 🟢 | In Progress | Vision Agent: OCR-fallback для мелкого текста | v1.13.x |
 | KI-138 | 🟢 | Planned | Vision Agent: маскирование PII на скриншотах | v1.12.x |
 | KI-139 | 🟢 | Planned | Vision Agent: внешние VL (Claude Computer Use / OpenAI CUA) | v1.12.x |
 | KI-140 | 🟢 | **Fixed (v1.13.0)** | Speech Recognition — офлайн STT (Whisper.net) | — |

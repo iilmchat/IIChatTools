@@ -18,6 +18,20 @@
 
 ## [Unreleased]
 
+### Documented
+- **v1.13.x (KI-137) — Vision Agent: OCR-fallback для мелкого текста**:
+  зарегистрирован DESIGN-документ
+  [`docs/development/v1.13/DESIGN_VISION_OCR.md`](docs/development/v1.13/DESIGN_VISION_OCR.md)
+  (v1.0 Draft). KI-137 → `In Progress`.
+  - **Что планируется:** OCR-fallback (Tesseract) поверх VL-описания для
+    распознавания мелкого текста (8-10 px шрифты, капча, плотные таблицы).
+  - **Ключевые решения:** full-res PNG для OCR (не downscale), merge
+    OCR-слов в `ui_elements` через центр bbox, триггеры A (проактивный)
+    и B (реактивный по `fail` Planner'а), один проход OCR на задачу,
+    секция конфига `VisionAgent:Ocr`.
+  - **Общий сервис:** `IOcrService` (из KI-203, RAG-OCR) — переиспользуется.
+  - **Оценка:** ~3.5 ч (8 фаз). См. DESIGN § 10.
+
 ### Added
 - **v1.13.x (KI-207) — RAG: Page viewer — text layer + поиск + выделение**:
   - **Проблема (smoke KI-205):** PNG — «тупая картинка», нельзя

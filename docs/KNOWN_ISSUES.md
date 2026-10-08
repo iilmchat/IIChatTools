@@ -2780,24 +2780,39 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-137 — Vision Agent: OCR-fallback для мелкого текста
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Приоритет:** 🟢 Low | **Статус:** In Progress | **Запланировано:** v1.13.x
 - **Обнаружено:** 2026-10-03
-- **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 9.1.
-- **Описание:** VL-модели (Ministral-3B, llava-1.5, pixtral) **плохо читают
+- **DESIGN:** [`docs/development/v1.13/DESIGN_VISION_OCR.md`](development/v1.13/DESIGN_VISION_OCR.md)
+  (v1.0 Draft, 2026-10-08).
+- **Описание:** VL-модели (Qwen2.5-VL-7B, Ministral-3B) **плохо читают
   мелкий текст** на скриншотах — 8-10px шрифты в формах, капчу (не для обхода,
   а для чтения «введите код»), таблицы с плотной вёрсткой. VL-модель даёт общее
   описание, но не может точно воспроизвести содержимое поля или текст ошибки.
-- **Возможные решения:**
-  1. **Tesseract OCR** (Apache 2.0, .NET-обёртка `Tesseract` 5.2.0) —
-     preprocess: crop региона → upscale ×2 → grayscale → OCR → merge
-     с `ScreenDescriptionDto`.
-  2. **PaddleOCR** (Apache 2.0, ONNX-runtime) — лучше на кириллице, но требует
-     ONNX runtime.
-  3. **External VL** — отдать в Claude / GPT-4V (см. KI-139).
-- **Триггер:** VL-модель возвращает `ui_elements[].label` короче 3 символов
-  ИЛИ Planner LLM делает `action = "fail", reason = "не вижу текста"`.
-- **Оценка:** ~4-6 ч.
-- **Связанные:** KI-131 (Vision Agent), KI-139 (External VL — альтернатива).
+  Downscaled PNG (1280×720) усугубляет: 8 px шрифт → 4-5 px — Tesseract тоже
+  не распознаёт.
+- **Выбранное решение (Вариант A):** OCR-fallback с post-processing VL-описания.
+  - **Full-res PNG для OCR:** новый метод `IVisionBackend.ScreenshotFullResolutionAsync()`
+    (default → `null`); override в `LocalHarnessVisionBackend` — GDI без downscale.
+  - **Триггеры:**
+    - **A (проактивный):** VL вернул пустой `ui_elements` ИЛИ хотя бы один
+      label пустой/короче `ShortLabelThreshold` (default 3).
+    - **B (реактивный):** Planner вернул `action="fail"` И OCR ещё не
+      запускался в этой задаче. Реализация — через флаг `forceOcrOnNextDescribe`
+      (next iteration делает OCR).
+  - **Merge:** OCR-слова матчатся с `ui_elements` через центр bbox
+    (`MergeMaxDistancePx`, default 30 px). Не матчившиеся — в
+    `ScreenDescriptionDto.OcrText` (общий текст со экрана).
+  - **`UiElementDto.Source`:** `"vl"` (default) / `"ocr"` / `"merged"` —
+    происхождение label.
+  - **Один OCR-проход на задачу** (`ocrWasRun`).
+  - **Общий сервис** `IOcrService` — переиспользуется из KI-203 (RAG-OCR);
+    своя секция конфига `VisionAgent:Ocr` (не смешивается с `Rag:Ingestion:Ocr`).
+- **Что НЕ входит:** PII masking (KI-138), External VL (KI-139/141),
+  Set-of-Mark (KI-163), OCR-first для текстовых элементов.
+- **Оценка:** ~3.5 ч (8 фаз).
+- **Связанные:** KI-131 (Vision Agent), KI-203 (RAG OCR — общий сервис),
+  KI-161 (CDP-attach — не конфликтует), KI-138 (PII — отдельно),
+  KI-139 (External VL — альтернатива).
 
 ---
 
@@ -5023,8 +5038,8 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
 | Fixed (v1.13.x, KI-203) | 1 |      <!-- KI-203 (RAG PDF OCR) -->
-| Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-137, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205 -->
-| In Progress | 0 |                   <!-- — -->
+| Planned | 12 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205 -->
+| In Progress | 1 |                   <!-- KI-137 (Vision OCR) -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **99** |
