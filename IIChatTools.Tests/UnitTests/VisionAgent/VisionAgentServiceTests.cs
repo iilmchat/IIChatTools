@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Services.DTO.Rag;
 using IIChatTools.Services.DTO.VisionAgent;
 using IIChatTools.Services.Implementation.VisionAgent;
 using IIChatTools.Services.Interfaces;
@@ -443,6 +444,187 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
             Assert.True(result.Success);
             Assert.Equal(3, visionLlm.CallCount);              // initial + 2 retry
             Assert.Single(planner.UserIdsReceived);            // Planner вызван 1 раз
+        }
+
+        // ============ 17. KI-137: Trigger A — пустой ui_elements → OCR ============
+
+        [Fact]
+        public async Task RunTaskAsync_TriggerA_EmptyUiElements_RunsOcr()
+        {
+            // Arrange
+            var backend = new FakeVisionBackend
+            {
+                ScreenshotFullResolution = new FullResolutionScreenshotDto
+                {
+                    Png = new byte[] { 1, 2, 3 },
+                    Width = 1920,
+                    Height = 1080
+                }
+            };
+
+            // VL всегда возвращает пустой ui_elements → Trigger A сработает
+            // и после KI-192 retry (3 попытки).
+            var visionLlm = new FakeVisionLlmClient
+            {
+                DefaultResponse = new ScreenDescriptionDto
+                {
+                    Description = "empty",
+                    UiElements = new List<UiElementDto>()
+                }
+            };
+
+            var ocr = new FakeOcrService
+            {
+                IsReady = true,
+                DefaultLayoutResponse = new PageTextLayerDto
+                {
+                    Words = new List<WordBoxDto>()
+                }
+            };
+
+            var planner = new FakePlannerLlmClient
+            {
+                DefaultResponse = new VisionActionDto { Action = "done" }
+            };
+
+            var options = DefaultOptions();
+            options.Ocr.Enabled = true;
+
+            var sut = CreateService(backend, visionLlm, planner, options: options, ocr: ocr);
+
+            // Act
+            var result = await sut.RunTaskAsync(Request(), UserId, CancellationToken.None);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(1, ocr.LayoutCallCount);          // OCR вызван ровно 1 раз
+            Assert.Contains("ScreenshotFullResolution", backend.CallLog);
+        }
+
+        // ============ 18. KI-137: Trigger B — Planner fail → OCR на след. шаге ============
+
+        [Fact]
+        public async Task RunTaskAsync_TriggerB_PlannerFail_RunsOcrOnceAndContinues()
+        {
+            // Arrange
+            var backend = new FakeVisionBackend
+            {
+                ScreenshotFullResolution = new FullResolutionScreenshotDto
+                {
+                    Png = new byte[] { 1, 2, 3 },
+                    Width = 1920,
+                    Height = 1080
+                }
+            };
+
+            // VL: непустой ui_elements с длинным label → Trigger A не сработает.
+            var visionLlm = new FakeVisionLlmClient
+            {
+                DefaultResponse = new ScreenDescriptionDto
+                {
+                    Description = "screen with buttons",
+                    UiElements = new List<UiElementDto>
+                    {
+                        new UiElementDto
+                        {
+                            Id = "btn",
+                            Type = "button",
+                            Label = "Submit",
+                            Center = new UiElementCenterDto { X = 100, Y = 100 }
+                        }
+                    }
+                }
+            };
+
+            var ocr = new FakeOcrService
+            {
+                IsReady = true,
+                DefaultLayoutResponse = new PageTextLayerDto
+                {
+                    Words = new List<WordBoxDto>()
+                }
+            };
+
+            // Planner: шаг 1 → fail, шаг 2 → done. Trigger B должен
+            // вставить OCR между шагами (не break'нуть сразу).
+            var planner = new FakePlannerLlmClient();
+            planner.Responses.Enqueue(new VisionActionDto
+            {
+                Action = "fail",
+                Reason = "не вижу текста"
+            });
+            planner.Responses.Enqueue(new VisionActionDto
+            {
+                Action = "done",
+                Reason = "ok"
+            });
+
+            var options = DefaultOptions();
+            options.Ocr.Enabled = true;
+
+            var sut = CreateService(backend, visionLlm, planner, options: options, ocr: ocr);
+
+            // Act
+            var result = await sut.RunTaskAsync(Request(), UserId, CancellationToken.None);
+
+            // Assert
+            Assert.True(result.Success);              // 2-я итерация вернула done
+            Assert.Equal(1, ocr.LayoutCallCount);     // OCR ровно один раз за задачу
+        }
+
+        // ============ 19. KI-137: OCR disabled — regression ============
+
+        [Fact]
+        public async Task RunTaskAsync_OcrDisabled_DoesNotRunOcr()
+        {
+            // Arrange
+            var backend = new FakeVisionBackend
+            {
+                // Даже если backend умеет full-res — при Enabled=false
+                // метод не должен вызываться.
+                ScreenshotFullResolution = new FullResolutionScreenshotDto
+                {
+                    Png = new byte[] { 1, 2, 3 },
+                    Width = 1920,
+                    Height = 1080
+                }
+            };
+
+            // Пустой ui_elements — при Enabled=true был бы Trigger A.
+            var visionLlm = new FakeVisionLlmClient
+            {
+                DefaultResponse = new ScreenDescriptionDto
+                {
+                    Description = "empty",
+                    UiElements = new List<UiElementDto>()
+                }
+            };
+
+            var ocr = new FakeOcrService
+            {
+                IsReady = true,
+                DefaultLayoutResponse = new PageTextLayerDto
+                {
+                    Words = new List<WordBoxDto>()
+                }
+            };
+
+            var planner = new FakePlannerLlmClient
+            {
+                DefaultResponse = new VisionActionDto { Action = "done" }
+            };
+
+            var options = DefaultOptions();
+            options.Ocr.Enabled = false;   // ← OCR выключен
+
+            var sut = CreateService(backend, visionLlm, planner, options: options, ocr: ocr);
+
+            // Act
+            await sut.RunTaskAsync(Request(), UserId, CancellationToken.None);
+
+            // Assert
+            Assert.Equal(0, ocr.LayoutCallCount);              // OCR не вызывался
+            Assert.DoesNotContain("ScreenshotFullResolution", backend.CallLog);
         }
     }
 }

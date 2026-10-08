@@ -112,6 +112,23 @@
     `ShortLabelThreshold = 3`, `MergeMaxDistancePx = 30`.
   - **Build 0/0. Тесты 1080/1080 (без изменений).**
 
+- **v1.13.x (KI-137, Ф7) — Vision Agent: unit-тесты OCR-логики**:
+  - **`OcrVlMergeHelperTests`** (новый файл, 14 кейсов):
+    - Защита от null / пустого OCR (graceful fallback);
+    - Матчинг OCR-слов с `ui_elements` через центр bbox (max distance);
+    - `Source` = `"ocr"` (пустой label) / `"merged"` (label был) / `"vl"` (default);
+    - Конвертация координат по `screenshotScale`;
+    - Сортировка слов по позиции в пределах элемента;
+    - `BuildFullText` — склейка в строки по overlap Y-диапазона;
+    - Edge cases: `scale = 0` → 1.0, null center, whitespace-only слова.
+  - **`VisionAgentServiceTests`** (+3 кейса, файл существует):
+    - `TriggerA_EmptyUiElements_RunsOcr` — OCR вызван 1 раз;
+    - `TriggerB_PlannerFail_RunsOcrOnceAndContinues` — OCR между шагами
+      loop'а, задача доводится до `done`;
+    - `OcrDisabled_DoesNotRunOcr` — regression: при `Enabled=false` OCR
+      не запускается, `ScreenshotFullResolutionAsync` не вызывается.
+  - **Тесты:** 1080 → **1097** (+17).
+
 - **v1.13.x (KI-207) — RAG: Page viewer — text layer + поиск + выделение**:
   - **Проблема (smoke KI-205):** PNG — «тупая картинка», нельзя
     выделить текст или найти фразу в документе.
