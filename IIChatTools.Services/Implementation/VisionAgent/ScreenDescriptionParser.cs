@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using IIChatTools.Services.DTO.VisionAgent;
 using Newtonsoft.Json.Linq;
 
@@ -24,6 +25,32 @@ namespace IIChatTools.Services.Implementation.VisionAgent
     /// </remarks>
     public static class ScreenDescriptionParser
     {
+        /// <summary>
+        /// KI-215: regex для удаления блока <c>"center": { ... }</c> из JSON.
+        /// VL-модель иногда возвращает арифметическое выражение вместо числа
+        /// (<c>"x": 546 + (378 / 2)</c>). Значение не валидно для JSON-парсера,
+        /// но KI-199 всё равно игнорирует VL-center и пересчитывает из bounds,
+        /// поэтому безопасно удалить поле полностью до <c>JObject.Parse</c>.
+        /// <para>
+        /// <c>[^{}]*</c> — не пропускает вложенные фигурные скобки
+        /// (center всегда плоский: только x / y).
+        /// Опциональная запятая в конце — на случай, если center не последний ключ.
+        /// </para>
+        /// </summary>
+        private static readonly Regex CenterObjectRegex = new Regex(
+            @"""center""\s*:\s*\{[^{}]*\}\s*,?",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// KI-215: regex для удаления trailing comma перед <c>}</c> или <c>]</c>.
+        /// Появляется как следствие удаления <c>"center"</c>: если center был
+        /// последним ключом объекта, после его удаления остаётся
+        /// <c>{ "x": 1, "y": 2, }</c> — невалидный для <c>JObject.Parse</c>.
+        /// </summary>
+        private static readonly Regex TrailingCommaRegex = new Regex(
+            @",\s*([\]}])",
+            RegexOptions.Compiled);
+
         /// <summary>
         /// Парсит ответ VL-модели в <see cref="ScreenDescriptionDto"/>.
         /// Никогда не бросает — при любой ошибке возвращает fallback.
@@ -136,8 +163,13 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         /// <summary>
         /// Извлекает первый валидный JSON-объект из строки: снимает markdown-обёртки,
         /// отрезает текст до первой <c>{</c> и после последней <c>}</c>.
-        /// Возвращает <c>null</c>, если JSON не найден.
+        /// <para>
+        /// KI-215: дополнительно удаляет блок <c>"center": {...}</c>, если VL-модель
+        /// сгенерировала арифметическое выражение (<c>"x": 546 + (378 / 2)</c>)
+        /// вместо числа — не валидный JSON, ломающий <c>JObject.Parse</c>.
+        /// </para>
         /// </summary>
+        /// <returns>JSON-строка или <c>null</c>, если объект не найден.</returns>
         private static string ExtractJsonObject(string text)
         {
             // Снять markdown-обёртку: ```json ... ``` или ``` ... ```.
@@ -166,7 +198,23 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             var end = text.LastIndexOf('}');
             if (end < start) return null;
 
-            return text.Substring(start, end - start + 1);
+            var json = text.Substring(start, end - start + 1);
+
+            // KI-215: VL-модель иногда возвращает "center" как арифметическое выражение
+            //   "center": { "x": 546 + (378 / 2), "y": 120 + (49 / 2) }
+            // Это не валидный JSON (значения — не числа, а expression-строки без
+            // кавычек). JObject.Parse падает → ui_elements=[] → Planner видит
+            // пустой экран и не может кликнуть. KI-199 уже игнорирует VL-center
+            // и пересчитывает из bounds, поэтому безопасно удалить "center"
+            // полностью до парсинга.
+            json = CenterObjectRegex.Replace(json, string.Empty);
+
+            // KI-215 (следствие): если "center" был последним ключом объекта,
+            // после замены останется trailing comma: `{ "x": 1, "y": 2, }`.
+            // Убираем запятые перед } или ].
+            json = TrailingCommaRegex.Replace(json, "$1");
+
+            return json;
         }
 
         /// <summary>

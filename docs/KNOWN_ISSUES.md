@@ -5005,6 +5005,64 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 ---
 
 
+### KI-215 — Vision LLM: `center` как expression (`546 + (378 / 2)`) ломает JSON
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.x
+- **Обнаружено:** 2026-10-08 (smoke KI-137 — Wikipedia-портал).
+- **Файлы:** `IIChatTools.Services/Implementation/VisionAgent/ScreenDescriptionParser.cs`
+  (regex-strip `"center"` из JSON до парсинга),
+  `IIChatTools.Services/Implementation/VisionAgent/VisionSystemPrompt.cs`
+  (правило 11 промпта `VisionUiDescribe`).
+- **Симптом:** VL-модель (`qwen2.5-vl-7b-instruct`, Q4_K_M) в 4 из 4 ответов
+  возвращала `"center"` как **арифметическое выражение** вместо числа.
+  Пример одного элемента:
+
+      "id": "article_title",
+      "bounds": { "x": 546, "y": 120, "w": 378, "h": 49 },
+      "center": { "x": 546 + (378 / 2), "y": 120 + (49 / 2) }
+
+  `"546 + (378 / 2)"` — строка-выражение **без кавычек**. JSON невалиден:
+  `JObject.Parse` бросает → `ScreenDescriptionParser` возвращает fallback
+  с `UiElements = []` → Planner видит «пустой экран» → не может кликнуть.
+
+- **Воспроизведение:** smoke KI-137 (task `vt_dfcaf3f3`, Wikipedia-портал).
+  Симптом стабильный: в логах LM Studio — 4 ответа VL подряд, все с этой
+  проблемой. Каждый VL-вызов ~100 с (7B, Q4_K_M); задача упёрлась в
+  `MaxTaskSeconds=500` после 2 шагов, где оба раза `ui_elements=[]`.
+
+- **Root cause (двойной):**
+  1. **Промпт** (правило 11 `VisionUiDescribe`): просил «вычислить center как
+     `bounds.x + bounds.w/2`» — модель восприняла **буквально** и написала
+     выражение вместо результата.
+  2. **Парсер:** `JObject.Parse` не толерантен к non-numeric JSON. Реализация
+     `TryRecoverPartialElements` (KI-201) — тоже (те же невалидные значения
+     на каждом фрагменте). Итог — `UiElements=[]`.
+
+- **Fix (Вариант B — regex-strip):**
+  - **`ScreenDescriptionParser.ExtractJsonObject`:** regex
+    `"center"\s*:\s*\{[^{}]*\}\s*,?` → `` — удаляет блок `"center"` целиком
+    (значения не парсятся). Опциональная запятая — на случай, если center
+    не последний ключ.
+  - **`TrailingCommaRegex`:** `,\s*([\]}])` → `$1` — убирает trailing
+    comma, остающуюся после удаления `center` (когда center — последний ключ).
+  - **`VisionSystemPrompt` (правило 11):** уточнение — `center.x`/`center.y`
+    это **только целые числа**, с примерами ❌/✅.
+  - **Обоснование regex-strip:** KI-199 уже **игнорирует** VL-центр и
+    пересчитывает его из `bounds` (в `ParseUiElement`). Значит, VL-центр
+    не нужен — а его невалидность ломает парсер. Удаляем без потери данных.
+
+- **Что НЕ входит:** `bounds` с expression-значениями (в этом smoke их нет;
+  если появятся — отдельный KI).
+- **Оценка:** ~30 мин.
+- **Тесты:** +4 (`ScreenDescriptionParserCenterStripTests`):
+  expression-strip, trailing comma, numeric center (регрессия),
+  expression без bounds.
+- **Связанные:** KI-137 (обнаружено при smoke), KI-192 (empty ui_elements),
+  KI-194 (premature done), KI-199 (center галлюцинация), KI-201 (recovery
+  из truncated JSON), KI-216 (MaxTaskSeconds — отдельно).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -5037,12 +5095,12 @@ click(Fail) → describe → click(Fail)` — лимит 5 итераций. В 
 | Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
 | Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
-| Fixed (v1.13.x, KI-203) | 1 |      <!-- KI-203 (RAG PDF OCR) -->
+| Fixed (v1.13.x, KI-203/215) | 2 | <!-- KI-203 (RAG PDF OCR), KI-215 (VL center expression) -->
 | Planned | 12 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205 -->
 | In Progress | 1 |                   <!-- KI-137 (Vision OCR) -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **99** |
+| **Всего** | **100** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
