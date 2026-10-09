@@ -22,6 +22,30 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.10] — 2026-10-09
+
+**KI-223 — RouterAI как External-LLM провайдер.**
+Российский агрегатор 400+ LLM (Qwen, DeepSeek, GPT, Claude, Gemini)
+через OpenAI-совместимый API. Оплата в рублях, без VPN.
+Провайдер `routerai` (Qwen3.8 Flash, multimodal) добавлен в
+`ExternalLlm:Providers` + `VisionLlm.FallbackChain` как резервный
+VL-провайдер после Yandex.
+
+**Тесты:** без изменений (config-only).
+
+### Added
+- **KI-223 — RouterAI провайдер**:
+  - `ExternalLlm:Providers:routerai` в appsettings (dev + prod).
+  - `Format: "OpenAI"`, `AuthScheme: "Bearer"`, `SupportsVision: true`.
+  - Модель `qwen/qwen3.8-flash` (text + images + video, 1M контекст).
+  - User Secrets: `ExternalLlm:RouterAI:ApiKey`.
+  - `VisionLlm.FallbackChain`: `["lmstudio", "external:yandex-vl", "external:routerai"]`.
+
+### Fixed
+- **Bump version 1.13.9 → 1.13.10** (`Directory.Build.props`, README).
+
+---
+
 ## [1.13.9] — 2026-10-09
 
 **KI-222 — retry для `gh issue edit` в sync-known-issues.ps1.**

@@ -947,6 +947,24 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 
 Подробности — [docs/development/v1.9/DESIGN_GEMINI.md](docs/development/v1.9/DESIGN_GEMINI.md) § 5.
 
+**RouterAI (v1.13.10, KI-223):**
+
+- **Работает в РФ без VPN.** Российский агрегатор 400+ LLM
+  (Qwen, DeepSeek, GPT, Claude, Gemini).
+- **API key:** [routerai.ru/settings/keys](https://routerai.ru/settings/keys).
+  Оплата в рублях (карта РФ, СБП). Пополнение от 100₽.
+- **Base URL:** `https://routerai.ru/api/v1` (OpenAI-совместимый).
+- **Модель по умолчанию:** `qwen/qwen3.8-flash` — мультимодальная
+  (text + images + video), 1M контекст, tool calling, reasoning.
+  Цены: 16₽ / 52₽ за 1M токенов (вход / выход).
+
+    dotnet user-secrets set "ExternalLlm:RouterAI:ApiKey" "sk-..."
+
+- **Смена модели:** одна строка в `appsettings` или User Secrets:
+
+    dotnet user-secrets set "ExternalLlm:Providers:routerai:Model" "deepseek/deepseek-v3"
+
+
 **YandexGPT (v1.13.8, KI-221):**
 
 - **Работает в РФ без VPN.**

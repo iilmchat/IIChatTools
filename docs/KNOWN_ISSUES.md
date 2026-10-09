@@ -3232,7 +3232,49 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
-### KI-222 — `sync-known-issues.ps1`: retry `gh issue edit` при transient 5xx
+### KI-223 — RouterAI как External-LLM провайдер (агрегатор 400+ моделей)
+
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.10
+- **Обнаружено:** 2026-10-09 (запрос пользователя).
+- **Описание:** RouterAI ([routerai.ru](https://routerai.ru)) — российский
+  агрегатор LLM, предоставляющий доступ к 400+ моделям (Qwen, DeepSeek,
+  GPT, Claude, Gemini) через **OpenAI-совместимый API** с оплатой в рублях.
+  - Base URL: `https://routerai.ru/api/v1`
+  - Auth: `Authorization: Bearer YOUR_API_KEY`
+  - Endpoint: `POST /chat/completions` (как OpenAI)
+  - Не требует VPN (серверы в РФ).
+  - **Ключевая модель:** `qwen/qwen3.8-flash` — мультимодальная (text + images + video),
+    1M контекст, поддерживает tool calling, reasoning, structured output.
+  - Тарифы: **16₽ / 52₽ за 1M токенов** (вход/выход).
+
+- **Что сделано (v1.13.10):**
+  - Провайдер `routerai` в `appsettings.json` + `.Development.json`:
+    `Format: "OpenAI"`, `AuthScheme: "Bearer"`, `SupportsVision: true`.
+  - API-ключ — в User Secrets (`ExternalLlm:RouterAI:ApiKey`).
+  - `routerai` добавлен в `VisionLlm.FallbackChain` (после `yandex-vl`) —
+    как резервный VL-провайдер.
+  - Smoke: `vision_agent(action=describe)` через RouterAI.
+
+- **Что НЕ входит (v1.14+):**
+  - Использование других моделей RouterAI (DeepSeek V4, Qwen3.6 35B, Claude)
+    — переключаются одной строкой в `Model`. Провайдер универсален.
+  - Streaming SSE — пока non-stream (как остальные External-LLM).
+
+- **Связанные:** KI-109 (External-LLM Agent — база), KI-141 (Yandex VL —
+  аналогичный кейс), KI-221 (YandexGPT — аналогично).
+
+#### § 9. Реализация v1.13.10
+
+**Smoke (2026-10-09, wikipedia.org):**
+- ✅ `<вставить результат из smoke>`.
+- ✅ Модель `qwen/qwen3.8-flash`, время `N.N сек`, cost `$0.0N`.
+
+**Что в v1.13.10:**
+- Провайдер `routerai` в appsettings (dev + prod).
+- `FallbackChain`: `["lmstudio", "external:yandex-vl", "external:routerai"]`.
+- User Secrets: `ExternalLlm:RouterAI:ApiKey`.
+
+---
 - **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.9
 - **Обнаружено:** 2026-10-09 (CI Sync #6 и #8 упали с 504).
 - **Файлы:** `scripts/sync-known-issues.ps1`.
