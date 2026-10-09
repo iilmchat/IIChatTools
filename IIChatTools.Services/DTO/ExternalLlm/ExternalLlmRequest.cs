@@ -63,5 +63,27 @@ namespace IIChatTools.Services.DTO.ExternalLlm
         /// Temperature (override). <c>null</c> — использовать значение провайдера (0.7 дефолт).
         /// </summary>
         public double? Temperature { get; set; }
+
+        /// <summary>
+        /// Изображения для multimodal-запроса (v1.13.9, KI-141).
+        ///
+        /// <para>
+        /// Если задан непустой массив — <c>CompleteOpenAiAsync</c> собирает
+        /// <c>content</c> как массив <c>[{type=text}, {type=image_url, ...}]</c>.
+        /// Иначе — как строку (обратная совместимость).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Требование:</b> провайдер должен иметь
+        /// <see cref="ExternalProviderOptions.SupportsVision"/> = <c>true</c>,
+        /// иначе — <see cref="System.InvalidOperationException"/>.
+        /// </para>
+        ///
+        /// <para>
+        /// Поддерживается только <see cref="ProviderFormat.OpenAI"/>
+        /// (Anthropic / Gemini — v1.9.x+, KI-139 / KI-141-more).
+        /// </para>
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<ExternalLlmImage> Images { get; set; }
     }
 }

@@ -279,21 +279,100 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
                 string providerName,
                 CancellationToken ct)
         {
+            // v1.13.9 (KI-141): валидация images vs SupportsVision.
+            // Делаем ДО HTTP — чтобы не тратить запрос впустую.
+            var hasImages = request.Images != null && request.Images.Count > 0;
+            if (hasImages && !provider.SupportsVision)
+            {
+                throw new InvalidOperationException(
+                    $"Провайдер '{providerName}' не поддерживает vision " +
+                    $"(SupportsVision = false). Уберите Images из запроса " +
+                    $"или используйте vision-совместимый провайдер " +
+                    $"(yandex-vl, openai, anthropic, gemini).");
+            }
+
+            // v1.13.9 (KI-141): content — строка (без images) или массив
+            // (text + image_url[]). Формат OpenAI-совместимый, поддерживается
+            // Yandex AI Studio, OpenAI, Groq (для vision-моделей).
+            JToken userContent;
+            if (hasImages)
+            {
+                var contentArray = new JArray
+                {
+                    // Текст идёт первым — так рекомендует OpenAI.
+                    new JObject
+                    {
+                        ["type"] = "text",
+                        ["text"] = request.Prompt
+                    }
+                };
+
+                foreach (var img in request.Images)
+                {
+                    if (img == null || string.IsNullOrWhiteSpace(img.Base64Data))
+                        continue;
+
+                    var mime = string.IsNullOrWhiteSpace(img.MimeType)
+                        ? "image/png"
+                        : img.MimeType.Trim();
+
+                    var dataUrl = $"data:{mime};base64,{img.Base64Data}";
+
+                    contentArray.Add(new JObject
+                    {
+                        ["type"] = "image_url",
+                        ["image_url"] = new JObject { ["url"] = dataUrl }
+                    });
+                }
+
+                // Если после фильтрации остались только текст — деградируем
+                // до строки (для совместимости с провайдерами без vision).
+                userContent = contentArray.Count > 1
+                    ? (JToken)contentArray
+                    : (JToken)request.Prompt;
+            }
+            else
+            {
+                userContent = request.Prompt;
+            }
+
+            // v1.13.9 (KI-141): messages[] — опциональный system + user.
+            // Раньше System игнорировался в OpenAI-ветке (это был долг).
+            // Теперь — если request.System задан, добавляется как messages[0].
+            var messages = new JArray();
+
+            if (!string.IsNullOrWhiteSpace(request.System))
+            {
+                messages.Add(new JObject
+                {
+                    ["role"] = "system",
+                    ["content"] = request.System
+                });
+            }
+
+            messages.Add(new JObject
+            {
+                ["role"] = "user",
+                ["content"] = userContent
+            });
+
             var payload = new JObject
             {
                 ["model"] = provider.Model,
-                ["messages"] = new JArray
-                {
-                    new JObject
-                    {
-                        ["role"] = "user",
-                        ["content"] = request.Prompt
-                    }
-                },
+                ["messages"] = messages,
                 ["temperature"] = request.Temperature ?? 0.7,
                 ["max_tokens"] = request.MaxTokens ?? provider.MaxTokens,
                 ["stream"] = false
             };
+
+            // v1.13.9 (KI-141): reasoning_effort — если задан.
+            // Для Yandex Qwen3.6-35B: "none" отключает reasoning-цепочку
+            // (снижает latency и token cost).
+            // Для стандартного OpenAI API — поле не отправляется (default null).
+            if (!string.IsNullOrWhiteSpace(provider.ReasoningEffort))
+            {
+                payload["reasoning_effort"] = provider.ReasoningEffort.Trim();
+            }
 
             var url = provider.BaseUrl.TrimEnd('/') + "/chat/completions";
             var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);

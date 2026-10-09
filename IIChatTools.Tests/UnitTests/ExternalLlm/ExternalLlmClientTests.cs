@@ -846,5 +846,181 @@ namespace IIChatTools.Tests.UnitTests.ExternalLlm
 
             Assert.Contains("999", ex.Message);
         }
-    }
+
+        // ============================================================
+        // v1.13.9 (KI-141) — Multimodal (Images)
+        // ============================================================
+
+        [Fact]
+        public async Task CompleteAsync_WithImages_BuildsContentArray()
+        {
+            JObject capturedBody = null;
+
+            var provider = DefaultProviderOptions();
+            provider.SupportsVision = true;
+
+            var client = Create(
+                (req, ct) =>
+                {
+                    var body = req.Content.ReadAsStringAsync().Result;
+                    capturedBody = JObject.Parse(body);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(BuildSuccessResponse(),
+                            Encoding.UTF8, "application/json")
+                    });
+                },
+                provider: provider);
+
+            await client.CompleteAsync(UserId, new ExternalLlmRequest
+            {
+                Prompt = "Что на картинке?",
+                Images = new[]
+                {
+                    new ExternalLlmImage { MimeType = "image/png", Base64Data = "iVBORw0KGgo=" }
+                }
+            });
+
+            Assert.NotNull(capturedBody);
+            var userMessage = (JObject)capturedBody["messages"][0];
+            Assert.Equal("user", userMessage["role"].ToString());
+            var contentArray = userMessage["content"] as JArray;
+            Assert.NotNull(contentArray);
+            Assert.Equal(2, contentArray.Count);
+            Assert.Equal("text", contentArray[0]["type"].ToString());
+            Assert.Equal("Что на картинке?", contentArray[0]["text"].ToString());
+            Assert.Equal("image_url", contentArray[1]["type"].ToString());
+            Assert.Equal(
+                "data:image/png;base64,iVBORw0KGgo=",
+                contentArray[1]["image_url"]["url"].ToString());
+        }
+
+        [Fact]
+        public async Task CompleteAsync_WithoutImages_ContentIsString()
+        {
+            JObject capturedBody = null;
+
+            var client = Create(
+                (req, ct) =>
+                {
+                    var body = req.Content.ReadAsStringAsync().Result;
+                    capturedBody = JObject.Parse(body);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(BuildSuccessResponse(),
+                            Encoding.UTF8, "application/json")
+                    });
+                });
+
+            await client.CompleteAsync(UserId, new ExternalLlmRequest
+            {
+                Prompt = "Просто текст"
+            });
+
+            Assert.NotNull(capturedBody);
+            var userMessage = (JObject)capturedBody["messages"][0];
+            Assert.Equal(JTokenType.String, userMessage["content"].Type);
+            Assert.Equal("Просто текст", userMessage["content"].ToString());
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ImagesWithUnsupportedProvider_Throws()
+        {
+            // SupportsVision = false (default) + Images — ошибка до HTTP.
+            var client = Create((req, ct) =>
+                throw new InvalidOperationException("HTTP не должен вызываться"));
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => client.CompleteAsync(UserId, new ExternalLlmRequest
+                {
+                    Prompt = "test",
+                    Images = new[]
+                    {
+                        new ExternalLlmImage { Base64Data = "AAAA" }
+                    }
+                }));
+
+            Assert.Contains("vision", ex.Message);
+            Assert.Contains("SupportsVision", ex.Message);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_WithSystem_BuildsSystemMessage()
+        {
+            JObject capturedBody = null;
+
+            var client = Create(
+                (req, ct) =>
+                {
+                    capturedBody = JObject.Parse(req.Content.ReadAsStringAsync().Result);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(BuildSuccessResponse(),
+                            Encoding.UTF8, "application/json")
+                    });
+                });
+
+            await client.CompleteAsync(UserId, new ExternalLlmRequest
+            {
+                System = "Ты — ассистент.",
+                Prompt = "Привет"
+            });
+
+            Assert.NotNull(capturedBody);
+            var messages = capturedBody["messages"] as JArray;
+            Assert.Equal(2, messages.Count);
+            Assert.Equal("system", messages[0]["role"].ToString());
+            Assert.Equal("Ты — ассистент.", messages[0]["content"].ToString());
+            Assert.Equal("user", messages[1]["role"].ToString());
+        }
+
+        [Fact]
+        public async Task CompleteAsync_WithReasoningEffort_AddsField()
+        {
+            JObject capturedBody = null;
+
+            var provider = DefaultProviderOptions();
+            provider.ReasoningEffort = "none";
+
+            var client = Create(
+                (req, ct) =>
+                {
+                    capturedBody = JObject.Parse(req.Content.ReadAsStringAsync().Result);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(BuildSuccessResponse(),
+                            Encoding.UTF8, "application/json")
+                    });
+                },
+                provider: provider);
+
+            await client.CompleteAsync(UserId, new ExternalLlmRequest { Prompt = "test" });
+
+            Assert.NotNull(capturedBody);
+            Assert.Equal("none", capturedBody["reasoning_effort"]?.ToString());
+        }
+
+        [Fact]
+        public async Task CompleteAsync_WithoutReasoningEffort_FieldNotSent()
+        {
+            JObject capturedBody = null;
+
+            // ReasoningEffort не задан — поле не должно попасть в body.
+            var client = Create(
+                (req, ct) =>
+                {
+                    capturedBody = JObject.Parse(req.Content.ReadAsStringAsync().Result);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(BuildSuccessResponse(),
+                            Encoding.UTF8, "application/json")
+                    });
+                });
+
+            await client.CompleteAsync(UserId, new ExternalLlmRequest { Prompt = "test" });
+
+            Assert.NotNull(capturedBody);
+            Assert.Null(capturedBody["reasoning_effort"]);
+        }    
+    }        
 }

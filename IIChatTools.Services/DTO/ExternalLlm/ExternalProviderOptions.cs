@@ -102,5 +102,51 @@ namespace IIChatTools.Services.DTO.ExternalLlm
         /// Таймаут HTTP-запроса (секунды). По умолчанию 60.
         /// </summary>
         public int TimeoutSeconds { get; set; } = 60;
+
+        /// <summary>
+        /// Поддерживает ли провайдер multimodal (vision) вход
+        /// (v1.13.9, KI-141).
+        ///
+        /// <para>
+        /// Если <c>false</c> (default) — попытка передать
+        /// <see cref="ExternalLlmRequest.Images"/> приведёт к
+        /// <see cref="System.InvalidOperationException"/> до HTTP-запроса.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>true</b> для: <c>yandex-vl</c> (Qwen3.6-35B), <c>openai</c>
+        /// (gpt-4o*), <c>anthropic</c> (claude-3.5+), <c>gemini</c> (1.5+).
+        /// Для остальных — <c>false</c> (DeepSeek Chat, Groq, Together OSS-модели).
+        /// </para>
+        /// </summary>
+        public bool SupportsVision { get; set; }
+
+        /// <summary>
+        /// Значение поля <c>reasoning_effort</c> в теле запроса
+        /// (v1.13.9, KI-141).
+        ///
+        /// <para>
+        /// Применяется <b>только для <see cref="ProviderFormat.OpenAI"/></b>.
+        /// Если задано — добавляется как <c>payload["reasoning_effort"]</c>.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>null</b> (default) — поле не отправляется (совместимо со
+        /// стандартным OpenAI API).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>"none"</b> — отключает reasoning-цепочку. Для Yandex
+        /// Qwen3.6-35B: модель по умолчанию тратит ~500 токенов на
+        /// <c>reasoning_content</c> перед <c>content</c>. С <c>"none"</c>
+        /// — генерирует сразу в <c>content</c>, экономит время и токены.
+        /// </para>
+        ///
+        /// <para>
+        /// Другие значения: <c>"low"</c> / <c>"medium"</c> / <c>"high"</c>
+        /// (OpenAI o1/o3, Qwen3-thinking). См. документацию провайдера.
+        /// </para>
+        /// </summary>
+        public string ReasoningEffort { get; set; }
     }
 }
