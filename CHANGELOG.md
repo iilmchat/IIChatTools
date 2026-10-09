@@ -22,6 +22,35 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.9] — 2026-10-09
+
+**KI-222 — retry для `gh issue edit` в sync-known-issues.ps1.**
+CI Sync #6 и #8 падали с 504 Gateway Timeout при обновлении body
+больших Issues (KI-096, KI-187). Добавлен retry 3× с задержками
+2s → 5s → 10s для transient 5xx. `exit 1` теперь только при
+постоянных ошибках. KI-141 расширен — Yandex AI Studio как первый
+VL-провайдер.
+
+**Тесты:** без изменений (скрипт + docs).
+
+### Fixed
+- **KI-222 — `sync-known-issues.ps1`: retry `gh issue edit`**:
+  - Новый helper `Invoke-GhWithRetry` — обёртка с 3 retry
+    (2s → 5s → 10s). Retry только для transient 5xx (504/502/503
+    + специфичные GitHub-сообщения). Не ретраит 4xx.
+  - Обёрнуты `gh issue edit` (body) и `gh issue create`.
+  - Новый счётчик `$transientFailures`; `exit 1` только при
+    постоянных ошибках.
+
+### Changed
+- **KI-141** — расширен про Yandex AI Studio как первого VL-провайдера:
+  VL-модели (qwen2.5-vl-7b, deepseek-2-vl, gemma3-27b и др.),
+  формат запроса (OpenAI-совместимый multimodal `content[]` с
+  `image_url`), auth (`Api-Key`), тарифы. Раздел § 8 добавлен в
+  KI-141 в KNOWN_ISSUES.md.
+
+---
+
 ## [1.13.8] — 2026-10-09
 
 **KI-221 — External-LLM: YandexGPT через Yandex AI Studio.**

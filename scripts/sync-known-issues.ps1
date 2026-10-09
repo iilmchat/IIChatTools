@@ -250,6 +250,67 @@ if (-not $DryRun) {
 # § 6. Обрабатываем каждую секцию
 # ============================================================
 
+# KI-222 (v1.13.9): retry для gh CLI при transient 5xx (504/502/503).
+# GitHub API иногда отдаёт Gateway Timeout на gh issue edit --body-file
+# с большими body. Ретраим 3 раза с задержками 2s / 5s / 10s.
+# Не ретраим на 4xx (постоянные ошибки: invalid body, no permission).
+function Invoke-GhWithRetry {
+    param(
+        [Parameter(Mandatory=$true)] [scriptblock]$Action,
+        [string]$Description = "gh",
+        [int[]]$RetryDelaysSeconds = @(2, 5, 10)
+    )
+
+    $totalAttempts = $RetryDelaysSeconds.Count + 1
+    $lastOutput = ""
+    $lastExitCode = 0
+
+    for ($attempt = 1; $attempt -le $totalAttempts; $attempt++) {
+        $lastOutput = (& $Action 2>&1 | Out-String)
+        $lastExitCode = $LASTEXITCODE
+
+        if ($lastExitCode -eq 0) {
+            return [pscustomobject]@{
+                Success      = $true
+                Output       = $lastOutput
+                Attempts     = $attempt
+                WasTransient = $false
+            }
+        }
+
+        # Транзиентная ошибка? 504/502/503 + специфичное сообщение GitHub.
+        $isTransient = ($lastOutput -match '504 Gateway Timeout') -or
+                       ($lastOutput -match '502 Bad Gateway') -or
+                       ($lastOutput -match '503 Service Unavailable') -or
+                       ($lastOutput -match 'Something went wrong while executing your query') -or
+                       ($lastOutput -match 'non-200 OK status code: 50[0-9]')
+
+        if (-not $isTransient) {
+            # Постоянная ошибка (4xx, invalid, permission) — не ретраим.
+            return [pscustomobject]@{
+                Success      = $false
+                Output       = $lastOutput
+                Attempts     = $attempt
+                WasTransient = $false
+            }
+        }
+
+        if ($attempt -lt $totalAttempts) {
+            $delay = $RetryDelaysSeconds[$attempt - 1]
+            Write-Host "   [RETRY] $Description — transient 5xx (попытка $attempt/$totalAttempts), ждём ${delay}s..." -ForegroundColor Yellow
+            Start-Sleep -Seconds $delay
+        }
+    }
+
+    # Все попытки исчерпаны, но это transient — пометить для ручного retry.
+    return [pscustomobject]@{
+        Success      = $false
+        Output       = $lastOutput
+        Attempts     = $totalAttempts
+        WasTransient = $true
+    }
+}
+
 function Get-ClosedStatus {
     param([string]$Status)
     # Closed: Fixed/Resolved/Implemented/Documented/Deferred/Won't Fix.
@@ -269,6 +330,8 @@ $created = 0
 $updated = 0
 $skipped = 0
 $errors  = 0
+# KI-222: счётчик transient 5xx после retry (не критично, но ручной retry не помешает).
+$transientFailures = 0
 
 foreach ($ki in $filterList) {
     $issueTitle = "$($ki.Id): $($ki.Title)"
@@ -300,10 +363,21 @@ foreach ($ki in $filterList) {
         [System.IO.File]::WriteAllText($tempBody, $ki.Body, [System.Text.UTF8Encoding]::new($false))
 
         try {
-            $out = gh issue create --repo $Repo --title $issueTitle --body-file $tempBody --label $desiredLabels 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "   [ERROR] gh issue create упал: $out" -ForegroundColor Red
-                $errors++
+            # KI-222: создание с retry на 5xx.
+            $createResult = Invoke-GhWithRetry `
+                -Description "gh issue create $($ki.Id)" `
+                -Action { gh issue create --repo $Repo --title $issueTitle --body-file $tempBody --label $desiredLabels }
+
+            $out = $createResult.Output
+
+            if (-not $createResult.Success) {
+                if ($createResult.WasTransient) {
+                    Write-Host "   [RETRY-FAIL] gh issue create $($ki.Id) — 5xx после $($createResult.Attempts) попыток." -ForegroundColor Yellow
+                    $transientFailures++
+                } else {
+                    Write-Host "   [ERROR] gh issue create упал: $out" -ForegroundColor Red
+                    $errors++
+                }
             } else {
                 $created++
                 Write-Host "   [+] создан: $out" -ForegroundColor Green
@@ -329,11 +403,20 @@ foreach ($ki in $filterList) {
         [System.IO.File]::WriteAllText($tempBody, $ki.Body, [System.Text.UTF8Encoding]::new($false))
 
         try {
-            # Обновляем body.
-            $out = gh issue edit $existing.number --repo $Repo --body-file $tempBody 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "   [ERROR] gh issue edit (body) упал: $out" -ForegroundColor Red
-                $errors++
+            # KI-222: обновляем body с retry на 5xx.
+            $editBodyResult = Invoke-GhWithRetry `
+                -Description "gh issue edit #$($existing.number) (body)" `
+                -Action { gh issue edit $existing.number --repo $Repo --body-file $tempBody }
+
+            if (-not $editBodyResult.Success) {
+                if ($editBodyResult.WasTransient) {
+                    Write-Host "   [RETRY-FAIL] gh issue edit (body) #$($existing.number) — 5xx после $($editBodyResult.Attempts) попыток." -ForegroundColor Yellow
+                    Write-Host "                Повторите вручную: pwsh scripts/sync-known-issues.ps1 -Filter `"KI-XXX`"" -ForegroundColor DarkYellow
+                    $transientFailures++
+                } else {
+                    Write-Host "   [ERROR] gh issue edit (body) упал: $($editBodyResult.Output)" -ForegroundColor Red
+                    $errors++
+                }
                 continue
             }
 
@@ -391,11 +474,19 @@ Write-Host "  Создано:       $created" -ForegroundColor Green
 Write-Host "  Обновлено:     $updated" -ForegroundColor Cyan
 Write-Host "  Пропущено:     $skipped" -ForegroundColor DarkGray
 Write-Host "  Ошибок:        $errors" -ForegroundColor $(if ($errors -gt 0) { "Red" } else { "DarkGray" })
+Write-Host "  Transient:     $transientFailures" -ForegroundColor $(if ($transientFailures -gt 0) { "Yellow" } else { "DarkGray" })
 Write-Host "══════════════════════════════════════════════════════════════" -ForegroundColor White
 
 if ($DryRun) {
     Write-Host ""
     Write-Host "  [DRYRUN] Ничего не создано. Уберите -DryRun для реального прогона." -ForegroundColor Yellow
+}
+
+# KI-222: exit 1 только при постоянных ошибках. Transient — exit 0 (ручной retry).
+if ($transientFailures -gt 0) {
+    Write-Host ""
+    Write-Host "  [INFO] Некоторые Issues не обновились (GitHub 5xx). Запустите ещё раз:" -ForegroundColor Yellow
+    Write-Host "         pwsh scripts/sync-known-issues.ps1" -ForegroundColor DarkYellow
 }
 
 if ($errors -gt 0) { exit 1 } else { exit 0 }

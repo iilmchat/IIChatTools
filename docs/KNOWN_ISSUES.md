@@ -2890,33 +2890,72 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-141 — External VL providers: multimodal image support
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
 - **Обнаружено:** 2026-10-04 (Ф5.3 KI-131).
+- **Обновлено (v1.13.9):** конкретизирован **Yandex AI Studio** как
+  первый кандидат (см. § 8).
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 3.2.
 - **Описание:** В v1.12.0 Vision Agent использует **локальную VL-модель**
-  (LM Studio + Ministral-3B) для описания скриншотов. Внешние VL
-  (OpenAI GPT-4o, Anthropic Claude 3.5 Sonnet, Google Gemini 1.5 Flash)
-  могли бы дать:
+  (LM Studio + Ministral-3B / Qwen2.5-VL-7B) для описания скриншотов.
+  Внешние VL (Yandex AI Studio, OpenAI GPT-4o, Anthropic Claude,
+  Google Gemini) могли бы дать:
   - более точное распознавание сложного UI (canvas, shadow-DOM, антибот);
-  - fallback, когда локальная Ministral-3B ошибается;
+  - fallback, когда локальная VL ошибается;
   - работу на слабом железе (без GPU).
   **Ограничение:** `IExternalLlmClient` (v1.8.1, KI-109) — **text-only**.
-  Требуется:
+  **Что входит:**
   1. Расширить `ExternalLlmRequest` — nullable поле `ImageBase64DataUrl`
      (или `Images[]`).
-  2. Добавить в `ExternalLlmClient` **3 разных формат-билдера** для
-     multimodal content:
-     - OpenAI — `content: [{type: "text"}, {type: "image_url", image_url: {url: "data:..."}}]`;
-     - Anthropic — `content: [{type: "text"}, {type: "image", source: {type: "base64", media_type, data}}]`;
-     - Gemini — `parts: [{text}, {inlineData: {mimeType, data}}]`.
-  3. Флаг `SupportsVision` в `ExternalProviderOptions` (true для
-     `gpt-4o`, `claude-3.5-sonnet`, `gemini-1.5-flash`).
-  4. Полная реализация `ExternalVisionClient.DescribeAsync`.
-  5. Обновить `AutoVisionClient` (Ф5.4) — добавить external в цепочку.
+  2. Расширить `CompleteOpenAiAsync` — `content` собирается как массив
+     `[{type: "text"}, {type: "image_url", image_url: {url: "data:..."}}]`,
+     если images заданы. Иначе — как строка (обратная совместимость).
+  3. Аналогично для Anthropic (свой формат `content[]` с `source: base64`)
+     и Gemini (`parts[]` с `inlineData`).
+  4. Флаг `SupportsVision` в `ExternalProviderOptions` (true для
+     `yandexgpt-vision`, `gpt-4o`, `claude-3.5-sonnet`, `gemini-1.5-flash`).
+  5. В `vision_agent` — провайдер `VisionLlm:Provider = "external"` (уже
+     есть заглушка `ExternalVisionClient.DescribeAsync` → `NotSupportedException`).
+  6. Обновить `AutoVisionClient` (Ф5.4) — добавить external в цепочку.
 - **Оценка:** ~5-8 ч.
 - **Связанные:** KI-131 (Vision Agent), KI-109 (External-LLM Agent — база),
-  KI-110a (Anthropic), KI-110b (Gemini), KI-139 (External VL для GUI — дублирует
-  часть scope, консолидировать при старте).
+  KI-110a (Anthropic), KI-110b (Gemini), KI-139 (External VL для GUI — 
+  консолидировать при старте).
+
+#### § 8. Yandex AI Studio как VL-провайдер (добавлено v1.13.9)
+
+**Почему Yandex — хороший первый кандидат:**
+- **Работает в РФ без VPN** (Yandex Cloud — российская платформа).
+- Оплата в рублях, российская карта.
+- **OpenAI-совместимый endpoint** — `POST https://llm.api.cloud.yandex.net/v1/chat/completions`
+  (тот же, что KI-221 для YandexGPT).
+- В каталоге AI Studio есть VL-модели:
+  - `qwen2-vl-7b-instruct` (~0.1₽ / 1k);
+  - `qwen2.5-vl-7b-instruct` (~0.1₽ / 1k);
+  - `deepseek-2-vl` (~0.41₽ / 1k);
+  - `deepseek-2-vl-tiny` (~0.1₽ / 1k);
+  - `gemma3-27b-it` (~0.41₽ / 1k);
+  - `qwen2.5-vl-32b-instruct` (~0.41₽ / 1k).
+
+**Что нужно для реализации (конкретно Yandex):**
+1. **Формат запроса (OpenAI-совместимый multimodal):**
+   ```json
+   {
+     "model": "gpt://<folder-id>/qwen2.5-vl-7b-instruct/latest",
+     "messages": [{
+       "role": "user",
+       "content": [
+         { "type": "text", "text": "Опиши UI на скриншоте." },
+         { "type": "image_url", "image_url": { "url": "data:image/png;base64,..." } }
+       ]
+     }],
+     "max_tokens": 1024,
+     "temperature": 0.1
+   }
+  ```
+2. **Auth:** Authorization: Api-Key <key> (как в KI-221).
+3. **Тарифы:** уточнить в https://yandex.cloud/ru/docs/foundation-models/pricing
+  (для расчёта CostPer1kInputUsd / CostPer1kOutputUsd).
+4. **Folder-id** — тот же, что для YandexGPT.
 
 ---
 
@@ -3166,6 +3205,30 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   + `data-*` на `#chat-messages` — добавятся отдельным коммитом (пока
   fallback на русский текст в JS).
 - **Связанные:** KI-144 (диагностика virtual device), KI-145 (device picker).
+
+---
+
+### KI-222 — `sync-known-issues.ps1`: retry `gh issue edit` при transient 5xx
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.9
+- **Обнаружено:** 2026-10-09 (CI Sync #6 и #8 упали с 504).
+- **Файлы:** `scripts/sync-known-issues.ps1`.
+- **Описание:** `gh issue edit --body-file` при большом body (KI-096,
+  KI-187 и др.) периодически возвращает **504 Gateway Timeout** от
+  GitHub GraphQL API. Скрипт падал с `exit 1` и CI-workflow
+  «Sync KNOWN_ISSUES.md» помечался красным. Повторяется как на
+  ручном прогоне, так и в CI (issue #95 — 2 раза подряд).
+- **Решение (v1.13.9):**
+  - Новый helper `Invoke-GhWithRetry` — обёртка с 3 retry
+    (задержки 2s → 5s → 10s).
+  - Retry **только для transient 5xx**: `504 Gateway Timeout`,
+    `502 Bad Gateway`, `503 Service Unavailable`,
+    `Something went wrong while executing your query`,
+    `non-200 OK status code: 50[0-9]`.
+  - Не ретраит на 4xx (постоянные ошибки: invalid body, permission).
+  - Обёрнуты: `gh issue edit` (body), `gh issue create`.
+  - Новый счётчик `$transientFailures` в отчёте.
+  - **`exit 1` только при постоянных ошибках** — transient exit 0
+    (пользователь видит рекомендацию «запустить ещё раз»).
 
 ---
 
