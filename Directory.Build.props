@@ -3,14 +3,14 @@
   <!--
     Общие свойства MSBuild для всех проектов IIChatTools.
     Позволяет избежать дублирования метаданных и версий пакетов в каждом .csproj.
-    © 2026 RuChating (iilmchat) · IIChatTools v1.13.8
+    © 2026 RuChating (iilmchat) · IIChatTools v1.13.9
   -->
   <PropertyGroup>
     <!-- Метаданные продукта -->
     <Company>RuChating (iilmchat)</Company>
     <Product>IIChatTools</Product>
-    <Version>1.13.8</Version>
-    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.13.8</Copyright>
+    <Version>1.13.9</Version>
+    <Copyright>© 2026 RuChating (iilmchat) · IIChatTools v1.13.9</Copyright>
     <Authors>RuChating</Authors>
 
     <!-- Настройки компилятора -->

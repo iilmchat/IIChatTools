@@ -139,7 +139,10 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             }
 
             // 3. Дневной бюджет (per-user).
-            if (!_budgetTracker.CanSpend(userId))
+            // v1.13.9 (KI-141): userId <= 0 — системный вызов
+            // (например, vision_agent от имени приложения).
+            // Бюджет не проверяется — но траты логируются (см. ниже).
+            if (userId > 0 && !_budgetTracker.CanSpend(userId))
             {
                 throw new InvalidOperationException(
                     "Превышен дневной бюджет External-LLM. Повторите завтра (UTC).");
@@ -186,8 +189,13 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
 
             // 7. Учёты.
             _circuitBreaker.RecordSuccess(providerName);
-            _budgetTracker.RecordUsage(
-                userId, parsed.PromptTokens, parsed.CompletionTokens, cost);
+            // v1.13.9 (KI-141): userId <= 0 (системный вызов) не учитываем
+            // в per-user budget tracker — иначе он смешается с юзерскими.
+            if (userId > 0)
+            {
+                _budgetTracker.RecordUsage(
+                    userId, parsed.PromptTokens, parsed.CompletionTokens, cost);
+            }
 
             _logger.LogInformation(
                 "External-LLM: {Provider} ({Format}) promptLen={PromptLen} " +

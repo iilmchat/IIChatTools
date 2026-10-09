@@ -2890,10 +2890,11 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-141 — External VL providers: multimodal image support
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.9
 - **Обнаружено:** 2026-10-04 (Ф5.3 KI-131).
-- **Обновлено (v1.13.9):** конкретизирован **Yandex AI Studio** как
-  первый кандидат (см. § 8).
+- **Обновлено (v1.13.9):** реализовано через **Yandex AI Studio**
+  (`qwen3.6-35b-a3b` — OpenAI-совместимый multimodal endpoint).
+  См. § 9 ниже для деталей реализации и smoke-результатов.
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 3.2.
 - **Описание:** В v1.12.0 Vision Agent использует **локальную VL-модель**
   (LM Studio + Ministral-3B / Qwen2.5-VL-7B) для описания скриншотов.
@@ -2956,6 +2957,29 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 3. **Тарифы:** уточнить в https://yandex.cloud/ru/docs/foundation-models/pricing
   (для расчёта CostPer1kInputUsd / CostPer1kOutputUsd).
 4. **Folder-id** — тот же, что для YandexGPT.
+
+#### § 9. Реализация v1.13.9
+
+**Что сделано:**
+- `ExternalLlmRequest.Images` + DTO `ExternalLlmImage` (multimodal).
+- `ExternalProviderOptions.SupportsVision` + `ReasoningEffort`.
+- `ExternalLlmClient.CompleteOpenAiAsync` — `content[]` + system + reasoning_effort.
+  Бюджет не проверяется при `userId <= 0` (системные вызовы).
+- `ExternalVisionClient.DescribeAsync` — реализация (base64 → ExternalLlmClient).
+- Провайдер `yandex-vl` (Qwen3.6-35B, `ReasoningEffort=none`).
+- `FallbackChain` VisionLlm: `["lmstudio", "external:yandex-vl"]` (dev).
+
+**Smoke (2026-10-09, chatId=77/78/79, wikipedia.org):**
+- ✅ `ExternalVisionClient: DescribeAsync — provider=yandex-vl, pngBytes=76158`.
+- ✅ `yandex-vl (OpenAI) tokens=3005+559 cost=$0.007687 durationMs=3742`.
+- ✅ `descLen=58, ui=5` — распознано 5 UI-элементов.
+- ✅ В Chat: `language_link_russian (480, 235)`, `language_link_english (600, 235)`,
+  `language_link_deutsch (600, 295)`, `search_input (500, 465)`, `search_button (615, 465)`.
+- ✅ `reasoning_effort: "none"` работает (модель отвечает за 3.7 сек, не тратит токены на reasoning).
+
+**Что НЕ вошло (v1.14+):**
+- Anthropic / Gemini multimodal (свой формат — KI-110a/b).
+- `VerifyTarget` для external VL (второй VL-вызов с кропом).
 
 ---
 

@@ -28,10 +28,54 @@ _(пусто — новые изменения вносятся сюда)._
 CI Sync #6 и #8 падали с 504 Gateway Timeout при обновлении body
 больших Issues (KI-096, KI-187). Добавлен retry 3× с задержками
 2s → 5s → 10s для transient 5xx. `exit 1` теперь только при
-постоянных ошибках. KI-141 расширен — Yandex AI Studio как первый
-VL-провайдер.
+постоянных ошибках.
 
-**Тесты:** без изменений (скрипт + docs).
+**KI-141 — Yandex VL multimodal (Qwen3.6-35B через AI Studio).**
+Внешние multimodal-запросы: `ExternalLlmRequest.Images` +
+`ExternalProviderOptions.SupportsVision`. Провайдер `yandex-vl`
+(OpenAI-совместимый endpoint, `AuthScheme=Api-Key`,
+`ReasoningEffort=none` для отключения reasoning-цепочки).
+`ExternalVisionClient.DescribeAsync` — реализован (вместо
+`NotSupportedException`). FallbackChain VisionLlm:
+`["lmstudio", "external:yandex-vl"]`.
+
+**Тесты:** +12 (6 `ExternalLlmClientTests` + 6 `ExternalVisionClientTests`).
+Всего: **1115/1115** (1107 pass, 8 Skip).
+
+### Added
+- **KI-141 — Yandex VL multimodal (Qwen3.6-35B)**:
+  - `ExternalLlmImage` DTO (`MimeType`, `Base64Data`, `AltText`).
+  - `ExternalLlmRequest.Images` (nullable `IReadOnlyList<ExternalLlmImage>`).
+  - `ExternalProviderOptions.SupportsVision` (bool, default false).
+  - `ExternalProviderOptions.ReasoningEffort` (string, nullable).
+  - `ExternalLlmClient.CompleteOpenAiAsync`:
+    - валидация Images vs SupportsVision (fail-fast до HTTP);
+    - `content[]` при Images != null (text + image_url[]);
+    - `messages[0]` = system (если request.System задан);
+    - `payload["reasoning_effort"]` (если provider.ReasoningEffort задан);
+    - бюджет External-LLM не проверяется для `userId <= 0` (системные вызовы).
+  - `ExternalVisionClient.DescribeAsync` — реальная реализация
+    (base64 → ExternalLlmImage → ExternalLlmClient → ScreenDescriptionParser).
+  - Провайдер `yandex-vl` в appsettings (dev + prod):
+    `Model: gpt://{folder}/qwen3.6-35b-a3b/latest`.
+  - `VisionLlm.FallbackChain` в appsettings: `["lmstudio", "external:yandex-vl"]` (dev).
+
+### Changed
+- **KI-141** — статус `Planned → Fixed (v1.13.9)`.
+- **Bump version 1.13.8 → 1.13.9** (`Directory.Build.props`, README).
+
+### Fixed
+- **KI-222 — `sync-known-issues.ps1`: retry `gh issue edit`**:
+  - Новый helper `Invoke-GhWithRetry` — обёртка с 3 retry
+    (2s → 5s → 10s). Retry только для transient 5xx (504/502/503
+    + специфичные GitHub-сообщения). Не ретраит 4xx.
+  - Обёрнуты `gh issue edit` (body) и `gh issue create`.
+  - Новый счётчик `$transientFailures`; `exit 1` только при
+    постоянных ошибках.
+
+### Changed
+- **KI-141** — статус `Planned → Fixed (v1.13.9)`.
+- **Bump version 1.13.8 → 1.13.9** (`Directory.Build.props`, README).
 
 ### Fixed
 - **KI-222 — `sync-known-issues.ps1`: retry `gh issue edit`**:
