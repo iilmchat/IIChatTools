@@ -22,6 +22,33 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.7] — 2026-10-09
+
+**KI-220 — `browser_agent` на реальных сайтах (RZD, Vue SPA).**
+Валидация CSS-селектора (Fail на XPath), новая команда `click_by_text`,
+расширение `get_selectors` (`[role=*]`), cookie-banner в SystemPrompt.
+
+**Тесты:** без изменений.
+
+### Fixed
+- **KI-220 — `browser_agent`: XPath в селекторах + нет `click_by_text`**:
+  - Валидация: `IsValidCssSelector()` — Fail на `text()`, `text=`,
+    `:contains()` с подсказкой про `click_by_text`.
+  - Команда `click_by_text(text='...')` — клик по видимому тексту
+    (exact → contains → fallback). Решает RZD (Vue SPA без id/name).
+  - `get_selectors` расширен: `[role=button]`, `[role=menuitem]`,
+    `[role=tab]`, `[role=link]`.
+  - SystemPrompt `browser_agent`: cookie-banner как первый шаг
+    (`click_by_text(text='ПРИНЯТЬ')`); запрет XPath; ПРИМЕР RZD —
+    форма на главной (не `/passenger/route` — 404).
+- **KI-219 — правильная версия в KNOWN_ISSUES** (`v1.13.7 → v1.13.6`).
+
+---
+
+## [1.13.6] — 2026-10-09
+
+---
+
 ## [1.13.6] — 2026-10-09
 
 **KI-219 — `browser_agent` не переполняет контекст на реальных сайтах.**

@@ -458,6 +458,34 @@ namespace IIChatTools.Services.Implementation
             }
         }
 
+        /// <summary>
+        /// KI-220 (v1.13.7): проверка, что строка — валидный CSS-селектор,
+        /// а не XPath-выражение или псевдо-функция.
+        ///
+        /// <para>
+        /// LLM часто выдумывает <c>a[text()='...']</c> (XPath) или
+        /// <c>a[text='...']</c> (не CSS) — Puppeteer бросает
+        /// <c>EvaluationFailedException: SyntaxError</c> с невнятным стеком.
+        /// Возвращаем Fail с подсказкой про <c>click_by_text</c>.
+        /// </para>
+        /// </summary>
+        /// <param name="selector">Строка-селектор.</param>
+        /// <returns>true, если селектор допустим.</returns>
+        private static bool IsValidCssSelector(string selector)
+        {
+            if (string.IsNullOrWhiteSpace(selector)) return false;
+
+            // XPath-подобный синтаксис — не CSS.
+            if (selector.Contains("text()", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (selector.Contains("text=", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (selector.Contains(":contains(", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return true;
+        }
+
         /// <inheritdoc />
         public async Task<ToolResult> ExecuteCommandAsync(
             ToolExecutionContext context,
@@ -518,6 +546,11 @@ namespace IIChatTools.Services.Implementation
                         var sel = arguments.GetString("selector");
                         if (string.IsNullOrWhiteSpace(sel))
                             return ToolResult.Fail("Не указан селектор для click");
+                        if (!IsValidCssSelector(sel))
+                            return ToolResult.Fail(
+                                $"'{sel}' — не CSS-селектор (похоже на XPath / псевдо-функцию). " +
+                                "Используй значение поля `selector` из get_selectors, " +
+                                "или click_by_text(text='...') для клика по видимому тексту.");
                         await page.ClickAsync(sel);
                         return ToolResult.Ok(new { clicked = sel, url = page.Url });
                     }
@@ -528,6 +561,9 @@ namespace IIChatTools.Services.Implementation
                         var text = arguments.GetString("text", string.Empty);
                         if (string.IsNullOrWhiteSpace(sel))
                             return ToolResult.Fail("Не указан селектор для type");
+                        if (!IsValidCssSelector(sel))
+                            return ToolResult.Fail(
+                                $"'{sel}' — не CSS-селектор. Используй `selector` из get_selectors.");
                         await page.TypeAsync(sel, text);
                         return ToolResult.Ok(new { typed = text.Length, selector = sel });
                     }
@@ -537,8 +573,67 @@ namespace IIChatTools.Services.Implementation
                         var sel = arguments.GetString("selector");
                         if (string.IsNullOrWhiteSpace(sel))
                             return ToolResult.Fail("Не указан селектор для wait_for_selector");
+                        if (!IsValidCssSelector(sel))
+                            return ToolResult.Fail(
+                                $"'{sel}' — не CSS-селектор. Используй `selector` из get_selectors.");
                         await page.WaitForSelectorAsync(sel);
                         return ToolResult.Ok(new { found = sel });
+                    }
+
+                    // KI-220 (v1.13.7): клик по видимому тексту.
+                    // Решает RZD-проблему: элементы Vue SPA без id/name
+                    // (dropdown-меню, cookie-banner «ПРИНЯТЬ»).
+                    case "click_by_text":
+                    {
+                        var targetText = arguments.GetString("text");
+                        if (string.IsNullOrWhiteSpace(targetText))
+                            return ToolResult.Fail("Не указан text для click_by_text");
+
+                        // JS: клик по первому элементу с точным совпадением текста,
+                        // приоритет — интерактивные элементы (a/button/role).
+                        var clickScript = @"(() => {
+                            const target = " + Newtonsoft.Json.JsonConvert.SerializeObject(targetText) + @";
+                            const targetLower = target.trim().toLowerCase();
+                            const candidates = document.querySelectorAll('a, button, [role=button], [role=menuitem], [role=link], [role=tab], input[type=submit]');
+                            // 1. Точное совпадение.
+                            for (const el of candidates) {
+                                const t = (el.textContent || '').trim().toLowerCase();
+                                if (t === targetLower) { el.click(); return { ok: true, matched: 'exact', tag: el.tagName, text: el.textContent.trim() }; }
+                            }
+                            // 2. Частичное совпадение (содержит).
+                            for (const el of candidates) {
+                                const t = (el.textContent || '').trim().toLowerCase();
+                                if (t.includes(targetLower) && t.length < targetLower.length * 4) {
+                                    el.click();
+                                    return { ok: true, matched: 'contains', tag: el.tagName, text: el.textContent.trim() };
+                                }
+                            }
+                            // 3. Fallback — любой элемент с этим текстом (div/span).
+                            const all = document.querySelectorAll('*');
+                            for (const el of all) {
+                                if (el.children.length > 0) continue;
+                                const t = (el.textContent || '').trim().toLowerCase();
+                                if (t === targetLower) { el.click(); return { ok: true, matched: 'fallback', tag: el.tagName, text: el.textContent.trim() }; }
+                            }
+                            return { ok: false, error: 'Элемент с текстом «' + target + '» не найден' };
+                        })()";
+
+                        var clickResult = await page.EvaluateExpressionAsync<JObject>(clickScript);
+                        var ok = clickResult["ok"]?.Value<bool>() ?? false;
+                        if (!ok)
+                        {
+                            var err = clickResult["error"]?.ToString() ?? "не найдено";
+                            return ToolResult.Fail(err);
+                        }
+
+                        return ToolResult.Ok(new
+                        {
+                            clicked = true,
+                            matched = clickResult["matched"]?.ToString(),
+                            tag = clickResult["tag"]?.ToString(),
+                            text = clickResult["text"]?.ToString(),
+                            url = page.Url
+                        });
                     }
 
                     case "evaluate":
@@ -594,7 +689,12 @@ namespace IIChatTools.Services.Implementation
                             const seen = new Set();
                             const out = [];
                             const MAX = 30;
-                            const els = document.querySelectorAll('input, button, textarea, select, a[href]');
+                            // KI-220 (v1.13.7): +role-атрибуты — RZD и другие SPA
+                            // используют [role=button] / [role=menuitem] без href/id.
+                            const els = document.querySelectorAll(
+                                'input, button, textarea, select, a[href], ' +
+                                '[role=button], [role=menuitem], [role=tab], [role=link]'
+                            );
                             for (const el of els) {
                                 if (out.length >= MAX) break;
                                 const rect = el.getBoundingClientRect();
@@ -606,6 +706,10 @@ namespace IIChatTools.Services.Implementation
                                 let selector = null;
                                 if (id) selector = '#' + CSS.escape(id);
                                 else if (name) selector = el.tagName.toLowerCase() + '[name=""' + name + '""]';
+                                else {
+                                    const role = el.getAttribute('role');
+                                    if (role) selector = '[role=""' + role + '""]';
+                                }
                                 const key = selector || (el.tagName + '|' + (el.textContent || '').trim().slice(0, 50));
                                 if (seen.has(key)) continue;
                                 seen.add(key);

@@ -3169,6 +3169,37 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-220 — `browser_agent`: XPath в селекторах + нет `click_by_text` (RZD)
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.7
+- **Обнаружено:** 2026-10-09 (smoke KI-219 — `browser_agent` на rzd.ru, chatId=69).
+- **Файлы:** `BrowserSessionManager.cs`, `BrowserSessionControlTool.cs`,
+  `appsettings.json`, `appsettings.Development.json`.
+- **Описание:** После KI-219 (нет overflow), выявились 3 проблемы на RZD:
+  1. **LLM выдумывает XPath-селекторы:** `a[text()='Поезда и маршруты']`
+     и `a[text='Поезда и маршруты']` — Puppeteer бросает
+     `EvaluationFailedException: SyntaxError` / `SelectorException`.
+  2. **Элементы Vue SPA без id/name** — dropdown-меню и cookie-banner
+     «ПРИНЯТЬ» не находятся через CSS (`<div>` / `<span role=button>`).
+  3. **Cookie-banner перекрывает контент** — без «ПРИНЯТЬ» клики уходят
+     в баннер, dropdown не раскрывается.
+- **Решение (v1.13.7):**
+  - **A)** Валидация селектора: `IsValidCssSelector()` — Fail на
+    `text()`, `text=`, `:contains()` с подсказкой про `click_by_text`.
+  - **B)** Новая команда `click_by_text(text='...')` — клик по видимому
+    тексту. JS ищет exact → contains → fallback (≤ 4× от длины).
+    Приоритет — `a, button, [role=button], [role=menuitem], [role=link], [role=tab]`.
+  - **C)** `get_selectors` расширен: `[role=button]`, `[role=menuitem]`,
+    `[role=tab]`, `[role=link]`. Для элементов без `id`/`name` —
+    селектор `[role="..."]`.
+  - **D)** SystemPrompt `browser_agent`: (1) cookie-banner — первый шаг
+    (`click_by_text(text='ПРИНЯТЬ')`); (2) правило 4 — запрет XPath,
+    `click_by_text` как fallback; (3) ПРИМЕР RZD переписан — форма на
+    главной, а не `/passenger/route` (там 404).
+- **Связанные:** KI-219 (get_selectors), KI-128 (browser_agent), KI-113
+  (галлюцинация — в этом релизе не наблюдалась).
+
+---
+
 ### KI-219 — `browser_agent`: `get_content` переполняет контекст на реальных сайтах
 - **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.6
 - **Обнаружено:** 2026-10-09 (smoke KI-128/KI-218 — `browser_agent` на rzd.ru).
