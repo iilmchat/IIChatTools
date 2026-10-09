@@ -3169,6 +3169,36 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-221 — External-LLM: добавить YandexGPT (Yandex AI Studio, OpenAI-compat)
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.8
+- **Обнаружено:** 2026-10-09 (запрос пользователя).
+- **Файлы:** `ExternalProviderOptions.cs`, `ExternalLlmClient.cs`,
+  `appsettings.json`, `appsettings.Development.json`, `README.md`.
+- **Описание:** Yandex AI Studio (2025) выпустил OpenAI-совместимый
+  endpoint для LLM: `POST https://llm.api.cloud.yandex.net/v1/chat/completions`
+  с телом `{ model, messages[], temperature, max_tokens }` и ответом
+  `{ choices[], usage{} }` — 1-в-1 как OpenAI. **Отличие:** заголовок
+  `Authorization: Api-Key <key>` вместо `Bearer <key>`.
+- **Решение (v1.13.8):**
+  - `ExternalProviderOptions.AuthScheme` (string, default `"Bearer"`).
+    Для Yandex — `"Api-Key"`.
+  - `ExternalLlmClient.CompleteOpenAiAsync`: `Authorization` собирается
+    из `provider.AuthScheme + " " + apiKey`. Anthropic / Gemini —
+    не затронуты (у них собственные заголовки).
+  - Провайдер `yandex` в appsettings: `Format: "OpenAI"`,
+    `AuthScheme: "Api-Key"`, `BaseUrl: "https://llm.api.cloud.yandex.net/v1"`,
+    `Model: "gpt://<folder-id>/yandexgpt-lite/latest"`.
+  - **Folder-id** — часть `Model` (формат Yandex `gpt://{folderId}/{model}`).
+    Переключение Lite → Pro / 32k: одна строка в config.
+  - README — инструкция получения API-ключа (Yandex Cloud Console →
+    сервисный аккаунт → API-ключ).
+- **Обратная совместимость:** все существующие провайдеры не задают
+  `AuthScheme` — default `"Bearer"`, работают как раньше.
+- **Связанные:** KI-109 (External-LLM Agent — база), KI-110a/b
+  (Anthropic/Gemini — аналогично).
+
+---
+
 ### KI-220 — `browser_agent`: XPath в селекторах + нет `click_by_text` (RZD)
 - **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.7
 - **Обнаружено:** 2026-10-09 (smoke KI-219 — `browser_agent` на rzd.ru, chatId=69).

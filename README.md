@@ -1,10 +1,10 @@
-# IIChatTools v1.13.7
+# IIChatTools v1.13.8
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.7
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.8
 
 ---
 
@@ -947,6 +947,29 @@ Mail-tools — не имеют собственных REST-endpoint'ов. Выз
 
 Подробности — [docs/development/v1.9/DESIGN_GEMINI.md](docs/development/v1.9/DESIGN_GEMINI.md) § 5.
 
+**YandexGPT (v1.13.8, KI-221):**
+
+- **Работает в РФ без VPN.**
+- API key: https://console.yandex.cloud/ → выбрать каталог (folder) → создать
+  сервисный аккаунт с ролью `ai.languageModels.user` → создать API-ключ
+  (с scope `yc.ai.languageModels.execute`).
+- **Folder ID** — виден в Yandex Cloud Console (каталог → ID).
+- Формат `Model`: `gpt://<folder-id>/<model>/latest`.
+  - `yandexgpt-lite/latest` — быстрая, дешёвая (0.2₽ / 1k).
+  - `yandexgpt/latest` — Pro 5.1, качественнее.
+  - `yandexgpt-32k/latest` — 32k контекст.
+
+    dotnet user-secrets set "ExternalLlm:Yandex:ApiKey" "AQVN..."
+
+**Переключение модели Yandex** (Lite → Pro) — одна строка в
+`appsettings.Development.json`: заменить `yandexgpt-lite/latest` на
+`yandexgpt/latest`. Альтернатива — User Secrets override:
+```bash
+dotnet user-secrets set "ExternalLlm:Providers:yandex:Model" "gpt://b1gufspraeh2i5nin6nt/yandexgpt/latest"
+```
+
+---
+
 ### Ограничения
 
 - **Только non-streaming** (без SSE с внешних API).
@@ -1132,8 +1155,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.7
-    docker pull ghcr.io/iilmchat/iichattools:1.13.7
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.8
+    docker pull ghcr.io/iilmchat/iichattools:1.13.8
     docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 

@@ -22,6 +22,40 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.8] — 2026-10-09
+
+**KI-221 — External-LLM: YandexGPT через Yandex AI Studio.**
+Новое поле `ExternalProviderOptions.AuthScheme` (default `"Bearer"`).
+Провайдер `yandex` использует `Api-Key` в заголовке `Authorization`.
+
+**Тесты:** +2 (`ExternalLlmClientTests`) — проверка `AuthScheme`.
+
+### Added
+- **KI-221 — YandexGPT (Yandex AI Studio, OpenAI-совместимый endpoint)**:
+  - `ExternalProviderOptions.AuthScheme` — префикс заголовка
+    `Authorization`, default `"Bearer"`. Yandex — `"Api-Key"`.
+  - `ExternalLlmClient.CompleteOpenAiAsync` — `Authorization`
+    собирается как `{provider.AuthScheme} {apiKey}`.
+  - Провайдер `yandex` в `appsettings.json` / `.Development.json`:
+    `Format: "OpenAI"`, `AuthScheme: "Api-Key"`,
+    `BaseUrl: "https://llm.api.cloud.yandex.net/v1"`,
+    `Model: "gpt://{folderId}/yandexgpt-lite/latest"`.
+    Для переключения Lite → Pro — одна строка в config.
+  - SystemPrompt `external_llm_agent`: Yandex добавлен в специализацию
+    («Официальные тексты / документация / RU-специфика → yandex»).
+  - README: раздел получения API-ключа Yandex Cloud.
+  - Тесты: +2 (`CompleteAsync_YandexFormat_UsesApiKeyHeader`,
+    `CompleteAsync_DefaultAuthScheme_IsBearer`).
+
+### Changed
+- **Bump version 1.13.7 → 1.13.8**.
+
+---
+
+## [1.13.7] — 2026-10-09
+
+---
+
 ## [1.13.7] — 2026-10-09
 
 **KI-220 — `browser_agent` на реальных сайтах (RZD, Vue SPA).**

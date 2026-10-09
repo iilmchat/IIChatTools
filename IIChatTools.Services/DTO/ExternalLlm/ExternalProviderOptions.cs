@@ -36,10 +36,33 @@ namespace IIChatTools.Services.DTO.ExternalLlm
         /// <para>
         /// <see cref="ProviderFormat.Anthropic"/> включает Anthropic-ветку
         /// (<c>POST /messages</c>, <c>x-api-key</c>, system отдельно).
-        /// <see cref="ProviderFormat.Gemini"/> зарезервирован на v1.9.x (KI-110b).
+        /// <see cref="ProviderFormat.Gemini"/> — Google Gemini (v1.10.0, KI-110b).
         /// </para>
         /// </summary>
         public ProviderFormat Format { get; set; } = ProviderFormat.OpenAI;
+
+        /// <summary>
+        /// Префикс схемы в заголовке <c>Authorization</c> (v1.13.8, KI-221).
+        ///
+        /// <para>
+        /// Применяется <b>только для <see cref="ProviderFormat.OpenAI"/></b>
+        /// (Anthropic / Gemini используют собственные заголовки —
+        /// <c>x-api-key</c> / <c>x-goog-api-key</c>).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Default:</b> <c>"Bearer"</c> — для DeepSeek, OpenAI, Groq,
+        /// Together AI, Ollama. <b>Yandex AI Studio</b> требует
+        /// <c>"Api-Key"</c> (документация Yandex Cloud).
+        /// </para>
+        ///
+        /// <para>
+        /// Собирается в <c>ExternalLlmClient</c> как
+        /// <c>{AuthScheme} {apiKey}</c> и передаётся в заголовок
+        /// <c>Authorization</c>. Значение никогда не логируется.
+        /// </para>
+        /// </summary>
+        public string AuthScheme { get; set; } = "Bearer";
 
         /// <summary>
         /// Base URL провайдера без trailing slash,

@@ -298,10 +298,18 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             var url = provider.BaseUrl.TrimEnd('/') + "/chat/completions";
             var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);
 
+            // v1.13.8 (KI-221): схема собирается из provider.AuthScheme.
+            // Default — "Bearer" (DeepSeek, OpenAI, Groq, Together, Ollama).
+            // Yandex AI Studio — "Api-Key" (OpenAI-совместимый endpoint,
+            // но схема отличается). Антропоид / Gemini сюда не попадают —
+            // у них свои CompleteXxxAsync с отдельными заголовками.
             var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (!string.IsNullOrWhiteSpace(apiKey))
             {
-                headers["Authorization"] = $"Bearer {apiKey}";
+                var scheme = string.IsNullOrWhiteSpace(provider.AuthScheme)
+                    ? "Bearer"
+                    : provider.AuthScheme.Trim();
+                headers["Authorization"] = $"{scheme} {apiKey}";
             }
 
             var responseJson = await SendWithRetryAsync(url, payload, headers, timeoutSec, ct);
