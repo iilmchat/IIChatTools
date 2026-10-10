@@ -3261,6 +3261,83 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-229 — Vision Agent: lightbox + F5-fallback для скриншотов
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.11
+- **Обнаружено:** 2026-10-10 (smoke Chat, скриншоты example.com).
+- **Описание:**
+  - В live-режиме PNG-скриншот от `vision_agent(action='screenshot')` показывается
+    как inline `<img>` в tool-block, но **без lightbox** — клик по картинке
+    (или по «+») ничего не делает.
+  - После F5 картинка **исчезает полностью** (base64 не сохраняется в БД,
+    KI-176). В tool-block остаётся только сырой JSON с `path`.
+
+- **Industry best practice:**
+  - Клик по картинке → **full-screen overlay** (`position: fixed`,
+    `background: rgba(0,0,0,0.85)`).
+  - **Zoom:** колесо мыши / кнопки `+` / `−` / `100%` / `fit`.
+  - **Pan:** drag мышью, стрелки клавиатуры.
+  - **Close:** Escape / клик по фону / кнопка ✕.
+  - **Actions:** скачать PNG, «Скопировать путь».
+  - **F5-fallback:** если base64 нет, но есть `path` — placeholder + кнопка
+    «Открыть» → `GET /api/chat/{chatId}/screenshots/{taskId}/{file}`.
+
+- **Что нужно:**
+  1. JS: `openLightbox(src)` в `chat.js` — overlay с зумом/пан.
+  2. CSS: `.chat-lightbox` (fixed, тёмный фон, кнопки).
+  3. **Backend:** `GET /api/chat/{chatId}/screenshots/{taskId}/{file}` в
+     `ChatAttachmentsController` (или новом `ChatScreenshotsController`).
+     Проверка владения чата + `PathHelper.TryGetSafeFullPath` в workspace.
+  4. `chat.js`: в `renderToolResultImage` — при клике `openLightbox(dataUrl)`.
+  5. `chat.js`: в F5-fallback — если `base64` нет, но `path` есть →
+     рендерить кнопку «Открыть скриншот» → fetch endpoint.
+
+- **Оценка:** ~3-4 ч.
+- **Связанные:** KI-176 (base64 sanitize), KI-228 (tool-block rendering), KI-205/206/207 (page viewer — эталон UI).
+
+---
+
+### KI-228 — Chat: красивый рендеринг tool-block (вместо сырого JSON)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.11
+- **Обнаружено:** 2026-10-10 (smoke Chat, `browser_agent` на rzd.ru).
+- **Описание:** В Chat tool-block отображается как **сырой JSON**:
+```JSON
+{"success":true,"data":{"agent":"browser_agent","sessionId":"fb1958...",
+"finalAnswer":"Итог выпол...", ...}}
+```
+Нечитаемо, некрасиво, занимает много места, не несёт смысла.
+
+- **Industry best practice (ChatGPT / Claude / Perplexity):**
+- **Collapsible card** — свёрнутая строка с иконкой tool + статусом:
+  `🌐 browser_agent · 3 шага · 4.2 сек · ✅`.
+- По клику — раскрывается: summary (finalAnswer / description),
+  список usedTools / ui_elements count, sessionId.
+- **Иконки по tool:**
+  - `browser_agent` → 🌐
+  - `vision_agent` → 👁
+  - `code_agent` → 💻
+  - `code_agent_with_review` → ⚔
+  - `mail_agent` → ✉️
+  - `external_llm_agent` → 🌍
+  - `database_agent` → 🗄
+  - `search_*` → 📚
+  - default → 🛠
+- **Grouping:** последовательные tool-call'ы одного агента
+  (browser_agent × 3 в одном ответе) — группировать в одну карточку.
+
+- **Что нужно (frontend-only, `chat.js` + `chat.css`):**
+1. `renderToolResultBlock(dto, toolName)` — вместо raw `<pre>`.
+2. Иконка по имени tool (mapping const).
+3. Status badge (✅ / ❌ / ⏳).
+4. `<details>` с полным JSON (для отладки, свёрнут).
+5. Группировка tool-call'ов по агенту (опционально, v2).
+
+- **Оценка:** ~2-3 ч.
+- **Связанные:** KI-229 (lightbox — комплементарно), KI-113 (галлюцинация успеха).
+
+---
+
 ### KI-227 — RAG embeddings зависят от LM Studio (нет внешнего провайдера)
 
 - **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.14
