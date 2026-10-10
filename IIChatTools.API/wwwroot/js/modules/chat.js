@@ -84,6 +84,10 @@ const state = {
     // блоков Actor-Critic при F5. Заполняется в prefillDebatesFromChatDetail
     // при selectChat. Ключ — tool_call.id из ToolCallsJson assistant-сообщения.
     debateSessionByToolCallId: {},
+
+    // v1.13.13 (KI-230): активный Continue-стрим. null — не идёт.
+    // { bubble, contentEl, appendEl, assistantMessageId, appendedRaw }
+    appendTarget: null,
 };
 
 // ============ Инициализация ============
@@ -1934,7 +1938,17 @@ function handleSseEvent(name, data, assistantBubble) {
 
         case 'delta':
             showTypingIndicator(assistantBubble, false);
-            appendDelta(assistantBubble, data.text || '');
+            // KI-230: если идёт Continue-стрим — клеим в append-контейнер
+            // внутри СУЩЕСТВУЮЩЕГО bubble (не создаём новый).
+            if (state.appendTarget) {
+                const t = data.text || '';
+                state.appendTarget.appendedRaw += t;
+                state.appendTarget.appendEl.innerHTML =
+                    escapeHtml(state.appendTarget.appendedRaw).replace(/\n/g, '<br>');
+                scrollToBottom();
+            } else {
+                appendDelta(assistantBubble, data.text || '');
+            }
             break;
 
         case 'tool_call':
@@ -1968,9 +1982,49 @@ function handleSseEvent(name, data, assistantBubble) {
 
         case 'done':
             showTypingIndicator(assistantBubble, false);
+
+            // KI-230: если это Continue-стрим — merge appended в основной
+            // контент + markdown-перерендер СУЩЕСТВУЮЩЕГО bubble.
+            if (state.appendTarget) {
+                const t = state.appendTarget;
+                const mergedRaw = (t.contentEl.dataset.raw || '') + t.appendedRaw;
+                t.contentEl.dataset.raw = mergedRaw;
+
+                // Убираем append-контейнер (временно был внутри content).
+                t.appendEl.remove();
+
+                // Markdown полного текста.
+                t.contentEl.classList.add('chat-markdown');
+                t.contentEl.innerHTML = renderMarkdown(mergedRaw);
+                enhanceCodeBlocks(t.bubble);
+
+                // Copy-текст и meta (токены/длительность).
+                const actionsEl = t.bubble.querySelector('.chat-message-actions');
+                if (actionsEl) actionsEl.dataset.copyText = mergedRaw;
+                if (data?.tokensIn != null || data?.tokensOut != null) {
+                    updateBubbleMeta(t.bubble, data.tokensIn, data.tokensOut,
+                        data.durationMs, data.firstTokenMs);
+                }
+
+                // Если снова length — показать плашку снова.
+                if (data?.finishReason === 'length') {
+                    showLengthWarning(t.bubble);
+                }
+
+                t.bubble.dataset.streamCompleted = '1';
+                state.appendTarget = null;
+                break;
+            }
+
+            // Обычный flow (не Continue).
             finalizeAssistantBubble(assistantBubble, data);
             // Фаза 2.2.1b: флаг успешного завершения — для maybeGenerateTitle.
             if (assistantBubble) assistantBubble.dataset.streamCompleted = '1';
+
+            // KI-230: показать плашку + кнопку «Продолжить», если ответ обрезан.
+            if (data?.finishReason === 'length' && assistantBubble) {
+                showLengthWarning(assistantBubble);
+            }
 
             // KI-084b + KI-084a: токены + tok/s + длительность — сразу, без F5.
             if (assistantBubble && (data?.tokensIn != null || data?.tokensOut != null)) {
@@ -3087,6 +3141,16 @@ function renderMessage(msg, opts = {}) {
         ? renderSourcesBlock(msg.sources)
         : '';
 
+    // KI-230: плашка + кнопка «Продолжить» — если ответ был обрезан.
+    // Показываем ТОЛЬКО на последнем assistant-сообщении (продолжать
+    // не-последнее — UX-ломающее; пользователь должен дойти до конца).
+    const isLastAssistant = opts.showRegenerate === true && !isUser;
+    const lengthWarningHtml = (isLastAssistant
+        && msg.finishReason === 'length'
+        && msg.content)
+        ? renderLengthWarningHtml(msg.id)
+        : '';
+
     // Actions:
     //  - Copy      — если есть текст
     //  - Edit ✏️    — на user-сообщениях (Фаза 2.2.6b)
@@ -3114,10 +3178,169 @@ function renderMessage(msg, opts = {}) {
                 <div class="chat-message-meta">${roleLabel} · ${escapeHtml(formatTime(msg.createdAt))}${tokenMetaHtml}</div>
                 ${toolsContent}
                 ${contentHtml}
+                ${lengthWarningHtml}
                 ${sourcesHtml}
                 ${actionsHtml}
             </div>
         </div>`;
+}
+
+// ============ v1.13.13 (KI-230): Continue (продолжение обрезанного ответа) ============
+
+/**
+ * KI-230: возвращает HTML плашки + кнопки «Продолжить» для ответа,
+ * обрезанного по лимиту контекста (finishReason = "length").
+ *
+ * <para>
+ * Используется в live-режиме (после `done` SSE-события) и при F5-загрузке
+ * (renderMessage) — единый вид.
+ * </para>
+ *
+ * @param {number|string|null} assistantMessageId — id сообщения (для POST /api/chat/continue).
+ *   Может быть null в live-режиме: там id берётся из bubble.dataset.assistantMessageId
+ *   после finalizeAssistantBubble.
+ * @returns {string} HTML
+ */
+function renderLengthWarningHtml(assistantMessageId) {
+    const container = document.getElementById('chat-messages');
+    const warningText = container?.dataset.labelLengthWarning || '⚠️ Ответ обрезан из-за лимита контекста.';
+    const continueLabel = container?.dataset.labelContinue || '➕ Продолжить';
+    const continueTooltip = container?.dataset.labelContinueTooltip || 'Продолжить с того места, где оборвалось';
+
+    const idAttr = (assistantMessageId != null)
+        ? ` data-assistant-message-id="${assistantMessageId}"`
+        : '';
+
+    return `
+        <div class="chat-message-length-warning">
+            <span class="chat-message-length-warning-icon">⚠️</span>
+            <span class="chat-message-length-warning-text">${escapeHtml(warningText)}</span>
+            <button type="button"
+                    class="chat-message-action chat-message-action-with-text chat-message-continue-btn"
+                    data-action="continue"${idAttr}
+                    title="${escapeAttr(continueTooltip)}"
+                    aria-label="${escapeAttr(continueLabel)}">${escapeHtml(continueLabel)}</button>
+        </div>`;
+}
+
+/**
+ * KI-230: показывает плашку + кнопку «Продолжить» на bubble (live-режим,
+ * после `done` с finishReason=length). Идемпотентно — повторный вызов
+ * не дублирует плашку.
+ *
+ * @param {HTMLElement} bubble
+ */
+function showLengthWarning(bubble) {
+    if (!bubble) return;
+    if (bubble.querySelector('.chat-message-length-warning')) return;
+
+    const bodyEl = bubble.querySelector('.chat-message-body');
+    if (!bodyEl) return;
+
+    // Вставляем ПЕРЕД actions (или в конец body).
+    const html = renderLengthWarningHtml(null);
+    const actionsEl = bodyEl.querySelector('.chat-message-actions');
+    if (actionsEl) {
+        actionsEl.insertAdjacentHTML('beforebegin', html);
+    } else {
+        bodyEl.insertAdjacentHTML('beforeend', html);
+    }
+}
+
+/**
+ * KI-230: продолжение обрезанного ответа (ChatGPT-style).
+ *
+ * <para>
+ * Стрим идёт в СУЩЕСТВУЮЩИЙ assistant-bubble:
+ * <list type="number">
+ *   <item>Создаём <c>&lt;span class="chat-message-content-append"&gt;</c> внутри
+ *     <c>.chat-message-content</c> — для потоковой доклейки текста.</item>
+ *   <item>SSE-событие <c>delta</c> доклеивает в этот span
+ *     (см. handleSseEvent case 'delta').</item>
+ *   <item>По <c>done</c> — merge appended в основной контент + полный
+ *     markdown-перерендер.</item>
+ * </list>
+ * </para>
+ *
+ * @param {number} assistantMessageId
+ * @param {HTMLElement} bubble — существующий `.chat-message.assistant`
+ */
+async function continueLastMessage(assistantMessageId, bubble) {
+    if (state.isStreaming) return;
+    if (!state.activeChatId || !assistantMessageId || !bubble) {
+        toast('Не удалось продолжить: сообщение не найдено', 'error');
+        return;
+    }
+
+    // Скрываем плашку + кнопку, пока идёт стрим (пересоздадим после, если снова length).
+    bubble.querySelector('.chat-message-length-warning')?.remove();
+
+    const contentEl = bubble.querySelector('.chat-message-content');
+    if (!contentEl) return;
+
+    // Сохраняем текущий raw-текст и переводим в plain для стрима.
+    const currentRaw = contentEl.dataset.raw || contentEl.textContent || '';
+    contentEl.classList.remove('chat-markdown');
+    contentEl.dataset.raw = currentRaw;
+    contentEl.innerHTML = escapeHtml(currentRaw).replace(/\n/g, '<br>');
+
+    // Append-контейнер (курсор появится из CSS `::after`).
+    const appendEl = document.createElement('span');
+    appendEl.className = 'chat-message-content-append';
+    appendEl.dataset.appendContent = '1';
+    contentEl.appendChild(appendEl);
+
+    state.appendTarget = {
+        bubble,
+        contentEl,
+        appendEl,
+        assistantMessageId,
+        appendedRaw: '',
+    };
+
+    // UI: блокируем input, показываем stop.
+    enableInput(false);
+    setStreamingUI(true);
+    state.isStreaming = true;
+
+    const controller = new AbortController();
+    state.abortController = controller;
+
+    try {
+        const response = await fetch('/api/chat/continue', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chatId: state.activeChatId,
+                assistantMessageId,
+            }),
+            signal: controller.signal,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        // События идут в state.appendTarget (см. handleSseEvent).
+        await readSseStream(response, bubble);
+    } catch (ex) {
+        // Восстанавливаем markdown исходного текста (без продолжения).
+        contentEl.classList.add('chat-markdown');
+        contentEl.innerHTML = renderMarkdown(currentRaw);
+        enhanceCodeBlocks(bubble);
+
+        if (ex.name !== 'AbortError') {
+            toast(ex.message || 'Ошибка продолжения', 'error');
+        }
+    } finally {
+        state.isStreaming = false;
+        state.abortController = null;
+        state.appendTarget = null;
+        enableInput(true);
+        setStreamingUI(false);
+        document.getElementById('chat-input')?.focus();
+    }
 }
 
 function renderToolCallsFromJson(toolCallsJson) {
@@ -4088,6 +4311,25 @@ function renderMessageActions(text, opts = {}) {
  * @param {MouseEvent} e
  */
 async function onMessageActionClick(e) {
+    // KI-230: Continue (продолжение обрезанного ответа).
+    const continueBtn = e.target.closest('[data-action="continue"]');
+    if (continueBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const bubble = continueBtn.closest('.chat-message');
+        const messageId = parseInt(
+            continueBtn.dataset.assistantMessageId
+            || bubble?.dataset.assistantMessageId
+            || bubble?.dataset.messageId
+            || '0', 10);
+        if (messageId > 0) {
+            await continueLastMessage(messageId, bubble);
+        } else {
+            toast('Не удалось определить id сообщения', 'error');
+        }
+        return;
+    }
+
     // v1.11.0 (KI-126, Шаг 1G.3): Send / Skip feedback между раундами.
     const feedbackSend = e.target.closest('[data-action="feedback-send"]');
     if (feedbackSend) {

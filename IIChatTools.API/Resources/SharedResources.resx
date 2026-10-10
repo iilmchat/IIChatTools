@@ -1002,5 +1002,14 @@
   </data>
   <data name="LightboxOpenScreenshot" xml:space="preserve">
     <value>Open screenshot</value>
-  </data>  
+  </data>
+  <data name="ChatMessageLengthWarning" xml:space="preserve">
+    <value>⚠️ Response truncated by context limit.</value>
+  </data>
+  <data name="ChatMessageContinue" xml:space="preserve">
+    <value>➕ Continue</value>
+  </data>
+  <data name="ChatMessageContinueTooltip" xml:space="preserve">
+    <value>Continue from where it stopped</value>
+  </data>    
 </root>
