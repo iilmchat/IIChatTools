@@ -6222,12 +6222,12 @@ function openLightbox(src, opts = {}) {
     img.removeAttribute('style');
     img.alt = state.lightbox.title || 'Screenshot';
 
-    // Обработчик load — устанавливает оригинальный размер + центрирует.
+    // Обработчик load — устанавливает оригинальный размер + snap.
     const onLoad = () => {
         if (!state.lightbox) return;
-        // Первичная установка — zoom = 1, размер = natural.
-        // Дальнейшие манипуляции — через applyLightboxZoom().
-        applyLightboxZoom();
+        // KI-229-fix2: при первом показе snap — если картинка больше viewport'а,
+        // видим верхний-левый угол, а не центр с обрезкой.
+        applyLightboxZoom({ snap: true });
     };
     img.onload = onLoad;
     img.onerror = () => {
@@ -6280,7 +6280,7 @@ function closeLightbox() {
  * Устанавливает width/height в px (natural × zoom) — overflow:auto
  * на viewport'е даёт панорамирование через нативный скролл.
  */
-function applyLightboxZoom() {
+function applyLightboxZoom(opts = {}) {
     const lb = state.lightbox;
     if (!lb) return;
 
@@ -6296,17 +6296,25 @@ function applyLightboxZoom() {
     img.style.width = `${w}px`;
     img.style.height = `${h}px`;
 
-    // KI-229-fix: pan через transform: translate(). Работает даже когда
-    // картинка меньше viewport'а (раньше scrollLeft не двигался при zoom=100%).
-    // Clamp: минимум 40px картинки остаётся видимым — нельзя утащить полностью.
     const viewport = modal.querySelector('.chat-lightbox-viewport');
     if (viewport) {
         const vw = viewport.clientWidth;
         const vh = viewport.clientHeight;
-        const maxPanX = Math.max(0, (w + vw) / 2 - 40);
-        const maxPanY = Math.max(0, (h + vh) / 2 - 40);
-        lb.panX = Math.max(-maxPanX, Math.min(maxPanX, lb.panX || 0));
-        lb.panY = Math.max(-maxPanY, Math.min(maxPanY, lb.panY || 0));
+
+        // KI-229-fix2: snap к верхнему-левому углу — если картинка больше
+        // viewport'а по оси. Иначе (картинка меньше) — центр (0).
+        // Применяется при первом показе / fit-width / fit-page / reset 100%.
+        // При zoom-in/out (opts.snap не задан) — сохраняем pan, только clamp.
+        if (opts.snap) {
+            lb.panX = w > vw ? (w - vw) / 2 : 0;
+            lb.panY = h > vh ? (h - vh) / 2 : 0;
+        } else {
+            // Clamp: минимум 40px картинки остаётся видимым — нельзя утащить полностью.
+            const maxPanX = Math.max(0, (w + vw) / 2 - 40);
+            const maxPanY = Math.max(0, (h + vh) / 2 - 40);
+            lb.panX = Math.max(-maxPanX, Math.min(maxPanX, lb.panX || 0));
+            lb.panY = Math.max(-maxPanY, Math.min(maxPanY, lb.panY || 0));
+        }
     }
 
     img.style.transform = `translate(${lb.panX || 0}px, ${lb.panY || 0}px)`;
@@ -6316,7 +6324,7 @@ function applyLightboxZoom() {
 /**
  * KI-229: устанавливает zoom (clamp [0.25, 8.0]).
  */
-function setLightboxZoom(value) {
+function setLightboxZoom(value, opts = {}) {
     const lb = state.lightbox;
     if (!lb) return;
 
@@ -6325,7 +6333,7 @@ function setLightboxZoom(value) {
     v = Math.max(0.25, Math.min(8.0, v));
     lb.zoom = v;
 
-    applyLightboxZoom();
+    applyLightboxZoom(opts);
     updateLightboxZoomLabel();
 }
 
@@ -6349,16 +6357,14 @@ function fitLightbox(kind) {
     const availW = Math.max(1, viewport.clientWidth - padX - 4);
     const availH = Math.max(1, viewport.clientHeight - padY - 4);
 
-    // KI-229-fix: fit — сброс pan, чтобы картинка встала по центру.
-    state.lightbox.panX = 0;
-    state.lightbox.panY = 0;
-
+    // KI-229-fix2: fit — snap (при большом размере — верхний-левый угол виден,
+    // не центр с обрезкой сверху/снизу).
     if (kind === 'width') {
-        setLightboxZoom(availW / img.naturalWidth);
+        setLightboxZoom(availW / img.naturalWidth, { snap: true });
     } else if (kind === 'page') {
         const zW = availW / img.naturalWidth;
         const zH = availH / img.naturalHeight;
-        setLightboxZoom(Math.min(zW, zH));
+        setLightboxZoom(Math.min(zW, zH), { snap: true });
     }
 }
 
@@ -6470,7 +6476,7 @@ function initLightboxHandlers() {
         el.addEventListener('click', closeLightbox);
     });
 
-    // Zoom: − / + / reset.
+    // Zoom: − / + — сохраняют pan (только clamp).
     modal.querySelector('[data-lightbox="zoom-out"]')
         ?.addEventListener('click', () => {
             const z = state.lightbox?.zoom ?? 1.0;
@@ -6481,15 +6487,9 @@ function initLightboxHandlers() {
             const z = state.lightbox?.zoom ?? 1.0;
             setLightboxZoom(z + 0.25);
         });
-    // KI-229-fix: reset = 100% + сброс pan (картинка в центр).
+    // Reset 100% — snap (верхний-левый угол картинки, если она больше viewport'а).
     modal.querySelector('[data-lightbox="zoom-reset"]')
-        ?.addEventListener('click', () => {
-            if (state.lightbox) {
-                state.lightbox.panX = 0;
-                state.lightbox.panY = 0;
-            }
-            setLightboxZoom(1.0);
-        });
+        ?.addEventListener('click', () => setLightboxZoom(1.0, { snap: true }));
 
     // Fit.
     modal.querySelector('[data-lightbox="fit-width"]')
@@ -6516,12 +6516,12 @@ function initLightboxHandlers() {
         viewport.addEventListener('dragstart', (e) => e.preventDefault());
     }
 
-    // Wheel-zoom.
+    // Wheel-zoom — snap (при увеличении зума сразу видно верх картинки).
     viewport?.addEventListener('wheel', (e) => {
         e.preventDefault();
         const delta = e.deltaY < 0 ? +0.15 : -0.15;
         const z = state.lightbox?.zoom ?? 1.0;
-        setLightboxZoom(z + delta);
+        setLightboxZoom(z + delta, { snap: true });
     }, { passive: false });
 
     // Клавиатура: только когда lightbox открыт.
@@ -6537,16 +6537,16 @@ function initLightboxHandlers() {
             case '+':
             case '=':
                 e.preventDefault();
-                setLightboxZoom((state.lightbox?.zoom ?? 1.0) + 0.25);
+                setLightboxZoom((state.lightbox?.zoom ?? 1.0) + 0.25, { snap: true });
                 return;
             case '-':
             case '_':
                 e.preventDefault();
-                setLightboxZoom((state.lightbox?.zoom ?? 1.0) - 0.25);
+                setLightboxZoom((state.lightbox?.zoom ?? 1.0) - 0.25, { snap: true });
                 return;
             case '0':
                 e.preventDefault();
-                setLightboxZoom(1.0);
+                setLightboxZoom(1.0, { snap: true });
                 return;
             case 'ArrowLeft':
                 state.lightbox.panX = (state.lightbox.panX || 0) - 60;
