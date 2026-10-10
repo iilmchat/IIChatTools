@@ -991,4 +991,16 @@
   <data name="SpeechVirtualDeviceWarning" xml:space="preserve">
     <value>Выбран виртуальный микрофон — возможен нулевой сигнал. Выберите физический в Профиль → Аудио.</value>
   </data>
+  <data name="LightboxDownload" xml:space="preserve">
+    <value>Скачать PNG</value>
+  </data>
+  <data name="LightboxCopyPath" xml:space="preserve">
+    <value>Скопировать путь</value>
+  </data>
+  <data name="LightboxCopySuccess" xml:space="preserve">
+    <value>Путь скопирован</value>
+  </data>
+  <data name="LightboxOpenScreenshot" xml:space="preserve">
+    <value>Открыть скриншот</value>
+  </data>  
 </root>

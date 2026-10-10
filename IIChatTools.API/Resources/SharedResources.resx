@@ -991,4 +991,16 @@
   <data name="SpeechVirtualDeviceWarning" xml:space="preserve">
     <value>Virtual microphone detected — may produce zero signal. Choose a physical device in Profile → Audio.</value>
   </data>
+  <data name="LightboxDownload" xml:space="preserve">
+    <value>Download PNG</value>
+  </data>
+  <data name="LightboxCopyPath" xml:space="preserve">
+    <value>Copy path</value>
+  </data>
+  <data name="LightboxCopySuccess" xml:space="preserve">
+    <value>Path copied</value>
+  </data>
+  <data name="LightboxOpenScreenshot" xml:space="preserve">
+    <value>Open screenshot</value>
+  </data>  
 </root>

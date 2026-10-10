@@ -2866,3 +2866,229 @@ body.chat-pages-modal-open {
     }
 }
 
+/* ============================================================
+   v1.13.x (KI-229): lightbox для скриншотов от vision_agent.
+   ============================================================ */
+
+body.chat-lightbox-open {
+    overflow: hidden;
+}
+
+.chat-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;   /* выше chat-pages-modal (1090) */
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-lightbox[hidden] {
+    display: none !important;
+}
+
+.chat-lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .88);
+    backdrop-filter: blur(4px);
+    cursor: zoom-out;
+}
+
+/* Toolbar сверху — fixed. */
+.chat-lightbox-toolbar {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .5rem .85rem;
+    background: rgba(20, 20, 22, .85);
+    color: #eee;
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+}
+
+.chat-lightbox-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: .85rem;
+    font-family: var(--bs-font-monospace);
+    color: rgba(255, 255, 255, .8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: .75rem;
+}
+
+/* Icon-кнопки в toolbar. */
+.chat-lightbox-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: .25rem;
+    background: transparent;
+    color: #eee;
+    font-size: .95rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color .15s;
+}
+
+.chat-lightbox-btn:hover {
+    background: rgba(255, 255, 255, .12);
+}
+
+.chat-lightbox-btn:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, .5);
+    outline-offset: 1px;
+}
+
+/* Zoom-label — расширенный. */
+.chat-lightbox-zoom-value {
+    min-width: 56px;
+    padding: 0 .4rem;
+    width: auto;
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+}
+
+/* Разделитель. */
+.chat-lightbox-toolbar-sep {
+    display: inline-block;
+    width: 1px;
+    height: 18px;
+    background: rgba(255, 255, 255, .2);
+    margin: 0 .25rem;
+}
+
+/* Viewport — центр. */
+.chat-lightbox-viewport {
+    flex: 1 1 auto;
+    position: relative;
+    z-index: 1;
+    overflow: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1rem;
+    min-height: 0;
+    cursor: grab;
+    user-select: none;
+}
+
+.chat-lightbox-viewport-dragging {
+    cursor: grabbing;
+}
+
+/* Обёртка-центрирование: margin:auto даёт корректный центр, когда
+   картинка меньше viewport'а, и скролл от левого-верхнего угла, когда больше. */
+.chat-lightbox-img {
+    margin: auto;
+    display: block;
+    background: #fff;
+    border: 1px solid rgba(255, 255, 255, .15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .5);
+    /* width / height задаются JS (applyLightboxZoom) — не transition,
+       чтобы не было «плывущего» зума. */
+    flex-shrink: 0;
+}
+
+/* Ошибка загрузки. */
+.chat-lightbox-error {
+    color: #f8d7da;
+    font-size: .95rem;
+    padding: 2rem;
+    text-align: center;
+    background: rgba(220, 53, 69, .15);
+    border: 1px solid rgba(220, 53, 69, .35);
+    border-radius: .5rem;
+    max-width: 500px;
+    margin: auto;
+}
+
+/* Placeholder «скриншот в workspace» (F5-fallback). */
+.chat-tool-result-image-placeholder {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .55rem .75rem;
+    margin-top: .35rem;
+    background: var(--bs-tertiary-bg);
+    border: 1px dashed var(--bs-border-color);
+    border-radius: .375rem;
+    font-size: .82rem;
+}
+
+.chat-tool-result-image-placeholder-icon {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+    opacity: .7;
+}
+
+.chat-tool-result-image-placeholder-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+
+.chat-tool-result-image-placeholder-text code {
+    font-size: .75rem;
+    color: var(--bs-body-color);
+    background: transparent;
+    word-break: break-all;
+}
+
+.chat-tool-result-image-placeholder-size {
+    font-size: .72rem;
+    color: var(--bs-secondary-color);
+    font-family: var(--bs-font-monospace);
+}
+
+.chat-tool-result-image-placeholder-btn {
+    flex-shrink: 0;
+    padding: .3rem .7rem;
+    border: 1px solid var(--bs-primary);
+    border-radius: .25rem;
+    background: transparent;
+    color: var(--bs-primary);
+    font-size: .78rem;
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+    white-space: nowrap;
+}
+
+.chat-tool-result-image-placeholder-btn:hover {
+    background: var(--bs-primary);
+    color: var(--bs-white);
+}
+
+.chat-tool-result-image-placeholder-btn:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+/* Мобильный вид. */
+@media (max-width: 575.98px) {
+    .chat-lightbox-toolbar {
+        padding: .4rem .5rem;
+        flex-wrap: wrap;
+    }
+
+    .chat-lightbox-title {
+        width: 100%;
+        margin: 0 0 .3rem 0;
+    }
+
+    .chat-lightbox-btn {
+        width: 28px;
+        height: 28px;
+        font-size: .85rem;
+    }
+}
+

@@ -190,7 +190,8 @@
              data-label-debate-no-issues="@Localizer["ChatDebateNoIssues"]"
              data-label-debate-severity-critical="@Localizer["ChatDebateSeverityCritical"]"
              data-label-debate-severity-major="@Localizer["ChatDebateSeverityMajor"]"
-             data-label-debate-severity-minor="@Localizer["ChatDebateSeverityMinor"]">
+             data-label-debate-severity-minor="@Localizer["ChatDebateSeverityMinor"]"
+             data-label-lightbox-open-screenshot="@Localizer["LightboxOpenScreenshot"]">
             <div id="chat-empty" class="chat-empty-state">
                 <div class="text-muted text-center">
                     <div style="font-size: 3rem;">💬</div>
@@ -466,6 +467,42 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- v1.13.x (KI-229): lightbox для скриншотов от vision_agent.
+     Открывается: кликом по inline <img> (live SSE, base64) либо
+     кнопкой «Открыть» в placeholder'е (F5-fallback, URL). -->
+<div id="chat-lightbox"
+     class="chat-lightbox"
+     hidden
+     data-label-lightbox-copy-success="@Localizer["LightboxCopySuccess"]">
+    <div class="chat-lightbox-backdrop" data-lightbox="close"></div>
+    <div class="chat-lightbox-toolbar">
+        <span class="chat-lightbox-title"></span>
+        <button type="button" class="chat-lightbox-btn" data-lightbox="zoom-out"
+                title="@Localizer["RagPagesZoomOut"]" aria-label="@Localizer["RagPagesZoomOut"]">−</button>
+        <button type="button" class="chat-lightbox-btn chat-lightbox-zoom-value"
+                data-lightbox="zoom-reset"
+                title="@Localizer["RagPagesZoomReset"]" aria-label="@Localizer["RagPagesZoomReset"]">100%</button>
+        <button type="button" class="chat-lightbox-btn" data-lightbox="zoom-in"
+                title="@Localizer["RagPagesZoomIn"]" aria-label="@Localizer["RagPagesZoomIn"]">+</button>
+        <span class="chat-lightbox-toolbar-sep"></span>
+        <button type="button" class="chat-lightbox-btn" data-lightbox="fit-width"
+                title="@Localizer["RagPagesFitWidth"]" aria-label="@Localizer["RagPagesFitWidth"]">⇔</button>
+        <button type="button" class="chat-lightbox-btn" data-lightbox="fit-page"
+                title="@Localizer["RagPagesFitPage"]" aria-label="@Localizer["RagPagesFitPage"]">⛶</button>
+        <span class="chat-lightbox-toolbar-sep"></span>
+        <button type="button" class="chat-lightbox-btn" data-lightbox="download"
+                title="@Localizer["LightboxDownload"]" aria-label="@Localizer["LightboxDownload"]">⬇</button>
+        <button type="button" class="chat-lightbox-btn" data-lightbox="copy-path"
+                title="@Localizer["LightboxCopyPath"]" aria-label="@Localizer["LightboxCopyPath"]">🔗</button>
+        <span class="chat-lightbox-toolbar-sep"></span>
+        <button type="button" class="chat-lightbox-btn" data-lightbox="close"
+                title="@Localizer["RagPagesClose"]" aria-label="@Localizer["RagPagesClose"]">✕</button>
+    </div>
+    <div class="chat-lightbox-viewport">
+        <img class="chat-lightbox-img" alt="" />
     </div>
 </div>
 

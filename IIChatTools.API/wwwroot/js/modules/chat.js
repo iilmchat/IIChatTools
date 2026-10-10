@@ -112,6 +112,7 @@ export async function initChatPage() {
 
     bindEvents();
     applyDebateViewUI();
+    initLightboxHandlers();   // KI-229
 
     // v1.13.0 (KI-140): инициализация голосового ввода (Speech Recognition).
     // Кнопка активна только при Speech:Enabled = true (data-speech-enabled
@@ -511,6 +512,9 @@ function bindEvents() {
         messagesEl.addEventListener('scroll', onMessagesScroll);
         // Делегированный обработчик кнопок действий с сообщением (Copy)
         messagesEl.addEventListener('click', onMessageActionClick);
+        // KI-229: делегированный click по <img data-lightbox-src> и
+        // кнопке [data-open-screenshot] — открыть lightbox.
+        messagesEl.addEventListener('click', onLightboxTriggerClick);
 
         // v1.11.0 (KI-126, Шаг 1G.3): сохранение ввода feedback-поля —
         // при перерендере контейнера (смена вида) текст не теряется.
@@ -3482,38 +3486,71 @@ function appendToolResultBlock(bubble, result) {
 function renderToolResultImage(ok, toolName, content) {
     if (!ok || !content) return '';
 
-    // Vision Agent возвращает { path, base64, sizeBytes, mimeType? }.
-    // base64 может отсутствовать (например, при describe / run_task — там его нет).
-    if (!content.base64 || typeof content.base64 !== 'string') return '';
+    // KI-229: два независимых сценария.
+    //  (A) base64 есть (live SSE) → inline <img> с data-URL + клик → lightbox.
+    //  (B) base64 нет (F5 — KI-176) и path = screenshots/{taskId}/{file}
+    //      → placeholder + кнопка «Открыть» → lightbox с URL-src.
+    //
+    // Другие tool'ы могут иметь base64/path с другой семантикой — не трогаем.
 
     const mime = content.mimeType || 'image/png';
     const sizeBytes = content.sizeBytes || 0;
     const path = content.path || '';
-
-    // Ограничиваем размер base64 в DOM — защита от гигантских скриншотов (4K).
-    // Если PNG > 2 MB, показываем ссылку на файл вместо inline <img>.
     const MAX_INLINE_BYTES = 2 * 1024 * 1024;
-    if (sizeBytes > MAX_INLINE_BYTES) {
+
+    // (A) Live: base64 в SSE.
+    if (content.base64 && typeof content.base64 === 'string') {
+        if (sizeBytes > MAX_INLINE_BYTES) {
+            return `
+                <div class="chat-tool-result-image-meta">
+                    📎 <code>${escapeHtml(path)}</code> (${escapeHtml(formatFileSize(sizeBytes))})
+                    — файл слишком большой для инлайн-просмотра.
+                </div>`;
+        }
+
+        const safeMime = escapeAttr(mime);
+        const safeAlt = escapeAttr(`Screenshot от ${toolName || 'tool'}`);
+        const dataUrl = `data:${safeMime};base64,${content.base64}`;
+
         return `
-            <div class="chat-tool-result-image-meta">
-                📎 <code>${escapeHtml(path)}</code> (${escapeHtml(formatFileSize(sizeBytes))})
-                — файл слишком большой для инлайн-просмотра.
+            <div class="chat-tool-result-image">
+                <img src="${dataUrl}"
+                     alt="${safeAlt}"
+                     data-lightbox-src="${escapeAttr(dataUrl)}"
+                     data-lightbox-title="${escapeAttr(path || 'Screenshot')}"
+                     loading="lazy" />
+                <div class="chat-tool-result-image-meta">
+                    ${escapeHtml(formatFileSize(sizeBytes))}
+                    ${path ? ` · <code>${escapeHtml(path)}</code>` : ''}
+                </div>
             </div>`;
     }
 
-    const safeMime = escapeAttr(mime);
-    const safeAlt = escapeAttr(`Screenshot от ${toolName || 'tool'}`);
+    // (B) F5: path = screenshots/{taskId}/{file} — placeholder + Open.
+    const pathMatch = /^screenshots\/([^/]+)\/([^/]+)$/.exec(path);
+    if (pathMatch) {
+        const taskId = pathMatch[1];
+        const fileName = pathMatch[2];
+        const openLabel = L('labelLightboxOpenScreenshot', 'Open screenshot');
 
-    return `
-        <div class="chat-tool-result-image">
-            <img src="data:${safeMime};base64,${content.base64}"
-                 alt="${safeAlt}"
-                 loading="lazy" />
-            <div class="chat-tool-result-image-meta">
-                ${escapeHtml(formatFileSize(sizeBytes))}
-                ${path ? ` · <code>${escapeHtml(path)}</code>` : ''}
-            </div>
-        </div>`;
+        return `
+            <div class="chat-tool-result-image-placeholder">
+                <span class="chat-tool-result-image-placeholder-icon">👁</span>
+                <span class="chat-tool-result-image-placeholder-text">
+                    <code>${escapeHtml(path)}</code>
+                    <span class="chat-tool-result-image-placeholder-size">${escapeHtml(formatFileSize(sizeBytes))}</span>
+                </span>
+                <button type="button"
+                        class="chat-tool-result-image-placeholder-btn"
+                        data-open-screenshot="1"
+                        data-task-id="${escapeAttr(taskId)}"
+                        data-file-name="${escapeAttr(fileName)}"
+                        title="${escapeAttr(openLabel)}"
+                        aria-label="${escapeAttr(openLabel)}">${escapeHtml(openLabel)}</button>
+            </div>`;
+    }
+
+    return '';
 }
 
 /**
@@ -6141,4 +6178,395 @@ function loadScriptOnce(src, key) {
 
     _loadedScripts.set(key, p);
     return p;
+}
+
+// ============================================================
+// v1.13.x (KI-229): lightbox для скриншотов от vision_agent.
+// ============================================================
+
+/** Состояние lightbox. null — закрыт. */
+state.lightbox = null;
+
+/**
+ * KI-229: открывает lightbox с указанным изображением.
+ *
+ * @param {string} src — URL или data-URL картинки.
+ * @param {object} [opts]
+ * @param {string} [opts.title] — заголовок (обычно relative path).
+ * @param {number} [opts.sizeBytes] — размер в байтах (для tooltip).
+ */
+function openLightbox(src, opts = {}) {
+    if (!src) return;
+
+    const modal = document.getElementById('chat-lightbox');
+    if (!modal) return;
+
+    const img = modal.querySelector('.chat-lightbox-img');
+    if (!img) return;
+
+    // Сброс состояния.
+    state.lightbox = {
+        src,
+        title: opts.title || '',
+        sizeBytes: opts.sizeBytes || 0,
+        zoom: 1.0,
+        panX: 0,
+        panY: 0
+    };
+
+    // Заголовок.
+    const titleEl = modal.querySelector('.chat-lightbox-title');
+    if (titleEl) titleEl.textContent = state.lightbox.title || '';
+
+    // Картинка: сброс размеров (будут установлены после load).
+    img.removeAttribute('style');
+    img.alt = state.lightbox.title || 'Screenshot';
+
+    // Обработчик load — устанавливает оригинальный размер + центрирует.
+    const onLoad = () => {
+        if (!state.lightbox) return;
+        // Первичная установка — zoom = 1, размер = natural.
+        // Дальнейшие манипуляции — через applyLightboxZoom().
+        applyLightboxZoom();
+    };
+    img.onload = onLoad;
+    img.onerror = () => {
+        // Не удалось загрузить (404) — показываем сообщение.
+        const viewport = modal.querySelector('.chat-lightbox-viewport');
+        if (viewport) {
+            viewport.innerHTML = `<div class="chat-lightbox-error">
+                Не удалось загрузить изображение (${escapeHtml(src)}).</div>`;
+        }
+    };
+
+    img.src = src;
+
+    // Показать модалку.
+    modal.hidden = false;
+    document.body.classList.add('chat-lightbox-open');
+
+    // Обновить label zoom.
+    updateLightboxZoomLabel();
+
+    // Фокус на модалку (для Escape).
+    modal.focus();
+}
+
+/**
+ * KI-229: закрывает lightbox.
+ */
+function closeLightbox() {
+    const modal = document.getElementById('chat-lightbox');
+    if (!modal) return;
+
+    modal.hidden = true;
+    document.body.classList.remove('chat-lightbox-open');
+    state.lightbox = null;
+
+    // Сброс viewport (в случае ошибки загрузки).
+    const viewport = modal.querySelector('.chat-lightbox-viewport');
+    if (viewport) {
+        viewport.innerHTML = `
+            <img class="chat-lightbox-img" alt="" />
+        `;
+    }
+
+    // Сброс listener'ов мыши.
+    stopLightboxDrag();
+}
+
+/**
+ * KI-229: применяет zoom/pan к изображению.
+ * Устанавливает width/height в px (natural × zoom) — overflow:auto
+ * на viewport'е даёт панорамирование через нативный скролл.
+ */
+function applyLightboxZoom() {
+    const lb = state.lightbox;
+    if (!lb) return;
+
+    const modal = document.getElementById('chat-lightbox');
+    if (!modal) return;
+
+    const img = modal.querySelector('.chat-lightbox-img');
+    if (!img || !img.naturalWidth) return;
+
+    const w = Math.round(img.naturalWidth * lb.zoom);
+    const h = Math.round(img.naturalHeight * lb.zoom);
+
+    img.style.width = `${w}px`;
+    img.style.height = `${h}px`;
+}
+
+/**
+ * KI-229: устанавливает zoom (clamp [0.25, 8.0]).
+ */
+function setLightboxZoom(value) {
+    const lb = state.lightbox;
+    if (!lb) return;
+
+    let v = Number(value);
+    if (!Number.isFinite(v) || v <= 0) v = 1.0;
+    v = Math.max(0.25, Math.min(8.0, v));
+    lb.zoom = v;
+
+    applyLightboxZoom();
+    updateLightboxZoomLabel();
+}
+
+/**
+ * KI-229: fit-width / fit-page.
+ */
+function fitLightbox(kind) {
+    const lb = state.lightbox;
+    if (!lb) return;
+
+    const modal = document.getElementById('chat-lightbox');
+    if (!modal) return;
+
+    const img = modal.querySelector('.chat-lightbox-img');
+    const viewport = modal.querySelector('.chat-lightbox-viewport');
+    if (!img || !img.naturalWidth || !viewport) return;
+
+    const cs = window.getComputedStyle(viewport);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = Math.max(1, viewport.clientWidth - padX - 4);
+    const availH = Math.max(1, viewport.clientHeight - padY - 4);
+
+    if (kind === 'width') {
+        setLightboxZoom(availW / img.naturalWidth);
+    } else if (kind === 'page') {
+        const zW = availW / img.naturalWidth;
+        const zH = availH / img.naturalHeight;
+        setLightboxZoom(Math.min(zW, zH));
+    }
+}
+
+/**
+ * KI-229: обновляет label зума в toolbar.
+ */
+function updateLightboxZoomLabel() {
+    const lb = state.lightbox;
+    const modal = document.getElementById('chat-lightbox');
+    const label = modal?.querySelector('.chat-lightbox-zoom-value');
+    if (!label) return;
+
+    const z = lb?.zoom ?? 1.0;
+    label.textContent = `${Math.round(z * 100)}%`;
+}
+
+/**
+ * KI-229: drag-to-pan.
+ */
+let _lightboxDrag = null;
+
+function startLightboxDrag(e) {
+    const modal = document.getElementById('chat-lightbox');
+    const viewport = modal?.querySelector('.chat-lightbox-viewport');
+    if (!viewport) return;
+
+    // Начинаем drag при любой кнопке мыши, кроме правой.
+    if (e.button !== 0) return;
+
+    _lightboxDrag = {
+        viewport,
+        startX: e.clientX,
+        startY: e.clientY,
+        startScrollLeft: viewport.scrollLeft,
+        startScrollTop: viewport.scrollTop
+    };
+
+    viewport.classList.add('chat-lightbox-viewport-dragging');
+    e.preventDefault();
+}
+
+function moveLightboxDrag(e) {
+    if (!_lightboxDrag) return;
+
+    const dx = e.clientX - _lightboxDrag.startX;
+    const dy = e.clientY - _lightboxDrag.startY;
+
+    _lightboxDrag.viewport.scrollLeft = _lightboxDrag.startScrollLeft - dx;
+    _lightboxDrag.viewport.scrollTop = _lightboxDrag.startScrollTop - dy;
+}
+
+function stopLightboxDrag() {
+    if (!_lightboxDrag) return;
+    _lightboxDrag.viewport?.classList.remove('chat-lightbox-viewport-dragging');
+    _lightboxDrag = null;
+}
+
+/**
+ * KI-229: copy path из lightbox в clipboard.
+ */
+async function copyLightboxPath() {
+    const lb = state.lightbox;
+    if (!lb || !lb.title) return;
+
+    try {
+        await copyToClipboard(lb.title);
+        const modal = document.getElementById('chat-lightbox');
+        const msg = modal?.dataset.labelLightboxCopySuccess || 'Path copied';
+        toast(msg, 'success');
+    } catch {
+        toast('Не удалось скопировать', 'error');
+    }
+}
+
+/**
+ * KI-229: скачать картинку.
+ * Для URL-src — просто <a download>. Для data-URL — конвертируем в blob.
+ */
+function downloadLightboxImage() {
+    const lb = state.lightbox;
+    if (!lb) return;
+
+    const a = document.createElement('a');
+    a.href = lb.src;
+    a.download = extractFileName(lb.title) || 'screenshot.png';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+/**
+ * KI-229: извлекает последний сегмент из path.
+ */
+function extractFileName(path) {
+    if (!path) return '';
+    const parts = String(path).split(/[/\\]/);
+    return parts[parts.length - 1] || '';
+}
+
+/**
+ * KI-229: навешивает обработчики на модалку lightbox. Вызывается один раз
+ * из initChatPage().
+ */
+function initLightboxHandlers() {
+    const modal = document.getElementById('chat-lightbox');
+    if (!modal) return;
+
+    // Закрытие: ✕ / backdrop.
+    modal.querySelectorAll('[data-lightbox="close"]').forEach(el => {
+        el.addEventListener('click', closeLightbox);
+    });
+
+    // Zoom: − / + / reset.
+    modal.querySelector('[data-lightbox="zoom-out"]')
+        ?.addEventListener('click', () => {
+            const z = state.lightbox?.zoom ?? 1.0;
+            setLightboxZoom(z - 0.25);
+        });
+    modal.querySelector('[data-lightbox="zoom-in"]')
+        ?.addEventListener('click', () => {
+            const z = state.lightbox?.zoom ?? 1.0;
+            setLightboxZoom(z + 0.25);
+        });
+    modal.querySelector('[data-lightbox="zoom-reset"]')
+        ?.addEventListener('click', () => setLightboxZoom(1.0));
+
+    // Fit.
+    modal.querySelector('[data-lightbox="fit-width"]')
+        ?.addEventListener('click', () => fitLightbox('width'));
+    modal.querySelector('[data-lightbox="fit-page"]')
+        ?.addEventListener('click', () => fitLightbox('page'));
+
+    // Actions.
+    modal.querySelector('[data-lightbox="download"]')
+        ?.addEventListener('click', downloadLightboxImage);
+    modal.querySelector('[data-lightbox="copy-path"]')
+        ?.addEventListener('click', copyLightboxPath);
+
+    // Drag-to-pan на viewport.
+    const viewport = modal.querySelector('.chat-lightbox-viewport');
+    if (viewport) {
+        viewport.addEventListener('mousedown', startLightboxDrag);
+        window.addEventListener('mousemove', moveLightboxDrag);
+        window.addEventListener('mouseup', stopLightboxDrag);
+    }
+
+    // Wheel-zoom.
+    viewport?.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? +0.15 : -0.15;
+        const z = state.lightbox?.zoom ?? 1.0;
+        setLightboxZoom(z + delta);
+    }, { passive: false });
+
+    // Клавиатура: только когда lightbox открыт.
+    window.addEventListener('keydown', (e) => {
+        if (!state.lightbox) return;
+
+        switch (e.key) {
+            case 'Escape':
+                e.preventDefault();
+                e.stopPropagation();
+                closeLightbox();
+                return;
+            case '+':
+            case '=':
+                e.preventDefault();
+                setLightboxZoom((state.lightbox?.zoom ?? 1.0) + 0.25);
+                return;
+            case '-':
+            case '_':
+                e.preventDefault();
+                setLightboxZoom((state.lightbox?.zoom ?? 1.0) - 0.25);
+                return;
+            case '0':
+                e.preventDefault();
+                setLightboxZoom(1.0);
+                return;
+            case 'ArrowLeft':
+                viewport.scrollLeft -= 60;
+                e.preventDefault();
+                return;
+            case 'ArrowRight':
+                viewport.scrollLeft += 60;
+                e.preventDefault();
+                return;
+            case 'ArrowUp':
+                viewport.scrollTop -= 60;
+                e.preventDefault();
+                return;
+            case 'ArrowDown':
+                viewport.scrollTop += 60;
+                e.preventDefault();
+                return;
+        }
+    });
+}
+
+/**
+ * KI-229: делегированный click — открыть lightbox из inline <img>
+ * (live-режим) или placeholder-кнопки (F5-fallback).
+ */
+async function onLightboxTriggerClick(e) {
+    // (A) inline <img data-lightbox-src>
+    const img = e.target.closest('img[data-lightbox-src]');
+    if (img) {
+        e.preventDefault();
+        e.stopPropagation();
+        openLightbox(img.dataset.lightboxSrc, {
+            title: img.dataset.lightboxTitle || ''
+        });
+        return;
+    }
+
+    // (B) placeholder-кнопка data-open-screenshot
+    const btn = e.target.closest('[data-open-screenshot]');
+    if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const taskId = btn.dataset.taskId;
+        const fileName = btn.dataset.fileName;
+        if (!taskId || !fileName || !state.activeChatId) return;
+
+        const url = `/api/chat/${state.activeChatId}/screenshots/${encodeURIComponent(taskId)}/${encodeURIComponent(fileName)}`;
+        const title = `screenshots/${taskId}/${fileName}`;
+        openLightbox(url, { title });
+        return;
+    }
 }
