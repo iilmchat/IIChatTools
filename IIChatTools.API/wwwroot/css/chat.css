@@ -2965,36 +2965,39 @@ body.chat-lightbox-open {
     margin: 0 .25rem;
 }
 
-/* Viewport — центр. */
+/* Viewport — центр. KI-229-fix: overflow: hidden (не auto) — pan через
+   transform: translate() на img. Работает и когда картинка меньше
+   viewport'а (раньше при zoom=100% pan был недоступен — scrollLeft = 0). */
 .chat-lightbox-viewport {
     flex: 1 1 auto;
     position: relative;
     z-index: 1;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
     padding: 1rem;
     min-height: 0;
     cursor: grab;
     user-select: none;
+    touch-action: none;
 }
 
 .chat-lightbox-viewport-dragging {
     cursor: grabbing;
 }
 
-/* Обёртка-центрирование: margin:auto даёт корректный центр, когда
-   картинка меньше viewport'а, и скролл от левого-верхнего угла, когда больше. */
+/* Картинка: центрируется flexbox'ом; width/height и transform: translate
+   задаются JS (applyLightboxZoom). */
 .chat-lightbox-img {
-    margin: auto;
     display: block;
     background: #fff;
     border: 1px solid rgba(255, 255, 255, .15);
     box-shadow: 0 8px 32px rgba(0, 0, 0, .5);
-    /* width / height задаются JS (applyLightboxZoom) — не transition,
-       чтобы не было «плывущего» зума. */
     flex-shrink: 0;
+    -webkit-user-drag: none;
+    user-select: none;
+    transition: none;
 }
 
 /* Ошибка загрузки. */

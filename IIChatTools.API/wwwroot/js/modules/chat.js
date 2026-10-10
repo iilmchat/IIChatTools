@@ -6295,6 +6295,22 @@ function applyLightboxZoom() {
 
     img.style.width = `${w}px`;
     img.style.height = `${h}px`;
+
+    // KI-229-fix: pan через transform: translate(). Работает даже когда
+    // картинка меньше viewport'а (раньше scrollLeft не двигался при zoom=100%).
+    // Clamp: минимум 40px картинки остаётся видимым — нельзя утащить полностью.
+    const viewport = modal.querySelector('.chat-lightbox-viewport');
+    if (viewport) {
+        const vw = viewport.clientWidth;
+        const vh = viewport.clientHeight;
+        const maxPanX = Math.max(0, (w + vw) / 2 - 40);
+        const maxPanY = Math.max(0, (h + vh) / 2 - 40);
+        lb.panX = Math.max(-maxPanX, Math.min(maxPanX, lb.panX || 0));
+        lb.panY = Math.max(-maxPanY, Math.min(maxPanY, lb.panY || 0));
+    }
+
+    img.style.transform = `translate(${lb.panX || 0}px, ${lb.panY || 0}px)`;
+    img.style.transformOrigin = 'center center';
 }
 
 /**
@@ -6333,6 +6349,10 @@ function fitLightbox(kind) {
     const availW = Math.max(1, viewport.clientWidth - padX - 4);
     const availH = Math.max(1, viewport.clientHeight - padY - 4);
 
+    // KI-229-fix: fit — сброс pan, чтобы картинка встала по центру.
+    state.lightbox.panX = 0;
+    state.lightbox.panY = 0;
+
     if (kind === 'width') {
         setLightboxZoom(availW / img.naturalWidth);
     } else if (kind === 'page') {
@@ -6361,38 +6381,36 @@ function updateLightboxZoomLabel() {
 let _lightboxDrag = null;
 
 function startLightboxDrag(e) {
-    const modal = document.getElementById('chat-lightbox');
-    const viewport = modal?.querySelector('.chat-lightbox-viewport');
-    if (!viewport) return;
-
-    // Начинаем drag при любой кнопке мыши, кроме правой.
-    if (e.button !== 0) return;
+    if (!state.lightbox) return;
+    if (e.button !== 0) return;   // только левая кнопка
 
     _lightboxDrag = {
-        viewport,
         startX: e.clientX,
         startY: e.clientY,
-        startScrollLeft: viewport.scrollLeft,
-        startScrollTop: viewport.scrollTop
+        startPanX: state.lightbox.panX || 0,
+        startPanY: state.lightbox.panY || 0
     };
 
-    viewport.classList.add('chat-lightbox-viewport-dragging');
+    e.currentTarget.classList.add('chat-lightbox-viewport-dragging');
     e.preventDefault();
 }
 
 function moveLightboxDrag(e) {
-    if (!_lightboxDrag) return;
+    if (!_lightboxDrag || !state.lightbox) return;
 
     const dx = e.clientX - _lightboxDrag.startX;
     const dy = e.clientY - _lightboxDrag.startY;
 
-    _lightboxDrag.viewport.scrollLeft = _lightboxDrag.startScrollLeft - dx;
-    _lightboxDrag.viewport.scrollTop = _lightboxDrag.startScrollTop - dy;
+    state.lightbox.panX = _lightboxDrag.startPanX + dx;
+    state.lightbox.panY = _lightboxDrag.startPanY + dy;
+
+    applyLightboxZoom();
 }
 
 function stopLightboxDrag() {
     if (!_lightboxDrag) return;
-    _lightboxDrag.viewport?.classList.remove('chat-lightbox-viewport-dragging');
+    document.querySelector('.chat-lightbox-viewport')
+        ?.classList.remove('chat-lightbox-viewport-dragging');
     _lightboxDrag = null;
 }
 
@@ -6463,8 +6481,15 @@ function initLightboxHandlers() {
             const z = state.lightbox?.zoom ?? 1.0;
             setLightboxZoom(z + 0.25);
         });
+    // KI-229-fix: reset = 100% + сброс pan (картинка в центр).
     modal.querySelector('[data-lightbox="zoom-reset"]')
-        ?.addEventListener('click', () => setLightboxZoom(1.0));
+        ?.addEventListener('click', () => {
+            if (state.lightbox) {
+                state.lightbox.panX = 0;
+                state.lightbox.panY = 0;
+            }
+            setLightboxZoom(1.0);
+        });
 
     // Fit.
     modal.querySelector('[data-lightbox="fit-width"]')
@@ -6484,6 +6509,11 @@ function initLightboxHandlers() {
         viewport.addEventListener('mousedown', startLightboxDrag);
         window.addEventListener('mousemove', moveLightboxDrag);
         window.addEventListener('mouseup', stopLightboxDrag);
+
+        // KI-229-fix: блокируем нативный HTML5 drag у <img> — иначе браузер
+        // запускает «drag-and-drop картинки», mousemove перестаёт приходить
+        // и drag-to-pan не работает.
+        viewport.addEventListener('dragstart', (e) => e.preventDefault());
     }
 
     // Wheel-zoom.
@@ -6519,19 +6549,23 @@ function initLightboxHandlers() {
                 setLightboxZoom(1.0);
                 return;
             case 'ArrowLeft':
-                viewport.scrollLeft -= 60;
+                state.lightbox.panX = (state.lightbox.panX || 0) - 60;
+                applyLightboxZoom();
                 e.preventDefault();
                 return;
             case 'ArrowRight':
-                viewport.scrollLeft += 60;
+                state.lightbox.panX = (state.lightbox.panX || 0) + 60;
+                applyLightboxZoom();
                 e.preventDefault();
                 return;
             case 'ArrowUp':
-                viewport.scrollTop -= 60;
+                state.lightbox.panY = (state.lightbox.panY || 0) - 60;
+                applyLightboxZoom();
                 e.preventDefault();
                 return;
             case 'ArrowDown':
-                viewport.scrollTop += 60;
+                state.lightbox.panY = (state.lightbox.panY || 0) + 60;
+                applyLightboxZoom();
                 e.preventDefault();
                 return;
         }
