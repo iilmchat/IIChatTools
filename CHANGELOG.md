@@ -18,7 +18,25 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **KI-230 — Chat: кнопка «Продолжить» после `finish_reason=length`**:
+  - **Backend:** `ChatStreamRequest.ContinueFromAssistantMessageId` (`int?`) +
+    новый DTO `ChatContinueRequest`. Endpoint `POST /api/chat/continue`.
+  - `ChatStreamService.ContinueInternalAsync` — не сохраняет user-сообщение,
+    строит `messages[]` из истории до target assistant (включительно) +
+    скрытый `ContinueSystemPrompt` («продолжи без повторений»).
+  - `IChatService.AppendToAssistantMessageAsync` — append content в существующее
+    assistant-сообщение, аккумуляция `TokensOut` / `DurationMs`, обновление
+    `FinishReason`. `FirstTokenMs` — сохраняем первое значение.
+  - **Frontend:** warning-плашка ⚠️ + кнопка «➕ Продолжить» на последнем
+    assistant-сообщении с `finishReason === 'length'` (live через SSE `done`,
+    F5 через `ChatMessageDto.FinishReason`).
+  - Клик → стрим в **существующий** bubble (`state.appendTarget`): deltas
+    доклеиваются в `<div data-append-content>`, на `done` — merge в основной
+    контент + markdown-перерендер. Один bubble, тексты сливаются (ChatGPT-style).
+  - **Локализация RU + EN:** 3 ключа (`ChatMessageLengthWarning`,
+    `ChatMessageContinue`, `ChatMessageContinueTooltip`).
+  - **Оценка:** ~2 ч.
 
 ---
 

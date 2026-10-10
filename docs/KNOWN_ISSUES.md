@@ -3297,6 +3297,33 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-230 — Chat: кнопка «Продолжить» после `finish_reason=length`
+
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.13
+- **Обнаружено:** 2026-10-11 (smoke — qwen3-4b часто упирается в лимит контекста).
+- **Файлы:** `ChatStreamService.cs`, `ChatStreamController.cs`, `IChatService.cs`,
+  `ChatService.cs`, `ChatStreamDtos.cs`, `chat.js`, `chat.css`, `Index.cshtml`,
+  `SharedResources*.resx` (RU + EN).
+- **Описание:** При `finish_reason = "length"` (типично для qwen3-4b + 8192-контекст)
+  LM Studio обрывает ответ на середине предложения. Сейчас UI показывает обрезанный
+  текст **без каких-либо индикаторов** — пользователь видит «огрызок» и не понимает,
+  что это не полный ответ.
+- **Решение (v1.13.13, ChatGPT-style):**
+  - **Backend:** `ChatStreamRequest.ContinueFromAssistantMessageId` (`int?`) + endpoint
+    `POST /api/chat/continue` (`ChatContinueRequest = { ChatId, AssistantMessageId }`).
+  - `ChatStreamService.ContinueInternalAsync` — не сохраняет user-сообщение,
+    строит `messages[]` из истории до target assistant (включительно) +
+    скрытый `ContinueSystemPrompt` («не повторяй, продолжи с середины»).
+  - `IChatService.AppendToAssistantMessageAsync` — append content, аккумулирует
+    `TokensOut` / `DurationMs`, обновляет `FinishReason`. `FirstTokenMs` — сохраняем первое.
+  - **Frontend:** warning-плашка ⚠️ + кнопка «➕ Продолжить» в actions bubble
+    (live через `done.finishReason === 'length'`, F5 через `msg.finishReason === 'length'`).
+  - Клик → `POST /api/chat/continue` → стрим в **существующий** bubble
+    (`state.appendTarget`): deltas доклеиваются в новый `<div data-append-content>`,
+    на `done` — merge в основной контент + markdown-перерендер. Один bubble, тексты сливаются.
+  - **Локализация RU + EN:** 3 ключа (`ChatMessageLengthWarning`,
+    `ChatMessageContinue`, `ChatMessageContinueTooltip`).
+
 ### KI-228 — Chat: красивый рендеринг tool-block (вместо сырого JSON)
 
 - **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.12)** | **Исправлено в:** v1.13.12
@@ -5365,6 +5392,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
 | Fixed (v1.13.x, KI-137/203/215/216) | 4 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression), KI-216 (MaxTaskSeconds) -->
 | Fixed (v1.13.12) | 2 | <!-- KI-228 (tool-block rendering), KI-229 (lightbox + F5-fallback) -->
+| Fixed (v1.13.13) | 1 | <!-- KI-230 (Continue button после finish_reason=length) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->

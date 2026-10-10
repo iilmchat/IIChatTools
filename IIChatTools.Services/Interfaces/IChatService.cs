@@ -212,5 +212,36 @@ namespace IIChatTools.Services.Interfaces
                 int userId,
                 string search,
                 CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// KI-230: дописывает контент в существующее assistant-сообщение
+        /// (ChatGPT-style Continue после <c>finish_reason=length</c>).
+        ///
+        /// <para>
+        /// Обновляет <c>Content</c> (append), <c>TokensOut</c> (сумма),
+        /// <c>DurationMs</c> (сумма), <c>FirstTokenMs</c> (только если было null —
+        /// сохраняем первое значение), <c>FinishReason</c> (последний).
+        /// <c>MetadataJson</c> и <c>ToolCallsJson</c> не трогаем.
+        /// Также обновляет <c>Chat.UpdatedAt</c>.
+        /// </para>
+        /// </summary>
+        /// <param name="messageId">ID assistant-сообщения.</param>
+        /// <param name="userId">ID пользователя (проверка владения через chat.UserId).</param>
+        /// <param name="appendContent">Дописываемый текст (не пустой).</param>
+        /// <param name="tokensOut">Токены дописанной части (суммируется).</param>
+        /// <param name="durationMs">Длительность дописанной части (суммируется).</param>
+        /// <param name="firstTokenMs">Время до первого токена (только если было null).</param>
+        /// <param name="finishReason">Причина завершения продолжения.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>Обновлённое сообщение или <c>null</c> (не найдено / чужое / не assistant).</returns>
+        Task<ChatMessage> AppendToAssistantMessageAsync(
+            int messageId,
+            int userId,
+            string appendContent,
+            int? tokensOut,
+            long? durationMs,
+            long? firstTokenMs,
+            string finishReason,
+            CancellationToken cancellationToken = default);
     }
 }

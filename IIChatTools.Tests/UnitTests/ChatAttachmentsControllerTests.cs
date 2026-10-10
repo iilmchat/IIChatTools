@@ -135,6 +135,23 @@ namespace IIChatTools.Tests.UnitTests
                 => throw new NotImplementedException();
             public Task<IReadOnlyList<IIChatTools.Services.DTO.Chat.ChatSearchResultDto>> SearchUserChatsWithSnippetAsync(int userId, string search, CancellationToken cancellationToken = default)
                 => throw new NotImplementedException();
+
+            /// <summary>
+            /// KI-230: fake-заглушка. Тесты ChatAttachmentsController не используют
+            /// Continue-режим — NotImplementedException как защита от случайного вызова.
+            /// </summary>
+            public Task<ChatMessage> AppendToAssistantMessageAsync(
+                int messageId,
+                int userId,
+                string appendContent,
+                int? tokensOut,
+                long? durationMs,
+                long? firstTokenMs,
+                string finishReason,
+                CancellationToken cancellationToken = default)
+            {
+                throw new NotImplementedException();
+            }                
         }
 
         /// <summary>

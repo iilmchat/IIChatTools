@@ -26,6 +26,41 @@ namespace IIChatTools.Services.DTO.Chat
         /// При <c>true</c> поле <see cref="Message"/> игнорируется, новое user-сообщение не сохраняется.
         /// </summary>
         public bool Regenerate { get; set; }
+
+        /// <summary>
+        /// KI-230: режим Continue — дописать контент в существующее assistant-сообщение
+        /// (ChatGPT-style), если предыдущий ответ был обрезан из-за лимита контекста
+        /// (<c>finish_reason = "length"</c>).
+        ///
+        /// <para>
+        /// Если задано — <see cref="Message"/> и <see cref="Regenerate"/> игнорируются.
+        /// Backend:
+        /// <list type="bullet">
+        ///   <item>не сохраняет новое user-сообщение;</item>
+        ///   <item>строит messages[] из истории до указанного assistant-сообщения;</item>
+        ///   <item>добавляет скрытый system-промпт «продолжи без повторений»;</item>
+        ///   <item>на <c>done</c> — <c>AppendToAssistantMessageAsync</c> (append content).</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        public int? ContinueFromAssistantMessageId { get; set; }
+    }
+
+    /// <summary>
+    /// KI-230: запрос на продолжение генерации в существующее assistant-сообщение
+    /// (после <c>finish_reason=length</c>). Используется endpoint'ом
+    /// <c>POST /api/chat/continue</c>.
+    /// </summary>
+    public class ChatContinueRequest
+    {
+        /// <summary>Идентификатор чата.</summary>
+        public int ChatId { get; set; }
+
+        /// <summary>
+        /// Идентификатор assistant-сообщения, к которому дописать продолжение.
+        /// Должно принадлежать пользователю и иметь <c>role = "assistant"</c>.
+        /// </summary>
+        public int AssistantMessageId { get; set; }
     }
 
     /// <summary>

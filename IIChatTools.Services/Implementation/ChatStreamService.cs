@@ -40,6 +40,19 @@ namespace IIChatTools.Services.Implementation
         private const string RoleTool = "tool";
         private const string ParentToolName = "consult_secondary_agent";
 
+        /// <summary>
+        /// KI-230: скрытый system-промпт, добавляемый в messages[] при Continue
+        /// (после finish_reason=length). Формулировка — минимум повторов,
+        /// без «продолжаю:», без префиксов, без пересказа.
+        /// </summary>
+        private const string ContinueSystemPrompt =
+            "Продолжи свой предыдущий ответ С ТОГО МЕСТА, где он был обрезан. " +
+            "НЕ ПОВТОРЯЙ уже написанное. НЕ добавляй вступлений («Продолжаю:», " +
+            "«Как я говорил выше», «Далее», и т.п.). НЕ пересказывай предыдущую часть. " +
+            "Просто допиши продолжение — начни с того же места, где оборвалось предложение, " +
+            "соблюдая тот же стиль и форматирование (заголовки, списки, code blocks). " +
+            "Если предыдущий ответ закончился на середине слова — допиши слово.";
+
         /// <summary>Индекс RAG-чанков, приложенных к чату (v1.5.0, KI-083, Шаг 6C).</summary>
         private const string MyRagDocsIndex = "my_rag_docs";
 
@@ -332,6 +345,17 @@ namespace IIChatTools.Services.Implementation
             if (request == null)
             {
                 yield return ChatStreamEvent.Error("Пустой запрос");
+                yield break;
+            }
+
+            // KI-230: Continue (продолжение после finish_reason=length).
+            // Идёт ДО обычной валидации Message — там Message не нужен.
+            if (request.ContinueFromAssistantMessageId.HasValue)
+            {
+                await foreach (var evt in ContinueInternalAsync(request, userId, cancellationToken))
+                {
+                    yield return evt;
+                }
                 yield break;
             }
 
@@ -1030,6 +1054,289 @@ namespace IIChatTools.Services.Implementation
                     lastFinishReason,
                     accumulatedSources.Count > 0 ? accumulatedSources : null);
             }
+        }
+
+        /// <summary>
+        /// KI-230: внутренний цикл Continue — продолжение генерации в существующее
+        /// assistant-сообщение. Отличия от обычного потока:
+        /// <list type="bullet">
+        ///   <item>не сохраняет новое user-сообщение;</item>
+        ///   <item>строит messages[] из истории ДО target assistant (включительно);</item>
+        ///   <item>не использует tools (продолжение — только текст);</item>
+        ///   <item>на <c>done</c> — <see cref="IChatService.AppendToAssistantMessageAsync"/>.</item>
+        /// </list>
+        /// </summary>
+        /// <param name="request">Запрос (ChatId + ContinueFromAssistantMessageId).</param>
+        /// <param name="userId">ID пользователя.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        private async IAsyncEnumerable<ChatStreamEvent> ContinueInternalAsync(
+            ChatStreamRequest request,
+            int userId,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            // 1. Проверка владения чатом.
+            var chat = await _chatService.GetChatAsync(request.ChatId, userId, cancellationToken);
+            if (chat == null)
+            {
+                yield return ChatStreamEvent.Error($"Чат {request.ChatId} не найден");
+                yield break;
+            }
+
+            // 2. Проверка target-сообщения: существует, принадлежит чату, role=assistant.
+            var targetMessageId = request.ContinueFromAssistantMessageId.Value;
+            var history = await _chatService.GetMessagesAsync(
+                request.ChatId, userId, MaxHistoryMessages, cancellationToken);
+            var targetMsg = history.FirstOrDefault(m => m.Id == targetMessageId);
+
+            if (targetMsg == null
+                || !string.Equals(targetMsg.Role, RoleAssistant, StringComparison.Ordinal))
+            {
+                yield return ChatStreamEvent.Error(
+                    $"Сообщение {targetMessageId} для продолжения не найдено " +
+                    "(или не является assistant-сообщением).");
+                yield break;
+            }
+
+            // 3. Строим messages[] (история до target + Continue prompt).
+            JArray messages = null;
+            string buildError = null;
+            try
+            {
+                messages = await BuildContinueMessagesAsync(
+                    chat, userId, targetMessageId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Continue: ошибка формирования истории (chatId={ChatId}, msgId={MsgId})",
+                    request.ChatId, targetMessageId);
+                buildError = "Не удалось загрузить историю чата";
+            }
+
+            if (buildError != null)
+            {
+                yield return ChatStreamEvent.Error(buildError);
+                yield break;
+            }
+
+            // 4. Стрим от Chat LLM (без tools).
+            var accumulator = new StringBuilder();
+            var stopwatch = Stopwatch.StartNew();
+            long? firstTokenMs = null;
+            string lastFinishReason = null;
+            int? tokensIn = null;
+            int? tokensOut = null;
+            Exception streamError = null;
+
+            var iterator = _chatLlmClient
+                .ChatStreamAsync(userId, messages, tools: null, cancellationToken)
+                .GetAsyncEnumerator(cancellationToken);
+
+            try
+            {
+                while (true)
+                {
+                    ChatCompletionChunk chunk;
+                    try
+                    {
+                        if (!await iterator.MoveNextAsync()) break;
+                        chunk = iterator.Current;
+                    }
+                    catch (OperationCanceledException) { break; }
+                    catch (Exception ex) { streamError = ex; break; }
+
+                    if (chunk == null) continue;
+
+                    if (!string.IsNullOrEmpty(chunk.DeltaContent))
+                    {
+                        firstTokenMs ??= stopwatch.ElapsedMilliseconds;
+                        accumulator.Append(chunk.DeltaContent);
+                        yield return ChatStreamEvent.Delta(chunk.DeltaContent);
+                    }
+
+                    if (chunk.Usage != null)
+                    {
+                        tokensIn = chunk.Usage.PromptTokens;
+                        tokensOut = chunk.Usage.CompletionTokens;
+                    }
+
+                    if (!string.IsNullOrEmpty(chunk.FinishReason))
+                    {
+                        lastFinishReason = chunk.FinishReason;
+                    }
+
+                    if (chunk.IsDone) break;
+                }
+            }
+            finally
+            {
+                await iterator.DisposeAsync();
+            }
+
+            if (streamError != null)
+            {
+                _logger.LogError(streamError,
+                    "Continue: ошибка стрима (chatId={ChatId})", request.ChatId);
+                yield return ChatStreamEvent.Error($"Ошибка стрима: {streamError.Message}");
+                yield break;
+            }
+
+            var appendedContent = accumulator.ToString();
+            stopwatch.Stop();
+
+            // 5. Append в БД. Если контент пустой (нечего добавлять) — не апдейтим.
+            if (string.IsNullOrEmpty(appendedContent))
+            {
+                // LLM не произвела ни одного токена — сообщаем пользователю.
+                yield return ChatStreamEvent.Error("Модель не вернула продолжение.");
+                yield break;
+            }
+
+            var computedTokensIn = tokensIn
+                ?? _tokenCounter.CountConversation(
+                    messages.Select(m => (
+                        Role: m["role"]?.ToString() ?? "user",
+                        Content: m["content"]?.ToString() ?? string.Empty)));
+            var computedTokensOut = tokensOut
+                ?? _tokenCounter.CountTokens(appendedContent);
+
+            ChatMessage updated = null;
+            // RULES § 4.1 (CS1631): yield return запрещён в catch-блоке.
+            // Сохраняем ошибку в переменную, yield — ПОСЛЕ блока.
+            string appendError = null;
+            try
+            {
+                updated = await _chatService.AppendToAssistantMessageAsync(
+                    targetMessageId,
+                    userId,
+                    appendedContent,
+                    computedTokensOut,
+                    stopwatch.ElapsedMilliseconds,
+                    firstTokenMs,
+                    lastFinishReason,
+                    CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Continue: ошибка AppendToAssistantMessage (msgId={MsgId})",
+                    targetMessageId);
+                appendError = "Продолжение получено, но не сохранено";
+            }
+
+            if (appendError != null)
+            {
+                yield return ChatStreamEvent.Error(appendError);
+                yield break;
+            }
+
+            if (updated == null)
+            {
+                yield return ChatStreamEvent.Error(
+                    "Не удалось сохранить продолжение (сообщение не найдено)");
+                yield break;
+            }
+
+            // 6. Финальный `done` — frontend смержит append в основной bubble.
+            //    assistantMessageId — тот же (targetMessageId), фронт обновит существующий.
+            yield return ChatStreamEvent.Done(
+                targetMessageId,
+                computedTokensIn,
+                computedTokensOut,
+                stopwatch.ElapsedMilliseconds,
+                firstTokenMs,
+                lastFinishReason,
+                sources: null);
+        }
+
+        /// <summary>
+        /// KI-230: строит messages[] для Continue — история чата до указанного
+        /// assistant-сообщения (включительно) + скрытый <see cref="ContinueSystemPrompt"/>.
+        ///
+        /// <para>
+        /// Отличия от <see cref="BuildMessagesAsync"/>:
+        /// <list type="bullet">
+        ///   <item>НЕ выполняет RAG auto-inject (нужен user-message-id, которого здесь нет);</item>
+        ///   <item>обрезает историю на целевом assistant-сообщении (последующие сообщения не нужны);</item>
+        ///   <item>добавляет system-промпт продолжения в конец.</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        private async Task<JArray> BuildContinueMessagesAsync(
+            Chat chat,
+            int userId,
+            int targetAssistantMessageId,
+            CancellationToken cancellationToken)
+        {
+            var messages = new JArray();
+
+            // 1. DefaultSystemPrompt (стабильный префикс для KV-cache).
+            messages.Add(new JObject
+            {
+                ["role"] = RoleSystem,
+                ["content"] = DefaultSystemPrompt
+            });
+
+            // 2. Chat.SystemPrompt (если задан).
+            if (!string.IsNullOrWhiteSpace(chat.SystemPrompt))
+            {
+                messages.Add(new JObject
+                {
+                    ["role"] = RoleSystem,
+                    ["content"] = chat.SystemPrompt
+                });
+            }
+
+            // 3. История до target (включительно).
+            var history = await _chatService.GetMessagesAsync(
+                chat.Id, userId, MaxHistoryMessages, cancellationToken);
+
+            foreach (var msg in history)
+            {
+                var obj = new JObject { ["role"] = msg.Role };
+
+                if (msg.Role == RoleAssistant && !string.IsNullOrEmpty(msg.ToolCallsJson))
+                {
+                    obj["content"] = string.IsNullOrEmpty(msg.Content)
+                        ? (JToken)JValue.CreateNull()
+                        : new JValue(msg.Content);
+                    try
+                    {
+                        obj["tool_calls"] = JArray.Parse(msg.ToolCallsJson);
+                    }
+                    catch
+                    {
+                        obj["content"] = msg.Content ?? string.Empty;
+                    }
+                }
+                else if (msg.Role == RoleTool)
+                {
+                    obj["content"] = msg.Content ?? string.Empty;
+                    obj["tool_call_id"] = msg.ToolCallId ?? string.Empty;
+                }
+                else
+                {
+                    obj["content"] = msg.Content ?? string.Empty;
+                }
+
+                messages.Add(obj);
+
+                if (msg.Id == targetAssistantMessageId)
+                {
+                    break;
+                }
+            }
+
+            // 4. Скрытый system-промпт «продолжи без повторений».
+            //    Идёт ПОСЛЕ последнего assistant — модель видит обрезанный ответ
+            //    и инструкцию продолжить с того же места.
+            messages.Add(new JObject
+            {
+                ["role"] = RoleSystem,
+                ["content"] = ContinueSystemPrompt
+            });
+
+            return messages;
         }
 
         /// <summary>

@@ -686,5 +686,80 @@ namespace IIChatTools.Services.Implementation
 
             return results;
         }
+
+        /// <inheritdoc />
+        public async Task<ChatMessage> AppendToAssistantMessageAsync(
+            int messageId,
+            int userId,
+            string appendContent,
+            int? tokensOut,
+            long? durationMs,
+            long? firstTokenMs,
+            string finishReason,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(appendContent))
+            {
+                return null;
+            }
+
+            var message = await _dbContext.ChatMessages
+                .FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken);
+            if (message == null)
+            {
+                return null;
+            }
+
+            // Проверка владения через чат.
+            var chat = await _dbContext.Chats
+                .FirstOrDefaultAsync(
+                    c => c.Id == message.ChatId && c.UserId == userId,
+                    cancellationToken);
+            if (chat == null)
+            {
+                return null;
+            }
+
+            if (!string.Equals(message.Role, "assistant", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            // 1. Append контента (без разделителя — модель продолжает «с середины»).
+            message.Content = (message.Content ?? string.Empty) + appendContent;
+
+            // 2. Аккумуляция токенов/длительности (продолжение = часть того же ответа).
+            if (tokensOut.HasValue)
+            {
+                message.TokensOut = (message.TokensOut ?? 0) + tokensOut.Value;
+            }
+            if (durationMs.HasValue)
+            {
+                message.DurationMs = (message.DurationMs ?? 0) + durationMs.Value;
+            }
+
+            // 3. FirstTokenMs — сохраняем ПЕРВОЕ значение (не перезаписываем).
+            if (!message.FirstTokenMs.HasValue && firstTokenMs.HasValue)
+            {
+                message.FirstTokenMs = firstTokenMs.Value;
+            }
+
+            // 4. FinishReason — обновляем последним.
+            if (!string.IsNullOrEmpty(finishReason))
+            {
+                message.FinishReason = finishReason;
+            }
+
+            message.UpdatedAt = DateTime.UtcNow;
+            chat.UpdatedAt = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "AppendToAssistantMessage: messageId={MessageId}, appendedLen={AppendedLen}, newLen={Total}",
+                messageId, appendContent.Length, message.Content.Length);
+
+            return message;
+        }
     }
 }

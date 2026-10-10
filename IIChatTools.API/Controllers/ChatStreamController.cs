@@ -101,6 +101,45 @@ namespace IIChatTools.API.Controllers
         }
 
         /// <summary>
+        /// KI-230: продолжает генерацию в существующее assistant-сообщение
+        /// (после <c>finish_reason=length</c>).
+        ///
+        /// <para>
+        /// В отличие от <c>/regenerate</c>:
+        /// <list type="bullet">
+        ///   <item>НЕ удаляет предыдущий ответ;</item>
+        ///   <item>НЕ создаёт новое user-сообщение;</item>
+        ///   <item>дописывает контент в существующее assistant-сообщение (append).</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        /// <param name="request">Запрос (<c>{ chatId, assistantMessageId }</c>).</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>SSE-поток событий (как в StreamAsync).</returns>
+        [HttpPost("continue")]
+        public Task ContinueAsync(
+            [FromBody] ChatContinueRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request == null || request.ChatId <= 0 || request.AssistantMessageId <= 0)
+            {
+                return StreamInternalAsync(null, cancellationToken);
+            }
+
+            // Оборачиваем в ChatStreamRequest — переиспользуем StreamInternalAsync.
+            var streamRequest = new ChatStreamRequest
+            {
+                ChatId = request.ChatId,
+                Message = null,
+                UseTools = false,
+                Regenerate = false,
+                ContinueFromAssistantMessageId = request.AssistantMessageId
+            };
+
+            return StreamInternalAsync(streamRequest, cancellationToken);
+        }
+
+        /// <summary>
         /// Общая логика SSE-стриминга для <c>stream</c> и <c>regenerate</c>.
         /// Настраивает SSE-заголовки, пробрасывает события из <see cref="IChatStreamService"/>.
         /// </summary>
