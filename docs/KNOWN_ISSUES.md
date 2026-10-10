@@ -3232,6 +3232,58 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-224 — Chat LLM: абстракция IChatLlmClient с поддержкой внешних провайдеров
+
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.10
+- **Обнаружено:** 2026-10-09 (после KI-223 — RouterAI).
+- **Описание:** `ChatStreamService` жёстко привязан к `ILmStudioClient`
+  (LM Studio, `http://localhost:8034`). Нет способа использовать
+  внешние OpenAI-совместимые провайдеры (RouterAI, YandexGPT, DeepSeek)
+  как основной Chat LLM.
+- **Что нужно (план A-E):**
+  - **A.** `IChatLlmClient` + `LmStudioChatLlmClient` (обёртка).
+  - **B.** SSE-стриминг в `ExternalLlmClient` (OpenAI-совместимый).
+  - **C.** `ExternalChatLlmClient` — реализация через `IExternalLlmClient`.
+  - **D.** `ChatStreamService` — инжект `IChatLlmClient`, выбор по `ChatLlm:Provider`.
+  - **E.** Тесты + smoke.
+- **Отложено (v1.14):**
+  - Per-chat переключение (`Chat.Provider` поле + миграция + UI-селектор).
+- **Оценка:** ~2-3 ч (включая SSE-стриминг для `ExternalLlmClient`).
+- **Связанные:** KI-109 (External-LLM), KI-141 (Yandex VL), KI-223 (RouterAI).
+- **Реализация (v1.13.10):**
+  - `IChatLlmClient` — абстракция (`ChatStreamAsync(int userId, ...)`).
+  - `LmStudioChatLlmClient` — обёртка над `ILmStudioClient`.
+  - `ExternalChatLlmClient` — через `IExternalLlmClient` (SSE).
+  - `IExternalLlmClient.ChatStreamAsync` — OpenAI-совместимый SSE-парсер.
+  - `ChatLlm:Provider` в appsettings.
+  - **Smoke:** чат через RouterAI (`external:routerai`) работает — 4.7 сек,
+    SSE-стриминг, tool calling доступен.
+
+---
+
+### KI-225 — ChatTitleService использует ILmStudioClient напрямую (не IChatLlmClient)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.11
+- **Обнаружено:** 2026-10-10 (smoke KI-224).
+- **Описание:** `ChatTitleService.GenerateAndSetTitleAsync` вызывает
+  `ILmStudioClient.CompleteAsync` (non-stream) напрямую, а не через
+  `IChatLlmClient`. При переключении Chat LLM на внешний провайдер
+  (RouterAI, Yandex) LM Studio не запущен → title-generation падает с
+  `SocketException 10061`, в логах `fail`, +4 сек на таймаут для каждого
+  нового чата.
+- **Что нужно:**
+  1. Добавить `IChatLlmClient.CompleteAsync(int userId, JArray messages, ...)`
+     — non-stream вариант (или отдельный интерфейс `IChatLlmTitleClient`).
+  2. `LmStudioChatLlmClient` → делегирует в `ILmStudioClient.CompleteAsync`.
+  3. `ExternalChatLlmClient` → использует `IExternalLlmClient.CompleteAsync`.
+  4. `ChatTitleService` инжектит `IChatLlmClient` вместо `ILmStudioClient`.
+  5. Graceful fallback: если title не сгенерирован — оставить дефолтное
+     название без `fail` в логе.
+- **Оценка:** ~1-2 ч.
+- **Связанные:** KI-224 (Chat LLM abstraction).
+
+---
+
 ### KI-223 — RouterAI как External-LLM провайдер (агрегатор 400+ моделей)
 
 - **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.10
@@ -3246,7 +3298,6 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Ключевая модель:** `qwen/qwen3.8-flash` — мультимодальная (text + images + video),
     1M контекст, поддерживает tool calling, reasoning, structured output.
   - Тарифы: **16₽ / 52₽ за 1M токенов** (вход/выход).
-
 - **Что сделано (v1.13.10):**
   - Провайдер `routerai` в `appsettings.json` + `.Development.json`:
     `Format: "OpenAI"`, `AuthScheme: "Bearer"`, `SupportsVision: true`.
@@ -3254,12 +3305,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - `routerai` добавлен в `VisionLlm.FallbackChain` (после `yandex-vl`) —
     как резервный VL-провайдер.
   - Smoke: `vision_agent(action=describe)` через RouterAI.
-
 - **Что НЕ входит (v1.14+):**
   - Использование других моделей RouterAI (DeepSeek V4, Qwen3.6 35B, Claude)
     — переключаются одной строкой в `Model`. Провайдер универсален.
   - Streaming SSE — пока non-stream (как остальные External-LLM).
-
 - **Связанные:** KI-109 (External-LLM Agent — база), KI-141 (Yandex VL —
   аналогичный кейс), KI-221 (YandexGPT — аналогично).
 
@@ -3293,7 +3342,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - Не ретраит на 4xx (постоянные ошибки: invalid body, permission).
   - Обёрнуты: `gh issue edit` (body), `gh issue create`.
   - Новый счётчик `$transientFailures` в отчёте.
-  - **`exit 1` только при постоянных ошибках** — transient exit 0
+  - **`exit 1` только при постоянных ошибках** — transient exit 0s
     (пользователь видит рекомендацию «запустить ещё раз»).
 
 ---

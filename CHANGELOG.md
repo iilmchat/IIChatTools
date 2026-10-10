@@ -22,27 +22,44 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
-## [1.13.10] — 2026-10-09
+## [1.13.10] — 2026-10-10
 
-**KI-223 — RouterAI как External-LLM провайдер.**
-Российский агрегатор 400+ LLM (Qwen, DeepSeek, GPT, Claude, Gemini)
-через OpenAI-совместимый API. Оплата в рублях, без VPN.
-Провайдер `routerai` (Qwen3.8 Flash, multimodal) добавлен в
-`ExternalLlm:Providers` + `VisionLlm.FallbackChain` как резервный
-VL-провайдер после Yandex.
+**KI-224 — Chat LLM абстракция `IChatLlmClient`.**
+Chat может работать через любого OpenAI-совместимого провайдера:
+LM Studio (локально), RouterAI, YandexGPT, DeepSeek, OpenAI, Groq.
+Переключение — одной строкой в `appsettings.json`
+(`ChatLlm:Provider = "lmstudio" | "external:routerai" | ...`).
+SSE-стриминг в `ExternalLlmClient` + `ExternalChatLlmClient`.
+Smoke: чат через RouterAI работает (см. § 4).
 
-**Тесты:** без изменений (config-only).
+**Тесты:** без изменений (1115/1115).
 
 ### Added
-- **KI-223 — RouterAI провайдер**:
-  - `ExternalLlm:Providers:routerai` в appsettings (dev + prod).
-  - `Format: "OpenAI"`, `AuthScheme: "Bearer"`, `SupportsVision: true`.
-  - Модель `qwen/qwen3.8-flash` (text + images + video, 1M контекст).
-  - User Secrets: `ExternalLlm:RouterAI:ApiKey`.
-  - `VisionLlm.FallbackChain`: `["lmstudio", "external:yandex-vl", "external:routerai"]`.
+- **KI-224 — Chat LLM abstraction**:
+  - `IChatLlmClient` — абстракция провайдера Chat LLM.
+  - `LmStudioChatLlmClient` — обёртка над `ILmStudioClient` (default, без изменений поведения).
+  - `ExternalChatLlmClient` — через `IExternalLlmClient.ChatStreamAsync`.
+  - `IExternalLlmClient.ChatStreamAsync` — SSE-стриминг для OpenAI-совместимых.
+  - `ChatLlm:Provider` в appsettings (`"lmstudio"` | `"external:<name>"`).
+  - DI-регистрация в `Startup`: `IChatLlmClient` — фабрика по `ChatLlm:Provider`.
+
+### Changed
+- **`ChatStreamService`** — инжект `IChatLlmClient` вместо `ILmStudioClient`.
+- **Bump version 1.13.9 → 1.13.10** (`Directory.Build.props`, README).
+- **README** — раздел «Chat LLM» с описанием переключения на внешние провайдеры.
 
 ### Fixed
-- **Bump version 1.13.9 → 1.13.10** (`Directory.Build.props`, README).
+- **KI-224** — `IChatLlmClient.ChatStreamAsync` принимает `userId`
+  (для per-user budget tracker в ExternalChatLlmClient).
+
+### Known limitations (v1.13.10)
+- **ChatTitleService** использует `ILmStudioClient.CompleteAsync` (non-stream).
+  При переключении Chat LLM на external (RouterAI) — AI-генерация названий
+  чатов падает (LM Studio недоступен). См. **KI-225** (Planned, v1.13.11).
+- **SSE-стриминг** для Anthropic / Gemini (свой формат) — не реализован
+  (v1.14+).
+- **Per-chat переключение** Chat LLM (`Chat.Provider` в БД) — не реализовано
+  (v1.14+).
 
 ---
 

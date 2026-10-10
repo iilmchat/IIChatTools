@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.ExternalLlm;
+using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Interfaces
 {
@@ -71,5 +73,47 @@ namespace IIChatTools.Services.Interfaces
         Task<bool> TestConnectionAsync(
             string providerName,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// SSE-стриминг chat completion (v1.13.10, KI-224, Фаза B).
+        ///
+        /// <para>
+        /// <b>Поддерживается только для <see cref="ProviderFormat.OpenAI"/>.</b>
+        /// Anthropic / Gemini вернут <see cref="System.NotSupportedException"/>
+        /// (свой SSE-формат — v1.14+).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Circuit breaker + budget tracker:</b> работают так же, как в
+        /// <see cref="CompleteAsync"/>.
+        /// </para>
+        /// </summary>
+        /// <param name="userId">
+        /// Пользователь-инициатор. <c>0</c> — системный вызов (бюджет не проверяется).
+        /// </param>
+        /// <param name="providerName">
+        /// Имя провайдера. <c>null</c> / пусто → <c>DefaultProvider</c>.
+        /// </param>
+        /// <param name="messages">История сообщений (JArray, формат OpenAI).</param>
+        /// <param name="tools">
+        /// Список инструментов (JArray, OpenAI Function Calling) или <c>null</c>.
+        /// </param>
+        /// <param name="temperature">Опциональный override (иначе 0.7).</param>
+        /// <param name="maxTokens">Опциональный override (иначе <c>provider.MaxTokens</c>).</param>
+        /// <param name="ct">Токен отмены.</param>
+        /// <returns>Поток чанков <see cref="ChatCompletionChunk"/>.</returns>
+        /// <exception cref="System.ArgumentNullException">Если <paramref name="messages"/> равен null.</exception>
+        /// <exception cref="System.InvalidOperationException">
+        /// Провайдер не найден, circuit breaker открыт, формат ≠ OpenAI.
+        /// </exception>
+        /// <exception cref="System.TimeoutException">Провайдер не ответил за timeout.</exception>
+        IAsyncEnumerable<ChatCompletionChunk> ChatStreamAsync(
+            int userId,
+            string providerName,
+            JArray messages,
+            JArray tools,
+            double? temperature = null,
+            int? maxTokens = null,
+            CancellationToken ct = default);            
     }
 }

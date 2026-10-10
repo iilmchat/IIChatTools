@@ -11,6 +11,7 @@ using IIChatTools.Services.DTO.LmStudio;    // v1.5.0 (KI-083, Фаза 1): Embe
 using IIChatTools.Services.DTO.Rag;         // v1.5.0 (KI-083, Шаг 6C): RetrievedChunkDto
 using IIChatTools.Services.DTO.SubAgent;    // v1.4.0 Фаза 5 (KI-052)
 using IIChatTools.Services.Implementation;
+using IIChatTools.Services.Implementation.ChatLlm;
 using IIChatTools.Services.Implementation.Tools.SubAgent;  // KI-049
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -345,7 +346,7 @@ namespace IIChatTools.Tests.IntegrationTests
 
             var service = new ChatStreamService(
                 chatService,
-                fakeLm,
+                new LmStudioChatLlmClient(fakeLm),
                 effectiveRegistry,
                 fakeSubAgentRegistry,
                 fakeResolver,

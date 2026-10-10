@@ -17,6 +17,7 @@ using IIChatTools.Services.DTO.Speech;
 using IIChatTools.Services.DTO.Rag;                       // v1.13.x (KI-203): OcrOptions
 using IIChatTools.Services.Implementation.ExternalLlm;    // v1.8.1 (KI-109): ExternalLlmClient и т.д.
 using IIChatTools.Services.Implementation.Cache;          // v1.8.2: ToolResultCache
+using IIChatTools.Services.Implementation.ChatLlm;        // v1.13.10 (KI-224): IChatLlmClient + LmStudio обёртка
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
 using IIChatTools.Services.Implementation.Tools.Debate;   // v1.11.0 (KI-126, Шаг 1D)
@@ -402,6 +403,36 @@ namespace IIChatTools.API
             // для совместимости с EmbeddingService (Singleton). LmStudioClient
             // не держит состояния, использует IHttpClientFactory (Singleton-совместим).
             services.AddSingleton<ILmStudioClient, LmStudioClient>();
+
+            // ============ 8.1. Chat LLM abstraction (v1.13.10, KI-224) ============
+            // IChatLlmClient — абстракция над провайдером Chat LLM.
+            // Реализации:
+            //   - LmStudioChatLlmClient (default) — обёртка над ILmStudioClient.
+            //   - ExternalChatLlmClient — Фаза C KI-224 (требует SSE в ExternalLlmClient).
+            //
+            // Выбор — через ChatLlm:Provider в appsettings:
+            //   "lmstudio"             → LmStudioChatLlmClient (default)
+            //   "external:routerai"    → ExternalChatLlmClient (Фаза C, пока не готово)
+            //
+            // Все реализации — Singleton: не держат per-scope состояния,
+            // зависят только от Singleton-сервисов (ILmStudioClient / IHttpClientFactory).
+            services.AddSingleton<LmStudioChatLlmClient>();
+            services.AddSingleton<ExternalChatLlmClient>();
+            services.AddSingleton<IChatLlmClient>(sp =>
+            {
+                var provider = Configuration["ChatLlm:Provider"] ?? "lmstudio";
+                var normalized = provider.ToLowerInvariant();
+
+                // "external:<name>" → ExternalChatLlmClient.
+                // Всё остальное (в т.ч. "lmstudio") → LmStudioChatLlmClient.
+                if (normalized.StartsWith("external:", StringComparison.OrdinalIgnoreCase))
+                {
+                    return sp.GetRequiredService<ExternalChatLlmClient>();
+                }
+
+                return sp.GetRequiredService<LmStudioChatLlmClient>();
+            });
+
             services.AddScoped<ISubAgentService, SubAgentService>();
 
             // v1.5.0 (KI-083, Фаза 1): сервис эмбеддингов для RAG (Singleton).

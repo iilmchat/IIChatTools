@@ -265,7 +265,7 @@ namespace IIChatTools.Services.Implementation
             "    следующего указания пользователя.";
 
         private readonly IChatService _chatService;
-        private readonly ILmStudioClient _lmStudioClient;
+        private readonly IChatLlmClient _chatLlmClient;
         private readonly IToolRegistry _toolRegistry;
         private readonly ISubAgentRegistry _subAgentRegistry;
         private readonly IWorkspaceResolver _workspaceResolver;
@@ -282,7 +282,10 @@ namespace IIChatTools.Services.Implementation
         /// Создаёт сервис стриминга.
         /// </summary>
         /// <param name="chatService">Сервис CRUD чатов</param>
-        /// <param name="lmStudioClient">Клиент LM Studio (SSE)</param>
+        /// <param name="chatLlmClient">
+        /// Клиент Chat LLM (SSE). v1.13.10 (KI-224): абстракция —
+        /// LM Studio или внешний провайдер (RouterAI, Yandex).
+        /// </param>
         /// <param name="toolRegistry">Реестр инструментов (для tool calling в чате)</param>
         /// <param name="subAgentRegistry">Реестр специализированных суб-агентов (v1.4.0 Фаза 5, KI-052)</param>
         /// <param name="workspaceResolver">Резолвер рабочего пространства пользователя</param>
@@ -295,7 +298,7 @@ namespace IIChatTools.Services.Implementation
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatStreamService(
             IChatService chatService,
-            ILmStudioClient lmStudioClient,
+            IChatLlmClient chatLlmClient,
             IToolRegistry toolRegistry,
             ISubAgentRegistry subAgentRegistry,
             IWorkspaceResolver workspaceResolver,
@@ -307,7 +310,7 @@ namespace IIChatTools.Services.Implementation
             IRetrievalService retrievalService)
         {
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
-            _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
+            _chatLlmClient = chatLlmClient ?? throw new ArgumentNullException(nameof(chatLlmClient));
             _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
             _subAgentRegistry = subAgentRegistry ?? throw new ArgumentNullException(nameof(subAgentRegistry));
             _workspaceResolver = workspaceResolver ?? throw new ArgumentNullException(nameof(workspaceResolver));
@@ -554,7 +557,9 @@ namespace IIChatTools.Services.Implementation
             {
                 var accumulator = new ToolCallsAccumulator();
                 var textBuffer = new StringBuilder();
-                var iterator = _lmStudioClient.ChatStreamAsync(messages, tools, cancellationToken)
+                // v1.13.10 (KI-224): абстракция IChatLlmClient вместо ILmStudioClient.
+                // Резолвится в Startup по ChatLlm:Provider.
+                var iterator = _chatLlmClient.ChatStreamAsync(userId, messages, tools, cancellationToken)
                     .GetAsyncEnumerator(cancellationToken);
 
                 try

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -212,6 +214,303 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
                 CompletionTokens = parsed.CompletionTokens,
                 CostUsd = cost,
                 DurationMs = sw.ElapsedMilliseconds
+            };
+        }
+
+        /// <inheritdoc />
+        public async IAsyncEnumerable<ChatCompletionChunk> ChatStreamAsync(
+            int userId,
+            string providerName,
+            JArray messages,
+            JArray tools,
+            double? temperature = null,
+            int? maxTokens = null,
+            [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            if (messages == null)
+                throw new ArgumentNullException(nameof(messages));
+
+            // 1. Резолв провайдера.
+            var actualProviderName = !string.IsNullOrWhiteSpace(providerName)
+                ? providerName
+                : _registry.DefaultProvider;
+
+            var provider = _registry.Get(actualProviderName);
+            if (provider == null)
+            {
+                throw new InvalidOperationException(
+                    $"Провайдер '{actualProviderName}' не зарегистрирован. " +
+                    $"Доступные: {string.Join(", ", _registry.GetNames())}.");
+            }
+
+            // 2. Формат: streaming поддерживается только OpenAI-совместимыми.
+            if (provider.Format != ProviderFormat.OpenAI)
+            {
+                throw new NotSupportedException(
+                    $"SSE-стриминг не поддерживается для формата '{provider.Format}' " +
+                    $"(провайдер '{actualProviderName}'). Используйте Format=OpenAI.");
+            }
+
+            // 3. Circuit breaker.
+            if (_circuitBreaker.IsOpen(actualProviderName))
+            {
+                var status = _circuitBreaker.GetStatus(actualProviderName);
+                throw new InvalidOperationException(
+                    $"Провайдер '{actualProviderName}' временно недоступен: " +
+                    $"{status?.LastError ?? "circuit breaker open"}.");
+            }
+
+            // 4. Budget (per-user; userId <= 0 = системный, без проверки).
+            if (userId > 0 && !_budgetTracker.CanSpend(userId))
+            {
+                throw new InvalidOperationException(
+                    "Превышен дневной бюджет External-LLM. Повторите завтра (UTC).");
+            }
+
+            // 5. API key.
+            var apiKey = ResolveApiKey(actualProviderName, provider);
+
+            // 6. Тело запроса.
+            var payload = new JObject
+            {
+                ["model"] = provider.Model,
+                ["messages"] = messages,
+                ["temperature"] = temperature ?? 0.7,
+                ["max_tokens"] = maxTokens ?? provider.MaxTokens,
+                ["stream"] = true
+            };
+
+            if (tools != null && tools.Count > 0)
+            {
+                payload["tools"] = tools;
+                payload["tool_choice"] = "auto";
+            }
+
+            // v1.13.9 (KI-141): reasoning_effort — если задан.
+            if (!string.IsNullOrWhiteSpace(provider.ReasoningEffort))
+            {
+                payload["reasoning_effort"] = provider.ReasoningEffort.Trim();
+            }
+
+            // 7. Заголовки.
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                var scheme = string.IsNullOrWhiteSpace(provider.AuthScheme)
+                    ? "Bearer"
+                    : provider.AuthScheme.Trim();
+                headers["Authorization"] = $"{scheme} {apiKey}";
+            }
+
+            // 8. HTTP.
+            var url = provider.BaseUrl.TrimEnd('/') + "/chat/completions";
+            var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);
+
+            var client = _httpClientFactory.CreateClient();
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(
+                    payload.ToString(Formatting.None),
+                    Encoding.UTF8,
+                    "application/json")
+            };
+            httpRequest.Headers.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+            foreach (var kv in headers)
+            {
+                if (string.IsNullOrEmpty(kv.Value)) continue;
+
+                if (string.Equals(kv.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                {
+                    var spaceIndex = kv.Value.IndexOf(' ');
+                    if (spaceIndex > 0)
+                    {
+                        httpRequest.Headers.Authorization = new AuthenticationHeaderValue(
+                            kv.Value.Substring(0, spaceIndex),
+                            kv.Value.Substring(spaceIndex + 1));
+                    }
+                    else
+                    {
+                        httpRequest.Headers.TryAddWithoutValidation("Authorization", kv.Value);
+                    }
+                }
+                else
+                {
+                    httpRequest.Headers.TryAddWithoutValidation(kv.Key, kv.Value);
+                }
+            }
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.SendAsync(
+                    httpRequest,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                _circuitBreaker.RecordFailure(actualProviderName, "timeout");
+                throw new TimeoutException(
+                    $"Провайдер '{actualProviderName}' не ответил за {timeoutSec} секунд.");
+            }
+            catch (Exception ex)
+            {
+                _circuitBreaker.RecordFailure(actualProviderName, ex.Message);
+                throw;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errBody = await response.Content.ReadAsStringAsync();
+                response.Dispose();
+                _circuitBreaker.RecordFailure(
+                    actualProviderName, $"HTTP {(int)response.StatusCode}");
+                throw new InvalidOperationException(
+                    $"Провайдер вернул HTTP {(int)response.StatusCode}: {Truncate(errBody, 500)}");
+            }
+
+            _logger.LogDebug(
+                "External-LLM SSE: provider={Provider}, messages={MsgCount}, tools={ToolCount}, timeout={Timeout}s",
+                actualProviderName, messages.Count, tools?.Count ?? 0, timeoutSec);
+
+            // 9. Парсинг SSE — делегируем в helper.
+            var promptTokens = 0;
+            var completionTokens = 0;
+
+            using (response)
+            {
+                var stream = await response.Content.ReadAsStreamAsync();
+
+                try
+                {
+                    await foreach (var chunk in ParseOpenAiSseStreamAsync(
+                        stream, actualProviderName, timeoutCts.Token)
+                        .ConfigureAwait(false))
+                    {
+                        if (chunk.Usage != null)
+                        {
+                            promptTokens = chunk.Usage.PromptTokens;
+                            completionTokens = chunk.Usage.CompletionTokens;
+                        }
+
+                        yield return chunk;
+
+                        if (chunk.IsDone) break;
+                    }
+                }
+                finally
+                {
+                    // Best-effort учёты.
+                    _circuitBreaker.RecordSuccess(actualProviderName);
+                    if (userId > 0 && (promptTokens > 0 || completionTokens > 0))
+                    {
+                        var cost = ProviderCostCalculator.Calculate(
+                            promptTokens, completionTokens, provider);
+                        _budgetTracker.RecordUsage(
+                            userId, promptTokens, completionTokens, cost);
+
+                        _logger.LogInformation(
+                            "External-LLM SSE: {Provider} tokens={Prompt}+{Completion} cost=${Cost}",
+                            actualProviderName, promptTokens, completionTokens, cost);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Парсит OpenAI-совместимый SSE-поток.
+        /// </summary>
+        /// <param name="stream">Поток ответа.</param>
+        /// <param name="providerName">Имя провайдера (для логов).</param>
+        /// <param name="ct">Токен отмены.</param>
+        /// <returns>Поток чанков.</returns>
+        private async IAsyncEnumerable<ChatCompletionChunk> ParseOpenAiSseStreamAsync(
+            Stream stream,
+            string providerName,
+            [EnumeratorCancellation] CancellationToken ct)
+        {
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+
+            while (!ct.IsCancellationRequested)
+            {
+                string line;
+                try
+                {
+                    line = await reader.ReadLineAsync();
+                }
+                catch (Exception ex) when (!(ex is OperationCanceledException))
+                {
+                    _logger.LogWarning(ex,
+                        "External-LLM SSE: ошибка чтения строки ({Provider})", providerName);
+                    yield break;
+                }
+
+                if (line == null) yield break;
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                if (!line.StartsWith("data:", StringComparison.Ordinal)) continue;
+
+                var jsonPart = line.Substring(5).Trim();
+                if (jsonPart == "[DONE]")
+                {
+                    yield return new ChatCompletionChunk { IsDone = true };
+                    yield break;
+                }
+
+                JObject chunk;
+                try
+                {
+                    chunk = JObject.Parse(jsonPart);
+                }
+                catch (JsonException)
+                {
+                    continue;
+                }
+
+                var choice = chunk["choices"]?[0];
+                if (choice == null) continue;
+
+                var delta = choice["delta"];
+                var finishReason = choice["finish_reason"]?.ToString();
+
+                yield return new ChatCompletionChunk
+                {
+                    DeltaContent = delta?["content"]?.ToString(),
+                    DeltaReasoning = delta?["reasoning_content"]?.ToString(),
+                    DeltaToolCall = delta?["tool_calls"]?[0] as JObject,
+                    FinishReason = finishReason,
+                    Usage = ParseStreamUsage(chunk["usage"] as JObject),
+                    IsDone = !string.IsNullOrEmpty(finishReason)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Парсит usage из SSE-чанка (приходит только в последнем).
+        /// </summary>
+        private static ChatCompletionUsage ParseStreamUsage(JObject usage)
+        {
+            if (usage == null) return null;
+
+            var prompt = usage["prompt_tokens"]?.Value<int>() ?? 0;
+            var completion = usage["completion_tokens"]?.Value<int>() ?? 0;
+
+            return new ChatCompletionUsage
+            {
+                PromptTokens = prompt,
+                CompletionTokens = completion,
+                TotalTokens = usage["total_tokens"]?.Value<int>() ?? (prompt + completion),
+                ReasoningTokens =
+                    usage["completion_tokens_details"]?["reasoning_tokens"]?.Value<int>() ?? 0
             };
         }
 
