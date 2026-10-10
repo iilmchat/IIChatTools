@@ -3125,7 +3125,7 @@ function renderToolCallsFromJson(toolCallsJson) {
         const name = call?.function?.name || 'unknown';
         return `
             <div class="chat-tool-block">
-                <span class="chat-tool-icon">🛠</span>
+                <span class="chat-tool-icon">${getToolIcon(name)}</span>
                 <span class="chat-tool-name">${escapeHtml(name)}</span>
             </div>`;
     }).join('');
@@ -3441,7 +3441,7 @@ function appendToolCallBlock(bubble, call) {
 
     toolsEl.insertAdjacentHTML('beforeend', `
         <div class="chat-tool-block">
-            <span class="chat-tool-icon">🛠</span>
+            <span class="chat-tool-icon">${getToolIcon(call.name || 'unknown')}</span>
             <span class="chat-tool-name">${escapeHtml(call.name || 'unknown')}</span>
         </div>`);
     scrollToBottom();
