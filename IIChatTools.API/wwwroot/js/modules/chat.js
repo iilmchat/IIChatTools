@@ -3131,18 +3131,191 @@ function renderToolCallsFromJson(toolCallsJson) {
     }).join('');
 }
 
-function renderToolResultBlock(msg) {
-    const toolName = msg.toolName || 'tool';
-    const preview = (msg.content || '').length > 120
-        ? msg.content.substring(0, 120) + '…'
-        : (msg.content || '');
+// ============ KI-228: Рендер tool-блока как карточки ============
+
+/**
+ * KI-228: эмодзи-иконка по имени инструмента.
+ * @param {string} toolName
+ * @returns {string}
+ */
+function getToolIcon(toolName) {
+    const map = {
+        // Агенты (SubAgents)
+        browser_agent: '🌐',
+        vision_agent: '👁',
+        code_agent: '💻',
+        code_agent_with_review: '⚔',
+        code_reviewer_agent: '🧐',
+        mail_agent: '✉️',
+        external_llm_agent: '🌍',
+        database_agent: '🗄',
+        file_system_agent: '📁',
+        web_agent: '🔍',
+        git_agent: '🔀',
+        github_agent: '🐙',
+        planner_agent: '📋',
+        consult_secondary_agent: '🛠',
+        // RAG
+        search_knowledge_base: '📚',
+        search_chat_history: '📚',
+        search_workspace: '📚',
+        // Raw tools (для прямых вызовов и старого /test-стиля)
+        list_directory: '📁',
+        read_file: '📄',
+        save_file: '💾',
+        run_python: '🐍',
+        run_javascript: '📜',
+        execute_command: '⚙',
+        web_search: '🔍',
+        wikipedia_search: '📖',
+        fetch_web_content: '🌐',
+        git_status: '🔀',
+        git_commit: '💾',
+        git_push: '⬆',
+        gh_create_issue: '🐙'
+    };
+    return map[toolName] || '🛠';
+}
+
+/**
+ * KI-228: извлекает расширенный summary из data tool'а.
+ * Приоритет: finalAnswer (SubAgent) → description (vision) → output (code)
+ *            → summary → message → error.
+ * @param {string} toolName
+ * @param {object|null} content — ToolResult.Data
+ * @returns {string|null}
+ */
+function extractToolSummary(toolName, content) {
+    if (!content || typeof content !== 'object') return null;
+
+    if (typeof content.finalAnswer === 'string' && content.finalAnswer.trim()) {
+        return content.finalAnswer;
+    }
+    if (typeof content.description === 'string' && content.description.trim()) {
+        return content.description;
+    }
+    if (typeof content.output === 'string' && content.output.trim()) {
+        return content.output;
+    }
+    if (typeof content.summary === 'string' && content.summary.trim()) {
+        return content.summary;
+    }
+    if (typeof content.message === 'string' && content.message.trim()) {
+        return content.message;
+    }
+    if (typeof content.error === 'string' && content.error.trim()) {
+        return `Ошибка: ${content.error}`;
+    }
+    return null;
+}
+
+/**
+ * KI-228: единый рендер tool-результата — свёрнутая карточка <details>.
+ *
+ * <para>
+ * Структура:
+ * <list type="bullet">
+ *   <item><b>Header (всегда видно):</b> иконка + имя tool + короткий message + статус ✅/❌.</item>
+ *   <item><b>Body (по клику):</b> расширенный summary (finalAnswer / description / output),
+ *     inline-PNG (если есть base64 — KI-175), вложенный <c>&lt;details&gt;</c> с полным JSON.</item>
+ * </list>
+ * </para>
+ *
+ * <para>
+ * Карточка <b>раскрыта по умолчанию</b>, если tool вернул PNG-скриншот
+ * (это и есть результат действия — скрывать его в свёрнутом виде бессмысленно).
+ * </para>
+ *
+ * @param {object} opts
+ * @param {string} opts.toolName
+ * @param {boolean} opts.success
+ * @param {string} [opts.message] — короткое сообщение из ToolResult.Message
+ * @param {object|null} [opts.content] — ToolResult.Data (для JSON + summary + image)
+ * @returns {string} HTML карточки
+ */
+function renderToolResultCard(opts) {
+    const toolName = opts.toolName || 'tool';
+    const success = opts.success !== false;
+    const message = opts.message || '';
+    const content = opts.content || null;
+
+    const icon = getToolIcon(toolName);
+    const status = success ? '✅' : '❌';
+
+    // Расширенный summary — в раскрытую часть.
+    const extended = extractToolSummary(toolName, content);
+
+    // Короткая строка в шапке.
+    const shortMsg = message.length > 80
+        ? message.substring(0, 80) + '…'
+        : message;
+
+    // Inline PNG (KI-175): рендерим ВНУТРИ тела карточки.
+    const imageHtml = renderToolResultImage(success, toolName, content);
+    const hasImage = !!imageHtml;
+
+    // Полный JSON — во вложенном <details>, свёрнут.
+    let jsonHtml = '';
+    if (content && typeof content === 'object') {
+        try {
+            let json = JSON.stringify(content, null, 2);
+            if (json.length > 8000) {
+                json = json.substring(0, 8000) + '\n… (обрезано)';
+            }
+            jsonHtml = `
+                <details class="chat-tool-card-json">
+                    <summary>JSON</summary>
+                    <pre>${escapeHtml(json)}</pre>
+                </details>`;
+        } catch { /* circular — пропускаем */ }
+    }
+
+    // Тело карточки.
+    let bodyHtml = '';
+    if (extended) {
+        bodyHtml += `<div class="chat-tool-card-extended">${escapeHtml(extended)}</div>`;
+    }
+    bodyHtml += imageHtml;
+    bodyHtml += jsonHtml;
+
+    if (!bodyHtml) {
+        // Нечего показывать в развёрнутом виде — не даём кликать в пустоту.
+        bodyHtml = `<div class="chat-tool-card-empty">—</div>`;
+    }
+
+    const openAttr = hasImage ? ' open' : '';
 
     return `
-        <div class="chat-tool-result">
-            <span class="chat-tool-icon">🛠</span>
-            <span class="chat-tool-name">${escapeHtml(toolName)}</span>
-            <span class="chat-tool-preview">${escapeHtml(preview)}</span>
-        </div>`;
+        <details class="chat-tool-card ${success ? 'success' : 'error'}"${openAttr}>
+            <summary class="chat-tool-card-header">
+                <span class="chat-tool-card-icon">${icon}</span>
+                <span class="chat-tool-card-name">${escapeHtml(toolName)}</span>
+                <span class="chat-tool-card-summary">${escapeHtml(shortMsg)}</span>
+                <span class="chat-tool-card-status">${status}</span>
+            </summary>
+            <div class="chat-tool-card-body">${bodyHtml}</div>
+        </details>`;
+}
+
+/**
+ * KI-228: рендер tool-сообщения из истории (F5).
+ * @param {object} msg — ChatMessageDto (role='tool')
+ * @returns {string} HTML карточки
+ */
+function renderToolResultBlock(msg) {
+    const toolName = msg.toolName || 'tool';
+
+    let parsed = null;
+    if (msg.content) {
+        try { parsed = JSON.parse(msg.content); } catch { /* не JSON */ }
+    }
+
+    // Если content не парсится — используем как plain message (fallback).
+    const success = parsed ? parsed.success !== false : true;
+    const message = parsed?.message || (parsed ? '' : (msg.content || ''));
+    const content = parsed?.data ?? null;
+
+    return renderToolResultCard({ toolName, success, message, content });
 }
 
 // ============ Live-рендер (во время стрима) ============
@@ -3284,22 +3457,16 @@ function appendToolResultBlock(bubble, result) {
     const toolsEl = bubble.querySelector('.chat-message-tools');
     if (!toolsEl) return;
 
-    const ok = result.success;
-    const preview = (result.message || '').substring(0, 150);
-    const content = result.content || {};
-
-    // KI-175: если tool вернул PNG (vision_agent action=screenshot) —
-    // рендерим <img> с data-URL прямо в tool-block.
-    // base64 приходит в SSE-событии tool_result (в БД и LM Studio он вырезан — KI-176).
-    const imageHtml = renderToolResultImage(ok, result.name, content);
-
-    toolsEl.insertAdjacentHTML('beforeend', `
-        <div class="chat-tool-result ${ok ? 'success' : 'error'}">
-            <span class="chat-tool-icon">${ok ? '✅' : '❌'}</span>
-            <span class="chat-tool-name">${escapeHtml(result.name || 'tool')}</span>
-            <span class="chat-tool-preview">${escapeHtml(preview)}</span>
-        </div>
-        ${imageHtml}`);
+    // KI-228: единый рендер — карточка <details> (иконка + имя + summary +
+    // status badge; внутри — расширенный summary, PNG-скриншот (KI-175)
+    // и полный JSON в вложенном <details>).
+    // ChatToolResultDto не меняется: source = SSE-событие tool_result.
+    toolsEl.insertAdjacentHTML('beforeend', renderToolResultCard({
+        toolName: result.name || 'tool',
+        success: result.success !== false,
+        message: result.message || '',
+        content: result.content || null
+    }));
     scrollToBottom();
 }
 

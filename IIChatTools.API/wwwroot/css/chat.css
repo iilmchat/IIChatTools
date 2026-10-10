@@ -584,6 +584,139 @@
     background: var(--bs-danger-bg-subtle);
 }
 
+/* ============ KI-228: tool-карточка (collapsible) ============ */
+
+/* Обёртка — <details> c кастомной шапкой. */
+.chat-tool-card {
+    margin-bottom: .35rem;
+    border: 1px solid var(--bs-border-color);
+    border-left: 3px solid var(--bs-secondary-color);
+    border-radius: .375rem;
+    background: var(--bs-body-bg);
+    font-size: .82rem;
+    overflow: hidden;
+}
+
+.chat-tool-card.success { border-left-color: var(--bs-success); }
+.chat-tool-card.error   { border-left-color: var(--bs-danger); }
+
+/* Шапка: иконка + имя + summary + status. */
+.chat-tool-card-header {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .35rem .6rem;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bs-tertiary-bg);
+    list-style: none;
+    transition: background-color .15s;
+}
+
+.chat-tool-card-header::-webkit-details-marker { display: none; }
+.chat-tool-card-header:hover { background: var(--bs-secondary-bg); }
+
+.chat-tool-card-icon {
+    font-size: .9rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.chat-tool-card-name {
+    font-weight: 600;
+    flex-shrink: 0;
+    color: var(--bs-emphasis-color);
+}
+
+.chat-tool-card-summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-tool-card-status {
+    flex-shrink: 0;
+    font-size: .85rem;
+    line-height: 1;
+}
+
+/* Раскрытое тело. */
+.chat-tool-card-body {
+    padding: .5rem .75rem;
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+}
+
+.chat-tool-card-extended {
+    margin-bottom: .5rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--bs-body-color);
+    font-size: .82rem;
+    line-height: 1.5;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.chat-tool-card-extended:last-child { margin-bottom: 0; }
+
+.chat-tool-card-empty {
+    color: var(--bs-secondary-color);
+    font-style: italic;
+    font-size: .8rem;
+}
+
+/* Вложенный <details> с полным JSON. */
+.chat-tool-card-json {
+    margin-top: .35rem;
+}
+
+.chat-tool-card-json > summary {
+    cursor: pointer;
+    font-size: .72rem;
+    color: var(--bs-secondary-color);
+    user-select: none;
+    font-family: var(--bs-font-monospace);
+    list-style: none;
+    padding: .1rem 0;
+}
+
+.chat-tool-card-json > summary::-webkit-details-marker { display: none; }
+.chat-tool-card-json > summary::before {
+    content: '▶ ';
+    display: inline-block;
+    transition: transform .15s;
+    font-size: .6rem;
+    opacity: .7;
+}
+.chat-tool-card-json[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.chat-tool-card-json > pre {
+    margin: .35rem 0 0;
+    padding: .5rem .6rem;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    font-size: .72rem;
+    line-height: 1.4;
+    max-height: 240px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--bs-body-color);
+}
+
+/* PNG-скриншот (KI-175) внутри карточки — без верхнего отступа,
+   чтобы не дублировать margin с .chat-tool-card-extended. */
+.chat-tool-card-body .chat-tool-result-image {
+    margin-top: 0;
+}
+
 /* ============ Drag-and-drop модалки approval (v1.3 Фаза 2.0.4 fix) ============ */
 
 /* Курсор «move» для заголовка, когда он перетаскиваемый */
