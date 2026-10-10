@@ -22,6 +22,81 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.12] — 2026-10-11
+
+**KI-228 — Chat: рендеринг tool-блока карточкой (вместо сырого JSON).**
+**KI-229 — Vision Agent: lightbox + F5-fallback для скриншотов.**
+
+Frontend-only для KI-228 (`chat.js` + `chat.css`); для KI-229 — frontend
++ новый backend-endpoint `GET /api/chat/{chatId}/screenshots/{taskId}/{fileName}`
+(`ChatScreenshotsController`).
+
+### Added
+- **KI-228 — Chat: рендеринг tool-блока карточкой**:
+  - `renderToolResultCard({toolName, success, message, content})` —
+    единый рендер карточки `<details>`: иконка + имя tool + короткий
+    message + status badge (✅ / ❌).
+  - `getToolIcon(toolName)` — эмодзи-маппинг по имени tool
+    (`browser_agent` → 🌐, `vision_agent` → 👁, `code_agent_with_review` → ⚔,
+    ... default → 🛠).
+  - `extractToolSummary(toolName, content)` — приоритетный выбор summary:
+    `finalAnswer` (SubAgent) → `description` (vision) → `output` (code)
+    → `summary` → `message` → `error`.
+  - Раскрытая часть: расширенный summary + PNG (KI-175, inline) +
+    вложенный `<details>` с полным JSON (свёрнут, обрезка 8 KB).
+  - Авто-expand при наличии base64 (screenshot — это и есть результат).
+  - `renderToolResultBlock` (F5) и `appendToolResultBlock` (live SSE) —
+    переписаны на `renderToolResultCard`.
+  - `.chat-tool-card*` стили в `chat.css` (Bootstrap-переменные).
+
+- **KI-229 — Vision Agent: lightbox + F5-fallback для скриншотов**:
+  - `openLightbox(src, opts)` — full-screen overlay.
+  - Zoom: wheel / `+−0` / кнопки (`−`, `100%`, `+`) / fit-width / fit-page.
+    **Snap-to-top-left** при fit / первом показе / reset — верх картинки
+    не уходит под toolbar.
+  - Pan: drag мышью, стрелки клавиатуры — через `transform: translate()`.
+    Clamp: минимум 40 px картинки всегда видно.
+  - Actions: скачать PNG, скопировать путь.
+  - Закрытие: `Esc` / клик по фону / ✕.
+  - **F5-fallback:** `renderToolResultImage` — если base64 нет (KI-176),
+    но `path = screenshots/{taskId}/{file}` — placeholder с путём +
+    кнопка «Открыть скриншот» → lightbox с URL-src.
+  - **Backend:** `ChatScreenshotsController` —
+    `GET /api/chat/{chatId}/screenshots/{taskId}/{fileName}`.
+    Проверка владения чатом + `SafeSegmentRegex` (`[a-zA-Z0-9_.\-]`) +
+    `PathHelper.TryGetSafeFullPath` (RULES § 1.9).
+
+- **Локализация (RU + EN):** +4 ключа (`LightboxDownload`,
+  `LightboxCopyPath`, `LightboxCopySuccess`, `LightboxOpenScreenshot`).
+  Zoom/fit/close — реюз `RagPages*` (KI-206).
+
+### Changed
+- **Bump version 1.13.11 → 1.13.12** (`Directory.Build.props`, README).
+
+### Fixed
+- **KI-228 followup:** иконка tool-call-блока (`🛠 browser_agent`) теперь
+  согласована с иконкой карточки результата (`🌐 browser_agent`) —
+  `renderToolCallsFromJson` и `appendToolCallBlock` используют
+  `getToolIcon(name)` вместо hardcoded `🛠`.
+- **KI-229 followup (pan):** при zoom=100% (картинка вписана)
+  `scrollLeft/scrollTop = 0` → drag и стрелки не двигали картинку.
+  Плюс нативный HTML5 drag `<img>` перехватывал `mousemove`.
+  → pan через `transform: translate(panX, panY)` + `overflow: hidden`;
+  `dragstart` listener блокирует нативный drag.
+- **KI-229 followup (snap):** при fit-width верх картинки уходил под
+  toolbar (`align-items: center`). → snap-to-top-left через
+  `applyLightboxZoom({snap: true})` (img.onload / fit / reset / wheel).
+
+### Smoke (2026-10-11)
+- ✅ **Tool-карточки:** `browser_agent` — 🌐 + summary (`finalAnswer`);
+  `vision_agent` — 👁 + PNG (auto-expand); JSON вложенный свёрнут.
+- ✅ **Lightbox:** клик по PNG → fullscreen, zoom/pan/fit/download/copy-path.
+- ✅ **F5-fallback:** после F5 карточка `vision_agent` показывает placeholder
+  + кнопка «Открыть скриншот» → lightbox грузит PNG через endpoint.
+- ✅ **Icon consistency:** в tool-call-блоке и в карточке — одна и та же иконка.
+
+---
+
 ## [1.13.11] — 2026-10-10
 
 **KI-225 — ChatTitleService через `IChatLlmClient`.**

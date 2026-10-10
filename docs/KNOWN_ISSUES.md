@@ -3263,7 +3263,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-229 — Vision Agent: lightbox + F5-fallback для скриншотов
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.11
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.12)** | **Исправлено в:** v1.13.12
 - **Обнаружено:** 2026-10-10 (smoke Chat, скриншоты example.com).
 - **Описание:**
   - В live-режиме PNG-скриншот от `vision_agent(action='screenshot')` показывается
@@ -3299,7 +3299,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-228 — Chat: красивый рендеринг tool-block (вместо сырого JSON)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.11
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.12)** | **Исправлено в:** v1.13.12
 - **Обнаружено:** 2026-10-10 (smoke Chat, `browser_agent` на rzd.ru).
 - **Описание:** В Chat tool-block отображается как **сырой JSON**:
 ```JSON
@@ -5364,6 +5364,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
 | Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
 | Fixed (v1.13.x, KI-137/203/215/216) | 4 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression), KI-216 (MaxTaskSeconds) -->
+| Fixed (v1.13.12) | 2 | <!-- KI-228 (tool-block rendering), KI-229 (lightbox + F5-fallback) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
