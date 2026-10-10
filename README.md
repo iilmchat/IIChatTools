@@ -1,10 +1,10 @@
-# IIChatTools v1.13.10
+# IIChatTools v1.13.11
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.10
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.11
 
 ---
 
@@ -990,7 +990,10 @@ dotnet user-secrets set "ExternalLlm:Providers:yandex:Model" "gpt://b1gufspraeh2
 
 ### Ограничения
 
-- **Только non-streaming** (без SSE с внешних API).
+- **SSE-стриминг** — с v1.13.10 (KI-224) поддерживается для Chat LLM.
+  Для OpenAI-совместимых (`Format = "OpenAI"`). Anthropic / Gemini — v1.14+.
+- **Non-stream для служебных задач** — с v1.13.11 (KI-225) через
+  `IExternalLlmClient.CompleteFromMessagesAsync`.
 - **Без function calling** на внешних API — только обычный prompt → text.
 - **Anthropic Claude** — поддержан с v1.9.0 (KI-110a). Не поддерживаются:
   streaming, function calling, vision, prompt caching (`cache_control`),
@@ -1173,8 +1176,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.10
-    docker pull ghcr.io/iilmchat/iichattools:1.13.10
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.11
+    docker pull ghcr.io/iilmchat/iichattools:1.13.11
     docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 

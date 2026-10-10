@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Interfaces
@@ -61,5 +62,27 @@ namespace IIChatTools.Services.Interfaces
             JArray messages,
             JArray tools,
             CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Non-stream запрос Chat LLM (v1.13.11, KI-225).
+        ///
+        /// <para>
+        /// Используется для служебных задач: AI-генерация названия чата,
+        /// классификация, короткие вспомогательные вызовы.
+        /// </para>
+        /// </summary>
+        /// <param name="userId">Пользователь-инициатор (для budget tracker).</param>
+        /// <param name="messages">История сообщений (JArray, формат OpenAI).</param>
+        /// <param name="tools">Tools или <c>null</c>.</param>
+        /// <param name="model">Опциональный override модели.</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>Ответ с текстом и usage.</returns>
+        /// <exception cref="System.ArgumentNullException">Если <paramref name="messages"/> равен null.</exception>
+        Task<ChatCompletionResponse> CompleteAsync(
+            int userId,
+            JArray messages,
+            JArray tools,
+            string model = null,
+            CancellationToken cancellationToken = default);
     }
 }

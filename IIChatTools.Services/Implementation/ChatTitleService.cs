@@ -10,8 +10,14 @@ namespace IIChatTools.Services.Implementation
 {
     /// <summary>
     /// Реализация сервиса генерации названия чата.
-    /// Использует <see cref="ILmStudioClient.CompleteAsync"/> (non-streaming)
+    /// Использует <see cref="IChatLlmClient.CompleteAsync"/> (non-streaming)
     /// с коротким промптом. Fallback: ошибка → <c>null</c>, title не меняется.
+    ///
+    /// <para>
+    /// v1.13.11 (KI-225): переход с <see cref="ILmStudioClient"/> на
+    /// <see cref="IChatLlmClient"/> — работает через активного провайдера
+    /// Chat (LM Studio / RouterAI / Yandex).
+    /// </para>
     /// </summary>
     public class ChatTitleService : IChatTitleService
     {
@@ -22,23 +28,23 @@ namespace IIChatTools.Services.Implementation
         private const int HistoryLimit = 5;
 
         private readonly IChatService _chatService;
-        private readonly ILmStudioClient _lmStudioClient;
+        private readonly IChatLlmClient _chatLlmClient;
         private readonly ILogger<ChatTitleService> _logger;
 
         /// <summary>
         /// Создаёт сервис.
         /// </summary>
         /// <param name="chatService">Сервис чатов</param>
-        /// <param name="lmStudioClient">Клиент LM Studio</param>
+        /// <param name="chatLlmClient">Клиент Chat LLM (LM Studio / RouterAI / Yandex)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public ChatTitleService(
             IChatService chatService,
-            ILmStudioClient lmStudioClient,
+            IChatLlmClient chatLlmClient,
             ILogger<ChatTitleService> logger)
         {
             _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
-            _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
+            _chatLlmClient = chatLlmClient ?? throw new ArgumentNullException(nameof(chatLlmClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -85,17 +91,22 @@ namespace IIChatTools.Services.Implementation
 
             try
             {
-                var response = await _lmStudioClient.CompleteAsync(
-                    messages,
+                // v1.13.11 (KI-225): через IChatLlmClient — активный провайдер
+                // (LM Studio / RouterAI / Yandex). При external-провайдере
+                // LM Studio не требуется.
+                var response = await _chatLlmClient.CompleteAsync(
+                    userId: userId,
+                    messages: messages,
                     tools: null,
-                    cancellationToken);
+                    model: null,
+                    cancellationToken: cancellationToken);
 
                 var title = SanitizeTitle(response?.Content);
 
                 if (string.IsNullOrWhiteSpace(title))
                 {
                     _logger.LogWarning(
-                        "GenerateTitle: LM Studio вернул пустое название для чата {ChatId}",
+                        "GenerateTitle: LLM вернул пустое название для чата {ChatId}",
                         chatId);
                     return null;
                 }
@@ -121,7 +132,10 @@ namespace IIChatTools.Services.Implementation
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex,
+                // v1.13.11 (KI-225): LogDebug, а не LogWarning. Не критичная
+                // операция — при недоступном провайдере в F5 не должно быть
+                // пугающих warning'ов.
+                _logger.LogDebug(ex,
                     "GenerateTitle: не удалось сгенерировать название для чата {ChatId}",
                     chatId);
                 return null;

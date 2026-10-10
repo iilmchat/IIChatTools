@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -104,6 +105,49 @@ namespace IIChatTools.Services.Implementation.ChatLlm
                 temperature: null,
                 maxTokens: null,
                 ct: cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public async Task<ChatCompletionResponse> CompleteAsync(
+            int userId,
+            JArray messages,
+            JArray tools,
+            string model = null,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogDebug(
+                "ExternalChatLlmClient: CompleteAsync (non-stream) → provider={Provider}, " +
+                "userId={UserId}, messages={MsgCount}",
+                _providerName, userId, messages?.Count ?? 0);
+
+            // model override — в ExternalLlmRequest пока не пробрасываем
+            // (v1.13.11: игнорируем, используем provider.Model из конфига).
+            _ = model;
+
+            var response = await _externalClient.CompleteFromMessagesAsync(
+                userId: userId,
+                providerName: _providerName,
+                messages: messages,
+                tools: tools,
+                temperature: null,
+                maxTokens: null,
+                ct: cancellationToken);
+
+            // Маппинг ExternalLlmResponse → ChatCompletionResponse.
+            return new ChatCompletionResponse
+            {
+                Content = response.Content,
+                ReasoningContent = null,    // OpenAI-формат в External не отдаёт reasoning_content
+                ToolCalls = null,           // non-stream chat tools не используем
+                FinishReason = "stop",
+                Usage = new ChatCompletionUsage
+                {
+                    PromptTokens = response.PromptTokens,
+                    CompletionTokens = response.CompletionTokens,
+                    TotalTokens = response.PromptTokens + response.CompletionTokens,
+                    ReasoningTokens = 0
+                }
+            };
         }
     }
 }

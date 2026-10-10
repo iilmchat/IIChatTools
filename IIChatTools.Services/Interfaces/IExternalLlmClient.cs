@@ -75,6 +75,57 @@ namespace IIChatTools.Services.Interfaces
             CancellationToken ct = default);
 
         /// <summary>
+        /// Non-stream запрос к внешней LLM с полным массивом messages
+        /// (v1.13.11, KI-225).
+        ///
+        /// <para>
+        /// Отличие от <see cref="CompleteAsync"/>: принимает полный
+        /// <c>messages[]</c> (system + user + assistant + tool), а не
+        /// только <c>Prompt</c>. Используется для служебных задач
+        /// (генерация названия чата, классификация, короткие вспомогательные
+        /// вызовы).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Поддерживается только для <see cref="ProviderFormat.OpenAI"/>.</b>
+        /// Anthropic / Gemini вернут <see cref="System.NotSupportedException"/>
+        /// (свой формат — v1.14+).
+        /// </para>
+        /// </summary>
+        /// <param name="userId">
+        /// Пользователь-инициатор. <c>0</c> — системный вызов (бюджет не проверяется).
+        /// </param>
+        /// <param name="providerName">
+        /// Имя провайдера. <c>null</c> / пусто → <c>DefaultProvider</c>.
+        /// </param>
+        /// <param name="messages">
+        /// История сообщений (JArray, формат OpenAI). Не <c>null</c>, не пустой.
+        /// </param>
+        /// <param name="tools">
+        /// Список инструментов (JArray, OpenAI Function Calling) или <c>null</c>.
+        /// </param>
+        /// <param name="temperature">Опциональный override (иначе 0.7).</param>
+        /// <param name="maxTokens">Опциональный override (иначе <c>provider.MaxTokens</c>).</param>
+        /// <param name="ct">Токен отмены.</param>
+        /// <returns>Ответ с текстом, токенами и стоимостью.</returns>
+        /// <exception cref="System.ArgumentNullException">Если <paramref name="messages"/> равен null.</exception>
+        /// <exception cref="System.ArgumentException">Если <paramref name="messages"/> пуст.</exception>
+        /// <exception cref="System.InvalidOperationException">
+        /// Провайдер не найден, circuit breaker открыт, формат ≠ OpenAI.
+        /// </exception>
+        /// <exception cref="System.NotSupportedException">
+        /// Провайдер использует Anthropic / Gemini формат.
+        /// </exception>
+        Task<ExternalLlmResponse> CompleteFromMessagesAsync(
+            int userId,
+            string providerName,
+            JArray messages,
+            JArray tools = null,
+            double? temperature = null,
+            int? maxTokens = null,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// SSE-стриминг chat completion (v1.13.10, KI-224, Фаза B).
         ///
         /// <para>

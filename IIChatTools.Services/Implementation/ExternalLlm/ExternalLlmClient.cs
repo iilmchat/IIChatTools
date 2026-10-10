@@ -218,6 +218,156 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
         }
 
         /// <inheritdoc />
+        public async Task<ExternalLlmResponse> CompleteFromMessagesAsync(
+            int userId,
+            string providerName,
+            JArray messages,
+            JArray tools = null,
+            double? temperature = null,
+            int? maxTokens = null,
+            CancellationToken ct = default)
+        {
+            if (messages == null)
+                throw new ArgumentNullException(nameof(messages));
+
+            if (messages.Count == 0)
+                throw new ArgumentException("messages[] не может быть пустым.", nameof(messages));
+
+            // 1. Резолв провайдера.
+            var actualProviderName = !string.IsNullOrWhiteSpace(providerName)
+                ? providerName
+                : _registry.DefaultProvider;
+
+            var provider = _registry.Get(actualProviderName);
+            if (provider == null)
+            {
+                throw new InvalidOperationException(
+                    $"Провайдер '{actualProviderName}' не зарегистрирован. " +
+                    $"Доступные: {string.Join(", ", _registry.GetNames())}.");
+            }
+
+            // 2. Формат: messages[]-in — только OpenAI-совместимый.
+            if (provider.Format != ProviderFormat.OpenAI)
+            {
+                throw new NotSupportedException(
+                    $"CompleteFromMessagesAsync не поддерживается для формата " +
+                    $"'{provider.Format}' (провайдер '{actualProviderName}'). " +
+                    $"Используйте Format=OpenAI.");
+            }
+
+            // 3. Circuit breaker.
+            if (_circuitBreaker.IsOpen(actualProviderName))
+            {
+                var status = _circuitBreaker.GetStatus(actualProviderName);
+                throw new InvalidOperationException(
+                    $"Провайдер '{actualProviderName}' временно недоступен: " +
+                    $"{status?.LastError ?? "circuit breaker open"}.");
+            }
+
+            // 4. Budget (per-user; userId <= 0 = системный).
+            if (userId > 0 && !_budgetTracker.CanSpend(userId))
+            {
+                throw new InvalidOperationException(
+                    "Превышен дневной бюджет External-LLM. Повторите завтра (UTC).");
+            }
+
+            // 5. API key.
+            var apiKey = ResolveApiKey(actualProviderName, provider);
+
+            // 6. Тело запроса — messages[] передаём как есть.
+            var payload = new JObject
+            {
+                ["model"] = provider.Model,
+                ["messages"] = messages,
+                ["temperature"] = temperature ?? 0.7,
+                ["max_tokens"] = maxTokens ?? provider.MaxTokens,
+                ["stream"] = false
+            };
+
+            if (tools != null && tools.Count > 0)
+            {
+                payload["tools"] = tools;
+                payload["tool_choice"] = "auto";
+            }
+
+            if (!string.IsNullOrWhiteSpace(provider.ReasoningEffort))
+            {
+                payload["reasoning_effort"] = provider.ReasoningEffort.Trim();
+            }
+
+            // 7. Заголовки.
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                var scheme = string.IsNullOrWhiteSpace(provider.AuthScheme)
+                    ? "Bearer"
+                    : provider.AuthScheme.Trim();
+                headers["Authorization"] = $"{scheme} {apiKey}";
+            }
+
+            var url = provider.BaseUrl.TrimEnd('/') + "/chat/completions";
+            var timeoutSec = Math.Clamp(provider.TimeoutSeconds, 1, 600);
+
+            // 8. HTTP.
+            var sw = Stopwatch.StartNew();
+            JObject responseJson;
+            try
+            {
+                responseJson = await SendWithRetryAsync(
+                    url, payload, headers, timeoutSec, ct);
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                _circuitBreaker.RecordFailure(actualProviderName, ex.Message);
+                _logger.LogWarning(
+                    "External-LLM (messages): {Provider} failed: {Error}",
+                    actualProviderName, ex.Message);
+                throw;
+            }
+            sw.Stop();
+
+            // 9. Парсинг (OpenAI-формат).
+            var choice = responseJson["choices"]?[0];
+            if (choice == null)
+            {
+                throw new InvalidOperationException(
+                    $"Провайдер '{actualProviderName}' вернул ответ без choices[].");
+            }
+
+            var content = choice["message"]?["content"]?.ToString() ?? string.Empty;
+            var promptTokens = responseJson["usage"]?["prompt_tokens"]?.Value<int>() ?? 0;
+            var completionTokens = responseJson["usage"]?["completion_tokens"]?.Value<int>() ?? 0;
+
+            var cost = ProviderCostCalculator.Calculate(
+                promptTokens, completionTokens, provider);
+
+            // 10. Учёты.
+            _circuitBreaker.RecordSuccess(actualProviderName);
+            if (userId > 0)
+            {
+                _budgetTracker.RecordUsage(
+                    userId, promptTokens, completionTokens, cost);
+            }
+
+            _logger.LogInformation(
+                "External-LLM (messages): {Provider} msgCount={MsgCount} " +
+                "tokens={PromptTokens}+{CompletionTokens} cost=${Cost} durationMs={Duration}",
+                actualProviderName, messages.Count,
+                promptTokens, completionTokens, cost, sw.ElapsedMilliseconds);
+
+            return new ExternalLlmResponse
+            {
+                Provider = actualProviderName,
+                Content = content,
+                PromptTokens = promptTokens,
+                CompletionTokens = completionTokens,
+                CostUsd = cost,
+                DurationMs = sw.ElapsedMilliseconds
+            };
+        }
+
+        /// <inheritdoc />
         public async IAsyncEnumerable<ChatCompletionChunk> ChatStreamAsync(
             int userId,
             string providerName,

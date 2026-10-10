@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using IIChatTools.Services.Interfaces;
 using Newtonsoft.Json.Linq;
 
@@ -48,6 +49,19 @@ namespace IIChatTools.Services.Implementation.ChatLlm
             // userId игнорируется: LM Studio — локальный провайдер, без бюджета.
             _ = userId;
             return _inner.ChatStreamAsync(messages, tools, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<ChatCompletionResponse> CompleteAsync(
+            int userId,
+            JArray messages,
+            JArray tools,
+            string model = null,
+            CancellationToken cancellationToken = default)
+        {
+            // userId игнорируется: LM Studio — локальный провайдер, без бюджета.
+            _ = userId;
+            return _inner.CompleteAsync(messages, tools, cancellationToken, model);
         }
     }
 }

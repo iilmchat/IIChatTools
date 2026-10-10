@@ -3395,7 +3395,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-225 — ChatTitleService использует ILmStudioClient напрямую (не IChatLlmClient)
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.11
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.11
 - **Обнаружено:** 2026-10-10 (smoke KI-224).
 - **Описание:** `ChatTitleService.GenerateAndSetTitleAsync` вызывает
   `ILmStudioClient.CompleteAsync` (non-stream) напрямую, а не через
@@ -3413,7 +3413,17 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
      название без `fail` в логе.
 - **Оценка:** ~1-2 ч.
 - **Связанные:** KI-224 (Chat LLM abstraction).
-
+- **Реализация (v1.13.11):**
+  - `IExternalLlmClient.CompleteFromMessagesAsync(messages[])` — non-stream,
+    OpenAI-формат, с полным `messages[]`.
+  - `IChatLlmClient.CompleteAsync(userId, messages, tools, model, ct)` —
+    non-stream вариант.
+  - `LmStudioChatLlmClient.CompleteAsync` → `ILmStudioClient.CompleteAsync`.
+  - `ExternalChatLlmClient.CompleteAsync` → `IExternalLlmClient.CompleteFromMessagesAsync`.
+  - `ChatTitleService` инжектит `IChatLlmClient` вместо `ILmStudioClient`.
+  - **Smoke:** Chat + title работают с `ChatLlm:Provider = "external:routerai"`
+    (без LM Studio) и с `"lmstudio"` (без регрессий).
+    
 ---
 
 ### KI-223 — RouterAI как External-LLM провайдер (агрегатор 400+ моделей)

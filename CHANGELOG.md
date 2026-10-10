@@ -22,6 +22,47 @@ _(пусто — новые изменения вносятся сюда)._
 
 ---
 
+## [1.13.11] — 2026-10-10
+
+**KI-225 — ChatTitleService через `IChatLlmClient`.**
+AI-генерация названий чатов теперь работает через активного провайдера
+Chat LLM (LM Studio / RouterAI / Yandex), а не только через LM Studio.
+Добавлен `IExternalLlmClient.CompleteFromMessagesAsync(messages[])` —
+non-stream запрос с полным массивом сообщений (system + user + assistant).
+Заголовок чата **работает без LM Studio**, если `ChatLlm:Provider`
+указывает на внешний провайдер.
+
+**Тесты:** без изменений (1115/1115).
+
+### Added
+- **KI-225 — ChatTitleService через `IChatLlmClient`**:
+  - `IExternalLlmClient.CompleteFromMessagesAsync(userId, providerName, JArray messages, ...)`
+    — non-stream запрос с полным `messages[]`. OpenAI-формат;
+    Anthropic / Gemini → `NotSupportedException` (v1.14+).
+  - `ExternalLlmClient.CompleteFromMessagesAsync` — реализация
+    (OpenAI-ветка: `payload["messages"] = messages`).
+  - `IChatLlmClient.CompleteAsync(userId, JArray messages, JArray tools, model, ct)`
+    — non-stream метод.
+  - `LmStudioChatLlmClient.CompleteAsync` — делегат в `ILmStudioClient.CompleteAsync`.
+  - `ExternalChatLlmClient.CompleteAsync` — делегат в
+    `IExternalLlmClient.CompleteFromMessagesAsync` + маппинг
+    `ExternalLlmResponse → ChatCompletionResponse`.
+  - `ChatTitleService` — инжект `IChatLlmClient` вместо `ILmStudioClient`.
+
+### Changed
+- **`ChatTitleService`** — уровень лога при ошибке: `LogWarning → LogDebug`
+  (не критичная операция, не пугаем в F5).
+- **Bump version 1.13.10 → 1.13.11** (`Directory.Build.props`, README).
+
+### Smoke (2026-10-10)
+- ✅ **LM Studio выключен, `ChatLlm:Provider = "external:routerai"`**:
+  Chat работает через RouterAI, ChatTitleService генерирует название
+  через RouterAI (без `fail` в логе).
+- ✅ **LM Studio включён, `ChatLlm:Provider = "lmstudio"`**:
+  старое поведение сохранено (регрессий нет).
+
+---
+
 ## [1.13.10] — 2026-10-10
 
 **KI-224 — Chat LLM абстракция `IChatLlmClient`.**
