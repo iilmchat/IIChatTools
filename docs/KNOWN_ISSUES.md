@@ -3323,6 +3323,179 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
     на `done` — merge в основной контент + markdown-перерендер. Один bubble, тексты сливаются.
   - **Локализация RU + EN:** 3 ключа (`ChatMessageLengthWarning`,
     `ChatMessageContinue`, `ChatMessageContinueTooltip`).
+  - **Smoke (2026-10-11):** ✅ плашка + кнопка «➕ Продолжить» появляются
+    при `finish_reason=length`; клик дописывает контент в **тот же**
+    assistant-bubble (проверено принудительно: `MaxTokens=200`).
+
+---
+
+### KI-231 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.14
+- **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
+- **Файлы (план):** `chat.js`, `chat.css`, `Index.cshtml`,
+  `SharedResources*.resx` (RU + EN).
+- **Описание:** 📎-кнопка прикрепления файлов работает, но ChatGPT/Claude
+  поддерживают два более быстрых способа:
+  - **Drag-and-drop** — перетащить файл на поле ввода.
+  - **Paste image** — скопировать скриншот (`Ctrl+V`) → сразу в чат.
+  У нас оба способа отключены: браузер открывает файл в новой вкладке
+  при drop, а вставка из буфера игнорируется.
+- **Решение (v1.13.14, frontend-only):**
+  - **D&D:** `dragover` / `dragleave` / `drop` на `.chat-input-box`.
+    `preventDefault()` на `dragover` (иначе браузер откроет файл).
+    `e.dataTransfer.files` → `uploadFiles(Array.from(files))`.
+    Подсветка зоны: класс `.chat-input-box.drag-over` (рамка + hint).
+  - **Paste:** `paste` event на `#chat-input`. Если `clipboardData.items`
+    содержит `kind === 'file'` с `type.startsWith('image/')` —
+    `getAsFile()` → `new File([blob], 'screenshot-YYYYMMDD-HHMMSS.png', { type })`
+    → `uploadFiles` + `preventDefault()` (чтобы PNG не вставился как inline `<img>`).
+  - **Совместимость:** никаких изменений backend — `uploadFiles` уже
+    принимает `File[]`.
+  - **Локализация RU + EN:** 2 ключа (`ChatDropHint`, `ChatPasteImageName`).
+- **Не входит (v1.13.x):** preview изображений до ingestion
+  (chips появятся только после RAG-индексации — как у 📎).
+
+---
+
+### KI-232 — Chat: рендеринг Mermaid (диаграммы) + KaTeX (формулы)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
+- **Файлы (план):** `chat.js` (`renderMarkdown`, `enhanceCodeBlocks`),
+  `chat.css`, `Chat/Index.cshtml` (скрипты), `wwwroot/lib/mermaid/`,
+  `wwwroot/lib/katex/`, `scripts/setup/download-mermaid-katex.ps1`.
+- **Описание:** ChatGPT / Claude / DeepSeek рендерят:
+  - **Mermaid-диаграммы** (flowchart / sequence / class / ER / gantt)
+    из ` ```mermaid ` code-block — у нас остаётся сырой текст.
+  - **KaTeX-формулы** — inline `$...$` и block `$$...$$` — у нас сырой текст.
+  Для RAG-чатов (документация, API, алгоритмы) — критично: диаграммы
+  и формулы читаются гораздо хуже как plain text.
+- **Решение (план):**
+  - Lazy-load обеих библиотек (bundle только при первом вхождении).
+  - `marked` extension для ` ```mermaid ` → рендер в SVG через
+    `mermaid.render`. KaTeX — через `marked-katex-extension`
+    (или кастомный renderer для `$...$` / `$$...$$`).
+  - `DOMPurify` — расширить `ALLOWED_TAGS` (`svg`, `path`, `math`,
+    `mrow`, ...) или использовать отдельный sanitize-профиль для math/svg.
+  - Fallback: если библиотеки не загрузились — рендер как сейчас.
+- **Оценка:** ~2-3 ч.
+
+---
+
+### KI-233 — Chat: 👍/👎 feedback на assistant-message
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
+- **Файлы (план):** `chat.js` (`renderMessageActions`), `chat.css`,
+  `IChatService` (+`SetFeedbackAsync`), `ChatService.cs`,
+  `ChatMessage` Entity (+`Feedback` nullable enum), миграция, `ChatController`,
+  `Views/Home/Admin.cshtml` (экспорт датасета).
+- **Описание:** На каждом assistant-сообщении — две кнопки 👍 / 👎
+  (ChatGPT-style). Текущее состояние (`null` / `positive` / `negative`)
+  хранится в БД (`ChatMessage.Feedback`). Позволяет собирать датасет
+  для будущего fine-tuning / RLHF.
+- **Решение (план):**
+  - `ChatMessage.Feedback` — nullable enum (`positive` / `negative`).
+  - `POST /api/chat/messages/{id}/feedback` — установить / снять (toggle).
+  - UI: две кнопки в `.chat-message-actions`, активная подсвечивается
+    (👍 — зелёная, 👎 — красная). Повторный клик — снимает оценку.
+  - Экспорт в JSONL (для датасета) — `/admin → Feedback`.
+- **Оценка:** ~1 ч (+ миграция → ~1.5 ч).
+
+---
+
+### KI-234 — Chat: Retry в error-bubble (после network error)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
+- **Файлы (план):** `chat.js` (`appendAssistantError`, `renderMessageActions`),
+  `chat.css`.
+- **Описание:** При ошибке стрима (`event: error` от сервера или network error)
+  сейчас показывается только toast + сообщение в bubble (`.chat-message-error`).
+  Нет кнопки «Повторить» — пользователю нужно вручную перепечатать
+  сообщение / нажать 🔄 на последнем assistant. ChatGPT / Claude
+  показывают кнопку **«Retry»** прямо в error-bubble.
+- **Решение (план):**
+  - В `appendAssistantError` добавлять HTML с кнопкой
+    `<button data-action="retry-error">Retry</button>`.
+  - `onMessageActionClick` — `retry-error` →
+    `regenerateLastMessage({ allowNoAssistant: true })`.
+  - Кнопка «Повторить» — `chat-message-action-with-text` внутри error-bubble.
+  - (Опционально) — счётчик попыток (Retry #1, Retry #2, ...) в tooltip.
+- **Оценка:** ~30 мин.
+
+---
+
+### KI-235 — Chat: Suggested prompts на пустом чате
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
+- **Файлы (план):** `chat.js` (`showEmptyState`), `chat.css`,
+  `Chat/Index.cshtml`, `SharedResources*.resx` (RU + EN).
+- **Описание:** Пустой чат (нет сообщений) показывает только логотип
+  + текст «Начните диалог». ChatGPT / Claude показывают 4-6
+  **suggested prompts**: «Напиши письмо», «Объясни код», «Найди информацию
+  о ...». Клик — подставляет в input (не отправляет).
+- **Решение (план):**
+  - В empty state — grid 2×2 (или 2×3) с карточками-подсказками.
+  - Список — конфигурируемый (`appsettings:Chat:SuggestedPrompts[]`)
+    или хардкод 4-6 штук в `.resx` (RU + EN).
+  - (Опционально) — адаптивные подсказки по контексту.
+- **Оценка:** ~30 мин.
+
+---
+
+### KI-236 — Chat: Keyboard shortcuts help (Ctrl+/)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
+- **Файлы (план):** `chat.js` (hotkey-handler + `openHotkeyHelp`), `chat.css`,
+  `Chat/Index.cshtml` (модалка), `SharedResources*.resx` (RU + EN).
+- **Описание:** В проекте 5+ hotkey'ев (`Ctrl+B` — sidebar, `Ctrl+F` — поиск
+  по чату, `Ctrl+K` — ⌘K-модалка, `Ctrl+Shift+Space` — голосовой ввод,
+  `Esc` — закрыть overlay), но **нигде в UI не задокументированы**.
+  Пользователь не знает о них. ChatGPT / GitHub / Linear — все имеют
+  hotkey-хелп (`Ctrl+/` / `?` / `Shift+?`).
+- **Решение (план):**
+  - Модалка `#chat-hotkey-help` — таблица «Shortcut → Action».
+  - Триггер — `Ctrl+/` (universal) или `?` (когда фокус не в textarea).
+  - Категории: чат / навигация / модалки / речь.
+  - (Опционально) — «Показать при первом запуске» (dismissable).
+- **Оценка:** ~30 мин.
+
+---
+
+### KI-237 — Chat UX backlog (бандл мелких улучшений)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14+
+- **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
+- **Описание:** Коллективная запись для мелких UX-улучшений, которые
+  не получили отдельного KI (в том числе из «Что не хватает»).
+  При реализации каждый пункт может быть вынесен в отдельный KI.
+- **Подпункты (чек-лист):**
+  - [ ] **История поисковых запросов** в ⌘K-модалке (localStorage, ~30 мин).
+  - [ ] **Virtual scrolling** для лент > 500 сообщений (~4 ч).
+  - [ ] **Inline citations** `[1][2]` в тексте — связка с блоком
+    «📚 Источники», tooltip + скролл к источнику (Perplexity-style, ~3 ч).
+  - [ ] **Message branching** — дерево альтернативных ответов после
+    Edit / Regenerate (как в ChatGPT: переключение ←/→, ~6 ч).
+  - [ ] **Export чата** — Markdown / JSON / PDF (с tool-blocks
+    и sources, ~2 ч).
+  - [ ] **Drag-and-drop картинок из буфера** + вставка в редактор
+    prompt-images (multi-modal input, ~3 ч).
+  - [ ] **Live token counter** во время стрима (сейчас только после
+    `done`).
+  - [ ] **Streaming tool_result** (для `run_python` / `run_javascript` —
+    stdout в реальном времени через SSE).
+  - [ ] **In-chat system prompt editor** (поле `Chat.SystemPrompt` есть,
+    UI — нет).
+  - [ ] **Compact / comfortable density toggle** (сжатая / просторная
+    лента).
+  - [ ] **Chat search по регуляркам** (`/regex/i` в ⌘K-модалке).
+  - [ ] **Pin / favorite чатов** (закреплённые сверху sidebar).
+  - [ ] **Sidebar: группировка по дате** («Сегодня», «На этой неделе»,
+    «Раньше»).
 
 ### KI-228 — Chat: красивый рендеринг tool-block (вместо сырого JSON)
 
@@ -5394,6 +5567,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.13.12) | 2 | <!-- KI-228 (tool-block rendering), KI-229 (lightbox + F5-fallback) -->
 | Fixed (v1.13.13) | 1 | <!-- KI-230 (Continue button после finish_reason=length) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
+| Planned (Chat UX, v1.13.x+) | 7 | <!-- KI-231..KI-237 (D&D+Paste, Mermaid+KaTeX, Feedback, Retry, Suggested, Hotkeys help, UX backlog) -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **195** |
