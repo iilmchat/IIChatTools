@@ -3261,6 +3261,61 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-227 — RAG embeddings зависят от LM Studio (нет внешнего провайдера)
+
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.14
+- **Обнаружено:** 2026-10-10 (аудит после KI-224).
+- **Описание:** RAG-индексация и retrieval работают через
+  `ILmStudioClient.GetEmbeddingsAsync` (модель `text-embedding-nomic-embed-text-v1.5`).
+  Без запущенного LM Studio RAG **полностью не работает**:
+  - нельзя загрузить файл в чат (📎);
+  - не работают `search_knowledge_base`, `search_chat_history`, `search_workspace`;
+  - auto-inject из `my_rag_docs` не срабатывает.
+
+- **Проблема:** RouterAI / Yandex не предоставляют embeddings в OpenAI-формате
+  (у них свои модели, либо embeddings вне каталога). DeepSeek / OpenAI — есть,
+  но требуют VPN из РФ.
+
+- **Возможные решения (обсудить):**
+  1. **OpenAI embeddings** (через VPN / прокси) — `text-embedding-3-small`.
+  2. **RouterAI** — проверить каталог, может есть embeddings-модели
+     (`qwen/qwen3-embedding-*` и т.п.).
+  3. **Локальная ONNX-модель** — `all-MiniLM-L6-v2` через ONNX Runtime
+     (~90 MB, CPU-only). Требует новой NuGet + инициализации.
+  4. **Fallback:** если LM Studio недоступен — RAG отключается (graceful),
+     в UI — badge «RAG недоступен».
+
+- **Оценка:** ~3-5 ч (в зависимости от решения).
+- **Связанные:** KI-224 (Chat LLM abstraction), KI-223 (RouterAI).
+
+---
+
+### KI-226 — `/api/models` и UI-селектор модели зависят от LM Studio
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.14
+- **Обнаружено:** 2026-10-10 (аудит после KI-224).
+- **Описание:** Эндпоинт `GET /api/models` возвращает список моделей **из
+  LM Studio** (`ILmStudioClient.GetModelIdsAsync`). UI-селектор модели в
+  header чата берёт данные оттуда. Если LM Studio не запущен:
+  - селектор показывает только default (`LmStudio:Model` из appsettings);
+  - либо пустой, если LM Studio недоступен целиком.
+
+- **Что нужно (v1.14):**
+  1. `GET /api/models` дополнить списком моделей из `ExternalLlm:Providers`.
+  2. Группировать по провайдеру: `{ lmstudio: [...], routerai: [...], yandex: [...] }`.
+  3. UI-селектор — optgroup с провайдерами.
+  4. Значение `Chat.Model` в БД — `<provider>:<model>` (например,
+     `routerai:qwen/qwen3.8-flash`) вместо просто `<model>`.
+  5. Per-chat переключение провайдера (пересекается с отложенным KI-224-A).
+
+- **Альтернатива (простая):** `ChatLlm:Provider` — глобально, UI-селектор
+  показывает только модели активного провайдера.
+
+- **Оценка:** ~2-3 ч.
+- **Связанные:** KI-224 (Chat LLM abstraction), KI-223 (RouterAI).
+
+---
+
 ### KI-225 — ChatTitleService использует ILmStudioClient напрямую (не IChatLlmClient)
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.11
