@@ -3299,7 +3299,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-230 — Chat: кнопка «Продолжить» после `finish_reason=length`
 
-- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.13.13
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v1.13.13)** | **Исправлено в:** v1.13.13
 - **Обнаружено:** 2026-10-11 (smoke — qwen3-4b часто упирается в лимит контекста).
 - **Файлы:** `ChatStreamService.cs`, `ChatStreamController.cs`, `IChatService.cs`,
   `ChatService.cs`, `ChatStreamDtos.cs`, `chat.js`, `chat.css`, `Index.cshtml`,

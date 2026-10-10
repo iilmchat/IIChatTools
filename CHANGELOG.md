@@ -18,6 +18,17 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.13.13] — 2026-10-11
+
+**KI-230 — Chat: кнопка «Продолжить» после `finish_reason=length`.**
+ChatGPT-style Continue для обрезанных ответов локальных моделей: warning-плашка
+⚠️ + кнопка «➕ Продолжить» → дописывает контент в **существующий** assistant-bubble
+(append в БД, один bubble в UI, тексты сливаются без шва).
+
 ### Added
 - **KI-230 — Chat: кнопка «Продолжить» после `finish_reason=length`**:
   - **Backend:** `ChatStreamRequest.ContinueFromAssistantMessageId` (`int?`) +
@@ -36,7 +47,24 @@
     контент + markdown-перерендер. Один bubble, тексты сливаются (ChatGPT-style).
   - **Локализация RU + EN:** 3 ключа (`ChatMessageLengthWarning`,
     `ChatMessageContinue`, `ChatMessageContinueTooltip`).
-  - **Оценка:** ~2 ч.
+
+### Changed
+- **Bump version 1.13.12 → 1.13.13** (`Directory.Build.props`, README).
+
+### Docs
+- **RULES v1.4.33:**
+  - § 4.52 — CS1631: `yield return` запрещён в `catch`; паттерн «сохранить
+    ошибку в переменную, `yield return` — после блока».
+  - § 4.53 — расширение § 4.34: после изменения **любого** сервис-интерфейса
+    (`I*Service`, не только `ITool`) — обязательный grep по всем fake-заглушкам.
+    Прецеденты: KI-126 (IToolRegistry), KI-230 (IChatService).
+
+### Smoke (2026-10-11)
+- ✅ **Backend:** Build 0/0, Tests 1115/1115.
+- ✅ **CI + Docker Publish + Sync Issues** — зелёные (`7a7e812`, `381c6ef`).
+- 🟡 **Ручной smoke Continue** — pending (нужен реальный `finish_reason=length`;
+  на qwen3-4b с `MaxTokens=4096` срабатывает нечасто — модель завершает
+  текстом-отказом с `stop`). Проверка: временно `MaxTokens=200`.
 
 ---
 

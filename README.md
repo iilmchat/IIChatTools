@@ -1,10 +1,10 @@
-# IIChatTools v1.13.12
+# IIChatTools v1.13.13
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.12
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.13
 
 ---
 
@@ -441,6 +441,7 @@ dotnet run --project IIChatTools.API
 - 📝 **Markdown-рендеринг** ответов (`marked` + `DOMPurify`) + **подсветка синтаксиса** (`highlight.js`).
 - 💻 **Code blocks** — шапка с языком + кнопки Copy / Download.
 - 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций, SSE `tool_call` / `tool_result`). Tool-блоки рендерятся карточками `<details>`: иконка агента + короткий summary + status badge, JSON — во вложенном свёрнутом блоке (KI-228).
+- ➕ **Continue после лимита** (KI-230) — если ответ обрезан по лимиту контекста (`finish_reason=length`), под bubble появляется плашка ⚠️ + кнопка «➕ Продолжить». Клик → стрим дописывается в **тот же** bubble (append в БД, один пузырь, тексты сливаются без шва). ChatGPT-style.
 - 🖼 **Lightbox для скриншотов** (KI-229) — PNG от `vision_agent` открывается в full-screen overlay: zoom (wheel / кнопки), pan (drag / стрелки), fit-width / fit-page, скачать PNG, скопировать путь, `Esc` / клик по фону — закрыть. При F5 (base64 не хранится в БД) — placeholder + кнопка «Открыть скриншот» через endpoint `GET /api/chat/{chatId}/screenshots/{taskId}/{fileName}`.
 - 📎 **RAG-вложения** — прикрепить файлы к чату (📎): PlainText + Pdf + Docx (30 расширений, ≤32 MB, ≤5 файлов). Сканы PDF — OCR через Tesseract (v1.13.x, KI-203). Чипы с метриками под полем ввода, кнопка «Очистить RAG». Auto-inject top-K из attached-чанков в system prompt (Шаг 6C).
 - 📚 **Источники (Sources)** — под ответом ассистента: список использованных LLM источников с указанием имени/URL. Для RAG — `RULES.md · chunk 15 · score 0.71`; для web/wiki — кликабельная ссылка (`Москва — Википедия`, `example.com`). Snippet — в tooltip при hover. **Live-режим** (через SSE `done`) и **F5-режим** (из `ChatMessageDto.Sources`). Покрыто: RAG-чанки, `wikipedia_search`, `web_search`, `fetch_web_content` (включая проброс через агентов).
@@ -1177,8 +1178,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.12
-    docker pull ghcr.io/iilmchat/iichattools:1.13.12
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.13
+    docker pull ghcr.io/iilmchat/iichattools:1.13.13
     docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 
