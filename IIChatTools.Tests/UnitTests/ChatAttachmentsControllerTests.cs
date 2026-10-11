@@ -151,7 +151,20 @@ namespace IIChatTools.Tests.UnitTests
                 CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
-            }                
+            }
+
+            /// <summary>
+            /// KI-233: fake-заглушка. Тесты ChatAttachmentsController не используют
+            /// feedback — NotImplementedException как защита от случайного вызова.
+            /// </summary>
+            public Task<ChatMessage> SetFeedbackAsync(
+                int messageId,
+                int userId,
+                string feedback,
+                CancellationToken cancellationToken = default)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>

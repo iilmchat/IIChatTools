@@ -174,6 +174,7 @@ namespace IIChatTools.API.Controllers
                         Sources = ParseSources(m.MetadataJson),
                         // v1.11.0 (KI-129): sessionId для маппинга toolCallId → сессия.
                         DebateSessionId = ParseDebateSessionId(m.MetadataJson),
+                        Feedback = m.Feedback,   // KI-233,
                         // Сырой JSON — оставляем для отладки / API-совместимости.
                         MetadataJson = m.MetadataJson
                     }).ToList()

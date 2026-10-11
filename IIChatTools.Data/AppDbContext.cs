@@ -117,7 +117,8 @@ namespace IIChatTools.Data
                 entity.Property(e => e.ToolCallId).HasMaxLength(100);
                 entity.Property(e => e.ToolName).HasMaxLength(100);
                 // ToolCallsJson — без MaxLength (может быть большой)
-
+                entity.Property(e => e.Feedback).HasMaxLength(16);
+                
                 entity.HasOne(e => e.Chat)
                     .WithMany(c => c.Messages)
                     .HasForeignKey(e => e.ChatId)

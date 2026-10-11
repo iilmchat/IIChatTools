@@ -360,6 +360,83 @@ namespace IIChatTools.API.Controllers
         }
 
         // ============================================================
+        // KI-233: Feedback (👍 / 👎) — REST для assistant-сообщений
+        // ============================================================
+
+        /// <summary>
+        /// v1.13.16 (KI-233): устанавливает / снимает оценку пользователя
+        /// для assistant-сообщения (👍 / 👎).
+        ///
+        /// <para>
+        /// Тело запроса: <c>{ "feedback": "positive" | "negative" | null }</c>.
+        /// <c>null</c> — снять ранее поставленную оценку.
+        /// </para>
+        /// </summary>
+        /// <param name="id">ID assistant-сообщения.</param>
+        /// <param name="request">Тело запроса (<c>{ feedback }</c>).</param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// JSON <c>{ success, data: { messageId, feedback } }</c>
+        /// или <c>{ success: false, message }</c>.
+        /// </returns>
+        [HttpPost("messages/{id:int}/feedback")]
+        public async Task<IActionResult> SetFeedbackAsync(
+            int id,
+            [FromBody] SetFeedbackRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                // request может быть null (тело пустое) — трактуем как «снять оценку».
+                var feedback = request?.Feedback;
+
+                // Пустая строка → null (клиент мог прислать "" вместо null).
+                if (string.IsNullOrEmpty(feedback))
+                {
+                    feedback = null;
+                }
+
+                var userId = GetCurrentUserId();
+
+                var updated = await _chatService.SetFeedbackAsync(
+                    id, userId, feedback, cancellationToken);
+
+                if (updated == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "Сообщение не найдено, не является assistant-сообщением, " +
+                                  "или не принадлежит вашему чату."
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        messageId = updated.Id,
+                        feedback = updated.Feedback
+                    }
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return Ok(new { success = false, message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка feedback: messageId={MessageId}", id);
+                return Ok(new { success = false, message = "Внутренняя ошибка сервера." });
+            }
+        }
+
+        // ============================================================
         // Approvals (Фаза 1.7) — REST для resolve tool-call decisions
         // ============================================================
 

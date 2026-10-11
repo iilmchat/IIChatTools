@@ -162,6 +162,24 @@ namespace IIChatTools.Services.DTO.Chat
         /// <c>null</c> для остальных сообщений.
         /// </summary>
         public int? DebateSessionId { get; set; }
+
+        /// <summary>
+        /// v1.13.16 (KI-233): оценка пользователя для assistant-сообщения.
+        /// <c>"positive"</c> (👍), <c>"negative"</c> (👎) или <c>null</c> (нет).
+        /// </summary>
+        public string Feedback { get; set; }
+    }
+
+    /// <summary>
+    /// v1.13.16 (KI-233): запрос на установку / снятие оценки assistant-сообщения.
+    /// <c>null</c> в <see cref="Feedback"/> = снять оценку.
+    /// </summary>
+    public class SetFeedbackRequest
+    {
+        /// <summary>
+        /// <c>"positive"</c> / <c>"negative"</c> / <c>null</c>.
+        /// </summary>
+        public string Feedback { get; set; }
     }
 
     /// <summary>

@@ -761,5 +761,62 @@ namespace IIChatTools.Services.Implementation
 
             return message;
         }
+
+        /// <inheritdoc />
+        public async Task<ChatMessage> SetFeedbackAsync(
+            int messageId,
+            int userId,
+            string feedback,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Валидация допустимых значений.
+            // null = снять оценку; "positive" / "negative" = установить.
+            if (feedback != null &&
+                feedback != "positive" &&
+                feedback != "negative")
+            {
+                throw new ArgumentException(
+                    $"Недопустимое значение feedback: '{feedback}'. " +
+                    "Допустимо: \"positive\", \"negative\" или null.",
+                    nameof(feedback));
+            }
+
+            // 2. Загружаем сообщение.
+            var message = await _dbContext.ChatMessages
+                .FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken);
+            if (message == null)
+            {
+                return null;
+            }
+
+            // 3. Проверяем владение через чат (как EditUserMessageAsync).
+            var chat = await _dbContext.Chats
+                .FirstOrDefaultAsync(
+                    c => c.Id == message.ChatId && c.UserId == userId,
+                    cancellationToken);
+            if (chat == null)
+            {
+                // Намеренно обобщённый ответ — не палим чужие чаты.
+                return null;
+            }
+
+            // 4. Только assistant-сообщения могут иметь feedback.
+            if (!string.Equals(message.Role, "assistant", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            // 5. Устанавливаем / снимаем оценку.
+            message.Feedback = feedback;
+            message.UpdatedAt = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "SetFeedback: messageId={MessageId}, userId={UserId}, feedback={Feedback}",
+                messageId, userId, feedback ?? "(null)");
+
+            return message;
+        }
     }
 }

@@ -18,7 +18,23 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **KI-233 — Chat: 👍/👎 feedback на assistant-message** (в работе):
+  - `ChatMessage.Feedback` — nullable `string` (`"positive"` / `"negative"` / null).
+  - Миграция `AddChatMessageFeedback` (SqlServer).
+  - `IChatService.SetFeedbackAsync(messageId, userId, feedback)` — установка / снятие.
+  - Endpoint `POST /api/chat/messages/{id}/feedback` с `{ feedback }`.
+  - `ChatMessageDto.Feedback` — для UI.
+  - **Локализация RU + EN:** +2 ключа (после frontend-части).
+
+### Documented
+- **KI-239** — слабые LLM (qwen3-4b) галлюцинируют синтаксис mermaid
+  (gantt, ER). `mermaid.render` → `Parse error` → fallback
+  «⚠️ Не удалось отрисовать диаграмму» + исходник как `<pre>`.
+  **Не блокер:** 11 из 12 типов диаграмм стабильны.
+
+### Planned
+- **KI-240** — Chat: Feedback — Admin UI + экспорт JSONL для датасета (v1.14).
 
 ---
 

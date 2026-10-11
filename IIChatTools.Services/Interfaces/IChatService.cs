@@ -243,5 +243,31 @@ namespace IIChatTools.Services.Interfaces
             long? firstTokenMs,
             string finishReason,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// v1.13.16 (KI-233): устанавливает / снимает оценку пользователя
+        /// для assistant-сообщения (👍 / 👎).
+        ///
+        /// <para>
+        /// <paramref name="feedback"/> принимает <c>"positive"</c>,
+        /// <c>"negative"</c> или <c>null</c> (снять оценку).
+        /// Владение проверяется через <c>chat.UserId</c> (как
+        /// <see cref="EditUserMessageAsync"/>).
+        /// </para>
+        /// </summary>
+        /// <param name="messageId">ID assistant-сообщения.</param>
+        /// <param name="userId">ID пользователя (проверка владения через чат).</param>
+        /// <param name="feedback">
+        /// <c>"positive"</c> / <c>"negative"</c> / <c>null</c>.
+        /// </param>
+        /// <param name="cancellationToken">Токен отмены.</param>
+        /// <returns>
+        /// Обновлённое сообщение или <c>null</c> (не найдено / чужое / не assistant).
+        /// </returns>
+        Task<ChatMessage> SetFeedbackAsync(
+            int messageId,
+            int userId,
+            string feedback,
+            CancellationToken cancellationToken = default);
     }
 }

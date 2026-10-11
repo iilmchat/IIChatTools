@@ -87,5 +87,17 @@ namespace IIChatTools.Data.Entities
         /// <c>null</c> — метаданных нет (user/tool/старые assistant).
         /// </summary>
         public string MetadataJson { get; set; }
+
+        /// <summary>
+        /// v1.13.16 (KI-233): оценка пользователя для assistant-сообщения.
+        /// Допустимые значения: <c>"positive"</c>, <c>"negative"</c> или <c>null</c> (нет оценки).
+        ///
+        /// <para>
+        /// Используется для будущего сбора датасета (RLHF / fine-tuning).
+        /// Отдельный enum не вводится намеренно — string проще в отладке
+        /// и при экспорте в JSONL (см. KI-240).
+        /// </para>
+        /// </summary>
+        public string Feedback { get; set; }
     }
 }

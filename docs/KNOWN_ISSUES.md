@@ -3383,9 +3383,63 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-239 — Chat: слабые LLM галлюцинируют синтаксис mermaid (gantt, ER)
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Обнаружено:** 2026-10-11 (smoke KI-232 — gantt-диаграмма).
+- **Файлы:** `chat.js` (обработка ошибок `mermaid.render`), документация KI-232.
+- **Описание:** qwen3-4b (4B параметров) на запрос «Составь gantt-план
+  на неделю» генерирует **невалидный синтаксис mermaid**:
+    ```text
+    sections ← должно быть section (ед.ч.)
+    Неделя 1, 2023-10-03 ... ← должно быть внутри section через :
+    task id: Task1, ... ← должно быть Task1 :desc, id, 2023-10-03, 2d
+    ```
+`mermaid.render` бросает `Parse error` → наш обработчик показывает
+fallback «⚠️ Не удалось отрисовать диаграмму» + исходник как `<pre>`.
+Это **не баг интеграции** — это ограничение 4B-модели.
+- **Не блокер:** 11 из 12 типов диаграмм (flowchart / sequence / class /
+state / er / pie / gitgraph / mindmap / timeline / journey / quadrant /
+requirement) работают **стабильно**. Gantt требует более точного
+синтаксиса — 4B-модель не справляется.
+- **Возможные решения:**
+- **A.** Few-shot в SystemPrompt: примеры корректного gantt-синтаксиса.
+- **B.** Модель побольше (`qwen3-14b` / `qwen3-30b`). GPU-bound.
+- **C.** Ничего не делать — пользователь повторяет запрос.
+- **D.** Промпт-fix: если запрос «gantt», добавить инструкцию
+  «использовать формат `Task1 :desc, id, start, duration`».
+- **Не блокер.** Пользователь видит fallback → сам решает повторить
+или переключить модель.
+
+---
+
+### KI-240 — Chat: Feedback — Admin UI + экспорт JSONL для датасета
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
+- **Обнаружено:** 2026-10-11 (при реализации KI-233).
+- **Файлы (план):** `Views/Home/Admin.cshtml` (10-я вкладка),
+`wwwroot/js/modules/admin-feedback.js` (новый),
+`IAdminFeedbackService.cs` + `AdminFeedbackService.cs` (новые),
+`AdminFeedbackController.cs` (новый),
+`SharedResources*.resx` (RU + EN).
+- **Описание:** В v1.13.16 (KI-233) реализовано **хранение** 👍/👎 оценок
+в `ChatMessage.Feedback`. Но **UI для просмотра и экспорта датасета нет**.
+Для будущего RLHF / fine-tuning нужен инструмент: админ открывает
+`/admin → Feedback`, фильтрует, экспортирует JSONL.
+- **Что входит (v1.14):**
+- `GET /api/admin/feedback?filter=positive|negative|all&page=...` —
+  список сообщений с оценками (пагинация).
+- `GET /api/admin/feedback/export?filter=...` — JSONL-файл с полями
+  `{ messageId, chatId, userId, role, content, feedback, tokensIn, tokensOut, createdAt }`.
+- UI-вкладка в `/admin` (10-я): таблица + фильтры + кнопка «Экспорт JSONL».
+- Опционально: экспорт «только 👍» / «только 👎» / «пары (assistant + user-prompt)».
+- **Оценка:** ~2-3 ч.
+
+---
+
 ### KI-232 — Chat: рендеринг Mermaid (диаграммы) + KaTeX (формулы)
 
-- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.15)** | **Исправлено в:** v1.13.15
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.15)** | **Исправлено в:** v1.13.15    
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (`renderMarkdown`, `enhanceCodeBlocks`),
   `chat.css`, `Chat/Index.cshtml` (скрипты), `wwwroot/lib/mermaid/`,
@@ -3410,7 +3464,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-233 — Chat: 👍/👎 feedback на assistant-message
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟢 Low | **Статус:** 🟡 **In Progress** | **Запланировано:** v1.13.16
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (`renderMessageActions`), `chat.css`,
   `IChatService` (+`SetFeedbackAsync`), `ChatService.cs`,
@@ -5594,6 +5648,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.13.14) | 2 | <!-- KI-231 (D&D + Paste Image), KI-238 (RAG для images через OCR) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
 | Fixed (v1.13.15) | 1 | <!-- KI-232 (Mermaid + KaTeX) -->
+| Fixed (v1.13.16) | 1 | <!-- KI-233 (👍/👎 feedback) — в работе -->
+| Documented | 14 | <!-- +KI-239 (mermaid syntax hallucinations) -->
+| Planned | 14 | <!-- +KI-240 (Feedback Admin UI + JSONL) -->
 | Planned (Chat UX, v1.13.x+) | 5 | <!-- KI-233..KI-237 (Feedback, Retry, Suggested, Hotkeys help, UX backlog). KI-232 → Fixed (v1.13.15). -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->

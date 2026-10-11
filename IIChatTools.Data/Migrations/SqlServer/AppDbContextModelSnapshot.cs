@@ -469,6 +469,10 @@ namespace IIChatTools.Data.Migrations.SqlServer
                     b.Property<long?>("DurationMs")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
                     b.Property<string>("FinishReason")
                         .HasColumnType("nvarchar(max)");
 
