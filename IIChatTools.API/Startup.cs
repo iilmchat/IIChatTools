@@ -462,6 +462,10 @@ namespace IIChatTools.API
             services.AddSingleton<IRagDocumentParser, PlainTextParser>();
             services.AddSingleton<IRagDocumentParser, PdfParser>();
             services.AddSingleton<IRagDocumentParser, DocxParser>();
+            // v1.13.14 (KI-238): image-парсер через IOcrService (Tesseract).
+            // Регистрируется всегда; при Ocr:Enabled=false / IsReady=false —
+            // graceful: возвращает пустой текст (attachment с 0 чанков).
+            services.AddSingleton<IRagDocumentParser, ImageOcrParser>();
             services.AddSingleton<IRagDocumentParserRegistry, RagDocumentParserRegistry>();
 
             // v1.13.x (KI-203): OCR для сканов PDF.

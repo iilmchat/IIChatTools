@@ -18,7 +18,25 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **KI-231 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V)** (frontend-only):
+  - **D&D** на `.chat-input-box`: `dragover` / `dragleave` / `drop`
+    (счётчик `dragenter`/`dragleave` против мигания при перетаскивании
+    над вложенными элементами). Подсветка `.drag-over` с overlay
+    «Отпустите, чтобы загрузить».
+  - **Paste Image** на `#chat-input`: `image/*` из буфера → PNG-файл
+    `screenshot-YYYYMMDD-HHMMSS.{ext}` → `uploadFiles`. Текст — стандартное
+    поведение браузера (без изменений).
+  - **Локализация RU + EN:** +2 ключа (`ChatDropHint`,
+    `ChatPasteImageName`).
+- **KI-238 — Chat: RAG support для images (OCR parser + whitelist)**:
+  - `Rag:Ingestion:AllowedExtensions` + 6 image-форматов
+    (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`) — и dev, и prod.
+  - Новый `ImageOcrParser : IRagDocumentParser` — Tesseract через
+    `IOcrService` (уже есть с KI-203). `IsReady=false` → graceful
+    пустой текст (attachment с 0 чанков, тот же паттерн, что у `PdfParser`
+    для OCR-сканов PDF).
+  - Регистрация в `Startup.cs` (1 строка после `DocxParser`).
 
 ---
 

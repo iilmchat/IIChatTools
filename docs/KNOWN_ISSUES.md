@@ -3329,6 +3329,31 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
+### KI-238 — Chat: RAG support для images (OCR parser + whitelist)
+
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.14)** | **Исправлено в:** v1.13.14
+- **Обнаружено:** 2026-10-11 (smoke KI-231 — Paste Image из clipboard).
+- **Файлы:** `IIChatTools.Services/Implementation/Rag/Parsers/ImageOcrParser.cs`
+  (новый), `Startup.cs`, `appsettings.json`, `appsettings.Development.json`.
+- **Описание:** `ChatDropHint` + `onChatInputPaste` (KI-231) уже
+  отправляют PNG в `uploadFiles`, но backend отклоняет его:
+  `Rag:Ingestion:AllowedExtensions` не содержит image-форматов.
+  Пользователь видит тост «Формат файла не поддерживается: .png».
+- **Решение (v1.13.14):**
+  - `AllowedExtensions` + 6 image-форматов
+    (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`) — и dev, и prod.
+  - Новый `ImageOcrParser : IRagDocumentParser`: читает байты картинки →
+    `IOcrService.RecognizeAsync` (Tesseract, уже есть с KI-203) → текст.
+    Метаданные: `format`, `parser=ImageOcr`, `ocrAvailable`, `ocrChars`.
+  - `IOcrService.IsReady = false` (Linux / native lib / `Ocr:Enabled=false`) →
+    graceful: возвращает пустой текст, attachment создаётся с 0 чанков
+    (тот же паттерн, что у `PdfParser` для OCR-сканов PDF — KI-203).
+  - Регистрация в `Startup.cs` (1 строка после `DocxParser`).
+- **Побочный эффект:** скриншоты от `vision_agent(action='screenshot')`
+  теперь можно прикладывать к чату → LLM «читает» содержимое через RAG.
+
+---
+
 ### KI-231 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V)
 
 - **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.14
@@ -5566,8 +5591,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.13.x, KI-137/203/215/216) | 4 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression), KI-216 (MaxTaskSeconds) -->
 | Fixed (v1.13.12) | 2 | <!-- KI-228 (tool-block rendering), KI-229 (lightbox + F5-fallback) -->
 | Fixed (v1.13.13) | 1 | <!-- KI-230 (Continue button после finish_reason=length) -->
+| Fixed (v1.13.14) | 2 | <!-- KI-231 (D&D + Paste Image), KI-238 (RAG для images через OCR) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
-| Planned (Chat UX, v1.13.x+) | 7 | <!-- KI-231..KI-237 (D&D+Paste, Mermaid+KaTeX, Feedback, Retry, Suggested, Hotkeys help, UX backlog) -->
+| Planned (Chat UX, v1.13.x+) | 6 | <!-- KI-232..KI-237 (Mermaid+KaTeX, Feedback, Retry, Suggested, Hotkeys help, UX backlog). KI-231 → Fixed (v1.13.14). -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **195** |
