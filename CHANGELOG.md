@@ -18,7 +18,14 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **KI-234 — Chat: Retry в error-bubble** (в работе):
+  - При ошибке стрима (network error / 5xx / SSE-обрыв) в error-bubble
+    появляется компактная inline-кнопка **«🔄 Повторить»**.
+  - Клик → удаляет error-bubble → `regenerateLastMessage({ allowNoAssistant: true })`.
+    Поведение как в ChatGPT: новый стрим = новый bubble, старый error уходит.
+  - Компактная inline-кнопка в цвет error-плашки (не полный `.chat-message-action`).
+  - **Локализация RU + EN:** +1 ключ (`ChatRetryError`).
 
 ---
 

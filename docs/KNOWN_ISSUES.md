@@ -3486,7 +3486,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-234 — Chat: Retry в error-bubble (после network error)
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟢 Low | **Статус:** 🟡 **In Progress** | **Запланировано:** v1.13.17
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (`appendAssistantError`, `renderMessageActions`),
   `chat.css`.
@@ -5651,7 +5651,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Fixed (v1.13.16) | 1 | <!-- KI-233 (👍/👎 feedback) -->
 | Documented | 14 | <!-- +KI-239 (mermaid syntax hallucinations) -->
 | Planned | 14 | <!-- +KI-240 (Feedback Admin UI + JSONL) -->
-| Planned (Chat UX, v1.13.x+) | 5 | <!-- KI-233..KI-237 (Feedback, Retry, Suggested, Hotkeys help, UX backlog). KI-232 → Fixed (v1.13.15). -->
+| Fixed (v1.13.17) | 1 | <!-- KI-234 (Retry в error-bubble) — в работе -->
+| Planned (Chat UX, v1.13.x+) | 5 | <!-- KI-235..KI-237 (Suggested, Hotkeys help, UX backlog). KI-234 → Fixed (v1.13.17). -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **195** |

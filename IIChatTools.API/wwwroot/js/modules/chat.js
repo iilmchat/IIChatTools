@@ -3992,6 +3992,13 @@ function finalizeAssistantBubble(bubble, data) {
 
 /**
  * Показывает ошибку в пузыре ассистента.
+ *
+ * <para>
+ * v1.13.17 (KI-234): добавлена кнопка «Повторить» прямо в error-bubble.
+ * Клик → удаляет текущий bubble → запускает regenerate (allowNoAssistant).
+ * Поведение как в ChatGPT: новый стрим = новый bubble, старый error уходит.
+ * </para>
+ *
  * @param {HTMLElement} bubble
  * @param {string} message
  */
@@ -4001,7 +4008,23 @@ function appendAssistantError(bubble, message) {
     if (!contentEl) return;
 
     contentEl.classList.add('chat-message-error');
-    contentEl.innerHTML = `⚠️ ${escapeHtml(message)}`;
+
+    // KI-234: компактная inline-кнопка Retry в цвет error-плашки.
+    // Локализация через data-label-retry-error на #chat-messages (RULES § 4.17).
+    const container = document.getElementById('chat-messages');
+    const retryLabel = container?.dataset.labelRetryError || 'Повторить';
+
+    contentEl.innerHTML = `
+        <div class="chat-message-error-content">
+            <span class="chat-message-error-icon" aria-hidden="true">⚠️</span>
+            <span class="chat-message-error-text">${escapeHtml(message)}</span>
+        </div>
+        <button type="button"
+                class="chat-message-error-retry"
+                data-action="retry-error"
+                title="${escapeAttr(retryLabel)}"
+                aria-label="${escapeAttr(retryLabel)}">🔄 ${escapeHtml(retryLabel)}</button>`;
+
     scrollToBottom();
 }
 
@@ -4858,6 +4881,27 @@ async function setMessageFeedback(bubble, messageId, feedback) {
  * @param {MouseEvent} e
  */
 async function onMessageActionClick(e) {
+    // KI-234: Retry из error-bubble.
+    const retryErrorBtn = e.target.closest('[data-action="retry-error"]');
+    if (retryErrorBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (state.isStreaming) return;
+        if (!state.activeChatId) {
+            toast('Сначала выберите чат', 'warning');
+            return;
+        }
+
+        // Удаляем error-bubble (как в ChatGPT): новый стрим = новый bubble.
+        retryErrorBtn.closest('.chat-message')?.remove();
+
+        // Реюз существующего regenerate (KI-065) — работает и когда
+        // assistant-ответа ещё нет (после Stop / error).
+        await regenerateLastMessage({ allowNoAssistant: true });
+        return;
+    }
+
     // KI-233: 👍 / 👎 feedback на assistant-сообщении.
     const fbPositive = e.target.closest('[data-action="feedback-positive"]');
     const fbNegative = e.target.closest('[data-action="feedback-negative"]');

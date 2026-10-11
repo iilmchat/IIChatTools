@@ -1026,5 +1026,8 @@
   </data>
   <data name="ChatFeedbackNegative" xml:space="preserve">
     <value>Плохой ответ</value>
-  </data>    
+  </data>
+  <data name="ChatRetryError" xml:space="preserve">
+    <value>Повторить</value>
+  </data>      
 </root>

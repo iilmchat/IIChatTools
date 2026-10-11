@@ -573,6 +573,55 @@
     padding: .5rem .75rem;
     border-radius: .375rem;
     font-size: .9rem;
+    /* KI-234: контейнер для content + кнопки Retry. */
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+/* KI-234: содержимое error-сообщения (иконка + текст). */
+.chat-message-error-content {
+    display: flex;
+    align-items: flex-start;
+    gap: .4rem;
+}
+
+.chat-message-error-icon {
+    flex-shrink: 0;
+    font-size: 1rem;
+    line-height: 1.2;
+}
+
+.chat-message-error-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-wrap: break-word;
+}
+
+/* KI-234: компактная inline-кнопка Retry — в цвет error-плашки. */
+.chat-message-error-retry {
+    align-self: flex-start;
+    padding: .25rem .7rem;
+    border: 1px solid var(--bs-danger-border-subtle);
+    border-radius: .375rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-danger-text-emphasis);
+    font-size: .8rem;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+.chat-message-error-retry:hover {
+    background: var(--bs-danger);
+    color: var(--bs-white);
+    border-color: var(--bs-danger);
+}
+
+.chat-message-error-retry:focus-visible {
+    outline: 2px solid var(--bs-danger);
+    outline-offset: 2px;
 }
 
 /* tool_result — компактный статус success/error */
