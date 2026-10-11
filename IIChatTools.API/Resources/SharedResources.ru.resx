@@ -253,7 +253,7 @@
   <!-- ===== Chat: Sources / citations (v1.6.0, KI-086, Шаг 4) ===== -->
   <data name="ChatSourcesHeader" xml:space="preserve"><value>Источники</value></data>
   <data name="ChatSourceChunkMeta" xml:space="preserve"><value>фрагмент {0}</value></data>
-  
+
     <data name="AdminTabAgents" xml:space="preserve">
       <value>Агенты</value>
     </data>
@@ -889,7 +889,7 @@
     </data>
     <data name="ChatDebateOrphaned" xml:space="preserve">
       <value>⚠️ Прервано</value>
-    </data>    
+    </data>
     <data name="ChatDebateDetailsShow" xml:space="preserve">
       <value>▼ Показать детали ({0})</value>
     </data>
@@ -1017,5 +1017,8 @@
   </data>
   <data name="ChatPasteImageName" xml:space="preserve">
     <value>скриншот</value>
-  </data>      
+  </data>
+  <data name="ChatMermaidError" xml:space="preserve">
+    <value>Не удалось отрисовать диаграмму</value>
+  </data>  
 </root>

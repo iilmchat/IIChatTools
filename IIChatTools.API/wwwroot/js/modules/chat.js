@@ -4247,22 +4247,218 @@ function renderMarkdown(text) {
     }
 
     try {
+        // KI-232: pre-extract $...$ / $$...$$ до marked (KaTeX-формулы
+        // ломают markdown-парсер: `_`, `*`, `{}` трактуются как разметка).
+        const { text: textForMarked, katex: katexItems } = preExtractKatex(text);
+
         // breaks: true — одиночный \n превращается в <br> (удобно для чата).
-        const rawHtml = window.marked.parse(text, { breaks: true, gfm: true });
-        return window.DOMPurify.sanitize(rawHtml, {
+        const rawHtml = window.marked.parse(textForMarked, { breaks: true, gfm: true });
+
+        // KI-232: расширенный ALLOWED_TAGS — SVG (mermaid) + MathML (katex).
+        const sanitized = window.DOMPurify.sanitize(rawHtml, {
             ALLOWED_TAGS: [
+                // Базовые
                 'p', 'br', 'strong', 'em', 'del', 'code', 'pre',
                 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
                 'ul', 'ol', 'li', 'blockquote', 'hr',
                 'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-                'span', 'div'
+                'span', 'div',
+                // KI-232: SVG (mermaid рендерит SVG-графику)
+                'svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line',
+                'polygon', 'polyline', 'text', 'tspan', 'defs', 'marker',
+                'use', 'title', 'desc',
+                // KI-232: MathML (katex рендерит MathML для screen readers)
+                'math', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'msubsup',
+                'mfrac', 'msqrt', 'mroot', 'mover', 'munder', 'munderover',
+                'mtable', 'mtr', 'mtd', 'mtext', 'mspace', 'mphantom', 'mpadded',
+                'annotation', 'semantics',
+                // KaTeX HTML-фоллбэк (когда MathML не поддерживается)
+                'span'
             ],
-            ALLOWED_ATTR: ['href', 'title', 'alt', 'src', 'class', 'target', 'rel'],
+            ALLOWED_ATTR: [
+                'href', 'title', 'alt', 'src', 'class', 'target', 'rel',
+                // SVG
+                'd', 'viewBox', 'xmlns', 'transform', 'fill', 'stroke',
+                'stroke-width', 'stroke-linecap', 'stroke-linejoin',
+                'x', 'y', 'width', 'height',
+                'x1', 'y1', 'x2', 'y2',
+                'cx', 'cy', 'r', 'rx', 'ry',
+                'points', 'marker-end', 'marker-start', 'marker-mid',
+                'text-anchor', 'dominant-baseline', 'font-size', 'font-family',
+                'id', 'refX', 'refY', 'orient', 'markerWidth', 'markerHeight',
+                'markerUnits', 'aria-hidden', 'aria-label', 'role',
+                // MathML
+                'mathvariant', 'displaystyle', 'scriptlevel', 'stretchy',
+                'fence', 'separator', 'lspace', 'rspace',
+                // KaTeX
+                'aria-hidden', 'style'
+            ],
+            // KI-232: сохраняем `data-*` (в т.ч. для маркеров mermaid).
+            ALLOW_DATA_ATTR: true,
+            // Разрешаем `style` в MathML/KaTeX (используется для layout).
+            ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
         });
+
+        // KI-232: post-render KaTeX. Async не нужен — katex.renderToString
+        // синхронный; loadKatex() — только на случай, если ещё не загружен.
+        // Если katex не загрузится — placeholder'ы останутся как `%%KATEX...%%`,
+        // что некрасиво, но не сломает чат. Поэтому вызываем fire-and-forget.
+        if (katexItems.length > 0) {
+            renderKatexPlaceholdersAsync(sanitized, katexItems)
+                .then(finalHtml => {
+                    // Заменяем innerHTML у ближайшего .chat-message-content
+                    // (в F5-режиме или при live-стриме уже отрисован sanitized).
+                    replacePlaceholderHtml(sanitized, finalHtml);
+                })
+                .catch(ex => console.warn('[chat] KaTeX render error:', ex));
+        }
+
+        return sanitized;
     } catch (ex) {
         console.warn('[chat] Markdown parse error:', ex);
         return escapeHtml(text).replace(/\n/g, '<br>');
     }
+}
+
+/**
+ * KI-232: pre-extract KaTeX-формул из текста.
+ * Заменяет $...$ и $$...$$ на placeholder'ы %%KATEX..., которые
+ * уцелеют при проходе через marked + DOMPurify.
+ *
+ * @param {string} text
+ * @returns {{ text: string, katex: Array<{ id: string, tex: string, display: boolean }> }}
+ */
+function preExtractKatex(text) {
+    const items = [];
+
+    // 1. Блочные $$...$$ (могут быть многострочными).
+    let out = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+        const id = `KATEXBLOCK${items.length}`;
+        items.push({ id, tex: tex.trim(), display: true });
+        return `%%${id}%%`;
+    });
+
+    // 2. Inline $...$ — только одиночные $, без \n внутри, без $$.
+    //    Используем (?<!\$) / (?!\$) — negative lookbehind/lookahead
+    //    (поддерживается в Chrome 62+, Firefox 78+, Safari 16.4+).
+    out = out.replace(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_, tex) => {
+        const id = `KATEXINLINE${items.length}`;
+        items.push({ id, tex: tex.trim(), display: false });
+        return `%%${id}%%`;
+    });
+
+    return { text: out, katex: items };
+}
+
+/**
+ * KI-232: рендерит placeholder'ы %%KATEX...%% в HTML через KaTeX.
+ * Lazy-load библиотеки, если ещё не загружена.
+ * @param {string} html
+ * @param {Array<{ id: string, tex: string, display: boolean }>} items
+ * @returns {Promise<string>}
+ */
+async function renderKatexPlaceholdersAsync(html, items) {
+    if (items.length === 0) return html;
+
+    try {
+        await loadKatex();
+    } catch (ex) {
+        console.warn('[chat] KaTeX не загрузился, формулы останутся как placeholder:', ex);
+        // Fallback: replace %%KATEX...%% на простое <code>$tex$</code>.
+        let fb = html;
+        for (const item of items) {
+            const ph = `%%${item.id}%%`;
+            const escaped = escapeHtml(item.tex);
+            const wrapped = item.display
+                ? `<pre class="chat-katex-fallback">${escaped}</pre>`
+                : `<code class="chat-katex-fallback">${escaped}</code>`;
+            fb = fb.replace(ph, wrapped);
+        }
+        return fb;
+    }
+
+    let out = html;
+    for (const item of items) {
+        const ph = `%%${item.id}%%`;
+        let rendered;
+        try {
+            rendered = window.katex.renderToString(item.tex, {
+                displayMode: item.display,
+                throwOnError: false,
+                strict: 'ignore',
+                output: 'htmlAndMathml',
+                trust: false,
+            });
+        } catch (ex) {
+            console.warn('[chat] KaTeX render error:', ex, 'tex:', item.tex);
+            const escaped = escapeHtml(item.tex);
+            rendered = item.display
+                ? `<pre class="chat-katex-fallback">${escaped}</pre>`
+                : `<code class="chat-katex-fallback">${escaped}</code>`;
+        }
+        out = out.replace(ph, rendered);
+    }
+    return out;
+}
+
+/**
+ * KI-232: заменяет HTML в DOM-узле, содержащем placeholder'ы.
+ * Нужно, потому что renderMarkdown синхронный (возвращает HTML с placeholder'ами),
+ * а KaTeX рендерится асинхронно (после lazy-load).
+ *
+ * Находим узел по «до»-HTML (после DOMPurify, до KaTeX-рендера).
+ * Если не нашли — молча выходим (не критично).
+ *
+ * @param {string} beforeHtml — sanitized HTML с placeholder'ами
+ * @param {string} afterHtml — HTML после KaTeX-рендера
+ */
+function replacePlaceholderHtml(beforeHtml, afterHtml) {
+    // Ищем все .chat-message-content.chat-markdown, у которых innerHTML
+    // совпадает с beforeHtml. Обычно это 1 элемент (текущий bubble),
+    // но в редких случаях — несколько (если один и тот же текст).
+    const nodes = document.querySelectorAll('.chat-message-content.chat-markdown');
+    for (const node of nodes) {
+        if (node.innerHTML === beforeHtml) {
+            node.innerHTML = afterHtml;
+            // После KaTeX-рендера — обновляем подсветку code blocks (если понадобится).
+            enhanceCodeBlocks(node.parentElement || node);
+            return;
+        }
+    }
+}
+
+/**
+ * KI-232: lazy-load KaTeX (UMD). Идемпотентно.
+ * @returns {Promise<void>}
+ */
+async function loadKatex() {
+    if (window.katex) return;
+
+    await loadStyleOnce('/lib/katex/katex.min.css', 'katex-css');
+    await loadScriptOnce('/lib/katex/katex.min.js', 'katex-js');
+
+    if (!window.katex) throw new Error('KaTeX: window.katex не определён');
+}
+
+/**
+ * KI-232: lazy-load Mermaid (UMD). Идемпотентно.
+ * @returns {Promise<void>}
+ */
+async function loadMermaid() {
+    if (window.mermaid) return;
+
+    await loadScriptOnce('/lib/mermaid/mermaid.min.js', 'mermaid-js');
+    if (!window.mermaid) throw new Error('Mermaid: window.mermaid не определён');
+
+    // Инициализация (один раз).
+    window.mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        // securityLevel: 'strict' — mermaid не выполняет HTML/JS в метках.
+        // Всё равно санитайзим через DOMPurify после render() — defense in depth.
+        securityLevel: 'strict',
+        fontFamily: 'inherit',
+    });
 }
 
 // ============ Code blocks (Фаза 2.1.4) ============
@@ -4283,6 +4479,12 @@ function enhanceCodeBlocks(root) {
         const langClass = Array.from(codeEl.classList)
             .find(c => c.startsWith('language-') || c.startsWith('lang-'));
         const lang = langClass ? langClass.replace(/^(language-|lang-)/, '') : '';
+
+        // KI-232: mermaid-блоки рендерим отдельно (не оборачиваем в chat-code-block).
+        if (lang === 'mermaid') {
+            handleMermaidBlock(pre, codeEl);
+            return;
+        }
 
         // Обёртка
         const wrapper = document.createElement('div');
@@ -4354,6 +4556,112 @@ function enhanceCodeBlocks(root) {
 }
 
 /**
+ * KI-232: обрабатывает ` ```mermaid ` блок — заменяет <pre><code> на
+ * <div class="chat-mermaid"> и рендерит диаграмму через mermaid.render().
+ *
+ * <para>
+ * Рендер ленивый: если блок уже в viewport — рендерим сразу;
+ * иначе — откладываем до попадания в viewport (IntersectionObserver).
+ * Mermaid-рендер тяжёлый (~100-300 мс на диаграмму) — на чате с 5+
+ * диаграммами немедленный рендер = фриз.
+ * </para>
+ *
+ * @param {HTMLElement} pre — <pre> обёртка
+ * @param {HTMLElement} codeEl — <code class="language-mermaid">
+ */
+function handleMermaidBlock(pre, codeEl) {
+    const source = (codeEl.textContent || '').trim();
+    if (!source) return;
+
+    // Оборачиваем в <div class="chat-mermaid"> с placeholder-состоянием.
+    const container = document.createElement('div');
+    container.className = 'chat-mermaid';
+    container.dataset.mermaidState = 'pending';
+    container.dataset.mermaidSource = source;
+
+    // Показываем исходник как placeholder (monospace), пока не отрендерилось.
+    container.innerHTML = `<pre class="chat-mermaid-source">${escapeHtml(source)}</pre>`;
+
+    pre.parentNode.insertBefore(container, pre);
+    pre.remove();
+
+    // Lazy-render: если блок в viewport — сразу, иначе — по появлению.
+    if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (entry.isIntersecting) {
+                    io.unobserve(entry.target);
+                    renderMermaidBlock(entry.target);
+                }
+            }
+        }, { rootMargin: '200px' });
+
+        io.observe(container);
+    } else {
+        // Fallback: рендерим сразу.
+        renderMermaidBlock(container);
+    }
+}
+
+/**
+ * KI-232: рендерит mermaid-блок. Идемпотентно (проверяет state).
+ * @param {HTMLElement} container — .chat-mermaid
+ */
+async function renderMermaidBlock(container) {
+    if (!container || container.dataset.mermaidState !== 'pending') return;
+
+    container.dataset.mermaidState = 'rendering';
+
+    const source = container.dataset.mermaidSource || '';
+    if (!source) {
+        container.dataset.mermaidState = 'error';
+        container.innerHTML = `<div class="chat-mermaid-error">Empty mermaid source</div>`;
+        return;
+    }
+
+    try {
+        await loadMermaid();
+    } catch (ex) {
+        console.warn('[chat] Mermaid не загрузился:', ex);
+        // Fallback: возвращаем как было — <pre> с исходником.
+        container.dataset.mermaidState = 'error';
+        container.innerHTML = `<pre class="chat-mermaid-source">${escapeHtml(source)}</pre>`;
+        return;
+    }
+
+    try {
+        // mermaid.render() возвращает { svg: string }.
+        // Уникальный id для каждого блока — mermaid использует его для defs/marker.
+        const renderId = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const { svg } = await window.mermaid.render(renderId, source);
+
+        // Defense in depth: санитайзим SVG через DOMPurify (mermaid уже
+        // с securityLevel: 'strict', но не доверяем полностью).
+        const safeSvg = window.DOMPurify
+            ? window.DOMPurify.sanitize(svg, {
+                USE_PROFILES: { svg: true, svgFilters: true },
+                ADD_TAGS: ['foreignObject', 'style', 'marker', 'defs'],
+                ADD_ATTR: ['marker-end', 'marker-start', 'marker-mid',
+                    'text-anchor', 'dominant-baseline', 'xmlns', 'viewBox'],
+            })
+            : svg;
+
+        container.innerHTML = safeSvg;
+        container.dataset.mermaidState = 'done';
+        container.classList.add('chat-mermaid-rendered');
+    } catch (ex) {
+        console.warn('[chat] Mermaid render error:', ex, 'source:', source);
+        container.dataset.mermaidState = 'error';
+        container.innerHTML = `
+            <div class="chat-mermaid-error">
+                <span class="chat-mermaid-error-icon">⚠️</span>
+                <span>Не удалось отрисовать диаграмму</span>
+            </div>
+            <pre class="chat-mermaid-source">${escapeHtml(source)}</pre>`;
+    }
+}
+
+/**
  * Скачивает текст как файл с расширением по языку.
  * @param {string} code
  * @param {string} lang
@@ -4393,6 +4701,9 @@ function langToExtension(lang) {
         markdown: 'md', md: 'md',
         dockerfile: 'Dockerfile',
         text: 'txt', plaintext: 'txt',
+        // KI-232: mermaid-блоки не имеют code-block-обёртки (enhanceCodeBlocks
+        // их вынес в .chat-mermaid), но на всякий случай — расширение.
+        mermaid: 'mmd',
     };
     return map[(lang || '').toLowerCase()] || 'txt';
 }
@@ -6567,6 +6878,29 @@ function loadScriptOnce(src, key) {
     });
 
     _loadedScripts.set(key, p);
+    return p;
+}
+
+/**
+ * KI-232: idempotent подгрузка <link rel="stylesheet">.
+ * @param {string} href
+ * @param {string} key
+ * @returns {Promise<void>}
+ */
+const _loadedStyles = new Map();
+function loadStyleOnce(href, key) {
+    if (_loadedStyles.has(key)) return _loadedStyles.get(key);
+
+    const p = new Promise((resolve, reject) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.onload = () => resolve();
+        link.onerror = () => reject(new Error(`Не удалось загрузить CSS ${href}`));
+        document.head.appendChild(link);
+    });
+
+    _loadedStyles.set(key, p);
     return p;
 }
 

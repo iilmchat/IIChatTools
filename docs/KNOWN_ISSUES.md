@@ -3385,7 +3385,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-232 — Chat: рендеринг Mermaid (диаграммы) + KaTeX (формулы)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.15)** | **Исправлено в:** v1.13.15
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (`renderMarkdown`, `enhanceCodeBlocks`),
   `chat.css`, `Chat/Index.cshtml` (скрипты), `wwwroot/lib/mermaid/`,
@@ -5593,7 +5593,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 | Fixed (v1.13.13) | 1 | <!-- KI-230 (Continue button после finish_reason=length) -->
 | Fixed (v1.13.14) | 2 | <!-- KI-231 (D&D + Paste Image), KI-238 (RAG для images через OCR) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
-| Planned (Chat UX, v1.13.x+) | 6 | <!-- KI-232..KI-237 (Mermaid+KaTeX, Feedback, Retry, Suggested, Hotkeys help, UX backlog). KI-231 → Fixed (v1.13.14). -->
+| Fixed (v1.13.15) | 1 | <!-- KI-232 (Mermaid + KaTeX) -->
+| Planned (Chat UX, v1.13.x+) | 5 | <!-- KI-233..KI-237 (Feedback, Retry, Suggested, Hotkeys help, UX backlog). KI-232 → Fixed (v1.13.15). -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **195** |

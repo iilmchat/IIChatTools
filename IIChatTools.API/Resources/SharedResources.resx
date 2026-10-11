@@ -1017,5 +1017,8 @@
   </data>
   <data name="ChatPasteImageName" xml:space="preserve">
     <value>screenshot</value>
-  </data>      
+  </data>
+  <data name="ChatMermaidError" xml:space="preserve">
+    <value>Failed to render diagram</value>
+  </data>  
 </root>

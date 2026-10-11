@@ -18,7 +18,24 @@
 
 ## [Unreleased]
 
-_(пусто — новые изменения вносятся сюда)._
+### Added
+- **KI-232 — Chat: рендеринг Mermaid (диаграммы) + KaTeX (формулы)**:
+  - **Mermaid** — ` ```mermaid ` code-block превращается в SVG-диаграмму
+    (flowchart / sequence / class / state / ER / gantt / pie / journey).
+    Lazy-render через `IntersectionObserver` (рендер ~100-300 мс на диаграмму —
+    на чате с 5+ диаграммами немедленный рендер = фриз).
+    `securityLevel: 'strict'` + DOMPurify sanitize (`USE_PROFILES.svg`) —
+    defense in depth.
+  - **KaTeX** — inline `$...$` и block `$$...$$` рендерятся через KaTeX.
+    Pre-extract формул ДО marked (иначе `_`, `*`, `{}` трактуются как
+    markdown-разметка), после DOMPurify — post-render через
+    `katex.renderToString` (`output: 'htmlAndMathml'`).
+  - **Lazy-load** обеих библиотек — только при первом вхождении.
+    Скрипт `scripts/setup/download-mermaid-katex.ps1` скачивает UMD-бандлы
+    + 20 шрифтов KaTeX (WOFF2) с cdnjs.
+  - **Fallback:** если mermaid/katex не загрузились — показывается как было
+    (mermaid — `<pre>` с исходником; katex — `<code>$...$</code>`).
+  - **Локализация RU + EN:** +1 ключ (`ChatMermaidError`).
 
 ---
 
