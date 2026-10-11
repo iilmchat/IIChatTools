@@ -1,10 +1,10 @@
-# IIChatTools v1.13.15
+# IIChatTools v1.13.16
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.15
+© 2026 RuChating (iilmchat) · IIChatTools v1.13.16
 
 ---
 
@@ -442,6 +442,7 @@ dotnet run --project IIChatTools.API
 - 💻 **Code blocks** — шапка с языком + кнопки Copy / Download.
 - 🛠 **Tool calling** — LLM автоматически вызывает инструменты (до 5 итераций, SSE `tool_call` / `tool_result`). Tool-блоки рендерятся карточками `<details>`: иконка агента + короткий summary + status badge, JSON — во вложенном свёрнутом блоке (KI-228).
 - 📊 **Mermaid + KaTeX** (KI-232) — ` ```mermaid ` code-block рендерится как SVG-диаграмма (flowchart / sequence / class / state / ER / gantt / pie / journey / mindmap / timeline / gitgraph / quadrant), а `$...$` и `$$...$$` — как формулы KaTeX. Lazy-load библиотек (первое вхождение в чате). `securityLevel: 'strict'` + DOMPurify sanitize (defense in depth). Fallback: если библиотека не загрузилась — исходник как `<pre>`.
+- 👍 **Feedback на assistant-message** (KI-233) — кнопки 👍 / 👎 в hover-actions под ответом. Оценка сохраняется в `ChatMessage.Feedback` (`positive` / `negative` / `null`). Повторный клик — toggle (снять оценку). Активная кнопка подсвечивается (зелёная / красная). Собирается датасет для будущего RLHF (UI-вкладка + JSONL-экспорт — v1.14, KI-240).
 - ➕ **Continue после лимита** (KI-230) — если ответ обрезан по лимиту контекста (`finish_reason=length`), под bubble появляется плашка ⚠️ + кнопка «➕ Продолжить». Клик → стрим дописывается в **тот же** bubble (append в БД, один пузырь, тексты сливаются без шва). ChatGPT-style.
 - 🖼 **Lightbox для скриншотов** (KI-229) — PNG от `vision_agent` открывается в full-screen overlay: zoom (wheel / кнопки), pan (drag / стрелки), fit-width / fit-page, скачать PNG, скопировать путь, `Esc` / клик по фону — закрыть. При F5 (base64 не хранится в БД) — placeholder + кнопка «Открыть скриншот» через endpoint `GET /api/chat/{chatId}/screenshots/{taskId}/{fileName}`.
 - 📎 **RAG-вложения** — прикрепить файлы к чату **тремя способами**: 📎-кнопкой, **drag-and-drop** на поле ввода, **Ctrl+V** для скриншотов из буфера (KI-231). PlainText + Pdf + Docx + Images (36 расширений, ≤32 MB, ≤5 файлов). Сканы PDF и картинки — OCR через Tesseract (v1.13.x, KI-203 / KI-238). Чипы с метриками под полем ввода, кнопка «Очистить RAG». Auto-inject top-K из attached-чанков в system prompt (Шаг 6C).
@@ -1179,8 +1180,8 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.15
-    docker pull ghcr.io/iilmchat/iichattools:1.13.15
+    docker pull ghcr.io/iilmchat/iichattools:v1.13.16
+    docker pull ghcr.io/iilmchat/iichattools:1.13.16
     docker pull ghcr.io/iilmchat/iichattools:1.13
     docker pull ghcr.io/iilmchat/iichattools:1
 

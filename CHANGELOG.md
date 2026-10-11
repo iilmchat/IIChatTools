@@ -18,8 +18,18 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.13.16] — 2026-10-11
+
+**KI-233 — Chat: 👍/👎 feedback на assistant-message.**
+ChatGPT-style кнопки оценки под ответом ассистента с сохранением в БД
+(датасет для будущего RLHF / fine-tuning).
+
 ### Added
-- **KI-233 — Chat: 👍/👎 feedback на assistant-message** (в работе):
+- **KI-233 — Chat: 👍/👎 feedback на assistant-message**:
   - `ChatMessage.Feedback` — nullable `string` (`"positive"` / `"negative"` / null).
   - Миграция `AddChatMessageFeedback` (SqlServer).
   - `IChatService.SetFeedbackAsync(messageId, userId, feedback)` — установка / снятие.
@@ -35,6 +45,21 @@
 
 ### Planned
 - **KI-240** — Chat: Feedback — Admin UI + экспорт JSONL для датасета (v1.14).
+
+### Changed
+- **Bump version 1.13.15 → 1.13.16** (`Directory.Build.props`, README).
+
+### Smoke (2026-10-11)
+- ✅ **Backend (curl):**
+  - `POST /api/chat/messages/2/feedback { feedback: "positive" }` →
+    `{"success":true,"data":{"messageId":2,"feedback":"positive"}}`.
+  - Проверка через `GET /api/chats/1` → `Feedback = positive`.
+  - Снятие (`feedback: null`) → `{"success":true,"data":{"messageId":2,"feedback":null}}`.
+  - Невалидное значение (`"maybe"`) → `{"success":false,"message":"Недопустимое значение..."}`.
+  - Несуществующий messageId (`999999`) → `{"success":false,"message":"Сообщение не найдено..."}`.
+- ✅ **Frontend:** кнопки 👍/👎 в hover-actions, зелёная рамка на 👍 при клике,
+  красная на 👎, тултипы «Хороший ответ» / «Плохой ответ».
+- ✅ Build 0/0, Tests 1115/1115.
 
 ---
 

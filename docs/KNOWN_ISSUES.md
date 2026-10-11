@@ -3464,7 +3464,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-233 — Chat: 👍/👎 feedback на assistant-message
 
-- **Приоритет:** 🟢 Low | **Статус:** 🟡 **In Progress** | **Запланировано:** v1.13.16
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v1.13.16)** | **Исправлено в:** v1.13.16
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (`renderMessageActions`), `chat.css`,
   `IChatService` (+`SetFeedbackAsync`), `ChatService.cs`,
@@ -5648,7 +5648,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Fixed (v1.13.14) | 2 | <!-- KI-231 (D&D + Paste Image), KI-238 (RAG для images через OCR) -->
 | Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
 | Fixed (v1.13.15) | 1 | <!-- KI-232 (Mermaid + KaTeX) -->
-| Fixed (v1.13.16) | 1 | <!-- KI-233 (👍/👎 feedback) — в работе -->
+| Fixed (v1.13.16) | 1 | <!-- KI-233 (👍/👎 feedback) -->
 | Documented | 14 | <!-- +KI-239 (mermaid syntax hallucinations) -->
 | Planned | 14 | <!-- +KI-240 (Feedback Admin UI + JSONL) -->
 | Planned (Chat UX, v1.13.x+) | 5 | <!-- KI-233..KI-237 (Feedback, Retry, Suggested, Hotkeys help, UX backlog). KI-232 → Fixed (v1.13.15). -->
