@@ -1030,6 +1030,9 @@
   <data name="ChatRetryError" xml:space="preserve">
     <value>Retry</value>
   </data>
+  <data name="ChatEmptyChatHint" xml:space="preserve">
+    <value>Chat history is empty. Start a dialog.</value>
+  </data>
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Try one of these:</value>
   </data>

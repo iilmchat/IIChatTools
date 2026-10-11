@@ -26,12 +26,17 @@
     Поведение как в ChatGPT: новый стрим = новый bubble, старый error уходит.
   - Компактная inline-кнопка в цвет error-плашки (не полный `.chat-message-action`).
   - **Локализация RU + EN:** +1 ключ (`ChatRetryError`).
-- **KI-235 — Chat: Suggested prompts на пустом чате** (в работе):
+- **KI-235 — Chat: Suggested prompts на пустом чате**:
   - 6 карточек-подсказок (ChatGPT-style) в пустом чате: 📝 письмо, 📊 flowchart,
     🧮 формула, 📚 RAG, 🔍 web, 🌐 browser.
   - **Клик** → подставляет текст в input (не отправляет) + фокус + курсор в конец.
-    Пользователь может отредактировать перед отправкой.
-  - **Локализация RU + EN:** +7 ключей (`ChatPromptsTitle`, `ChatPrompt1..6`).
+  - **Локализация RU + EN:** +8 ключей (`ChatPromptsTitle`, `ChatPrompt1..6`,
+    `ChatEmptyChatHint`).
+  - **Fix (v1.13.17)**: `dataset.camelCase` не подходит для
+    `data-label-prompt-1` — HTML-спека оставляет дефис перед цифрой
+    (`dataset['labelPrompt-1']`). Заменено на `getAttribute`. Плюс
+    добавлен `data-label-empty-chat-hint` (был только fallback-русский
+    в JS → EN-локаль показывала русский текст).
 
 ---
 

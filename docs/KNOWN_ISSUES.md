@@ -3508,7 +3508,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-235 — Chat: Suggested prompts на пустом чате
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v1.13.17)** | **Исправлено в:** v1.13.17
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (`showEmptyState`), `chat.css`,
   `Chat/Index.cshtml`, `SharedResources*.resx` (RU + EN).
@@ -3522,6 +3522,13 @@ requirement) работают **стабильно**. Gantt требует бо�
     или хардкод 4-6 штук в `.resx` (RU + EN).
   - (Опционально) — адаптивные подсказки по контексту.
 - **Оценка:** ~30 мин.
+- **Fix (v1.13.17):**
+  - `chat.js:renderSuggestedPrompts` — `getAttribute('data-label-prompt-' + i)`
+    вместо `dataset['labelPrompt' + i]` (HTML-спека: `data-label-prompt-1` →
+    `dataset['labelPrompt-1']`, дефис сохраняется перед цифрой — RULES § 4.54).
+  - `Index.cshtml` — добавлен `data-label-empty-chat-hint` (пустой чат без
+    выбранного диалога + пустой выбранный чат).
+  - `.resx` (RU + EN) — +1 ключ `ChatEmptyChatHint`.
 
 ---
 

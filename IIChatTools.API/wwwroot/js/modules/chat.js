@@ -3234,7 +3234,10 @@ function renderSuggestedPrompts() {
     const icons = ['📝', '📊', '🧮', '📚', '🔍', '🌐'];
     const items = [];
     for (let i = 1; i <= 6; i++) {
-        const text = container.dataset[`labelPrompt${i}`];
+        // KI-235-fix: HTML-спека: `data-label-prompt-1` → `dataset['labelPrompt-1']`
+        // (дефис убирается только перед строчной буквой [a-z], не перед цифрой).
+        // Поэтому — getAttribute, а не dataset.camelCase.
+        const text = container.getAttribute(`data-label-prompt-${i}`);
         if (!text) continue;
         const icon = icons[i - 1] || '💬';
         items.push(`

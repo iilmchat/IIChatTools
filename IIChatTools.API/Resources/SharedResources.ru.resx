@@ -1030,6 +1030,9 @@
   <data name="ChatRetryError" xml:space="preserve">
     <value>Повторить</value>
   </data>
+  <data name="ChatEmptyChatHint" xml:space="preserve">
+    <value>История пуста. Начните диалог.</value>
+  </data>
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Попробуйте так:</value>
   </data>
