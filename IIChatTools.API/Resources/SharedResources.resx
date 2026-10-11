@@ -1011,5 +1011,11 @@
   </data>
   <data name="ChatMessageContinueTooltip" xml:space="preserve">
     <value>Continue from where it stopped</value>
-  </data>    
+  </data>
+  <data name="ChatDropHint" xml:space="preserve">
+    <value>Drop to upload</value>
+  </data>
+  <data name="ChatPasteImageName" xml:space="preserve">
+    <value>screenshot</value>
+  </data>      
 </root>

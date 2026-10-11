@@ -240,6 +240,8 @@
     border: 1px solid var(--bs-border-color);
     border-radius: 1.5rem;
     transition: border-color .15s, box-shadow .15s, background-color .15s;
+    /* KI-231: anchor для drag-over overlay. */
+    position: relative;
 }
 
 .chat-input-box:focus-within {
@@ -3145,5 +3147,35 @@ body.chat-lightbox-open {
     margin-left: 1px;
     animation: chat-cursor 1s step-end infinite;
     color: #adb5bd;
+}
+
+/* ============================================================
+   v1.13.14 (KI-231): Drag-and-Drop файлов на поле ввода.
+   ============================================================ */
+
+.chat-input-box.drag-over {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 .25rem rgba(13, 110, 253, .15);
+    background: var(--bs-primary-bg-subtle);
+}
+
+/* Overlay с подсказкой — поверх поля ввода.
+   Текст — из data-drop-hint (ставит chat.js из
+   #chat-messages[data-label-drop-hint], RULES § 4.17). */
+.chat-input-box.drag-over::after {
+    content: attr(data-drop-hint);
+    position: absolute;
+    inset: -2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--bs-primary-rgb), .12);
+    border: 2px dashed var(--bs-primary);
+    border-radius: 1.5rem;
+    color: var(--bs-primary);
+    font-weight: 600;
+    font-size: .9rem;
+    pointer-events: none;   /* клики уходят на input/textarea */
+    z-index: 10;
 }
 

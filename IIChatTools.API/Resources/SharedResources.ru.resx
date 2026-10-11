@@ -1011,5 +1011,11 @@
   </data>
   <data name="ChatMessageContinueTooltip" xml:space="preserve">
     <value>Продолжить с того места, где оборвалось</value>
-  </data>    
+  </data>
+  <data name="ChatDropHint" xml:space="preserve">
+    <value>Отпустите, чтобы загрузить</value>
+  </data>
+  <data name="ChatPasteImageName" xml:space="preserve">
+    <value>скриншот</value>
+  </data>      
 </root>

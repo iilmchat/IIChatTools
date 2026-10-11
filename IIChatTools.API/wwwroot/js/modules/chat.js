@@ -171,7 +171,12 @@ function bindEvents() {
                 sendMessage();
             }
         });
+        // KI-231: Paste Image из clipboard (Ctrl+V) → загрузка в RAG.
+        input.addEventListener('paste', onChatInputPaste);
     }
+
+    // KI-231: Drag-and-Drop файлов на поле ввода.
+    initDragAndDrop();
 
     if (btnSend) {
         btnSend.addEventListener('click', sendMessage);
@@ -1160,6 +1165,149 @@ function scrollGlobalSearchActiveIntoView() {
 async function openChatFromGlobalSearch(chatId) {
     closeGlobalSearch();
     await selectChat(chatId);
+}
+
+// ============ v1.13.14 (KI-231): Drag-and-Drop + Paste Image ============
+
+/**
+ * KI-231: проверяет, что перетаскиваемый объект — файл(ы).
+ * <para>
+ * `dataTransfer.types` — массив строк. При drag файлов — `['Files']`.
+ * При drag текста / ссылок — `['text/plain']` / `['text/uri-list']` и т.п.
+ * Без проверки мы бы перехватывали и текстовый drag.
+ * </para>
+ * @param {DragEvent} e
+ * @returns {boolean}
+ */
+function hasFiles(e) {
+    const dt = e.dataTransfer;
+    if (!dt) return false;
+    return Array.from(dt.types || []).includes('Files');
+}
+
+/**
+ * KI-231: инициализирует Drag-and-Drop на `.chat-input-box`.
+ * <para>
+ * Счётчик `dragenter`/`dragleave` — иначе при перетаскивании над
+ * вложенными элементами (textarea, кнопки) `dragleave` на родителе
+ * срабатывает раньше `drop` → подсветка мигает.
+ * </para>
+ */
+function initDragAndDrop() {
+    const dropZone = document.querySelector('.chat-input-box');
+    if (!dropZone) return;
+
+    // KI-231: подсказка из #chat-messages → на .chat-input-box (для CSS attr()).
+    const messagesEl = document.getElementById('chat-messages');
+    const dropHint = messagesEl?.dataset.labelDropHint || 'Drop files here';
+    dropZone.setAttribute('data-drop-hint', dropHint);
+
+    let dragCounter = 0;
+
+    dropZone.addEventListener('dragenter', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        dragCounter++;
+        if (dragCounter === 1) dropZone.classList.add('drag-over');
+    });
+
+    // dragover ОБЯЗАТЕЛЬНО с preventDefault — иначе браузер откроет файл
+    // в новой вкладке (default-behavior).
+    dropZone.addEventListener('dragover', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            dropZone.classList.remove('drag-over');
+        }
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        dragCounter = 0;
+        dropZone.classList.remove('drag-over');
+
+        if (!state.activeChatId) {
+            toast('Сначала выберите чат', 'warning');
+            return;
+        }
+
+        const files = Array.from(e.dataTransfer.files || []);
+        if (files.length === 0) return;
+
+        // Переиспользуем uploadFiles (RAG-индексация, тосты, OCR-polling — уже там).
+        uploadFiles(files);
+    });
+}
+
+/**
+ * KI-231: обработчик `paste` на textarea.
+ * <para>
+ * Если в clipboard есть image (`clipboardData.items` с `kind === 'file'`
+ * и `type.startsWith('image/')`) — конвертируем в `File` → `uploadFiles`.
+ * `preventDefault()` нужен, чтобы браузер не вставил PNG как inline
+ * `<img>` прямо в textarea (ломает отправку).
+ * </para>
+ * <para>Если clipboard содержит текст — пропускаем без изменений.</para>
+ */
+function onChatInputPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items || !state.activeChatId) return;
+
+    for (const item of items) {
+        if (item.kind !== 'file') continue;
+        if (!item.type || !item.type.startsWith('image/')) continue;
+
+        // Одно изображение на paste (ChatGPT-style).
+        e.preventDefault();
+
+        const blob = item.getAsFile();
+        if (!blob) continue;
+
+        const filename = generatePasteFilename(blob.type);
+        const file = new File([blob], filename, { type: blob.type });
+        uploadFiles([file]);
+        return;
+    }
+    // Не image — стандартное поведение (вставка текста).
+}
+
+/**
+ * KI-231: имя файла для вставленного из буфера изображения.
+ * Формат: `{prefix}-YYYYMMDD-HHMMSS.{ext}`, например
+ * `screenshot-20261011-143027.png`. Префикс — из
+ * `data-label-paste-image-name` на `#chat-messages` (RULES § 4.17).
+ * @param {string} mimeType
+ * @returns {string}
+ */
+function generatePasteFilename(mimeType) {
+    const extMap = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+        'image/bmp': 'bmp'
+    };
+    const ext = extMap[(mimeType || '').toLowerCase()] || 'png';
+
+    const container = document.getElementById('chat-messages');
+    const prefix = container?.dataset.labelPasteImageName || 'screenshot';
+
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+        + `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+    return `${prefix}-${stamp}.${ext}`;
 }
 
 // ============ Модели и список чатов ============
@@ -6339,7 +6487,7 @@ async function exportPagesPdf() {
                         // KI-208-fix: с Helvetica (Latin-1) кириллица не
                         // отрисуется — drawText бросит. Тихо пропускаем.
                         console.debug('[pdf] drawText skip:', text, ex);
-                    }                
+                    }
                 }
             }
         }
