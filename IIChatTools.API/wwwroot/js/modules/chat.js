@@ -459,6 +459,13 @@ function bindEvents() {
         }
     }
 
+    // KI-236: hotkey-help overlay — закрытие по ✕ / клику по фону.
+    const hotkeyHelpModal = document.getElementById('chat-hotkey-help');
+    if (hotkeyHelpModal) {
+        hotkeyHelpModal.querySelectorAll('[data-action="close"]')
+            .forEach(el => el.addEventListener('click', closeHotkeyHelp));
+    }
+
     // KI-083 (Шаг 6D): вложения чата (RAG)
     document.getElementById('btn-attach-file')
         ?.addEventListener('click', () => {
@@ -646,6 +653,37 @@ function bindEvents() {
         // ==================================================================
         // Ниже — глобальные hotkeys страницы /chat (модалка страниц закрыта).
         // ==================================================================
+
+        // KI-236: hotkey-help — Ctrl+/ (universal, layout-independent).
+        // e.code === 'Slash' — физический код клавиши, не зависит от раскладки
+        // (на RU e.key === '/' не сработает — даст '.').
+        if (e.ctrlKey && !e.shiftKey && !e.altKey
+            && (isKey(e, 'Slash', '/') || isKey(e, 'NumpadDivide'))) {
+            e.preventDefault();
+            const hh = document.getElementById('chat-hotkey-help');
+            if (hh && !hh.hidden) closeHotkeyHelp();
+            else openHotkeyHelp();
+            return;
+        }
+
+        // KI-236: hotkey-help — ? (Shift+/, только когда фокус НЕ в input).
+        // Иначе — символ '?' должен попадать в текстовое поле.
+        if (!e.ctrlKey && !e.altKey && !e.metaKey && e.shiftKey
+            && isKey(e, 'Slash', '?')) {
+            const ae = document.activeElement;
+            const inInput = ae && (
+                ae.tagName === 'INPUT'
+                || ae.tagName === 'TEXTAREA'
+                || ae.isContentEditable);
+            if (!inInput) {
+                e.preventDefault();
+                const hh = document.getElementById('chat-hotkey-help');
+                if (hh && !hh.hidden) closeHotkeyHelp();
+                else openHotkeyHelp();
+                return;
+            }
+        }
+
         if (e.ctrlKey && !e.shiftKey && !e.altKey) {
             if (isKey(e, 'KeyB', 'b')) {
                 e.preventDefault();
@@ -665,6 +703,13 @@ function bindEvents() {
         }
 
         if (e.key === 'Escape') {
+            // KI-236: hotkey-help — приоритет выше остальных overlay'ев.
+            const hh = document.getElementById('chat-hotkey-help');
+            if (hh && !hh.hidden) {
+                e.preventDefault();
+                closeHotkeyHelp();
+                return;
+            }
             const gsModal = document.getElementById('chat-global-search');
             if (gsModal && !gsModal.hidden) {
                 e.preventDefault();
@@ -776,6 +821,39 @@ function applyDebateViewUI() {
 // В Шаге 1G.2 она была переписана (полный перерендер через
 // renderDebateContainerInner), а старая версия в этой секции — удалена.
 // Дублирование вызывало SyntaxError в браузере.
+
+// ============ KI-236: Keyboard shortcuts help (Ctrl+/) ============
+
+/**
+ * KI-236: открывает модалку «Горячие клавиши» (Ctrl+/ или ?).
+ *
+ * <para>
+ * Overlay по образцу #chat-global-search (KI-078B): backdrop +
+ * центрированный dialog + таблица клавиш, сгруппированная по
+ * категориям (Навигация / Чат / Голос / Общее).
+ * </para>
+ */
+function openHotkeyHelp() {
+    const modal = document.getElementById('chat-hotkey-help');
+    if (!modal) return;
+
+    modal.hidden = false;
+    document.body.classList.add('chat-hotkey-help-open');
+
+    // Удобство: сфокусировать ✕ — теперь Tab-loop естественно внутри модалки.
+    modal.querySelector('.chat-hotkey-help-close')?.focus();
+}
+
+/**
+ * KI-236: закрывает модалку «Горячие клавиши».
+ */
+function closeHotkeyHelp() {
+    const modal = document.getElementById('chat-hotkey-help');
+    if (!modal) return;
+
+    modal.hidden = true;
+    document.body.classList.remove('chat-hotkey-help-open');
+}
 
 // ============ KI-078A: Внутричатовый поиск (Ctrl+F) ============
 

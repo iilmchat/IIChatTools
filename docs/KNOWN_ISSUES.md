@@ -3534,7 +3534,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-236 — Chat: Keyboard shortcuts help (Ctrl+/)
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v1.13.17)** | **Исправлено в:** v1.13.17
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (hotkey-handler + `openHotkeyHelp`), `chat.css`,
   `Chat/Index.cshtml` (модалка), `SharedResources*.resx` (RU + EN).
@@ -3549,6 +3549,13 @@ requirement) работают **стабильно**. Gantt требует бо�
   - Категории: чат / навигация / модалки / речь.
   - (Опционально) — «Показать при первом запуске» (dismissable).
 - **Оценка:** ~30 мин.
+- **Fix (v1.13.17):**
+  - `chat.js` — `openHotkeyHelp()` / `closeHotkeyHelp()`; обработчики
+    `Ctrl+/` (`e.code === 'Slash'`, layout-independent) и `?`
+    (`Shift+/` + фокус не в input).
+  - `Index.cshtml` — модалка `#chat-hotkey-help` + `<kbd>`-разметка.
+  - `chat.css` — overlay по образцу `.chat-global-search`.
+  - `.resx` (RU + EN) — +15 ключей.
 
 ---
 

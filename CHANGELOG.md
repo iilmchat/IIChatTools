@@ -26,6 +26,20 @@
     Поведение как в ChatGPT: новый стрим = новый bubble, старый error уходит.
   - Компактная inline-кнопка в цвет error-плашки (не полный `.chat-message-action`).
   - **Локализация RU + EN:** +1 ключ (`ChatRetryError`).
+- **KI-236 — Chat: Keyboard shortcuts help (Ctrl+/)**:
+  - Модалка «Горячие клавиши» — таблица из 4 групп: Навигация / Чат /
+    Голосовой ввод / Общее.
+  - **Триггер `Ctrl+/`** — universal, `e.code === 'Slash'` (layout-independent:
+    на RU `e.key === '/'` даст `.`). Toggle: если открыто — закрывает.
+  - **Триггер `?`** (Shift+/) — только когда фокус **не** в input/textarea
+    (иначе `?` уходит в текстовое поле).
+  - **`Esc`** — закрывает. Приоритет выше `chat-global-search` и
+    `chat-search-bar` (но ниже `chat-pages-modal`).
+  - Overlay по образцу `#chat-global-search` (KI-078B): backdrop +
+    центрированный dialog + backdrop-blur.
+  - `<kbd>`-элементы для подсветки клавиш (monospace + тень снизу).
+  - **Локализация RU + EN:** +15 ключей (`HotkeyHelp*`, `HotkeyGroup*`,
+    `HotkeyAction*`).
 - **KI-235 — Chat: Suggested prompts на пустом чате**:
   - 6 карточек-подсказок (ChatGPT-style) в пустом чате: 📝 письмо, 📊 flowchart,
     🧮 формула, 📚 RAG, 🔍 web, 🌐 browser.

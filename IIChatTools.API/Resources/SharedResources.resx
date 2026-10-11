@@ -1030,6 +1030,53 @@
   <data name="ChatRetryError" xml:space="preserve">
     <value>Retry</value>
   </data>
+
+  <!-- ===== v1.13.17 (KI-236): Keyboard shortcuts help (Ctrl+/) ===== -->
+  <data name="HotkeyHelpTitle" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+  </data>
+  <data name="HotkeyHelpClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="HotkeyGroupNavigation" xml:space="preserve">
+    <value>Navigation</value>
+  </data>
+  <data name="HotkeyGroupChat" xml:space="preserve">
+    <value>Chat</value>
+  </data>
+  <data name="HotkeyGroupVoice" xml:space="preserve">
+    <value>Voice input</value>
+  </data>
+  <data name="HotkeyGroupGeneral" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="HotkeyActionToggleSidebar" xml:space="preserve">
+    <value>Toggle sidebar</value>
+  </data>
+  <data name="HotkeyActionGlobalSearch" xml:space="preserve">
+    <value>Search all chats</value>
+  </data>
+  <data name="HotkeyActionChatSearch" xml:space="preserve">
+    <value>Search in current chat</value>
+  </data>
+  <data name="HotkeyActionHotkeyHelp" xml:space="preserve">
+    <value>Show this help</value>
+  </data>
+  <data name="HotkeyActionSendMessage" xml:space="preserve">
+    <value>Send message</value>
+  </data>
+  <data name="HotkeyActionNewLine" xml:space="preserve">
+    <value>New line (inside input)</value>
+  </data>
+  <data name="HotkeyActionStopOrClose" xml:space="preserve">
+    <value>Stop generation / close modal</value>
+  </data>
+  <data name="HotkeyActionVoiceToggle" xml:space="preserve">
+    <value>Start / stop recording</value>
+  </data>
+  <data name="HotkeyActionHotkeyHelpQuestion" xml:space="preserve">
+    <value>Show this help (when focus is not in the input field)</value>
+  </data>
   <data name="ChatEmptyChatHint" xml:space="preserve">
     <value>Chat history is empty. Start a dialog.</value>
   </data>

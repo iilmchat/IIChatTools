@@ -487,6 +487,104 @@
     </div>
 </div>
 
+<!-- v1.13.17 (KI-236): модалка «Горячие клавиши» (Ctrl+/ или ?).
+     Открывается: Ctrl+/ (universal, layout-independent) либо ? (Shift+/,
+     когда фокус не в input/textarea). Закрывается: Esc / клик по фону / ✕. -->
+<div id="chat-hotkey-help"
+     class="chat-hotkey-help"
+     hidden>
+    <div class="chat-hotkey-help-backdrop" data-action="close"></div>
+    <div class="chat-hotkey-help-dialog"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="chat-hotkey-help-title">
+        <div class="chat-hotkey-help-header">
+            <span class="chat-hotkey-help-icon" aria-hidden="true">⌨</span>
+            <span id="chat-hotkey-help-title" class="chat-hotkey-help-title">@Localizer["HotkeyHelpTitle"]</span>
+            <button type="button"
+                    class="chat-hotkey-help-close"
+                    data-action="close"
+                    title="@Localizer["HotkeyHelpClose"]"
+                    aria-label="@Localizer["HotkeyHelpClose"]">✕</button>
+        </div>
+        <div class="chat-hotkey-help-body">
+
+            <!-- Группа: Навигация -->
+            <div class="chat-hotkey-group">
+                <div class="chat-hotkey-group-title">@Localizer["HotkeyGroupNavigation"]</div>
+                <table class="chat-hotkey-table">
+                    <tbody>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Ctrl</kbd>+<kbd>B</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionToggleSidebar"]</td>
+                        </tr>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Ctrl</kbd>+<kbd>K</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionGlobalSearch"]</td>
+                        </tr>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Ctrl</kbd>+<kbd>F</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionChatSearch"]</td>
+                        </tr>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Ctrl</kbd>+<kbd>/</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionHotkeyHelp"]</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Группа: Чат -->
+            <div class="chat-hotkey-group">
+                <div class="chat-hotkey-group-title">@Localizer["HotkeyGroupChat"]</div>
+                <table class="chat-hotkey-table">
+                    <tbody>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Enter</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionSendMessage"]</td>
+                        </tr>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Shift</kbd>+<kbd>Enter</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionNewLine"]</td>
+                        </tr>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Esc</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionStopOrClose"]</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Группа: Голосовой ввод -->
+            <div class="chat-hotkey-group">
+                <div class="chat-hotkey-group-title">@Localizer["HotkeyGroupVoice"]</div>
+                <table class="chat-hotkey-table">
+                    <tbody>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionVoiceToggle"]</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Группа: Общее -->
+            <div class="chat-hotkey-group">
+                <div class="chat-hotkey-group-title">@Localizer["HotkeyGroupGeneral"]</div>
+                <table class="chat-hotkey-table">
+                    <tbody>
+                        <tr>
+                            <td class="chat-hotkey-key"><kbd>?</kbd></td>
+                            <td class="chat-hotkey-action">@Localizer["HotkeyActionHotkeyHelpQuestion"]</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <!-- v1.13.x (KI-229): lightbox для скриншотов от vision_agent.
      Открывается: кликом по inline <img> (live SSE, base64) либо
      кнопкой «Открыть» в placeholder'е (F5-fallback, URL). -->

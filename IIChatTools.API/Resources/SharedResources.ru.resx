@@ -1030,6 +1030,53 @@
   <data name="ChatRetryError" xml:space="preserve">
     <value>Повторить</value>
   </data>
+
+  <!-- ===== v1.13.17 (KI-236): Keyboard shortcuts help (Ctrl+/) ===== -->
+  <data name="HotkeyHelpTitle" xml:space="preserve">
+    <value>Горячие клавиши</value>
+  </data>
+  <data name="HotkeyHelpClose" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="HotkeyGroupNavigation" xml:space="preserve">
+    <value>Навигация</value>
+  </data>
+  <data name="HotkeyGroupChat" xml:space="preserve">
+    <value>Чат</value>
+  </data>
+  <data name="HotkeyGroupVoice" xml:space="preserve">
+    <value>Голосовой ввод</value>
+  </data>
+  <data name="HotkeyGroupGeneral" xml:space="preserve">
+    <value>Общее</value>
+  </data>
+  <data name="HotkeyActionToggleSidebar" xml:space="preserve">
+    <value>Свернуть / развернуть боковую панель</value>
+  </data>
+  <data name="HotkeyActionGlobalSearch" xml:space="preserve">
+    <value>Поиск по всем чатам</value>
+  </data>
+  <data name="HotkeyActionChatSearch" xml:space="preserve">
+    <value>Поиск в активном чате</value>
+  </data>
+  <data name="HotkeyActionHotkeyHelp" xml:space="preserve">
+    <value>Эта справка</value>
+  </data>
+  <data name="HotkeyActionSendMessage" xml:space="preserve">
+    <value>Отправить сообщение</value>
+  </data>
+  <data name="HotkeyActionNewLine" xml:space="preserve">
+    <value>Новая строка (в поле ввода)</value>
+  </data>
+  <data name="HotkeyActionStopOrClose" xml:space="preserve">
+    <value>Остановить генерацию / закрыть модалку</value>
+  </data>
+  <data name="HotkeyActionVoiceToggle" xml:space="preserve">
+    <value>Начать / остановить запись</value>
+  </data>
+  <data name="HotkeyActionHotkeyHelpQuestion" xml:space="preserve">
+    <value>Эта справка (когда фокус не в поле ввода)</value>
+  </data>
   <data name="ChatEmptyChatHint" xml:space="preserve">
     <value>История пуста. Начните диалог.</value>
   </data>
