@@ -18,8 +18,15 @@
 
 ## [Unreleased]
 
+---
+
+## [1.13.17] — 2026-10-11
+
+**Chat UX: Retry в error-bubble (KI-234) + Suggested prompts (KI-235) +
+Keyboard shortcuts help (KI-236).**
+
 ### Added
-- **KI-234 — Chat: Retry в error-bubble** (в работе):
+- **KI-234 — Chat: Retry в error-bubble**:
   - При ошибке стрима (network error / 5xx / SSE-обрыв) в error-bubble
     появляется компактная inline-кнопка **«🔄 Повторить»**.
   - Клик → удаляет error-bubble → `regenerateLastMessage({ allowNoAssistant: true })`.
