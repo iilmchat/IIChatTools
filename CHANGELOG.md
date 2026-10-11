@@ -18,6 +18,19 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.13.14] — 2026-10-11
+
+**KI-231 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V).**
+**KI-238 — Chat: RAG support для images (OCR parser + whitelist).**
+
+Frontend-only для KI-231 (`chat.js` + `chat.css` + `Index.cshtml` + `.resx`);
+для KI-238 — новый `ImageOcrParser` + `Startup.cs` + `AllowedExtensions`
+(dev + prod).
+
 ### Added
 - **KI-231 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V)** (frontend-only):
   - **D&D** на `.chat-input-box`: `dragover` / `dragleave` / `drop`
@@ -37,6 +50,20 @@
     пустой текст (attachment с 0 чанков, тот же паттерн, что у `PdfParser`
     для OCR-сканов PDF).
   - Регистрация в `Startup.cs` (1 строка после `DocxParser`).
+
+### Changed
+- **Bump version 1.13.13 → 1.13.14** (`Directory.Build.props`, README).
+
+### Smoke (2026-10-11)
+- ✅ **D&D:** PDF → overlay «Отпустите, чтобы загрузить» → чип
+  «Тузова_презентация.pdf · 2 чанка».
+- ✅ **Paste Image:** Win+Shift+S → Ctrl+V → чип «скриншот-YYYYMMDD-HHMMSS.png
+  · 180 KB · 1 чанк» (OCR через Tesseract).
+- ✅ **Graceful:** JPG без текста (портрет) → чип с **0 чанков**
+  (attachment создан, ingest не упал).
+- ✅ **Регрессия:** 📎 `.pdf` / `.docx` / `.txt` — без изменений.
+- ✅ Build 0/0, Tests 1115/1115.
+- ✅ CI / Docker Publish / Sync Issues — 🟢.
 
 ---
 
