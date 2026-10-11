@@ -18,6 +18,17 @@
 
 ## [Unreleased]
 
+_(пусто — новые изменения вносятся сюда)._
+
+---
+
+## [1.13.15] — 2026-10-11
+
+**KI-232 — Chat: рендеринг Mermaid (диаграммы) + KaTeX (формулы).**
+
+Frontend-only (`chat.js` + `chat.css` + `Index.cshtml` + `.resx`) + скрипт
+скачивания библиотек (`scripts/setup/download-mermaid-katex.ps1`).
+
 ### Added
 - **KI-232 — Chat: рендеринг Mermaid (диаграммы) + KaTeX (формулы)**:
   - **Mermaid** — ` ```mermaid ` code-block превращается в SVG-диаграмму
@@ -36,6 +47,30 @@
   - **Fallback:** если mermaid/katex не загрузились — показывается как было
     (mermaid — `<pre>` с исходником; katex — `<code>$...$</code>`).
   - **Локализация RU + EN:** +1 ключ (`ChatMermaidError`).
+
+### Changed
+- **Bump version 1.13.14 → 1.13.15** (`Directory.Build.props`, README).
+- **`.gitignore`:** скачанные библиотеки mermaid + katex (fetch-скрипт) —
+  не в git (по образцу `pdf-lib`).
+
+### Fixed
+- **KI-232 followup:** Chat LLM на «Нарисуй блок-схему A -> B -> C» выбирала
+  `vision_agent` (desktop-автоматизация) вместо вывода mermaid-кода.
+  Добавлено правило **14** в `ChatStreamService.DefaultSystemPrompt`:
+  «диаграммы / формулы / графики — это ТЕКСТ, не изображение». mermaid →
+  ` ```mermaid `, LaTeX → `$...$` / `$$...$$`. Плюс ПРИМЕР 6 (блок-схема)
+  и ПРИМЕР 7 (формула).
+
+### Smoke (2026-10-11)
+- ✅ **Mermaid:** «Нарисуй блок-схему A → B → C» (без слова «mermaid») →
+  Chat LLM сразу выводит mermaid-код → UI рендерит SVG. `mermaid.min.js`
+  (2.5 MB) скачивается с jsDelivr (cdnjs 11.x → 404 — перешли на jsDelivr).
+- ✅ **KaTeX:** «Напиши формулу Эйлера» → `$e^{i\pi} + 1 = 0$` рендерится
+  как формула. CSS + 20 шрифтов (WOFF2) скачаны с cdnjs.
+- ✅ **XSS-protection:** ` ```mermaid ` с `<script>alert(1)</script>`
+  в метке → alert **не выскакивает**; mermaid возвращает ошибку →
+  fallback «⚠️ Не удалось отрисовать диаграмму» + исходник как `<pre>`.
+- ✅ Build 0/0, Tests 1115/1115.
 
 ---
 
