@@ -1020,5 +1020,11 @@
   </data>
   <data name="ChatMermaidError" xml:space="preserve">
     <value>Failed to render diagram</value>
-  </data>  
+  </data>
+  <data name="ChatFeedbackPositive" xml:space="preserve">
+    <value>Good response</value>
+  </data>
+  <data name="ChatFeedbackNegative" xml:space="preserve">
+    <value>Bad response</value>
+  </data>    
 </root>

@@ -1020,5 +1020,11 @@
   </data>
   <data name="ChatMermaidError" xml:space="preserve">
     <value>Не удалось отрисовать диаграмму</value>
-  </data>  
+  </data>
+  <data name="ChatFeedbackPositive" xml:space="preserve">
+    <value>Хороший ответ</value>
+  </data>
+  <data name="ChatFeedbackNegative" xml:space="preserve">
+    <value>Плохой ответ</value>
+  </data>    
 </root>

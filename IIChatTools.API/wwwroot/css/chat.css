@@ -3150,6 +3150,36 @@ body.chat-lightbox-open {
 }
 
 /* ============================================================
+   v1.13.16 (KI-233): 👍/👎 feedback на assistant-message.
+   ============================================================ */
+
+.chat-message-action-feedback {
+    /* Базовая — как все actions, отличаются только в active-состоянии. */
+}
+
+.chat-message-action-feedback.active-positive {
+    background: var(--bs-success-bg-subtle);
+    color: var(--bs-success);
+    border-color: var(--bs-success);
+}
+
+.chat-message-action-feedback.active-positive:hover {
+    background: var(--bs-success);
+    color: var(--bs-white);
+}
+
+.chat-message-action-feedback.active-negative {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger);
+    border-color: var(--bs-danger);
+}
+
+.chat-message-action-feedback.active-negative:hover {
+    background: var(--bs-danger);
+    color: var(--bs-white);
+}
+
+/* ============================================================
    v1.13.14 (KI-231): Drag-and-Drop файлов на поле ввода.
    ============================================================ */
 

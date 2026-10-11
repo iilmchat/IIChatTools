@@ -3310,6 +3310,9 @@ function renderMessage(msg, opts = {}) {
             showEdit: isUser && !!msg.id,
             showRegenerate: opts.showRegenerate && !isUser,
             showRetry: opts.showRetry && isUser,
+            // KI-233: 👍/👎 — только для assistant, только если у сообщения есть id.
+            showFeedback: !isUser && !!msg.id,
+            feedback: msg.feedback || null,
         })
         : '';
 
@@ -3958,7 +3961,13 @@ function finalizeAssistantBubble(bubble, data) {
                     bodyEl.insertAdjacentHTML('beforeend', renderSourcesBlock(data.sources));
                 }
 
-                bodyEl.insertAdjacentHTML('beforeend', renderMessageActions(raw));
+                // KI-233: показываем 👍/👎 на финальном assistant-сообщении.
+                // id сообщения известен — data.assistantMessageId (id проставляется
+                // в bubble.dataset.assistantMessageId выше).
+                bodyEl.insertAdjacentHTML('beforeend', renderMessageActions(raw, {
+                    showFeedback: true,
+                    feedback: null,   // свежее сообщение — оценок нет
+                }));
             }
         }
     }
@@ -4717,6 +4726,8 @@ function langToExtension(lang) {
  * @param {boolean} [opts.showEdit]       — показать ли кнопку ✏️ на user-сообщении
  * @param {boolean} [opts.showRegenerate] — показать ли кнопку 🔄 на последнем assistant
  * @param {boolean} [opts.showRetry]      — показать ли кнопку «🔄 Повторить» на последнем user (после Stop)
+ * @param {boolean} [opts.showFeedback]   — показать ли 👍/👎 (только assistant, KI-233)
+ * @param {string|null} [opts.feedback]   — текущая оценка: "positive" | "negative" | null
  * @returns {string} HTML
  */
 function renderMessageActions(text, opts = {}) {
@@ -4746,6 +4757,27 @@ function renderMessageActions(text, opts = {}) {
                    aria-label="Сгенерировать заново">🔄</button>`
         : '';
 
+    // KI-233: 👍 / 👎 на assistant-сообщениях.
+    // `feedback` — текущая оценка: "positive" | "negative" | null.
+    const feedback = opts.feedback || null;
+    const fbPosActive = feedback === 'positive' ? ' active-positive' : '';
+    const fbNegActive = feedback === 'negative' ? ' active-negative' : '';
+    const labelFbPositive = '👍';
+    const labelFbNegative = '👎';
+
+    const feedbackButtons = opts.showFeedback
+        ? `<button type="button"
+                   class="chat-message-action chat-message-action-feedback${fbPosActive}"
+                   data-action="feedback-positive"
+                   title="Хороший ответ"
+                   aria-label="Хороший ответ">${labelFbPositive}</button>
+           <button type="button"
+                   class="chat-message-action chat-message-action-feedback${fbNegActive}"
+                   data-action="feedback-negative"
+                   title="Плохой ответ"
+                   aria-label="Плохой ответ">${labelFbNegative}</button>`
+        : '';
+
     const retryBtn = opts.showRetry
         ? `<button type="button"
                    class="chat-message-action chat-message-action-with-text"
@@ -4760,9 +4792,65 @@ function renderMessageActions(text, opts = {}) {
         <div class="chat-message-actions${alwaysVisible}" data-copy-text="${attr}">
             ${copyBtn}
             ${editBtn}
+            ${feedbackButtons}
             ${regenBtn}
             ${retryBtn}
         </div>`;
+}
+
+/**
+ * KI-233: устанавливает / снимает оценку assistant-сообщения (👍 / 👎).
+ *
+ * <para>
+ * Optimistic UI: сразу меняем активные классы, потом POST.
+ * При ошибке — откат к прежнему состоянию + toast.
+ * </para>
+ *
+ * @param {HTMLElement} bubble — `.chat-message.assistant`
+ * @param {number} messageId — id assistant-сообщения
+ * @param {string|null} feedback — "positive" / "negative" / null (снять)
+ */
+async function setMessageFeedback(bubble, messageId, feedback) {
+    if (!bubble || !state.activeChatId) return;
+
+    const posBtn = bubble.querySelector('[data-action="feedback-positive"]');
+    const negBtn = bubble.querySelector('[data-action="feedback-negative"]');
+    if (!posBtn || !negBtn) return;
+
+    // Запоминаем текущее состояние (для отката).
+    const prevPos = posBtn.classList.contains('active-positive');
+    const prevNeg = negBtn.classList.contains('active-negative');
+
+    // Optimistic UI.
+    posBtn.classList.toggle('active-positive', feedback === 'positive');
+    negBtn.classList.toggle('active-negative', feedback === 'negative');
+
+    try {
+        const response = await fetch(`/api/chat/messages/${messageId}/feedback`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ feedback }),   // null → сервер снимет оценку
+        });
+
+        const res = await response.json();
+        if (!res || !res.success) {
+            // Откат.
+            posBtn.classList.toggle('active-positive', prevPos);
+            negBtn.classList.toggle('active-negative', prevNeg);
+            toast(res?.message || 'Не удалось сохранить оценку', 'error');
+            return;
+        }
+
+        // Обновляем `state.activeChat` (для последующего F5 — на всякий случай).
+        const msg = state.activeChat?.messages?.find(m => m.id === messageId);
+        if (msg) msg.feedback = res.data?.feedback ?? null;
+    } catch (ex) {
+        // Откат при сетевой ошибке.
+        posBtn.classList.toggle('active-positive', prevPos);
+        negBtn.classList.toggle('active-negative', prevNeg);
+        toast(ex.message || 'Ошибка сохранения оценки', 'error');
+    }
 }
 
 /**
@@ -4770,6 +4858,34 @@ function renderMessageActions(text, opts = {}) {
  * @param {MouseEvent} e
  */
 async function onMessageActionClick(e) {
+    // KI-233: 👍 / 👎 feedback на assistant-сообщении.
+    const fbPositive = e.target.closest('[data-action="feedback-positive"]');
+    const fbNegative = e.target.closest('[data-action="feedback-negative"]');
+    if (fbPositive || fbNegative) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const bubble = (fbPositive || fbNegative).closest('.chat-message');
+        const messageId = parseInt(
+            bubble?.dataset.assistantMessageId
+            || bubble?.dataset.messageId
+            || '0', 10);
+        if (messageId <= 0) {
+            toast('Сообщение ещё не сохранено', 'warning');
+            return;
+        }
+
+        // Toggle: если кнопка уже активна — снимаем оценку (null).
+        const target = fbPositive ? 'positive' : 'negative';
+        const current = (fbPositive || fbNegative).classList.contains('active-positive') ? 'positive'
+            : (fbPositive || fbNegative).classList.contains('active-negative') ? 'negative'
+            : null;
+        const next = current === target ? null : target;
+
+        await setMessageFeedback(bubble, messageId, next);
+        return;
+    }
+
     // KI-230: Continue (продолжение обрезанного ответа).
     const continueBtn = e.target.closest('[data-action="continue"]');
     if (continueBtn) {
