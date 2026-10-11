@@ -1029,5 +1029,26 @@
   </data>
   <data name="ChatRetryError" xml:space="preserve">
     <value>Retry</value>
-  </data>      
+  </data>
+  <data name="ChatPromptsTitle" xml:space="preserve">
+    <value>Try one of these:</value>
+  </data>
+  <data name="ChatPrompt1" xml:space="preserve">
+    <value>Write a short email about a meeting</value>
+  </data>
+  <data name="ChatPrompt2" xml:space="preserve">
+    <value>Draw a flowchart: A → B → C</value>
+  </data>
+  <data name="ChatPrompt3" xml:space="preserve">
+    <value>Write Euler's formula</value>
+  </data>
+  <data name="ChatPrompt4" xml:space="preserve">
+    <value>What does RULES.md say about yield return?</value>
+  </data>
+  <data name="ChatPrompt5" xml:space="preserve">
+    <value>Search the web for .NET 10 news</value>
+  </data>
+  <data name="ChatPrompt6" xml:space="preserve">
+    <value>Open example.com and tell me what's there</value>
+  </data>        
 </root>

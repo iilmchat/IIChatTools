@@ -524,6 +524,8 @@ function bindEvents() {
         // KI-229: делегированный click по <img data-lightbox-src> и
         // кнопке [data-open-screenshot] — открыть lightbox.
         messagesEl.addEventListener('click', onLightboxTriggerClick);
+        // KI-235: делегированный click по suggested-prompt — подстановка в input.
+        messagesEl.addEventListener('click', onSuggestedPromptClick);
 
         // v1.11.0 (KI-126, Шаг 1G.3): сохранение ввода feedback-поля —
         // при перерендере контейнера (смена вида) текст не теряется.
@@ -3212,11 +3214,76 @@ function formatTokenMeta(msg, isUser) {
         msg.firstTokenMs);
 }
 
+// ============ v1.13.17 (KI-235): Suggested prompts на пустом чате ============
+
+/**
+ * KI-235: рендер карточек suggested-prompts для пустого чата.
+ *
+ * <para>
+ * 6 prompts — хардкод через .resx (data-label-prompt-1..6 на #chat-messages,
+ * RULES § 4.17). Клик → подставляет текст в input (не отправляет) + фокус
+ * (ChatGPT-style — пользователь может отредактировать перед отправкой).
+ * </para>
+ *
+ * @returns {string} HTML или '' (если prompts не заданы в .resx)
+ */
+function renderSuggestedPrompts() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return '';
+
+    const icons = ['📝', '📊', '🧮', '📚', '🔍', '🌐'];
+    const items = [];
+    for (let i = 1; i <= 6; i++) {
+        const text = container.dataset[`labelPrompt${i}`];
+        if (!text) continue;
+        const icon = icons[i - 1] || '💬';
+        items.push(`
+            <button type="button"
+                    class="chat-suggested-prompt-item"
+                    data-prompt="${escapeAttr(text)}">
+                <span class="chat-suggested-prompt-icon" aria-hidden="true">${icon}</span>
+                <span class="chat-suggested-prompt-text">${escapeHtml(text)}</span>
+            </button>`);
+    }
+    if (items.length === 0) return '';
+
+    const title = container.dataset.labelPromptsTitle || 'Попробуйте так:';
+    return `
+        <div class="chat-suggested-prompts">
+            <div class="chat-suggested-prompts-title">${escapeHtml(title)}</div>
+            <div class="chat-suggested-prompts-grid">${items.join('')}</div>
+        </div>`;
+}
+
+/**
+ * KI-235: обработчик клика по suggested-prompt.
+ * Подставляет текст в input (не отправляет) + фокус + курсор в конец.
+ * @param {MouseEvent} e
+ */
+function onSuggestedPromptClick(e) {
+    const btn = e.target.closest('[data-prompt]');
+    if (!btn) return;
+
+    e.preventDefault();
+    const text = btn.dataset.prompt || '';
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+
+    input.value = text;
+    autoResizeTextarea(input);
+    input.focus();
+    // Курсор в конец — пользователь может сразу редактировать.
+    input.setSelectionRange(text.length, text.length);
+}
+
 function renderMessages(messages) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
     if (!messages || messages.length === 0) {
+        // KI-235: на пустом чате — suggested prompts (ChatGPT-style).
+        const emptyHint = container.dataset.labelEmptyChatHint
+            || 'История пуста. Начните диалог.';
         container.innerHTML = `
             <div class="chat-empty-state">
                 <div class="text-muted text-center">
@@ -3224,7 +3291,8 @@ function renderMessages(messages) {
                          alt="IIChatTools"
                          class="chat-empty-logo"
                          aria-hidden="true" />
-                    <p class="mb-0">История пуста. Начните диалог.</p>
+                    <p class="mb-0">${escapeHtml(emptyHint)}</p>
+                    ${renderSuggestedPrompts()}
                 </div>
             </div>`;
         return;
@@ -4151,6 +4219,8 @@ function showEmptyState() {
 
     const container = document.getElementById('chat-messages');
     if (container) {
+        const emptyHint = container.dataset.labelEmptyChatHint
+            || 'Выберите чат или создайте новый';
         container.innerHTML = `
             <div class="chat-empty-state">
                 <div class="text-muted text-center">
@@ -4158,7 +4228,8 @@ function showEmptyState() {
                          alt="IIChatTools"
                          class="chat-empty-logo"
                          aria-hidden="true" />
-                    <p class="mb-0">Выберите чат или создайте новый</p>
+                    <p class="mb-0">${escapeHtml(emptyHint)}</p>
+                    ${renderSuggestedPrompts()}
                 </div>
             </div>`;
     }

@@ -1029,5 +1029,26 @@
   </data>
   <data name="ChatRetryError" xml:space="preserve">
     <value>Повторить</value>
-  </data>      
+  </data>
+  <data name="ChatPromptsTitle" xml:space="preserve">
+    <value>Попробуйте так:</value>
+  </data>
+  <data name="ChatPrompt1" xml:space="preserve">
+    <value>Напиши короткое письмо коллеге про встречу</value>
+  </data>
+  <data name="ChatPrompt2" xml:space="preserve">
+    <value>Нарисуй блок-схему: A → B → C</value>
+  </data>
+  <data name="ChatPrompt3" xml:space="preserve">
+    <value>Напиши формулу Эйлера</value>
+  </data>
+  <data name="ChatPrompt4" xml:space="preserve">
+    <value>Что у нас в RULES.md про yield return?</value>
+  </data>
+  <data name="ChatPrompt5" xml:space="preserve">
+    <value>Найди в интернете новости про .NET 10</value>
+  </data>
+  <data name="ChatPrompt6" xml:space="preserve">
+    <value>Открой example.com и скажи, что там</value>
+  </data>        
 </root>

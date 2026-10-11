@@ -5651,8 +5651,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Fixed (v1.13.16) | 1 | <!-- KI-233 (👍/👎 feedback) -->
 | Documented | 14 | <!-- +KI-239 (mermaid syntax hallucinations) -->
 | Planned | 14 | <!-- +KI-240 (Feedback Admin UI + JSONL) -->
-| Fixed (v1.13.17) | 1 | <!-- KI-234 (Retry в error-bubble) — в работе -->
-| Planned (Chat UX, v1.13.x+) | 5 | <!-- KI-235..KI-237 (Suggested, Hotkeys help, UX backlog). KI-234 → Fixed (v1.13.17). -->
+| Fixed (v1.13.17) | 2 | <!-- KI-234 (Retry в error-bubble) + KI-235 (Suggested prompts) — в работе -->
+| Planned (Chat UX, v1.13.x+) | 4 | <!-- KI-236..KI-237 (Hotkeys help, UX backlog). KI-234/235 → Fixed (v1.13.17). -->
 | Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
 | Partially Fixed | 1 |               <!-- KI-057 -->
 | **Всего** | **195** |
