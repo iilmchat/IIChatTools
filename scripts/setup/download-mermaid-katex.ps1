@@ -80,7 +80,11 @@ function Get-LibFile {
 }
 
 # --- 1. Mermaid ---
-$mermaidBase = "https://cdnjs.cloudflare.com/ajax/libs/mermaid/$MermaidVersion"
+# ВАЖНО: начиная с mermaid 10+, cdnjs НЕ хранит классический mermaid.min.js
+# (404). Но сам файл всё ещё публикуется в npm-пакете (dist/mermaid.min.js) —
+# это IIFE-бандл, который ставит globalThis.mermaid. Забираем через jsDelivr.
+# См. https://github.com/mermaid-js/mermaid/issues/4281 (UMD build restored).
+$mermaidBase = "https://cdn.jsdelivr.net/npm/mermaid@$MermaidVersion/dist"
 Get-LibFile `
     -Url "$mermaidBase/mermaid.min.js" `
     -OutFile (Join-Path $libMermaid "mermaid.min.js")

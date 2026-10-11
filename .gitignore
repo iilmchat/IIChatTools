@@ -163,3 +163,12 @@ IIChatTools.API/tools/whisper/*.bin
 IIChatTools.API/tools/whisper/*.ggml
 
 smoke-*.ps1
+
+# Локальные библиотеки (скачиваются скриптами)
+IIChatTools.API/wwwroot/lib/pdf-lib/*.js
+IIChatTools.API/wwwroot/lib/pdf-lib/*.ttf
+# KI-232: mermaid + katex (скачиваются download-mermaid-katex.ps1)
+IIChatTools.API/wwwroot/lib/mermaid/*.js
+IIChatTools.API/wwwroot/lib/katex/*.js
+IIChatTools.API/wwwroot/lib/katex/*.css
+IIChatTools.API/wwwroot/lib/katex/fonts/*.woff2

@@ -275,7 +275,32 @@ namespace IIChatTools.Services.Implementation
             "    KI-185: после fail от vision_agent — НЕ вызывай другие vision_agent\n" +
             "    actions, НЕ переключайся на другие агенты (`consult_secondary_agent`,\n" +
             "    `web_agent` и т.п.) автоматически. Верни честный ответ и жди\n" +
-            "    следующего указания пользователя.";
+            "    следующего указания пользователя.\n" +
+            "\n" +
+            "14. ДИАГРАММЫ / ФОРМУЛЫ / ГРАФИКИ — это ТЕКСТ, не изображение!\n" +
+            "    Если пользователь просит:\n" +
+            "    - блок-схему / диаграмму / flowchart / mindmap / sequence /\n" +
+            "      класс-диаграмму / ER / gantt / pie — выведи код на языке\n" +
+            "      `mermaid` в блоке ```mermaid ... ```.\n" +
+            "    - математическую формулу — выведи её в LaTeX:\n" +
+            "      inline `$...$`, блочную `$$...$$`.\n" +
+            "    НЕ используй `vision_agent`, `browser_agent`, `code_agent` или\n" +
+            "    `consult_secondary_agent` для диаграмм и формул. Фронтенд сам\n" +
+            "    отрисует mermaid-код как SVG-диаграмму, а LaTeX — как формулу.\n" +
+            "\n" +
+            "    ПРИМЕР 6: «Нарисуй блок-схему A -> B -> C» или «нарисуй диаграмму»\n" +
+            "    или «покажи flowchart» →\n" +
+            "    Ответ ассистента (обычный текст, БЕЗ tool-call):\n" +
+            "    ```mermaid\n" +
+            "    flowchart LR\n" +
+            "        A --> B --> C\n" +
+            "    ```\n" +
+            "    НЕ вызывай `vision_agent`! Это текст → mermaid → SVG в UI.\n" +
+            "\n" +
+            "    ПРИМЕР 7: «Напиши формулу Эйлера» →\n" +
+            "    Ответ ассистента (обычный текст, БЕЗ tool-call):\n" +
+            "    Формула Эйлера: $e^{i\\pi} + 1 = 0$.\n" +
+            "    НЕ вызывай `code_agent`! LaTeX-формула рендерится в UI.";
 
         private readonly IChatService _chatService;
         private readonly IChatLlmClient _chatLlmClient;
