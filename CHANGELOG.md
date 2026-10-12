@@ -18,8 +18,17 @@
 
 ## [Unreleased]
 
+---
+
+## [1.14.0] — 2026-10-12
+
+**KI-126 Фаза 2 — Debate для `planner_agent` (Pro / Contra / Judge).**
+Автономное взаимодействие 3 агентов-ролей: защитник предложения (Pro),
+скептик (Contra), арбитр (Judge). Top-level tool `planner_with_debate` —
+для сложных архитектурных / стратегических решений. Chat-tools: 17 → 18.
+
 ### Added
-- **KI-126 Фаза 2 — Debate для `planner_agent`** (в работе):
+- **KI-126 Фаза 2 — Debate для `planner_agent`**:
   - **Шаг 2A:** Entity `AgentDebateRound` + 4 nullable-колонки для
     3-ролевого паттерна (Debate): `ProOutput`, `ContraOutput`,
     `JudgeVerdict`, `JudgeFeedbackJson`. Миграция

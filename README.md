@@ -1,10 +1,10 @@
-# IIChatTools v1.13.17
+# IIChatTools v1.14.0
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.13.17
+© 2026 RuChating (iilmchat) · IIChatTools v1.14.0
 
 ---
 
@@ -22,6 +22,7 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **💬 Chat UI** — полноценный чат с LLM (как ChatGPT): sidebar с историей диалогов, стриминг SSE, переименование/удаление чатов, автоскролл, копирование, approvals прямо из чата.
 - **🤖 Multi-Agent (v1.4.0)** — Chat общается с **7 верхнеуровневыми инструментами** (6 специализированных агентов + `consult_secondary_agent`). Каждый агент — со своим system prompt, моделью и белым списком инструментов. Управление через админку `/admin → Агенты`.
 - **⚔️ Actor-Critic Debate (v1.11.0, KI-126)** — автономное взаимодействие Actor (`code_agent`) и Critic (`code_reviewer_agent`) через top-level tool `code_agent_with_review`. До 3 раундов, эскалация на внешнюю LLM при `Uncertain`. UI: селектор «диалог / сворачиваемый», feedback между раундами. SSE-события `debate_started` / `debate_round` / `debate_escalated` / `debate_completed`.
+- **⚖️ Debate (Pro / Contra / Judge) (v1.14.0, KI-126 Фаза 2)** — top-level tool `planner_with_debate` для сложных архитектурных решений (сравнение подходов, миграция, оценка рисков). Три роли: **Pro** ⚖️ (защитник предложения) → **Contra** 🛑 (скептик) → **Judge** 👨‍⚖️ (арбитр с вердиктом Approved / Rejected / Uncertain). До 3 раундов. Эскалация на внешнюю LLM при `Uncertain`, Human-in-the-loop после `Rejected`. Роли `planner_pro_agent` / `planner_contra_agent` / `planner_judge_agent` помечены `Internal` — Chat-LLM их не видит напрямую. UI: тот же селектор «диалог / сворачиваемый», рендер 3 ролей + feedback-блок.
 - **65 инструментов** для LLM (40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator).
 - **Tool calling в чате** — LLM сама вызывает инструменты в multi-turn loop (до 5 итераций).
 - **Approvals в чате** — mutating-инструменты требуют подтверждения через модалку (drag-and-drop, countdown, approve/reject).
@@ -1180,9 +1181,9 @@ logs/audit/*.jsonl (JSONL, ротация)
 ### Образы в ghcr.io
 
     docker pull ghcr.io/iilmchat/iichattools:latest
-    docker pull ghcr.io/iilmchat/iichattools:v1.13.17
-    docker pull ghcr.io/iilmchat/iichattools:1.13.17
-    docker pull ghcr.io/iilmchat/iichattools:1.13
+    docker pull ghcr.io/iilmchat/iichattools:v1.14.0
+    docker pull ghcr.io/iilmchat/iichattools:1.14.0
+    docker pull ghcr.io/iilmchat/iichattools:1.14
     docker pull ghcr.io/iilmchat/iichattools:1
 
 ### Развёртывание (Docker)
