@@ -123,6 +123,12 @@ namespace IIChatTools.Services.Implementation
         /// </summary>
         private const string PlannerWithDebateToolName = "planner_with_debate";
 
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3, Шаг 3D): имя Orchestrator-Worker tool.
+        /// Явно добавляется в <c>allowedNames</c> (RULES § 4.44).
+        /// </summary>
+        private const string OrchestrateTaskToolName = "orchestrate_task";
+
         /// <summary>Сколько top-K чанков вставлять в system prompt (по умолчанию).</summary>
         private const int DefaultAutoInjectTopK = 5;
 
@@ -344,7 +350,37 @@ namespace IIChatTools.Services.Implementation
             "    ПРИМЕР 9: «Запомни, что я люблю тёмную тему» или\n" +
             "    «Какая у меня ОС?» → вызови `planner_agent`. НЕ\n" +
             "    запускай Debate — это лишние 3 LLM-вызова на 2 минуты\n" +
-            "    ради простого действия.";
+            "    ради простого действия.\n" +
+            "\n" +
+            "16. СЛОЖНЫЕ MULTI-STEP ЗАДАЧИ — используй `orchestrate_task`\n" +
+            "    (Orchestrator-Worker). ВЫБИРАЙ ЭТОТ ИНСТРУМЕНТ когда:\n" +
+            "    - задача требует исследования в НЕСКОЛЬКИХ источниках\n" +
+            "      («найди X в источниках A, B, C и сведи результаты»);\n" +
+            "    - сравнение подходов по критериям\n" +
+            "      («сравни A/B/C по X, Y»);\n" +
+            "    - сборка отчёта из N независимых частей\n" +
+            "      («собери отчёт: intro, methodology, results, conclusion»);\n" +
+            "    - cross-tool workflow\n" +
+            "      («найди данные через web, обработай через code, сохрани в файл»).\n" +
+            "\n" +
+            "    Оркестратор сам разобьёт задачу на 2-5 подзадач и распределит\n" +
+            "    между агентами.\n" +
+            "\n" +
+            "    НЕ используй `orchestrate_task` для ПРОСТЫХ задач:\n" +
+            "    - одношаговые («посчитай 2+2», «прочитай файл X»);\n" +
+            "    - известная жёсткая последовательность (просто вызови\n" +
+            "      2-3 агента подряд — Chat LLM справится сам);\n" +
+            "    - диалоговые вопросы.\n" +
+            "\n" +
+            "    ПРИМЕР 10: «Исследуй технологию X в источниках A, B, C\n" +
+            "    и сведи результаты» → вызови `orchestrate_task`. НЕ\n" +
+            "    вызывай `web_agent` 3 раза вручную.\n" +
+            "\n" +
+            "    ПРИМЕР 11: «Собери отчёт: intro, methodology, results,\n" +
+            "    conclusion» → вызови `orchestrate_task`.\n" +
+            "\n" +
+            "    ПРИМЕР 12: «Посчитай 2+2» → вызови `code_agent` напрямую.\n" +
+            "    НЕ `orchestrate_task` — это одиночная задача.";
 
         private readonly IChatService _chatService;
         private readonly IChatLlmClient _chatLlmClient;
@@ -637,6 +673,13 @@ namespace IIChatTools.Services.Implementation
                 if (!allowedNames.Contains(PlannerWithDebateToolName, StringComparer.OrdinalIgnoreCase))
                 {
                     allowedNames.Add(PlannerWithDebateToolName);
+                }
+
+                // v2.0.0 (KI-126, Фаза 3, Шаг 3D): Orchestrator-Worker.
+                // RULES § 4.44 — обязательно в allowedNames.
+                if (!allowedNames.Contains(OrchestrateTaskToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(OrchestrateTaskToolName);
                 }
 
                 tools = ToolDefinitionsBuilder.Build(

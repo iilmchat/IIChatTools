@@ -632,6 +632,11 @@ namespace IIChatTools.API
             // ChatStreamService (RULES § 4.44).
             services.AddScoped<ITool, PlannerWithDebateTool>();
 
+            // v2.0.0 (KI-126, Фаза 3, Шаг 3D): top-level Orchestrator-Worker
+            // (orchestrate_task). Не наследник AgentToolBase — свой loop.
+            // RULES § 4.44: обязательно в allowedNames ChatStreamService.
+            services.AddScoped<ITool, OrchestrateTaskTool>();
+
             // v1.7.0 (KI-097, Фаза 5): Database Agent tool.
             // Не регистрируется при SqlAgent:Enabled = false (DESIGN § 3.4).
             RegisterSqlAgentTools(services, Configuration);
