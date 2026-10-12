@@ -374,6 +374,12 @@ namespace IIChatTools.API
             // По образцу ChatApprovalCoordinator (RULES § 4.23).
             services.AddSingleton<IAgentDebateCoordinator, AgentDebateCoordinator>();
 
+            // ============ Agent blackboard (v2.0.0, KI-126, Фаза 3, Шаг 3C) ============
+            // Singleton — общий shared state для Orchestrator-Worker.
+            // In-memory (ConcurrentDictionary) + Cleanup Timer (TTL 30 мин, KI-043).
+            // Persistence — на уровне OrchestrateTaskTool через AgentDebateRound.ActorOutput.
+            services.AddSingleton<IAgentBlackboard, InMemoryAgentBlackboard>();
+
             // ============ 7. Реестр инструментов ============
             services.AddScoped<IToolRegistry, ToolRegistry>();
 
