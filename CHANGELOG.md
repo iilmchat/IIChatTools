@@ -37,6 +37,17 @@
     регистрация в `RegisterSpecializedAgentTools`.
     Chat-LLM их **не видит** напрямую (используются внутри
     `planner_with_debate`, Шаг 2C).
+  - **Шаг 2B-fix:** введён флаг `SubAgentDescriptor.Internal`
+    (v1.14.0, KI-126 Ф2). `SubAgentRegistry.LoadFromConfiguration`
+    читает `Internal` из `SubAgents:*:Internal`, `Clone` сохраняет
+    в `_defaults`, `ChatStreamService.StreamAsync` фильтрует
+    `GetEnabled()` по `!a.Internal` при построении `allowedNames`.
+    Роли `planner_pro_agent` / `planner_contra_agent` /
+    `planner_judge_agent` помечены `"Internal": true` — Chat-tools
+    возвращены к **16 инструментам** (было ошибочно 20 после Шага 2B).
+    Оркестратор `planner_with_debate` (Шаг 2C) по-прежнему сможет
+    вызывать эти роли через `IToolRegistry.ExecuteAsync` — флаг
+    влияет только на публичную видимость в Chat-tools.
 
 ---
 

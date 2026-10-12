@@ -135,6 +135,10 @@ namespace IIChatTools.Services.Implementation.Agents
                     MaxSteps = ParseInt(child["MaxSteps"], defaultValue: 10, min: 1, max: 30),
                     RequiresApprovalByDefault = ParseBool(child["RequiresApproval"], defaultValue: true),
                     Disabled = !ParseBool(child["Enabled"], defaultValue: true),
+                    // v1.14.0 (KI-126, Фаза 2): internal-агенты (роли Debate)
+                    // не попадают в Chat-tools — используются только внутри
+                    // оркестратора planner_with_debate.
+                    Internal = ParseBool(child["Internal"], defaultValue: false),
                     AllowedTools = ParseAllowedTools(child.GetSection("AllowedTools"))
                 };
 
@@ -194,6 +198,9 @@ namespace IIChatTools.Services.Implementation.Agents
                 MaxSteps = source.MaxSteps,
                 RequiresApprovalByDefault = source.RequiresApprovalByDefault,
                 Disabled = source.Disabled,
+                // v1.14.0 (KI-126, Фаза 2): сохраняем Internal-флаг в _defaults —
+                // иначе Reset() потеряет его.
+                Internal = source.Internal,
                 AllowedTools = source.AllowedTools == null
                     ? Array.Empty<string>()
                     : source.AllowedTools.ToList()

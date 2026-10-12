@@ -62,5 +62,32 @@ namespace IIChatTools.Services.DTO.SubAgent
         /// который уходит в Chat (см. <c>GetEnabled()</c>).
         /// </summary>
         public bool Disabled { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): агент используется только ВНУТРИ
+        /// top-level оркестратора (<c>code_agent_with_review</c>,
+        /// <c>planner_with_debate</c>) и НЕ должен попадать в Chat-tools
+        /// напрямую.
+        ///
+        /// <para>
+        /// <see cref="Implementation.Agents.SubAgentRegistry.GetEnabled"/>
+        /// по-прежнему возвращает internal-агентов — они доступны оркестратору
+        /// через <c>IToolRegistry.ExecuteAsync("planner_pro_agent", ...)</c>.
+        /// Фильтрация происходит в <c>ChatStreamService.StreamAsync</c> при
+        /// построении <c>allowedNames</c> (RULES § 4.44).
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Зачем:</b> без флага Chat-LLM могла бы вызвать <c>planner_judge_agent</c>
+        /// напрямую (без Pro и Contra) — вердикт без аргументов, бессмысленно.
+        /// Роли Debate работают только в связке, через оркестратор.
+        /// </para>
+        ///
+        /// <para>
+        /// Default <c>false</c> — обратная совместимость со всеми существующими
+        /// агентами (v1.4.0 … v1.13.x).
+        /// </para>
+        /// </summary>
+        public bool Internal { get; set; } = false;
     }
 }

@@ -535,6 +535,14 @@ namespace IIChatTools.Services.Implementation
             {
                 var enabledAgents = _subAgentRegistry.GetEnabled();
                 var allowedNames = enabledAgents
+                    // v1.14.0 (KI-126, Фаза 2): internal-агенты (роли Debate
+                    // planner_pro/contra/judge_agent) не публикуются в Chat-tools.
+                    // Они используются только внутри оркестратора
+                    // planner_with_debate (Шаг 2C) через IToolRegistry.ExecuteAsync.
+                    // Без фильтра Chat-LLM могла бы вызвать голого planner_judge_agent
+                    // без Pro/Contra — вердикт без аргументов, бессмысленно.
+                    // RULES § 4.44 — top-level публичность.
+                    .Where(a => !a.Internal)
                     .Select(a => a.Name)
                     .ToList();
 
