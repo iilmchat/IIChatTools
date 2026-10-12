@@ -5885,6 +5885,27 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-248 — Orchestrator: Human-in-the-loop между подзадачами
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-12 (Шаг 3F KI-126 Ф3).
+- **Описание:** В v2.0.0 `OrchestrateTaskTool` **не реализует** HITL —
+  игнорирует `SubAgents:orchestrate_task:HumanApproval` (поле читается
+  в `ConfigSnapshot`, но не используется). В prod стоит `Never` — не блокер.
+- **Что нужно (v2.0.x):**
+  - `BetweenSubtasks` — после каждой подзадачи (для `parallel=false`):
+    `await _coordinator.WaitForFeedbackAsync(sessionId, timeout, ct)`.
+  - `AtEnd` — после всех подзадач, перед финальным артефактом.
+  - `Never` — без остановок (текущее поведение).
+  - Endpoint `POST /api/chat/debate/{sessionId}/inject` — уже есть из Ф1.
+  - Feedback пользователя приоритетнее автоматической агрегации.
+- **Обоснование отсрочки:** в prod выставлен `Never` (DESIGN § 14), для
+  длинных оркестраций HITL может быть неудобен. Сначала оценим UX на
+  реальных smoke-сценариях.
+- **Оценка:** ~1.5 ч (по образцу `PlannerWithDebateTool` § 3g).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -5931,9 +5952,9 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Implemented (v1.7.0) | 1 |
 | Deferred | 5 |
 | Documented | 13 |
-| Planned | 22 |
+| Planned | 23 |
 | Partially Fixed | 1 |
-| **Всего** | **202** |
+| **Всего** | **203** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
 KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),

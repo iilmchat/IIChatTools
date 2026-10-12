@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.DTO.Chat;
+using IIChatTools.Services.DTO.Debate;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -64,6 +66,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         // ============================================================
 
         private readonly Func<IToolRegistry> _toolRegistryFactory;
+        private readonly IAgentDebateSessionService _sessionService;
+        private readonly IAgentBlackboard _blackboard;
         private readonly IConfiguration _configuration;
         private readonly ILogger<OrchestrateTaskTool> _logger;
 
@@ -112,16 +116,30 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         /// Создаёт инструмент.
         /// </summary>
         /// <param name="toolRegistryFactory">Фабрика реестра инструментов (ADR-002).</param>
+        /// <param name="sessionService">
+        /// v2.0.0 (KI-126, Ф3, Шаг 3F): сервис управления сессиями
+        /// (Persistence в <c>AgentDebateSession</c> / <c>AgentDebateRound</c>).
+        /// </param>
+        /// <param name="blackboard">
+        /// v2.0.0 (KI-126, Ф3, Шаг 3F): общий shared state Orchestrator-Worker
+        /// (in-memory, TTL 30 мин).
+        /// </param>
         /// <param name="configuration">Конфигурация (для чтения SubAgents:orchestrate_task:*).</param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если параметр равен null.</exception>
         public OrchestrateTaskTool(
             Func<IToolRegistry> toolRegistryFactory,
+            IAgentDebateSessionService sessionService,
+            IAgentBlackboard blackboard,
             IConfiguration configuration,
             ILogger<OrchestrateTaskTool> logger)
         {
             _toolRegistryFactory = toolRegistryFactory
                 ?? throw new ArgumentNullException(nameof(toolRegistryFactory));
+            _sessionService = sessionService
+                ?? throw new ArgumentNullException(nameof(sessionService));
+            _blackboard = blackboard
+                ?? throw new ArgumentNullException(nameof(blackboard));
             _configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger
@@ -153,6 +171,53 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
             var stopwatch = Stopwatch.StartNew();
 
+            // ---------- 2.5. Persistence: создать сессию + Blackboard ----------
+            int? sessionId = null;
+            if (context.ChatId.HasValue && context.ChatId.Value > 0)
+            {
+                try
+                {
+                    var snapshot = new AgentDebateConfigSnapshot
+                    {
+                        PatternType = "Orchestrator",
+                        MaxSubtasks = config.MaxSubtasks,
+                        Parallel = false,  // уточним после декомпозиции
+                        TokenBudget = config.TokenBudget,
+                        HumanApproval = config.HumanApproval,
+                        AllowedWorkerAgents = config.AllowedWorkerAgents.ToList()
+                    };
+
+                    sessionId = await _sessionService.StartAsync(
+                        context.ChatId.Value,
+                        context.UserId,
+                        task,
+                        snapshot,
+                        context.CancellationToken);
+
+                    await _sessionService.MarkInProgressAsync(
+                        sessionId.Value, context.CancellationToken);
+
+                    _blackboard.GetOrCreate(sessionId.Value);
+
+                    _logger.LogInformation(
+                        "OrchestrateTaskTool: sessionId={SessionId}, chatId={ChatId}",
+                        sessionId, context.ChatId);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogWarning(
+                        "OrchestrateTaskTool: не удалось создать сессию: {Message}",
+                        ex.Message);
+                    return ToolResult.Fail(ex.Message);
+                }
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "OrchestrateTaskTool: без ChatId (sessionId не создаётся, " +
+                    "SSE-события и persistence недоступны).");
+            }
+
             // ---------- 3. Декомпозиция ----------
             var planResult = await CallPlannerAsync(context, task);
             if (!planResult.Success)
@@ -174,9 +239,30 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
             if (plan.Subtasks.Count == 0)
             {
+                if (sessionId.HasValue)
+                {
+                    await SafeCompleteAsync(
+                        sessionId.Value, "Cancelled", null, context.CancellationToken);
+                    _blackboard.Clear(sessionId.Value);
+                }
                 return ToolResult.Fail(
                     "Декомпозитор вернул пустой список подзадач. " +
                     "Задача выглядит одношаговой — используйте прямого агента.");
+            }
+
+            // ---------- SSE: orchestrator_started ----------
+            if (sessionId.HasValue)
+            {
+                TryEmit(context, ChatStreamEvent.OrchestratorStarted(
+                    new ChatOrchestratorStartedDto
+                    {
+                        SessionId = sessionId.Value,
+                        Task = task,
+                        Parallel = plan.Parallel,
+                        MaxSubtasks = config.MaxSubtasks,
+                        AllowedWorkerAgents = config.AllowedWorkerAgents.ToList(),
+                        HumanApproval = config.HumanApproval
+                    }));
             }
 
             // ---------- 4. Обрезка до MaxSubtasks ----------
@@ -251,12 +337,13 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
                 using var semaphore = new SemaphoreSlim(maxParallel);
 
-                var tasks = activeSubtasks.Select(async st =>
+                var tasks = activeSubtasks.Select(async (st, idx) =>
                 {
                     await semaphore.WaitAsync(context.CancellationToken);
                     try
                     {
-                        await ExecuteSubtaskAsync(context, st);
+                        await ExecuteSubtaskAsync(
+                            context, st, sessionId, subtasks.Count, idx + 1);
                     }
                     finally
                     {
@@ -275,9 +362,11 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                         "external_llm_agent выполняем последовательно.");
                 }
 
+                var seqIndex = 0;
                 foreach (var st in activeSubtasks)
                 {
-                    await ExecuteSubtaskAsync(context, st);
+                    await ExecuteSubtaskAsync(
+                        context, st, sessionId, subtasks.Count, ++seqIndex);
                 }
             }
 
@@ -318,6 +407,34 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 "OrchestrateTaskTool: завершено за {Ms} мс " +
                 "(подзадач: {Total}, completed: {Ok}, failed: {Fail}, truncated: {Trunc})",
                 stopwatch.ElapsedMilliseconds, subtasks.Count, completed, failed, truncated);
+
+            // ---------- Persistence: CompleteAsync + SSE orchestrator_completed ----------
+            if (sessionId.HasValue)
+            {
+                var verdict = failed == 0
+                    ? "Approved"
+                    : (completed > 0 ? "PartiallyApproved" : "Failed");
+
+                await SafeCompleteAsync(
+                    sessionId.Value,
+                    verdict,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(new { finalArtifact }),
+                    context.CancellationToken);
+
+                TryEmit(context, ChatStreamEvent.OrchestratorCompleted(
+                    new ChatOrchestratorCompletedDto
+                    {
+                        SessionId = sessionId.Value,
+                        TotalSubtasks = subtasks.Count,
+                        CompletedSubtasks = completed,
+                        FailedSubtasks = failed,
+                        FinalArtifact = finalArtifact,
+                        TotalDurationMs = stopwatch.ElapsedMilliseconds
+                    }));
+
+                // Cleanup Blackboard.
+                _blackboard.Clear(sessionId.Value);
+            }
 
             var message = failed > 0
                 ? $"Оркестрация завершена частично: {completed} из {subtasks.Count} подзадач успешно."
@@ -542,12 +659,30 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         /// <summary>
         /// Выполняет одну подзадачу через <see cref="IToolRegistry.ExecuteAsync"/>.
         /// Обновляет <see cref="SubtaskState"/> in-place.
+        ///
+        /// <para>
+        /// v2.0.0 (KI-126, Ф3, Шаг 3F): после выполнения:
+        /// <list type="bullet">
+        ///   <item>пишет результат в <see cref="IAgentBlackboard"/> (ключи <c>subtask.{id}.*</c>);</item>
+        ///   <item>сохраняет round в <see cref="IAgentDebateSessionService"/> (Subtask*-поля);</item>
+        ///   <item>эмитит SSE-событие <c>orchestrator_round</c>.</item>
+        /// </list>
+        /// </para>
         /// </summary>
         /// <param name="context">Контекст (UserId, ChatId, ...).</param>
         /// <param name="subtask">Состояние подзадачи (мутируется).</param>
+        /// <param name="sessionId">
+        /// ID сессии <c>AgentDebateSession</c>. <c>null</c> — persistence отключён
+        /// (нет ChatId). Blackboard и SSE также пропускаются.
+        /// </param>
+        /// <param name="totalSubtasks">Общее число подзадач (для диагностики, сейчас не используется).</param>
+        /// <param name="index">Порядковый номер подзадачи (1-based) — для <c>RoundNumber</c>.</param>
         private async Task ExecuteSubtaskAsync(
             ToolExecutionContext context,
-            SubtaskState subtask)
+            SubtaskState subtask,
+            int? sessionId,
+            int totalSubtasks,
+            int index)
         {
             subtask.Status = "running";
             var sw = Stopwatch.StartNew();
@@ -597,6 +732,114 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 _logger.LogError(ex,
                     "OrchestrateTaskTool: подзадача {Id} ({Agent}) упала с исключением",
                     subtask.Id, subtask.Agent);
+            }
+
+            // ---------- Blackboard ----------
+            if (sessionId.HasValue)
+            {
+                try
+                {
+                    _blackboard.Set(sessionId.Value, $"subtask.{subtask.Id}.status", subtask.Status);
+                    _blackboard.Set(sessionId.Value, $"subtask.{subtask.Id}.agent", subtask.Agent);
+                    _blackboard.Set(sessionId.Value, $"subtask.{subtask.Id}.task", subtask.Task);
+                    _blackboard.Set(sessionId.Value, $"subtask.{subtask.Id}.durationMs", subtask.DurationMs);
+
+                    if (subtask.Result != null)
+                        _blackboard.Set(sessionId.Value, $"subtask.{subtask.Id}.result", subtask.Result);
+                    if (subtask.Error != null)
+                        _blackboard.Set(sessionId.Value, $"subtask.{subtask.Id}.error", subtask.Error);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "OrchestrateTaskTool: ошибка записи в Blackboard (sessionId={SessionId})",
+                        sessionId);
+                }
+            }
+
+            // ---------- Persistence: AddRoundAsync ----------
+            if (sessionId.HasValue)
+            {
+                try
+                {
+                    var roundDto = new AgentDebateRoundDto
+                    {
+                        RoundNumber = index,
+                        SubtaskId = subtask.Id,
+                        SubtaskAgent = subtask.Agent,
+                        SubtaskTask = subtask.Task,
+                        SubtaskStatus = subtask.Status,
+                        SubtaskResult = subtask.Result,
+                        SubtaskError = subtask.Error,
+                        DurationMs = (int)subtask.DurationMs
+                    };
+
+                    await _sessionService.AddRoundAsync(
+                        sessionId.Value, roundDto, context.CancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "OrchestrateTaskTool: ошибка AddRoundAsync (sessionId={SessionId})",
+                        sessionId);
+                }
+            }
+
+            // ---------- SSE: orchestrator_round ----------
+            if (sessionId.HasValue)
+            {
+                TryEmit(context, ChatStreamEvent.OrchestratorRound(new ChatOrchestratorRoundDto
+                {
+                    SessionId = sessionId.Value,
+                    SubtaskId = subtask.Id,
+                    Agent = subtask.Agent,
+                    Task = subtask.Task,
+                    Status = subtask.Status,
+                    Result = subtask.Result,
+                    Error = subtask.Error,
+                    DurationMs = (int)subtask.DurationMs,
+                    TokensIn = 0,   // Worker'ы не возвращают токены (KI-241)
+                    TokensOut = 0
+                }));
+            }
+        }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3, Шаг 3F): пишет SSE-событие в
+        /// <see cref="ToolExecutionContext.EventWriter"/>. Ошибки игнорирует
+        /// (канал может быть закрыт при отмене). По образцу
+        /// <c>PlannerWithDebateTool.TryEmit</c>.
+        /// </summary>
+        private static void TryEmit(ToolExecutionContext context, ChatStreamEvent evt)
+        {
+            if (context?.EventWriter == null || evt == null) return;
+            try
+            {
+                context.EventWriter.TryWrite(evt);
+            }
+            catch
+            {
+                // Канал закрыт — не критично.
+            }
+        }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3, Шаг 3F): безопасный вызов
+        /// <see cref="IAgentDebateSessionService.CompleteAsync"/> — не падает
+        /// при ошибке.
+        /// </summary>
+        private async Task SafeCompleteAsync(
+            int sessionId, string verdict, string artifactJson, CancellationToken ct)
+        {
+            try
+            {
+                await _sessionService.CompleteAsync(sessionId, verdict, artifactJson, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "OrchestrateTaskTool: ошибка CompleteAsync (sessionId={SessionId})",
+                    sessionId);
             }
         }
 
