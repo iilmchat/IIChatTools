@@ -31,6 +31,53 @@
 
 ---
 
+## [2.0.1] — 2026-10-12
+
+**UI-полировка после v2.0.0: toggle вида дебатов в блок + redesign
+модалки approval.** Два UX-фикса, оба frontend-only.
+
+### Added
+- **KI-249 — Redesign модалки approval (v2.0.1)**:
+  - `approvals.js`: новый `renderToolParams(toolName, paramsJson)` —
+    диспетчер по имени tool'а.
+  - **Tool-специфичные рендеры** (вместо сырого JSON):
+    - `orchestrate_task` → «Задача» + badges (Параллельно / Макс. подзадач)
+      + `<details> Другие поля (N)`.
+    - Агенты-обёртки (17 шт.) → «Задача» + «Контекст» + `Другие поля`.
+    - `send_email` → to / cc / subject / body + `Другие поля`.
+    - `database_agent` → action + connection + table + SQL (hljs) + `Другие поля`.
+    - `run_python` / `run_javascript` → code (hljs) + `Другие поля`.
+    - default → pretty JSON + hljs.
+  - `_ApprovalModal.cshtml`: `<pre id="approval-params">` → `<div>` +
+    15 `data-label-*` (RULES § 4.17).
+  - `chat.css`: `.chat-approval-params` (max-height 40vh, internal scroll,
+    без гориз. скролла), `.chat-approval-badge`, `.chat-approval-code`,
+    `.chat-approval-other`.
+  - `.resx` (RU + EN): +15 ключей `ApprovalParam*`.
+
+### Changed
+- **KI-250 — Toggle вида дебатов внутри блока (v2.0.1)**:
+  - Удалена кнопка `#btn-debate-view` из chat-header (раньше управляла
+    **всеми** блоками Actor-Critic / Debate / Orchestrator в ленте —
+    семантически не связано).
+  - **Per-block override:** `state.debateViewBySessionId[sessionId]`.
+    Toggle переключает **только текущий блок**.
+  - Новая кнопка-иконка `▶` / `▼` в правом углу `.chat-debate-header` /
+    `.chat-orchestrator-header` (`[data-toggle-session-id]`).
+  - `chat.js`: helpers `getDebateViewFor` / `toggleDebateViewFor` /
+    `refreshViewBySessionId`; удалены `applyDebateViewUI` и старый
+    обработчик `#btn-debate-view`.
+  - `chat.css`: `.chat-debate-view-toggle`.
+  - `.resx`: 2 ключа (уже существуют — `ChatDebateViewDialog` /
+    `ChatDebateViewCollapsed`).
+- **Bump version 2.0.0 → 2.0.1** (`Directory.Build.props`).
+
+### Fixed
+- **KI-249** → Fixed (v2.0.1).
+- **KI-250** → Fixed (v2.0.1).
+
+---
+
 ## [2.0.0] — 2026-10-12
 
 **KI-126 Фаза 3 — Orchestrator-Worker + Blackboard.**

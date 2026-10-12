@@ -5925,7 +5925,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-249 — Redesign модалки approval: человекочитаемые параметры вызова
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v2.0.1
 - **Обнаружено:** 2026-10-12 (smoke Шага 3G KI-126 Ф3).
 - **Файлы (план):**
   - `wwwroot/js/modules/approvals.js` — функция `renderToolParams(toolName, paramsJson)`;
@@ -5955,12 +5955,28 @@ requirement) работают **стабильно**. Gantt требует бо�
   - Diff-view (для `save_file` / `replace_text_in_file`) — отдельный KI-250 (v2.0.x), требует snapshot текущего файла.
   - Multi-file diff — v2.1+.
 - **Оценка:** ~2-3 ч (frontend-only + локализация).
+- **Реализовано (v2.0.1, 2026-10-12):**
+  - `approvals.js`: `renderToolParams(toolName, paramsJson)` — диспетчер.
+    Tool-специфичные рендеры: `orchestrate_task`, 17 агентов-обёрток
+    с полем `task`, `send_email`, `database_agent`, `run_python` /
+    `run_javascript`, default → pretty JSON.
+  - `renderField` / `renderOtherFields` / `renderRawJson` — helpers.
+  - `AGENT_TASK_TOOLS` — Set имён агентов.
+  - hljs-подсветка для code-блоков (если библиотека загружена).
+  - `_ApprovalModal.cshtml`: `<pre id="approval-params">` → `<div>` +
+    15 `data-label-*` (RULES § 4.17).
+  - `chat.css`: `.chat-approval-params*` (max-height 40vh, internal scroll,
+    `white-space: pre-wrap`, без гориз. скролла).
+  - `.resx` (RU + EN): +15 ключей `ApprovalParam*`.
+  - **Smoke:** `orchestrate_task`, `code_agent_with_review`,
+    `database_agent` — все рендерятся корректно (task / context /
+    action / SQL + `▸ Другие поля (N)` + badges).
 
 ---
 
 ### KI-250 — Toggle вида дебатов: перенести в блок (Вариант 3)
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v2.0.1
 - **Обнаружено:** 2026-10-12 (smoke Шага 3H KI-126 Ф3).
 - **Файлы (план):**
   - `Views/Chat/Index.cshtml` — удалить `#btn-debate-view` из header;
@@ -5984,6 +6000,20 @@ requirement) работают **стабильно**. Gantt требует бо�
     если понадобится.
   - Контекстное меню (правый клик) — пересмотрим после smoke.
 - **Оценка:** ~30 мин (frontend-only).
+- **Реализовано (v2.0.1, 2026-10-12):**
+  - Удалена кнопка `#btn-debate-view` из chat-header.
+  - **Per-block override:** `state.debateViewBySessionId[sessionId]`.
+    Toggle переключает только текущий блок.
+  - Новая кнопка-иконка `▶` (collapsed) / `▼` (dialog) в правом углу
+    `.chat-debate-header` / `.chat-orchestrator-header`
+    (`[data-toggle-session-id]`).
+  - Helpers: `getDebateViewFor` / `toggleDebateViewFor` /
+    `refreshViewBySessionId`. Удалены `applyDebateViewUI` и старый
+    обработчик `#btn-debate-view`.
+  - `chat.css`: `.chat-debate-view-toggle` — компактная icon-кнопка.
+  - `Index.cshtml`: удалён `<button>` из header; +2 `data-label-*`.
+  - **Smoke:** toggle работает per-block; в collapsed → `▶`, в dialog →
+    `▼`; клик разворачивает/сворачивает **только этот блок**.
 
 ---
 
@@ -6034,7 +6064,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Implemented (v1.7.0) | 1 |
 | Deferred | 5 |
 | Documented | 13 |
-| Planned | 25 |
+| Fixed (v2.0.1, KI-249/250) | 2 |
+| Planned | 23 |
 | Partially Fixed | 1 |
 | **Всего** | **205** |
 
