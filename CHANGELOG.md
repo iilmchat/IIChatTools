@@ -119,6 +119,28 @@
     `patternType = "Debate"`. CSS: `.chat-debate-pro` / `.chat-debate-contra`
     / `.chat-debate-judge` (псевдонимы actor/critic-стилей).
     +4 ключа `.resx` (RU + EN).
+  - **Шаг 2D.2 (закрыт побочно в 2D.1):** Feedback-блок между
+    раундами для Debate работает через тот же `renderFeedbackBlock`,
+    что и для ActorCritic. Триггер `handleDebateRound` теперь
+    использует `verdict = isDebate ? judgeVerdict : criticVerdict`
+    (Шаг 2D.1, правка 2). Отдельный коммит не потребовался.
+  - **Шаг 2E:** unit-тесты `PlannerWithDebateToolTests` (**+19**):
+    структура (Name / RequiresApproval / Parameters), валидация
+    (EmptyTask / TaskTooLong / ContextTooLong), happy path (Approved
+    first round / Rejected→Approved / MaxRoundsReached / Uncertain
+    stop early), persist (`ProOutput` / `ContraOutput` / `JudgeVerdict`
+    / `JudgeFeedbackJson` + ActorCritic-поля = null), SSE-события
+    (`debate_started` / `debate_round` / `debate_completed` с
+    `PatternType = "Debate"`), Human-in-the-loop (`BetweenRounds` →
+    `coordinator.WaitForFeedbackAsync`; `Never` → не вызывается),
+    эскалация (`Uncertain` → `CompleteAsync` + второй раунд Judge;
+    `AllowEscalation=false` → skip; HTTP fail → остаётся Uncertain;
+    провайдер не зарегистрирован → skip), failure-сценарии
+    (Pro fail / Contra fail с fallback / Judge fail → Uncertain),
+    парсер Judge JSON (markdown-обёртка / free-text → Uncertain),
+    последовательность раундов, persist с `PatternType = "Debate"`.
+    По образцу `CodeAgentWithReviewToolTests` (KI-126 Ф1).
+    Итого тестов: **1115 → 1134**.
 
 ---
 

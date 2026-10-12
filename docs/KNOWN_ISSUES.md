@@ -2176,6 +2176,41 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - ✅ **1H** — финальная локализация дебатов (+22 ключа `.resx` RU + EN).
   - ✅ **1I** — тесты (+18 unit-тестов).
   - ✅ **1J** — релиз v1.11.0 (этот коммит).
+- **Фаза 2 (v1.14.0, 2026-10-12):** Debate для `planner_agent`
+  (Pro / Contra / Judge).
+  - ✅ **2A** — Entity `AgentDebateRound` + 4 nullable-колонки
+    (`ProOutput` / `ContraOutput` / `JudgeVerdict` / `JudgeFeedbackJson`),
+    миграция `AddDebateRoleColumns` (SqlServer).
+  - ✅ **2B** — 3 агента-роли: `planner_pro_agent` (защитник),
+    `planner_contra_agent` (скептик), `planner_judge_agent` (арбитр).
+    Все — `AllowedTools = []`, `RequiresApproval = false`, `MaxSteps = 3`.
+  - ✅ **2B-fix** — флаг `SubAgentDescriptor.Internal`. 3 роли помечены
+    `"Internal": true` — не попадают в Chat-tools (RULES § 4.44).
+  - ✅ **2C.1a** — DTO-расширения: `AgentDebateConfigSnapshot.PatternType`
+    (`"ActorCritic"` / `"Debate"`) + `ProModel`/`ContraModel`/`JudgeModel`;
+    `AgentDebateRoundDto` + 4 поля; `AgentDebateStatusDto` +
+    `ProAgent`/`ContraAgent`/`JudgeAgent`; SSE-DTO + `PatternType`.
+  - ✅ **2C.1b** — новый top-level `ITool` `planner_with_debate`
+    (`PlannerWithDebateTool`): цикл Pro → Contra → Judge
+    (3 последовательных LLM-вызова), persist в `AgentDebateRound`,
+    SSE `debate_started`/`debate_round`/`debate_completed` с
+    `PatternType = "Debate"`, `RequiresApprovalByDefault = true`.
+  - ✅ **2C.1b-fix** — правило 5 («запрещено использовать инструменты»)
+    в SystemPrompt Contra и Judge.
+  - ✅ **2C.1c** — DI-регистрация + `allowedNames` (Chat-tools: 17 → 18) +
+    правило 15 в `DefaultSystemPrompt`.
+  - ✅ **2C.2** — эскалация при Judge `Uncertain` (второй раунд Judge
+    с внешней LLM) + Human-in-the-loop между раундами (после Judge
+    `Rejected`).
+  - ✅ **2D.1** — UI: 3-ролевой рендер (Pro ⚖️ / Contra 🛑 / Judge 👨‍⚖️)
+    в режимах dialog / collapsed. Feedback-блок для Debate работает
+    через тот же `renderFeedbackBlock`.
+  - ✅ **2D.2** — закрыт побочно в 2D.1.
+  - ✅ **2E** — unit-тесты `PlannerWithDebateToolTests` (**+19**, всего
+    1134).
+- **Известные ограничения Фазы 2 (v1.14.0):**
+  - **KI-241** — tokensIn/tokensOut = 0 в `AgentDebateRound`
+    (Documented, v1.14.x). Tech debt — cost для local = 0.
   - **Известные ограничения:** KI-128 (Browser Agent — Planned, v1.11.x),
     KI-129 (F5 не восстанавливает блок — Planned, v1.11.x).
 - **Тесты:** 592 → **654** (+62, 5 Skip).
@@ -2295,7 +2330,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-129 — Debate blocks not restored on F5 (session/rounds in DB, UI ignores them)
-- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed (Ф1 v1.11.0 + Ф2 v1.14.0) | **Исправлено в:** v1.14.0
 - **Обнаружено:** 2026-10-02 (smoke Шага 1G.1) | **Устранено:** 2026-10-03
 - **Файлы (итог):**
   - `IIChatTools.API/Controllers/ChatController.cs` — `GetChatAsync` (заполняет
