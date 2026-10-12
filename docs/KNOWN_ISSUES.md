@@ -5799,6 +5799,64 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-244 — Reflection (один агент критикует сам себя)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.1+
+- **Обнаружено:** 2026-10-12 (обсуждение KI-126 Ф3).
+- **DESIGN:** [`docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`](development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md) § 1.3.
+- **Описание:** Четвёртый мультиагентный паттерн после Actor-Critic (v1.11.0),
+  Debate (v1.14.0) и Orchestrator-Worker (v2.0.0). Один агент пишет артефакт →
+  критикует сам себя → переписывает → повторяет до max-rounds / Approved.
+- **Отличие от Actor-Critic:** используется **один** агент (совмещённый
+  Actor+Critic), а не два. Меньше latency, но слабее «свежий взгляд».
+- **Возможный scope:**
+  - Новый top-level `ITool` `reflect_task` (по образцу `code_agent_with_review`).
+  - Расширение `SubAgents:reflect_task` с полями `MaxRounds`, `SelfCritiquePrompt`.
+  - SSE-события `reflect_*` (новые, не переиспользуем `debate_*`).
+  - UI: тот же `.chat-debate-block`, `patternType = "Reflection"`.
+- **Обоснование отсрочки:** концептуально проще, чем Orchestrator-Worker, но
+  требует отдельного DESIGN-документа. Не смешивать с Ф3.
+- **Оценка:** ~5-6 ч (по образцу Ф1).
+
+---
+
+### KI-245 — Admin UI для whitelist воркеров Orchestrator
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-12 (DESIGN v2.0 § 2.4).
+- **Файлы (план):**
+  - `Views/Home/Admin.cshtml` — 10-я или 11-я вкладка «Orchestrator»;
+  - `wwwroot/js/modules/admin-orchestrator.js` (новый);
+  - `AdminOrchestratorController.cs` (новый);
+  - `SharedResources*.resx` (RU + EN).
+- **Описание:** В v2.0.0 whitelist воркеров (`SubAgents:orchestrate_task:AllowedWorkerAgents`)
+  задаётся только в `appsettings.json`. При изменении — рестарт приложения.
+  По образцу `SubAgents:*` (v1.4.0) и `SqlAgent.*` (v1.7.0) — нужен Admin UI
+  для runtime-редактирования + persist в `AppSettings` + восстановление при
+  старте через `Program.LoadOrchestratorOverrides`.
+- **Оценка:** ~2-3 ч.
+
+---
+
+### KI-246 — Fallback на другого воркера при fail в Orchestrator
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-12 (DESIGN v2.0 § 3.3).
+- **Описание:** В v2.0.0 если Worker вернул fail (например, `web_agent` не смог
+  открыть сайт), Orchestrator помечает подзадачу `status = "failed"` и продолжает.
+  В v2.0.x — опциональный fallback: если `web_agent` упал, попробовать
+  `browser_agent` с той же задачей.
+- **Возможные решения:**
+  1. `SubAgents:orchestrate_task:FallbackChain` — список альтернативных
+     агентов на каждый тип задачи.
+  2. Декомпозитор сам возвращает `{ agent, fallbackAgent }` на каждую подзадачу.
+  3. Rule-based: если `subtask.agent == "web_agent"` и fail — попробовать
+     `browser_agent` (жёстко зашитая логика).
+- **Не блокер v2.0.0:** отказ одной подзадачи не ломает всю сессию.
+- **Оценка:** ~2-3 ч.
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -5845,9 +5903,9 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Implemented (v1.7.0) | 1 |
 | Deferred | 5 |
 | Documented | 13 |
-| Planned | 18 |
+| Planned | 21 |
 | Partially Fixed | 1 |
-| **Всего** | **198** |
+| **Всего** | **201** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
 KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),
