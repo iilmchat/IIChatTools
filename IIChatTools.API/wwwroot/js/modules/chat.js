@@ -2472,9 +2472,14 @@ function fmt(tpl, ...args) {
 function handleDebateStarted(bubble, data) {
     if (!bubble || !data?.sessionId) return;
 
+    // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): сохраняем PatternType —
+    // UI ветвится по нему при рендере (ActorCritic vs Debate).
+    // Default "ActorCritic" — backward-compat со старыми сессиями Ф1.
+    const patternType = data.patternType || 'ActorCritic';
+
     // Сохраняем данные в кэш для перерендера при смене вида.
     state.debates[data.sessionId] = {
-        started: data,
+        started: { ...data, patternType },
         rounds: [],
         completed: null
     };
@@ -2530,12 +2535,15 @@ function handleDebateRound(bubble, data) {
 
     entry.rounds.push(data);
 
+    // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): ветвление по паттерну.
+    // ActorCritic — поле criticVerdict; Debate — поле judgeVerdict.
+    const isDebate = entry.started?.patternType === 'Debate';
+    const verdict = isDebate ? data.judgeVerdict : data.criticVerdict;
+
     // v1.11.0 (KI-126, Шаг 1G.3): после Rejected-раунда — показать inline-блок
     // feedback, если включён HumanApproval = "BetweenRounds".
-    // Блок показываем только один раз на сессию (последний Rejected раунд),
-    // старые черновики сбрасываем.
     const humanApproval = entry.started?.humanApproval;
-    const isRejected = data.criticVerdict === 'Rejected';
+    const isRejected = verdict === 'Rejected';
 
     if (isRejected && humanApproval === 'BetweenRounds') {
         state.feedbackDrafts[data.sessionId] = {
@@ -2543,7 +2551,7 @@ function handleDebateRound(bubble, data) {
             expiresAt: Date.now() + 5 * 60 * 1000,  // 5 минут
             text: ''
         };
-    } else if (data.criticVerdict === 'Approved') {
+    } else if (verdict === 'Approved') {
         // Раунд Approved — feedback больше не нужен.
         delete state.feedbackDrafts[data.sessionId];
     }
@@ -2637,26 +2645,56 @@ function prefillDebatesFromChatDetail(chatDetail) {
     for (const s of sessions) {
         if (!s || !Number.isFinite(s.sessionId)) continue;
 
+        // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): PatternType — ветвление рендера.
+        const patternType = s.patternType || 'ActorCritic';
+        const isDebate = patternType === 'Debate';
+
         state.debates[s.sessionId] = {
             started: {
                 sessionId: s.sessionId,
                 task: s.task || '',
-                actorAgent: s.actorAgent || 'code_agent',
-                criticAgent: s.criticAgent || 'code_reviewer_agent',
+                patternType,
+                // ActorCritic-роли (v1.11.0):
+                actorAgent: isDebate ? null : (s.actorAgent || 'code_agent'),
+                criticAgent: isDebate ? null : (s.criticAgent || 'code_reviewer_agent'),
+                // Debate-роли (v1.14.0):
+                proAgent: isDebate ? (s.proAgent || 'planner_pro_agent') : null,
+                contraAgent: isDebate ? (s.contraAgent || 'planner_contra_agent') : null,
+                judgeAgent: isDebate ? (s.judgeAgent || 'planner_judge_agent') : null,
+                // Общее:
                 maxRounds: s.maxRounds || 3,
                 humanApproval: s.humanApproval || 'BetweenRounds',
                 // v1.11.0 (KI-129): статус из БД — нужен для orphaned-детекции.
                 status: s.status || null
             },
-            rounds: (Array.isArray(s.rounds) ? s.rounds : []).map(r => ({
-                roundNumber: r.roundNumber,
-                actorOutput: r.actorOutput || '',
-                criticVerdict: r.criticVerdict || 'Uncertain',
-                // В БД хранится как CriticFeedbackJson (Newtonsoft),
-                // в SSE (live) — criticFeedback. Унифицируем на клиенте.
-                criticFeedback: r.criticFeedbackJson || null,
-                wasEscalated: !!r.wasEscalated
-            })),
+            rounds: (Array.isArray(s.rounds) ? s.rounds : []).map(r => {
+                // v1.14.0 (KI-126, Фаза 2): для Debate — маппим 4 новых поля,
+                // для ActorCritic — старые. Оба варианта нормализуем в один
+                // набор полей (UI-рендер ветвится по patternType).
+                const base = {
+                    roundNumber: r.roundNumber,
+                    wasEscalated: !!r.wasEscalated
+                };
+
+                if (isDebate) {
+                    return {
+                        ...base,
+                        proOutput: r.proOutput || '',
+                        contraOutput: r.contraOutput || '',
+                        judgeVerdict: r.judgeVerdict || 'Uncertain',
+                        // В БД хранится как JudgeFeedbackJson (Newtonsoft),
+                        // в SSE (live) — judgeFeedback. Унифицируем на клиенте.
+                        judgeFeedback: r.judgeFeedbackJson || null
+                    };
+                }
+
+                return {
+                    ...base,
+                    actorOutput: r.actorOutput || '',
+                    criticVerdict: r.criticVerdict || 'Uncertain',
+                    criticFeedback: r.criticFeedbackJson || null
+                };
+            }),
             completed: s.finalVerdict
                 ? {
                     verdict: s.finalVerdict,
@@ -2713,9 +2751,16 @@ function renderDebatesForMessage(msg) {
     catch { return ''; }
     if (!Array.isArray(calls) || calls.length === 0) return '';
 
+    // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): поддерживаем ОБА оркестратора —
+    // code_agent_with_review (ActorCritic) и planner_with_debate (Debate).
+    const debateTools = new Set([
+        'code_agent_with_review',
+        'planner_with_debate'
+    ]);
+
     const sids = new Set();
     for (const call of calls) {
-        if (call?.function?.name !== 'code_agent_with_review') continue;
+        if (!debateTools.has(call?.function?.name)) continue;
         const callId = call.id;
         if (!callId) continue;
         const sid = state.debateSessionByToolCallId[callId];
@@ -2749,6 +2794,11 @@ function renderDebateContainerInner(sessionId) {
     const started = entry.started;
     const isDialog = state.debateView === 'dialog';
 
+    // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): ветвление по паттерну.
+    // ActorCritic (Ф1, code_agent) — Actor + Critic.
+    // Debate (Ф2, planner_agent) — Pro + Contra + Judge.
+    const isDebate = started.patternType === 'Debate';
+
     // v1.11.0 (KI-129): orphaned — сессия восстановлена из БД (F5) в статусе
     // InProgress / Pending без completed. Серверный координатор уже мёртв,
     // feedback-UI показывать нельзя (POST /inject вернёт false).
@@ -2761,11 +2811,16 @@ function renderDebateContainerInner(sessionId) {
         && started.status
         && (started.status === 'InProgress' || started.status === 'Pending');
 
-    // --- Заголовок ---
+    // --- Заголовок (v1.14.0, KI-126, Ф2, Шаг 2D.1: ветвление по паттерну) ---
+    const titleText = isDebate
+        ? L('labelDebateTitleDebate', 'Debate (Pro / Contra / Judge)')
+        : L('labelDebateTitle', 'Actor-Critic');
+    const icon = isDebate ? '⚖️' : '⚔️';
+
     const headerHtml = `
         <div class="chat-debate-header">
-            <span class="chat-debate-icon">⚔️</span>
-            <span class="chat-debate-title">${escapeHtml(L('labelDebateTitle', 'Actor-Critic'))}</span>
+            <span class="chat-debate-icon">${icon}</span>
+            <span class="chat-debate-title">${escapeHtml(titleText)}</span>
             <span class="chat-debate-task" title="${escapeAttr(started.task)}">${escapeHtml(truncateText(started.task, 80))}</span>
             <span class="chat-debate-meta">${escapeHtml(fmt(L('labelDebateMaxRounds', 'Max {0} rounds'), started.maxRounds))}</span>
             ${entry.rounds.length > 0 ? `<span class="chat-debate-rounds-count">${escapeHtml(fmt(L('labelDebateRoundsCount', '{0} rounds'), entry.rounds.length))}</span>` : ''}
@@ -2778,9 +2833,11 @@ function renderDebateContainerInner(sessionId) {
 
     if (isDialog) {
         // --- Диалоговый режим: все раунды + feedback + финал ---
-        const roundsHtml = entry.rounds.map(r => renderDebateRoundDialog(r)).join('');
+        const roundsHtml = entry.rounds
+            .map(r => renderDebateRoundDialog(r, isDebate))
+            .join('');
         const completedHtml = entry.completed
-            ? renderDebateCompletedDialog(entry.completed)
+            ? renderDebateCompletedDialog(entry.completed, isDebate)
             : '';
 
         return `
@@ -2810,7 +2867,9 @@ function renderDebateContainerInner(sessionId) {
             ? `<pre class="chat-debate-final-artifact">${escapeHtml(completed.finalArtifact)}</pre>`
             : '';
 
-        const roundsHtml = entry.rounds.map(r => renderDebateRoundDialog(r)).join('');
+        const roundsHtml = entry.rounds
+            .map(r => renderDebateRoundDialog(r, isDebate))
+            .join('');
         const detailsOpenAttr = completed ? '' : ' open';
         const detailsHtml = entry.rounds.length > 0
             ? `
@@ -2866,16 +2925,79 @@ function renderDetailsLabel(roundCount, completed) {
  * @param {object} data — ChatDebateRoundDto
  * @returns {string} HTML
  */
-function renderDebateRoundDialog(data) {
+/**
+ * Рендерит один раунд в диалоговом стиле.
+ *
+ * <para>
+ * v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): ветвление по <paramref name="isDebate"/>.
+ * ActorCritic — Actor + Critic (v1.11.0).
+ * Debate — Pro + Contra + Judge (v1.14.0).
+ * </para>
+ *
+ * @param {object} data — ChatDebateRoundDto
+ * @param {boolean} [isDebate=false] — PatternType === 'Debate'
+ * @returns {string} HTML
+ */
+function renderDebateRoundDialog(data, isDebate = false) {
     const roundNum = data.roundNumber;
+    const roundLabel = fmt(L('labelDebateRound', 'Round {0}'), roundNum);
+    const escalatedLabel = L('labelDebateEscalated', '🌐 escalated');
+
+    if (isDebate) {
+        // === Debate: Pro + Contra + Judge (v1.14.0, KI-126, Ф2) ===
+        const verdict = data.judgeVerdict || 'Unknown';
+        const verdictClass = verdict.toLowerCase();
+        const verdictLabel = getVerdictLabel(verdict);
+
+        const proLabel = L('labelDebatePro', 'Pro');
+        const contraLabel = L('labelDebateContra', 'Contra');
+        const judgeLabel = L('labelDebateJudge', 'Judge');
+
+        const proHtml = `
+            <div class="chat-debate-pro chat-debate-actor">
+                <div class="chat-debate-round-title">
+                    <span class="chat-debate-role-icon">⚖️</span>
+                    <span class="chat-debate-role-name">${escapeHtml(proLabel)}</span>
+                    <span class="chat-debate-round-num">${escapeHtml(roundLabel)}</span>
+                </div>
+                <pre class="chat-debate-actor-output">${escapeHtml(data.proOutput || '')}</pre>
+            </div>
+        `;
+
+        const contraHtml = `
+            <div class="chat-debate-contra">
+                <div class="chat-debate-round-title">
+                    <span class="chat-debate-role-icon">🛑</span>
+                    <span class="chat-debate-role-name">${escapeHtml(contraLabel)}</span>
+                    <span class="chat-debate-round-num">${escapeHtml(roundLabel)}</span>
+                </div>
+                <pre class="chat-debate-actor-output">${escapeHtml(data.contraOutput || '')}</pre>
+            </div>
+        `;
+
+        const judgeHtml = `
+            <div class="chat-debate-judge chat-debate-critic">
+                <div class="chat-debate-round-title">
+                    <span class="chat-debate-role-icon">👨‍⚖️</span>
+                    <span class="chat-debate-role-name">${escapeHtml(judgeLabel)}</span>
+                    <span class="chat-debate-round-num">${escapeHtml(roundLabel)}</span>
+                    <span class="chat-debate-verdict chat-debate-verdict-${verdictClass}">${verdictLabel}</span>
+                    ${data.wasEscalated ? `<span class="chat-debate-escalation-badge">${escapeHtml(escalatedLabel)}</span>` : ''}
+                </div>
+                <div class="chat-debate-critic-feedback">${renderCriticFeedback(data.judgeFeedback)}</div>
+            </div>
+        `;
+
+        return `<div class="chat-debate-round">${proHtml}${contraHtml}${judgeHtml}</div>`;
+    }
+
+    // === ActorCritic: Actor + Critic (v1.11.0) ===
     const verdict = data.criticVerdict || 'Unknown';
     const verdictClass = verdict.toLowerCase();
     const verdictLabel = getVerdictLabel(verdict);
 
     const actorLabel = L('labelDebateActor', 'Actor');
     const criticLabel = L('labelDebateCritic', 'Critic');
-    const roundLabel = fmt(L('labelDebateRound', 'Round {0}'), roundNum);
-    const escalatedLabel = L('labelDebateEscalated', '🌐 escalated');
 
     const actorHtml = `
         <div class="chat-debate-actor">
@@ -2910,7 +3032,19 @@ function renderDebateRoundDialog(data) {
  * @param {object} data — ChatDebateCompletedDto
  * @returns {string} HTML
  */
-function renderDebateCompletedDialog(data) {
+/**
+ * Рендерит финальный блок дебатов в диалоговом режиме.
+ *
+ * <para>
+ * v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): для Debate артефакт — Pro output
+ * (защищаемое предложение), для ActorCritic — код. Структура одинаковая.
+ * </para>
+ *
+ * @param {object} data — ChatDebateCompletedDto
+ * @param {boolean} [isDebate=false]
+ * @returns {string} HTML
+ */
+function renderDebateCompletedDialog(data, isDebate = false) {
     const verdict = data.verdict || 'Unknown';
     const verdictLabel = getVerdictLabel(verdict);
 
@@ -2918,6 +3052,12 @@ function renderDebateCompletedDialog(data) {
     if (data.totalCostUsd > 0) {
         costHtml = `<span class="chat-debate-cost">${escapeHtml(fmt(L('labelDebateTotalCost', 'Total cost: ${0}'), data.totalCostUsd.toFixed(4)))}</span>`;
     }
+
+    // Для Debate finalArtifact — это Pro output (защищаемое предложение).
+    // Рендерим как pre (тот же стиль).
+    const artifactHtml = data.finalArtifact
+        ? `<pre class="chat-debate-final-artifact">${escapeHtml(data.finalArtifact)}</pre>`
+        : '';
 
     return `
         <div class="chat-debate-completed">
@@ -2927,7 +3067,7 @@ function renderDebateCompletedDialog(data) {
                 <span class="chat-debate-completed-meta">${data.totalRounds} rounds</span>
                 ${costHtml}
             </div>
-            <pre class="chat-debate-final-artifact">${escapeHtml(data.finalArtifact || '')}</pre>
+            ${artifactHtml}
         </div>
     `;
 }

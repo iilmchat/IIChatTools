@@ -857,9 +857,21 @@
     <data name="ChatDebateActor" xml:space="preserve">
       <value>Актёр</value>
     </data>
-    <data name="ChatDebateCritic" xml:space="preserve">
+  <data name="ChatDebateCritic" xml:space="preserve">
       <value>Критик</value>
-    </data>
+  </data>
+  <data name="ChatDebateTitleDebate" xml:space="preserve">
+      <value>Debate (Pro / Contra / Judge)</value>
+  </data>
+  <data name="ChatDebatePro" xml:space="preserve">
+      <value>Pro</value>
+  </data>
+  <data name="ChatDebateContra" xml:space="preserve">
+      <value>Contra</value>
+  </data>
+  <data name="ChatDebateJudge" xml:space="preserve">
+      <value>Judge</value>
+  </data>
     <data name="ChatDebateRound" xml:space="preserve">
       <value>Раунд {0}</value>
     </data>

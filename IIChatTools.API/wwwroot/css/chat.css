@@ -1797,6 +1797,26 @@ body.chat-global-search-open {
     }
 }
 
+/* ============================================================
+   v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): Debate (Pro / Contra / Judge).
+   Переиспользуем .chat-debate-actor / .chat-debate-critic стили
+   (уже есть), добавляем только алиасы для семантического соответствия.
+   ============================================================ */
+
+.chat-debate-pro {
+    /* = .chat-debate-actor по стилям. Псевдоним для семантики. */
+    margin-bottom: .5rem;
+}
+
+.chat-debate-contra {
+    margin-bottom: .5rem;
+}
+
+.chat-debate-judge {
+    /* = .chat-debate-critic по стилям. Псевдоним для семантики. */
+    margin-bottom: .25rem;
+}
+
 /* ============ v1.11.0 (KI-126): Actor-Critic Debate UI ============ */
 
 .chat-debate-block {

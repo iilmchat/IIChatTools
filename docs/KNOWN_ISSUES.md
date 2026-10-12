@@ -3413,6 +3413,35 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-241 — Debate: tokensIn/tokensOut = 0 в AgentDebateRound
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.14.x
+- **Обнаружено:** 2026-10-12 (smoke Шага 2C.2 KI-126).
+- **Файлы:** `AgentDebateRound.TokensIn` / `TokensOut` (entity),
+  `PlannerWithDebateTool` / `CodeAgentWithReviewTool` (persist),
+  `SubAgentTaskResult` (DTO).
+- **Описание:** При сохранении раунда в `AgentDebateRound.TokensIn` /
+  `TokensOut` пишутся **0**, потому что:
+  1. `SubAgentTaskResult` (ответ SubAgent'а) не содержит токены —
+     только `finalAnswer`, `steps`, `durationMs`, `usedTools`.
+  2. `CodeAgentWithReviewTool` / `PlannerWithDebateTool` не считают
+     токены раунда через `ITokenCounter` (только cost эскалации).
+- **Влияние:** `TotalCostUsd` в `AgentDebateSession` для локальных
+  моделей = 0 (для эскалаций — правильно). Для будущей аналитики
+  (KI-240 Feedback Admin UI, dashboard) токены нужны.
+- **Возможные решения:**
+  1. Расширить `SubAgentTaskResult` полями `TokensIn` / `TokensOut` /
+     `TokensPerStep[]` (SubAgentService уже считает токены per-call).
+  2. Считать через `ITokenCounter` в оркестраторе — после каждого
+     `ExtractFinalAnswer` считать `CountTokens(proOutput + contraOutput
+     + judgeFeedback)`.
+  3. Оставить `0` — cost для локальных моделей не важен.
+- **Не блокер v1.14.0:** Debate работает; cost для local = 0 (это
+  семантически корректно — LM Studio бесплатна). Для external
+  эскалаций токены уже считаются.
+- **Связанные:** KI-126 (Actor-Critic), KI-084a (токены в ChatMessage),
+  KI-240 (Feedback Admin UI).
+
 ### KI-240 — Chat: Feedback — Admin UI + экспорт JSONL для датасета
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14

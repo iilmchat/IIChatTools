@@ -109,6 +109,16 @@
       в следующий `BuildProTask` (в `lastJudgeFeedback`) и имеет
       приоритет над feedback Judge.
     - По образцу `CodeAgentWithReviewTool` (KI-126, Шаг 1F / 1E-part2).
+  - **Шаг 2D.1:** UI: 3-ролевой рендер Debate (Pro / Contra / Judge) в
+    режимах «диалог» и «свёрнутый». Ветвление по `patternType` в
+    `renderDebateContainerInner` / `renderDebateRoundDialog` /
+    `renderDebateCompletedDialog` / `prefillDebatesFromChatDetail`.
+    Поддержка обоих оркестраторов в `renderDebatesForMessage` (`F5`):
+    `code_agent_with_review` (ActorCritic) + `planner_with_debate`
+    (Debate). Заголовок «⚖️ Debate (Pro / Contra / Judge)» — при
+    `patternType = "Debate"`. CSS: `.chat-debate-pro` / `.chat-debate-contra`
+    / `.chat-debate-judge` (псевдонимы actor/critic-стилей).
+    +4 ключа `.resx` (RU + EN).
 
 ---
 
