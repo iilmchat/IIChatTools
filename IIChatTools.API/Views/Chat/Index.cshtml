@@ -87,17 +87,6 @@
                                 data-label-empty="@Localizer["ChatModelEmpty"]"></select>
                     </div>
                     <div class="d-flex gap-1 flex-shrink-0">
-                        <!-- v1.11.0 (KI-126): селектор вида отображения раундов -->
-                        <button id="btn-debate-view"
-                                type="button"
-                                class="btn btn-outline-secondary btn-sm"
-                                data-label-dialog="@Localizer["ChatDebateViewDialog"]"
-                                data-label-collapsed="@Localizer["ChatDebateViewCollapsed"]"
-                                data-label-switch="@Localizer["ChatDebateViewSwitch"]"
-                                title="@Localizer["ChatDebateViewSwitch"]"
-                                aria-label="@Localizer["ChatDebateViewSwitch"]">
-                            <!-- SVG будет подставляться через JS -->
-                        </button>
                         <!-- KI-078A: поиск по активному чату (Ctrl+F) -->
                         <button id="btn-search-in-chat"
                                 type="button"
@@ -206,6 +195,8 @@
              data-label-feedback-negative="@Localizer["ChatFeedbackNegative"]"
              data-label-retry-error="@Localizer["ChatRetryError"]"
              data-label-empty-chat-hint="@Localizer["ChatEmptyChatHint"]"
+             data-label-debate-view-dialog="@Localizer["ChatDebateViewDialog"]"
+             data-label-debate-view-collapsed="@Localizer["ChatDebateViewCollapsed"]"
              data-label-orchestrator-title="@Localizer["ChatOrchestratorTitle"]"
              data-label-orchestrator-subtask="@Localizer["ChatOrchestratorSubtask"]"
              data-label-orchestrator-progress="@Localizer["ChatOrchestratorProgress"]"

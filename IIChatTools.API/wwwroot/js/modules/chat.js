@@ -67,8 +67,14 @@ const state = {
     // v1.13.x (KI-207): + textLayer (DOM), textLayerDto, searchHits, searchIndex.
     pagesViewer: null,
 
-    // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
+    // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed').
+    // KI-250 (v2.0.1): это DEFAULT-значение (из localStorage). Per-block
+    // override — в state.debateViewBySessionId.
     debateView: 'collapsed',
+
+    // KI-250 (v2.0.1): per-block override вида (sessionId → 'dialog' | 'collapsed').
+    // Пусто → используется глобальный state.debateView.
+    debateViewBySessionId: {},
 
     // v1.11.0 (KI-126, Шаг 1G.2): кэш данных дебатов по sessionId.
     // Нужен для перерендера блока при смене вида (dialog ⇄ collapsed).
@@ -119,7 +125,6 @@ export async function initChatPage() {
     state.debateView = savedDebateView === 'dialog' ? 'dialog' : 'collapsed';
 
     bindEvents();
-    applyDebateViewUI();
     initLightboxHandlers();   // KI-229
 
     // v1.13.0 (KI-140): инициализация голосового ввода (Speech Recognition).
@@ -197,10 +202,6 @@ function bindEvents() {
     if (modelSelect) {
         modelSelect.addEventListener('change', onChatModelChanged);
     }
-
-    // v1.11.0 (KI-126, Шаг 1G.1): переключатель вида отображения дебатов.
-    document.getElementById('btn-debate-view')
-        ?.addEventListener('click', toggleDebateView);
 
     // KI-079: кнопка toggle (одна, работает в обоих состояниях)
     document.getElementById('btn-collapse-sidebar')
@@ -469,6 +470,19 @@ function bindEvents() {
         hotkeyHelpModal.querySelectorAll('[data-action="close"]')
             .forEach(el => el.addEventListener('click', closeHotkeyHelp));
     }
+
+    // KI-250 (v2.0.1): делегированный click по toggle-кнопке внутри
+    // .chat-debate-header / .chat-orchestrator-header. Переключает
+    // ТОЛЬКО текущий блок (per-block state).
+    document.getElementById('chat-messages')
+        ?.addEventListener('click', (e) => {
+            const toggleBtn = e.target.closest('[data-toggle-session-id]');
+            if (!toggleBtn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const sid = parseInt(toggleBtn.dataset.toggleSessionId, 10);
+            if (Number.isFinite(sid)) toggleDebateViewFor(sid);
+        });
 
     // KI-083 (Шаг 6D): вложения чата (RAG)
     document.getElementById('btn-attach-file')
@@ -781,44 +795,50 @@ function toggleSidebar() {
 // ============ v1.11.0 (KI-126, Шаг 1G.1): Вид отображения дебатов ============
 
 /**
- * Переключает вид отображения раундов Actor-Critic.
- * Сохраняет выбор в localStorage и перерисовывает уже отображённые раунды.
+ * KI-250 (v2.0.1): возвращает текущий вид для конкретной сессии.
+ * Per-block override (state.debateViewBySessionId), если задан,
+ * иначе — глобальный state.debateView.
+ * @param {number} sessionId
+ * @returns {'dialog'|'collapsed'}
  */
-function toggleDebateView() {
-    state.debateView = state.debateView === 'dialog' ? 'collapsed' : 'dialog';
-    try {
-        localStorage.setItem(LS_KEY_DEBATE_VIEW, state.debateView);
-    } catch {
-        // Приватный режим — игнорируем.
-    }
-    applyDebateViewUI();
-    refreshDebateViews();
+function getDebateViewFor(sessionId) {
+    const override = state.debateViewBySessionId?.[sessionId];
+    return override || state.debateView;
 }
 
 /**
- * Обновляет иконку и title кнопки-селектора в зависимости от текущего вида.
+ * KI-250 (v2.0.1): переключает вид для конкретной сессии (per-block).
+ * Перерисовывает ТОЛЬКО этот блок, не трогая остальные.
+ * @param {number} sessionId
  */
-function applyDebateViewUI() {
-    const btn = document.getElementById('btn-debate-view');
-    if (!btn) return;
+function toggleDebateViewFor(sessionId) {
+    const current = getDebateViewFor(sessionId);
+    state.debateViewBySessionId[sessionId] = current === 'dialog' ? 'collapsed' : 'dialog';
+    refreshViewBySessionId(sessionId);
+}
 
-    const isDialog = state.debateView === 'dialog';
-    const label = isDialog
-        ? (btn.dataset.labelCollapsed || 'Collapsed')
-        : (btn.dataset.labelDialog || 'Dialog');
+/**
+ * KI-250 (v2.0.1): перерисовывает конкретный блок (Debate или Orchestrator)
+ * по sessionId.
+ * @param {number} sessionId
+ */
+function refreshViewBySessionId(sessionId) {
+    const view = getDebateViewFor(sessionId);
+    const isDialog = view === 'dialog';
 
-    btn.title = label;
-    btn.setAttribute('aria-label', label);
+    // Debate block
+    document.querySelectorAll(`[data-debate-session-id="${sessionId}"]`).forEach(c => {
+        c.classList.toggle('chat-debate-dialog', isDialog);
+        c.classList.toggle('chat-debate-collapsed', !isDialog);
+        c.innerHTML = renderDebateContainerInner(sessionId);
+    });
 
-    // Смена SVG: в диалоговом режиме — иконка списка, в свернутом — иконка диалога.
-    // Используем inline SVG для избежания внешних зависимостей.
-    if (isDialog) {
-        // Иконка «свернуть» (список)
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>`;
-    } else {
-        // Иконка «развернуть» (диалог)
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2zm0 1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm0 5a1 1 0 0 1 1-1h8a1 1 0 0 1 0 2H3a1 1 0 0 1-1-1z"/></svg>`;
-    }
+    // Orchestrator block
+    document.querySelectorAll(`[data-orchestrator-session-id="${sessionId}"]`).forEach(c => {
+        c.classList.toggle('chat-debate-dialog', isDialog);
+        c.classList.toggle('chat-debate-collapsed', !isDialog);
+        c.innerHTML = renderOrchestratorContainerInner(sessionId);
+    });
 }
 
 // refreshDebateViews() — см. секцию «Рендер дебатов (Actor-Critic)» ниже.
@@ -1623,6 +1643,8 @@ async function selectChat(chatId) {
     state.feedbackDrafts = {};
     // v2.0.0 (KI-126, Ф3, Шаг 3H): сброс кэша Orchestrator-сессий.
     state.orchestrators = {};
+    // KI-250 (v2.0.1): сброс per-block override (при смене чата — новые sessionId).
+    state.debateViewBySessionId = {};
     // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
     state.debateSessionByToolCallId = {};
 
@@ -2625,10 +2647,26 @@ function refreshDebateViews() {
         const sessionId = parseInt(container.dataset.debateSessionId, 10);
         if (!Number.isFinite(sessionId)) return;
 
-        // Обновляем класс и полностью перерендериваем содержимое.
-        container.classList.toggle('chat-debate-dialog', state.debateView === 'dialog');
-        container.classList.toggle('chat-debate-collapsed', state.debateView === 'collapsed');
+        const view = getDebateViewFor(sessionId);
+        container.classList.toggle('chat-debate-dialog', view === 'dialog');
+        container.classList.toggle('chat-debate-collapsed', view === 'collapsed');
         container.innerHTML = renderDebateContainerInner(sessionId);
+    });
+}
+
+/**
+ * KI-250 (v2.0.1): то же для Orchestrator-блоков.
+ */
+function refreshOrchestratorViews() {
+    const containers = document.querySelectorAll('[data-orchestrator-session-id]');
+    containers.forEach(container => {
+        const sessionId = parseInt(container.dataset.orchestratorSessionId, 10);
+        if (!Number.isFinite(sessionId)) return;
+
+        const view = getDebateViewFor(sessionId);
+        container.classList.toggle('chat-debate-dialog', view === 'dialog');
+        container.classList.toggle('chat-debate-collapsed', view === 'collapsed');
+        container.innerHTML = renderOrchestratorContainerInner(sessionId);
     });
 }
 
@@ -2847,7 +2885,7 @@ function renderDebateContainerInner(sessionId) {
     if (!entry || !entry.started) return '';
 
     const started = entry.started;
-    const isDialog = state.debateView === 'dialog';
+    const isDialog = getDebateViewFor(sessionId) === 'dialog';
 
     // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): ветвление по паттерну.
     // ActorCritic (Ф1, code_agent) — Actor + Critic.
@@ -2872,6 +2910,11 @@ function renderDebateContainerInner(sessionId) {
         : L('labelDebateTitle', 'Actor-Critic');
     const icon = isDebate ? '⚖️' : '⚔️';
 
+    const toggleLabel = isDialog
+        ? L('labelDebateViewCollapsed', 'Collapse')
+        : L('labelDebateViewDialog', 'Expand');
+    const toggleIcon = isDialog ? '▼' : '▶';
+
     const headerHtml = `
         <div class="chat-debate-header">
             <span class="chat-debate-icon">${icon}</span>
@@ -2879,6 +2922,11 @@ function renderDebateContainerInner(sessionId) {
             <span class="chat-debate-task" title="${escapeAttr(started.task)}">${escapeHtml(truncateText(started.task, 80))}</span>
             <span class="chat-debate-meta">${escapeHtml(fmt(L('labelDebateMaxRounds', 'Max {0} rounds'), started.maxRounds))}</span>
             ${entry.rounds.length > 0 ? `<span class="chat-debate-rounds-count">${escapeHtml(fmt(L('labelDebateRoundsCount', '{0} rounds'), entry.rounds.length))}</span>` : ''}
+            <button type="button"
+                    class="chat-debate-view-toggle"
+                    data-toggle-session-id="${sessionId}"
+                    title="${escapeAttr(toggleLabel)}"
+                    aria-label="${escapeAttr(toggleLabel)}">${toggleIcon}</button>
         </div>
     `;
 
@@ -3559,6 +3607,12 @@ function renderOrchestratorContainerInner(sessionId) {
         L('labelOrchestratorProgress', '{0} / {1}'),
         processed, total);
 
+    const isDialog = getDebateViewFor(sessionId) === 'dialog';
+    const toggleLabel = isDialog
+        ? L('labelDebateViewCollapsed', 'Collapse')
+        : L('labelDebateViewDialog', 'Expand');
+    const toggleIcon = isDialog ? '▼' : '▶';
+
     const headerHtml = `
         <div class="chat-debate-header">
             <span class="chat-debate-icon">🎭</span>
@@ -3566,15 +3620,17 @@ function renderOrchestratorContainerInner(sessionId) {
             <span class="chat-debate-task" title="${escapeAttr(started.task || '')}">${escapeHtml(truncateText(started.task || '', 80))}</span>
             <span class="chat-debate-meta">${escapeHtml(fmt(L('labelOrchestratorMaxSubtasks', 'Max {0} subtasks'), maxSubtasks))}</span>
             <span class="chat-orchestrator-progress-text">${escapeHtml(progressText)}</span>
+            <button type="button"
+                    class="chat-debate-view-toggle"
+                    data-toggle-session-id="${sessionId}"
+                    title="${escapeAttr(toggleLabel)}"
+                    aria-label="${escapeAttr(toggleLabel)}">${toggleIcon}</button>
         </div>`;
 
     const progressHtml = `
         <div class="chat-orchestrator-progress">
             <div class="chat-orchestrator-progress-fill" style="width: ${progressPercent}%"></div>
         </div>`;
-
-    // Подзадачи: dialog → раскрыты; collapsed → свёрнуты (кроме running).
-    const isDialog = state.debateView === 'dialog';
 
     const subtasksHtml = subtasks.map(st => {
         const status = String(st.status || 'pending').toLowerCase();
@@ -4739,6 +4795,8 @@ function showEmptyState() {
     state.feedbackDrafts = {};
     // v2.0.0 (KI-126, Ф3, Шаг 3H): сброс кэша Orchestrator-сессий.
     state.orchestrators = {};
+    // KI-250 (v2.0.1): сброс per-block override.
+    state.debateViewBySessionId = {};
     // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
     state.debateSessionByToolCallId = {};
 
