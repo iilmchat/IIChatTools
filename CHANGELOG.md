@@ -18,6 +18,14 @@
 
 ## [Unreleased]
 
+### Planned
+- **KI-242** — PostgreSQL как провайдер основного `AppDbContext`
+  (v1.15+, дальнее будущее). Новая ветка в `DbContextOptionsExtensions`,
+  отдельная папка миграций `Migrations/Postgres/`, Docker-профиль.
+- **KI-243** — Qdrant как внешний `IVectorStore` (v1.15+, дальнее будущее).
+  `QdrantVectorStore : IVectorStore` (persistence, HNSW, multi-instance).
+  Интерфейс уже готов (v1.5.0, KI-083) — замена через DI-factory.
+
 ---
 
 ## [1.14.0] — 2026-10-12

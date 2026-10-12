@@ -3477,8 +3477,119 @@ requirement) работают **стабильно**. Gantt требует бо�
 - **Связанные:** KI-126 (Actor-Critic), KI-084a (токены в ChatMessage),
   KI-240 (Feedback Admin UI).
 
-### KI-240 — Chat: Feedback — Admin UI + экспорт JSONL для датасета
+### KI-242 — PostgreSQL как провайдер основного `AppDbContext`
 
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.15+ (дальнее будущее)
+- **Обнаружено:** 2026-10-12 (обсуждение стратегии деплоя).
+- **Файлы (план):**
+  - `Directory.Build.props` — `<NpgsqlEntityFrameworkCorePostgreSQLVersion>`.
+  - `IIChatTools.Services/IIChatTools.Services.csproj` (или `.Data`) — `PackageReference Npgsql.EntityFrameworkCore.PostgreSQL`.
+  - `IIChatTools.API/Extensions/DbContextOptionsExtensions.cs` — ветка `"postgres"` / `"postgresql"` / `"npgsql"` в `switch (provider)`.
+  - `IIChatTools.API/appsettings.json` — `Database:PostgresConnectionString`.
+  - `IIChatTools.Data/Migrations/Postgres/` — **отдельная папка** для миграций (по образцу `Migrations/SqlServer/`).
+  - `docs/development/ARCHITECTURE.md` § 3.5 — команда `dotnet ef migrations add --output-dir Migrations/Postgres`.
+  - `README.md` — раздел «Провайдеры БД» + `.env.example` для Docker Compose.
+  - `docker-compose.yml` — новый профиль `postgres` (сервис + volume).
+- **Описание:** Сейчас поддерживаются 3 провайдера основного `AppDbContext`: **SqlServer** (prod), **Sqlite** (dev), **InMemory** (тесты). PostgreSQL отсутствует.
+- **Зачем:**
+  - **Кроссплатформенность** — MSSQL сложнее в Docker / k8s (Windows Containers только под Windows-хостом; `mssql/server` в Linux-контейнере работает, но с ограничениями).
+  - **Бесплатность** — Postgres полностью open-source, без лицензионных ограничений.
+  - **Экосистема** — Managed PostgreSQL (Yandex Managed / AWS RDS / Supabase) — простой способ дать управляемый prod-инстанс.
+  - **Docker-native** — `postgres:16` образ для dev/prod в `docker-compose`, «поднял и работает».
+- **Что потребуется:**
+  1. **NuGet-пакет.** `Npgsql.EntityFrameworkCore.PostgreSQL` **10.0.x** — синхронизировать с EF Core 10 (RULES § 4.11).
+  2. **Ветка провайдера.** В `DbContextOptionsExtensions` добавить case:
+     ```csharp
+     case "postgres":
+     case "postgresql":
+     case "npgsql":
+         options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly("IIChatTools.Data"));
+         break;
+    ```
+  3. **Отдельная папка миграций.** Migrations/Postgres/ — по образцу Migrations/SqlServer/. Команда:
+    ```text
+    dotnet ef migrations add <Name> --project IIChatTools.Data --startup-project IIChatTools.API --output-dir Migrations/Postgres
+    ```
+  4. **RULES § 3.15.** Перед генерацией Postgres-миграции — установить Database:Provider = "Postgres" в appsettings.Development.json.
+  5. **Smoke:** docker run postgres:16 → применить миграции → CRUD-проверка (Charts, ChatMessages, DocumentChunks).
+- **Известные подводные камни (ожидаемые):**
+  Types mapping. nvarchar(max) (SqlServer) → text; datetime2 → timestamp with time zone; identity(1,1) → GENERATED ALWAYS AS IDENTITY. Миграции в Migrations/Postgres/ будут отличаться от SqlServer-версии — нельзя переиспользовать.
+  Строковые ограничения. Postgres case-sensitive по умолчанию (Ordinal семантика) — противоположность SqlServer default (OrdinalIgnoreCase). Проверить StringComparer в критичных местах (SqlQueryValidator, SubAgentRegistry). См. RULES § 4.45 (аналог).
+  RULES § 3.15. Не забыть вернуть Provider = "Sqlite" в dev после генерации миграций.
+- **Что НЕ входит:**
+  MySQL / MariaDB / Oracle — отдельные KI (по аналогии), если будут запросы.
+  Автомиграция к Postgres из SqlServer — только новые инсталляции.
+  Multi-provider runtime (одновременно SqlServer + Postgres) — не нужно.
+- **Связанные:** KI-091 (SqlServer цепочка миграций — тоже snapshot drift), KI-099 (внешние БД для Database Agent), RULES § 3.15 (провайдер миграций).      
+
+---
+
+### KI-243 — Qdrant как внешний `IVectorStore` (persistent vector store)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.15+ (дальнее будущее)
+- **Обнаружено:** 2026-10-12 (ревизия ADR-005).
+- **Файлы (план):**
+  - `Directory.Build.props` — `<QdrantClientVersion>`.
+  - `IIChatTools.Services/IIChatTools.Services.csproj` — `PackageReference Qdrant.Client`.
+  - `IIChatTools.Services/Implementation/Rag/QdrantVectorStore.cs` (**новый**) — реализация `IVectorStore`.
+  - `IIChatTools.Services/Implementation/Rag/InMemoryVectorStore.cs` — без изменений (остаётся для dev/тестов).
+  - `Startup.cs` — DI-регистрация по `Rag:VectorStore:Provider` (`inmemory` | `qdrant`).
+  - `IIChatTools.API/appsettings.json` — `Rag:VectorStore:Qdrant:{Host, Port, ApiKey, CollectionName}`.
+  - `docker-compose.yml` — новый сервис `qdrant` + volume.
+  - `README.md` — раздел «Векторное хранилище».
+  - `docs/development/ARCHITECTURE.md` — § 4 (DI lifetime), § 7 (внешние зависимости), ADR-005 → «Implemented».
+- **Описание:** В v1.5.0 (KI-083) RAG использует **`InMemoryVectorStore`** (Singleton, `ConcurrentDictionary` + `ReaderWriterLockSlim`). Это MVP-решение:
+  - **Потеря данных при рестарте** — все embeddings исчезают → `project_docs` переиндексируется заново (`AutoIndexProjectDocs=true` или вручную через `/admin → База знаний`), для `my_rag_docs` / `chat_history` / `workspace` — **пользователь теряет** до переиндексации.
+  - **Нет multi-instance** — при нескольких инстансах приложения каждый держит **свой** индекс → рассинхрон.
+  - **Ограничение по размеру** — при росте до десятков тысяч чанков RAM растёт линейно.
+- **Зачем Qdrant:**
+  - **Persistence** — HNSW-индекс + payload storage на диске (или в S3).
+  - **Multi-instance** — shared store для кластера.
+  - **HNSW search** — быстрее и качественнее, чем линейный dot-product в `InMemoryVectorStore`.
+  - **Фильтрация в query** — `where: { indexName, chatId, userId }` без over-fetch.
+- **Что есть сейчас (готовая инфраструктура):**
+  - **`IVectorStore`** — интерфейс (`Add` / `Search` / `Remove` / `Clear` / `Count` / `GetIndexNames`).
+  - **`VectorMath`** — L2Normalize / DotProduct / CosineSimilarity (переиспользуется в Qdrant-реализации не будет — Qdrant считает сам).
+  - **`RetrievalService`** — оркестратор (использует `IVectorStore` через DI, **не зависит от конкретной реализации**).
+  - **`DocumentIngestionService`** — тоже через `IVectorStore` (пишет чанки).
+  - **ADR-005 (ARCHITECTURE.md)** — «тот же интерфейс, замена — одна строка DI».
+- **Что потребуется:**
+  1. **NuGet.** `Qdrant.Client` (official .NET client, Apache 2.0).
+  2. **`QdrantVectorStore : IVectorStore`** — маппинг:
+     - `Add` → `UpsertAsync(collectionName, points[])` (Id = `ChunkId`, Vector = `float[]`, Payload = `ChunkMetadata`).
+     - `Search` → `SearchAsync(collectionName, vector, filter, limit)`.
+     - `Remove` → `DeleteAsync(collectionName, ids[])`.
+     - `Clear` → `DeleteCollectionAsync + CreateCollectionAsync` (или `DeleteAsync` по фильтру).
+     - `Count` → `CountAsync(collectionName, filter)`.
+     - `GetIndexNames` → `ListCollectionsAsync()` (фильтр по префиксу).
+  3. **DI-factory.** По образцу `IWorkspaceIndexService` / `SqlAgentOptionsProvider`:
+     ```csharp
+     services.AddSingleton<IVectorStore>(sp =>
+     {
+         var provider = Configuration["Rag:VectorStore:Provider"] ?? "inmemory";
+         return provider.ToLowerInvariant() switch
+         {
+             "qdrant" => sp.GetRequiredService<QdrantVectorStore>(),
+             _ => sp.GetRequiredService<InMemoryVectorStore>()
+         };
+     });
+     ```
+  4. docker-compose.yml — сервис qdrant/qdrant:v1.x + healthcheck.
+  5. **Smoke:**  ingestion → reindex → restart приложения → индекс сохранён → search_knowledge_base работает без переиндексации.
+  - **Известные подводные камни (ожидаемые):**
+ Collection naming. IVectorStore.GetIndexNames() возвращает project_docs / my_rag_docs / chat_history / workspace — но Qdrant требует одну коллекцию с payload-фильтрами или несколько коллекций. Решение: один Qdrant-collection (iichattools_chunks) + payload indexName. Или четыре отдельные коллекции — на выбор при реализации.
+ Batching. Add вызывается по одному чанку из DocumentIngestionService — на Qdrant это round-trip на чанк. Нужен batch-API или использовать существующий Add(IReadOnlyList<...>).
+ Cost / latency. Qdrant в Docker на localhost — 1-3 ms на search. Managed Qdrant — 5-15 ms. Не блокер, но для auto-inject (Шаг 6C RAG) добавляется latency.
+ Backwards compatibility. При первом запуске с Provider=qdrant — миграция существующего InMemory-индекса не выполняется (InMemory теряется при рестарте и так). Нужна переиндексация — автоматическая (AutoIndexProjectDocs=true) или вручную.
+- **Что НЕ входит:**
+ Гибридный search (dense + sparse / BM25) — v2.0.
+ Re-ranking (cross-encoder) — отдельный KI, не зависит от Qdrant.
+ Pgvector (Postgres extension) — альтернатива Qdrant на дальнее будущее, если возьмём Postgres (KI-242). Не объединять с Qdrant — обсудить отдельно.
+- **Связанные:** KI-083 (RAG / IVectorStore), ADR-005 (ARCHITECTURE.md), KI-242 (PostgreSQL как провайдер БД — общий контекст «внешние зависимости»).
+
+---
+
+### KI-240 — Chat: Feedback — Admin UI + экспорт JSONL для датасета
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
 - **Обнаружено:** 2026-10-11 (при реализации KI-233).
 - **Файлы (план):** `Views/Home/Admin.cshtml` (10-я вкладка),
