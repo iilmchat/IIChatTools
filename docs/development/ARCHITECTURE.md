@@ -1,6 +1,6 @@
 # Архитектура IIChatTools
 
-**Версия:** 1.13.3 (обновлено 2026-10-08)
+**Версия:** 2.0.0 (обновлено 2026-10-12)
 **Статус:** Living document — обновляется при значимых архитектурных изменениях.
 **Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md), [DESIGN v1.7 (Database Agent)](v1.7/DESIGN_DB_AGENT.md).
 
@@ -223,6 +223,7 @@ dotnet ef database update --project IIChatTools.Data --startup-project IIChatToo
 | `IMailAttachmentService` (v1.8.0) | **Scoped** | Зависит от `IWorkspaceResolver` |
 | `IAgentDebateSessionService` (v1.11.0) | **Scoped** | Через `AppDbContext` |
 | `IAgentDebateCoordinator` (v1.11.0) | **Singleton** | Human-in-the-loop (по образцу `ChatApprovalCoordinator`) |
+| `IAgentBlackboard` (v2.0.0) | **Singleton** | Shared state для Orchestrator-Worker. `ConcurrentDictionary` + TTL 30 мин (KI-043) |
 | `ISpeechRecognitionService` (v1.13.0) | **Singleton** | Тяжёлая ленивая загрузка модели (~142 MB) |
 | `IVisionBackend` (v1.12.0) | **Scoped** | Backend surface (Local / Sandbox / RemoteVnc) |
 | `IVisionLlmClient` (v1.12.0) | **Singleton** | Stateless (LmStudio / External / Auto) |
@@ -359,7 +360,7 @@ CodeAgentWithReviewTool
 | + `code_agent_with_review` (v1.11.0, top-level) | +1 | ✅ |
 | + `mail_agent` (v1.8.0) | +1 | ✅ |
 | + `external_llm_agent` (v1.8.1) | +1 | — |
-| **Итого (ToolRegistry)** | **65** | — |
+| **Итого (ToolRegistry)** | **66** | — |
 
 ### § 6.2. Multi-Agent (v1.4.0)
 
@@ -615,6 +616,33 @@ Fixed/Resolved/Implemented/Documented/Deferred/Won't Fix; open для
 Planned/In Progress/Partially Fixed/Unknown.
 **CI-триггер:** `.github/workflows/sync-issues.yml` на push в `main`
 при изменении `docs/KNOWN_ISSUES.md` (+ `workflow_dispatch`).
+
+---
+
+### ADR-025. Orchestrator-Worker + Blackboard (v2.0.0, KI-126 Ф3)
+**Проблема:** сложная multi-step задача (исследование в N источниках,
+сборка отчёта из N частей, cross-tool workflow) требует:
+декомпозиции, распределения между агентами, параллельного выполнения
+и общего shared state.
+**Решение:** top-level `ITool` `orchestrate_task` (по образцу
+`code_agent_with_review` / `planner_with_debate`). Внутри:
+- **Декомпозитор** `orchestrator_planner_agent` (`Internal: true`) возвращает
+  JSON `{parallel, subtasks[]}`. Lenient-парсер снимает markdown-обёртки.
+- **Workers** — существующие агенты (`web_agent`, `code_agent`, ...)
+  через `IToolRegistry.ExecuteAsync`.
+- **Параллелизм** — `Task.WhenAll` + `SemaphoreSlim(MaxParallel)`, если
+  `parallel=true`. **External-detection:** при наличии `external_llm_agent`
+  `maxParallel` снижается до 1 (последовательно).
+- **Blackboard** `IAgentBlackboard` (Singleton, `ConcurrentDictionary<int, JObject>`)
+  + TTL 30 мин (KI-043). Схема ключей `subtask.{id}.{field}`.
+- **Persistence** — в `AgentDebateSession` (PatternType="Orchestrator") +
+  `AgentDebateRound` (Subtask*-поля, миграция `AddOrchestratorSubtaskColumns`).
+- **SSE-события** `orchestrator_started` / `orchestrator_round` /
+  `orchestrator_completed` (новые, не переиспользуют `debate_*` — семантика разная).
+**Почему не переиспользовали `debate_*`:** `debate_round` ≠ `orchestrator_round`
+(подзадача vs раунд). Смешение ведёт к nullable-полям в общих DTO.
+**Отложено:** KI-245 (Admin UI whitelist), KI-246 (fallback воркер),
+KI-247 (External pre-checks), KI-248 (HITL).
 
 ---
 

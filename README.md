@@ -1,10 +1,10 @@
-# IIChatTools v1.14.0
+# IIChatTools v2.0.0
 [![CI](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/iilmchat/IIChatTools/actions/workflows/docker-publish.yml)
 
 **Платформа инструментального моста между локальной LLM (LM Studio) и средой разработчика.**
 
-© 2026 RuChating (iilmchat) · IIChatTools v1.14.0
+© 2026 RuChating (iilmchat) · IIChatTools v2.0.0
 
 ---
 
@@ -23,7 +23,8 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **🤖 Multi-Agent (v1.4.0)** — Chat общается с **7 верхнеуровневыми инструментами** (6 специализированных агентов + `consult_secondary_agent`). Каждый агент — со своим system prompt, моделью и белым списком инструментов. Управление через админку `/admin → Агенты`.
 - **⚔️ Actor-Critic Debate (v1.11.0, KI-126)** — автономное взаимодействие Actor (`code_agent`) и Critic (`code_reviewer_agent`) через top-level tool `code_agent_with_review`. До 3 раундов, эскалация на внешнюю LLM при `Uncertain`. UI: селектор «диалог / сворачиваемый», feedback между раундами. SSE-события `debate_started` / `debate_round` / `debate_escalated` / `debate_completed`.
 - **⚖️ Debate (Pro / Contra / Judge) (v1.14.0, KI-126 Фаза 2)** — top-level tool `planner_with_debate` для сложных архитектурных решений (сравнение подходов, миграция, оценка рисков). Три роли: **Pro** ⚖️ (защитник предложения) → **Contra** 🛑 (скептик) → **Judge** 👨‍⚖️ (арбитр с вердиктом Approved / Rejected / Uncertain). До 3 раундов. Эскалация на внешнюю LLM при `Uncertain`, Human-in-the-loop после `Rejected`. Роли `planner_pro_agent` / `planner_contra_agent` / `planner_judge_agent` помечены `Internal` — Chat-LLM их не видит напрямую. UI: тот же селектор «диалог / сворачиваемый», рендер 3 ролей + feedback-блок.
-- **65 инструментов** для LLM (40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator).
+- **🎭 Orchestrator-Worker + Blackboard (v2.0.0, KI-126 Ф3)** — top-level tool `orchestrate_task` для **сложных multi-step задач**: декомпозиция на 2-5 подзадач → распределение между агентами-воркерами (`web_agent`, `code_agent`, ...) → выполнение последовательно / параллельно (`parallel: true|false`) → агрегация через shared state **Blackboard** (in-memory + persistence в БД). SSE-события `orchestrator_started` / `orchestrator_round` / `orchestrator_completed`. UI: прогресс-бар `N/M`, список подзадач с иконками статуса (✅/❌/⛔/🔄/⏳), свёрнутый финальный артефакт.
+- **66 инструментов** для LLM (40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator).
 - **Tool calling в чате** — LLM сама вызывает инструменты в multi-turn loop (до 5 итераций).
 - **Approvals в чате** — mutating-инструменты требуют подтверждения через модалку (drag-and-drop, countdown, approve/reject).
 - **Суб-агенты** — делегирование многошаговых задач с авто-отладкой.
@@ -408,9 +409,11 @@ dotnet run --project IIChatTools.API
 | **+ `code_agent_with_review` (v1.11.0)** | **+1** | **✅** |
 | **+ `mail_agent` (v1.8.0)** | **+1** | **✅** |
 | **+ `external_llm_agent` (v1.8.1)** | **+1** | — |
-| **Итого (ToolRegistry)** | **65** | — |
+| **+ `planner_with_debate` (v1.14.0)** | **+1** | **✅** |
+| **+ `orchestrate_task` (v2.0.0)** | **+1** | **✅** |
+| **Итого (ToolRegistry)** | **66** | — |
 
-> **Примечание:** Chat видит **16 инструментов**:
+> **Примечание:** Chat видит **19 инструментов**:
 > **9 специализированных агентов** из `SubAgentRegistry` — `file_system_agent`,
 > `code_agent`, `code_reviewer_agent` (v1.11.0, KI-126),
 > `web_agent`, `git_agent`, `github_agent`, `planner_agent`,
@@ -420,7 +423,9 @@ dotnet run --project IIChatTools.API
 > (v1.5.0, KI-083);
 > **+ `database_agent`** (v1.7.0, KI-097);
 > **+ `code_agent_with_review`** (v1.11.0, KI-126);
-> **+ `vision_agent`** (v1.12.0, KI-131).
+> **+ `vision_agent`** (v1.12.0, KI-131);
+> **+ `planner_with_debate`** (v1.14.0, KI-126 Ф2);
+> **+ `orchestrate_task`** (v2.0.0, KI-126 Ф3).
 > Все «сырые» инструменты доступны **внутри** агентов.
 
 ---
@@ -1152,7 +1157,7 @@ IIChatTools.API  (net10.0)
   └── Startup.cs: DI + 46 инструментов (40 raw + 6 агентов) + Chat services
       ↓ DI
 IIChatTools.Services  (net10.0)
-  ├── ToolRegistry (65 инструментов: 40 raw + 9 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator)
+  ├── ToolRegistry (66 инструментов: 40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator)
   ├── Agents: SubAgentRegistry (Singleton, v1.4.0)
   ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator (Singleton)
   ├── LmStudioClient (SSE-стриминг + tool calling + ModelOverride)
@@ -1290,7 +1295,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 1105/1105 тестов проходят (unit + integration), 8 Skip (реальные
+**Статус**: 1180/1180 тестов проходят (unit + integration), 8 Skip (реальные
 провайдеры — DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini;
 Chrome CDP — KI-161).
 

@@ -2158,9 +2158,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
-### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate)
+### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate / Orchestrator)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0 / v1.14.0 / v2.0.0
 - **Обнаружено:** 2026-10-01 (обсуждение с пользователем)
 - **DESIGN:** [`docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`](development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md)
 - **Прогресс Ф1 (v1.11.0, все 10 шагов закрыты 2026-10-02):**
@@ -2245,9 +2245,26 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Reflection** (один агент сам себя критикует) — рассматривался, но
     менее эффективен, чем Actor-Critic. Отложен.
 - **Оценка:** ~12-15 ч (Ф1 ~5-6 ч, Ф2 ~5-6 ч, Ф3 ~3-4 ч).
+- **Фаза 3 (v2.0.0, 2026-10-12):** Orchestrator-Worker + Blackboard.
+  - ✅ **3A** — Расширение DTO (MaxSubtasks / Parallel / AllowedWorkerAgents
+    + 6 Subtask*-полей + 3 SSE-DTO `ChatOrchestrator*`).
+  - ✅ **3B** — Внутренний агент `orchestrator_planner_agent` (`Internal: true`).
+  - ✅ **3C** — `IAgentBlackboard` + `InMemoryAgentBlackboard` (Singleton, TTL 30 мин).
+  - ✅ **3D** — Top-level `ITool` `orchestrate_task` (свой loop, `Func<IToolRegistry>`).
+  - ✅ **3E** — Параллелизм (`Task.WhenAll` + семафор) + External-detection.
+  - ✅ **3F** — Persistence (`AgentDebateSession` / `AgentDebateRound`) +
+    SSE `orchestrator_*` + Blackboard cleanup.
+  - ✅ **3G-fix** — 3 бага после smoke: PatternType / Subtask*-поля / лог-verdict.
+  - ✅ **3H** — UI: блок `🎭 Оркестрация задач` с прогресс-баром + subtasks.
+  - ✅ **3J** — +37 unit-тестов (1142 → 1179, фактически 1180 с skip).
+  - ✅ **3K** — Релиз v2.0.0.
+  - **DESIGN:** `docs/development/v2.0/DESIGN_ORCHESTRATOR_WORKER.md`.
+  - **Отложено:** KI-245 (Admin UI whitelist), KI-246 (fallback воркер),
+    KI-247 (External pre-checks), KI-248 (HITL).
 - **Связанные:** KI-052 (Multi-Agent — база), KI-109 (External-LLM —
   для эскалации), KI-111 (stateless agent — решается через Blackboard в Фазе 3),
-  KI-113 (галлюцинация успеха — критик частично закрывает).
+  KI-113 (галлюцинация успеха — критик частично закрывает),
+  KI-244..250 (planned, Ф3+).
 
 ---
 
@@ -6012,13 +6029,14 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Fixed (v1.13.17) | 2 |
 | Fixed (v1.13.x, KI-137/192/194/203/215/216) | 8 |
 | Fixed (v1.14.0) | 1 |
+| Fixed (v2.0.0, KI-126 Ф3) | 1 |
 | Implemented (v1.3.0) | 2 |
 | Implemented (v1.7.0) | 1 |
 | Deferred | 5 |
 | Documented | 13 |
-| Planned | 24 |
+| Planned | 25 |
 | Partially Fixed | 1 |
-| **Всего** | **204** |
+| **Всего** | **205** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
 KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),

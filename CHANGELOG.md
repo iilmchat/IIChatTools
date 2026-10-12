@@ -19,12 +19,97 @@
 ## [Unreleased]
 
 ### Planned
-- **KI-242** — PostgreSQL как провайдер основного `AppDbContext`
-  (v1.15+, дальнее будущее). Новая ветка в `DbContextOptionsExtensions`,
-  отдельная папка миграций `Migrations/Postgres/`, Docker-профиль.
-- **KI-243** — Qdrant как внешний `IVectorStore` (v1.15+, дальнее будущее).
-  `QdrantVectorStore : IVectorStore` (persistence, HNSW, multi-instance).
-  Интерфейс уже готов (v1.5.0, KI-083) — замена через DI-factory.
+- **KI-242** — PostgreSQL как провайдер основного `AppDbContext` (v2.0.x+).
+- **KI-243** — Qdrant как внешний `IVectorStore` (v2.0.x+).
+- **KI-244** — Reflection (v2.1+).
+- **KI-245** — Admin UI для whitelist воркеров Orchestrator (v2.0.x).
+- **KI-246** — Fallback на другого воркера при fail в Orchestrator (v2.0.x).
+- **KI-247** — Pre-checks circuit breaker / budget на уровне Orchestrator (v2.0.x).
+- **KI-248** — Human-in-the-loop между подзадачами Orchestrator (v2.0.x).
+- **KI-249** — Redesign модалки approval (человекочитаемые params) (v2.0.x).
+- **KI-250** — Toggle вида дебатов в блок (Вариант 3) (v2.0.x).
+
+---
+
+## [2.0.0] — 2026-10-12
+
+**KI-126 Фаза 3 — Orchestrator-Worker + Blackboard.**
+Финальная часть мультиагентной трилогии (Actor-Critic → Debate → Orchestrator).
+Top-level tool `orchestrate_task` — декомпозиция сложной задачи на 2-5 подзадач,
+распределение между агентами-воркерами, параллельное / последовательное
+выполнение, агрегация через shared state (Blackboard).
+**Chat-tools: 18 → 19. ToolRegistry: 65 → 66.**
+
+### Added
+- **KI-126 Фаза 3 — Orchestrator-Worker + Blackboard** (полный цикл 3A-3K):
+  - **3A** — Расширение DTO для Orchestrator:
+    - `AgentDebateConfigSnapshot` + `MaxSubtasks` / `Parallel` / `AllowedWorkerAgents`.
+    - `AgentDebateRoundDto` + 6 nullable-полей (`SubtaskId`, `SubtaskAgent`,
+      `SubtaskTask`, `SubtaskStatus`, `SubtaskResult`, `SubtaskError`).
+    - `AgentDebateStatusDto` + `OrchestratorAgent` / `TotalSubtasks` /
+      `CompletedSubtasks` / `FailedSubtasks`.
+    - 3 новых SSE-DTO (`ChatOrchestratorStartedDto` / `RoundDto` / `CompletedDto`).
+    - 3 factory-метода в `ChatStreamEvent`.
+  - **3B** — Внутренний агент `orchestrator_planner_agent` (`Internal: true`) —
+    декомпозитор. `AllowedTools=["__no_tools__"]`, `MaxSteps=3`. SystemPrompt
+    с жёстким JSON `{parallel, reasoning, subtasks[]}` + 3 few-shot примера.
+  - **3C** — `IAgentBlackboard` + `InMemoryAgentBlackboard` (Singleton).
+    `ConcurrentDictionary<int, BlackboardEntry>` + TTL 30 мин (KI-043).
+    Схема ключей `subtask.{id}.{field}` (DESIGN § 4.4).
+  - **3D** — Top-level `ITool` `orchestrate_task` (не `AgentToolBase` — свой loop).
+    Lenient-парсер JSON (markdown-обёртки + сбалансированные `{}`), whitelist
+    воркеров, обрезка `MaxSubtasks`, защита от рекурсии (`orchestrate_task`
+    не вызывается изнутри). `Func<IToolRegistry>` (RULES § 4.51, ADR-002).
+  - **3E** — Параллельное выполнение (`Task.WhenAll` + `SemaphoreSlim`)
+    + External-detection (если воркер `external_llm_agent` → `maxParallel = 1`).
+    Pre-checks circuit breaker / budget — отложены (KI-247, избыточно).
+  - **3F** — Persistence в `AgentDebateSession` (PatternType="Orchestrator") +
+    `AgentDebateRound` (Subtask*-поля) + SSE `orchestrator_*` + `_blackboard.Clear`
+    в finally.
+  - **3G-fix** — 3 бага со smoke: (1) `PatternType` хардкодился ActorCritic в
+    `StartAsync` → fix: брать из snapshot; (2) Subtask*-поля не писались в БД
+    (Entity + AppDbContext + миграция `AddOrchestratorSubtaskColumns`);
+    (3) лог `verdict=(null)` → fallback `CriticVerdict ?? JudgeVerdict ?? SubtaskStatus`.
+    Бонус: `BuildStatusDto` различает 3 паттерна + статистику подзадач.
+  - **3H** — UI: блок `🎭 Оркестрация задач` с прогресс-баром (`N/M`),
+    списком подзадач (`<details>` со статусами ✅/❌/⛔/🔄/⏳) и свёрнутым
+    финальным артефактом. Live + F5-восстановление через `state.orchestrators`
+    + `renderOrchestratorContainerInner` + `renderOrchestratorsForMessage`.
+    +8 ключей `.resx` (RU + EN).
+  - **3J** — Unit-тесты: `OrchestrateTaskToolTests` (22) +
+    `InMemoryAgentBlackboardTests` (15). Итого **+37** (1142 → 1179).
+  - **3K** — Релиз v2.0.0: CHANGELOG, KNOWN_ISSUES, README, ARCHITECTURE,
+    RULES, Directory.Build.props + tag + GitHub Release.
+- **KI-242 / KI-243 (docs)** — Planned-записи для дальнего будущего:
+  PostgreSQL как провайдер основного `AppDbContext`, Qdrant как внешний
+  `IVectorStore`.
+- **KI-244 / KI-245 / KI-246 / KI-247 / KI-248** — Planned-записи Ф3:
+  Reflection, Admin UI whitelist, Fallback на другого воркера,
+  External pre-checks, HITL.
+- **KI-249** — Planned: redesign модалки approval (человекочитаемые params).
+- **KI-250** — Planned: toggle вида дебатов в блок (Вариант 3).
+
+### Changed
+- **`SubAgentRegistry`** — зарегистрировано **16 агентов** (было 15):
+  добавлен `orchestrator_planner_agent` (`Internal: true`).
+- **`ChatStreamService`** — `allowedNames` расширен до **19 инструментов**
+  (было 18): добавлен `orchestrate_task`. Правило 16 в `DefaultSystemPrompt`
+  (сложные multi-step задачи → `orchestrate_task`).
+- **`ChatStreamService`** — metadata-write `debateSessionId` расширен на все
+  3 multi-agent tools (`code_agent_with_review`, `planner_with_debate`,
+  `orchestrate_task`) — для F5-восстановления блоков в UI.
+- **Bump version 1.14.0 → 2.0.0** (`Directory.Build.props`).
+
+### Fixed
+- **KI-126 Ф3, шаг 3G-fix** — 3 бага после первого smoke (см. «Added» → 3G-fix).
+
+### Documented
+- **KI-247** — Orchestrator: pre-checks circuit breaker / budget на уровне
+  оркестратора (избыточно, защита через External-detection + внешний client).
+- **KI-248** — Orchestrator: HITL между подзадачами (Never в prod,
+  не блокер v2.0.0).
+- **KI-249** — Redesign модалки approval (JSON с горизонтальным скроллом).
+- **KI-250** — Toggle вида дебатов в блок.
 
 ---
 
