@@ -5906,6 +5906,41 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-249 — Redesign модалки approval: человекочитаемые параметры вызова
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-12 (smoke Шага 3G KI-126 Ф3).
+- **Файлы (план):**
+  - `wwwroot/js/modules/approvals.js` — функция `renderToolParams(toolName, paramsJson)`;
+  - `Views/Shared/_ApprovalModal.cshtml` — заменить `<pre id="approval-params">` на `<div id="approval-params">` (или оставить `<pre>` + добавить wrapper);
+  - `wwwroot/css/chat.css` — стили `.chat-approval-params*` (или отдельный `approvals.css`);
+  - `.resx` (RU + EN) — ключи для tool-специфичных заголовков («Задача», «Контекст», «Получатели», etc.).
+- **Описание:** В v1.3 (KI-054) модалка approval рендерит `parametersJson` в `<pre>` как **сырую JSON-строку**. Для длинных параметров (например, `orchestrate_task.task` = 300+ символов, `code_agent.task`, `send_email.body`, `run_python.code`):
+  - текст уходит за границу 500px-блока;
+  - появляется горизонтальный скролл;
+  - пользователь не может быстро понять, что именно подтверждает;
+  - нет подсветки синтаксиса, хотя `highlight.js` уже подключён.
+- **Industry best practice (ChatGPT / Claude / GitHub Copilot approvals):**
+  1. **Pretty-print** JSON + подсветка синтаксиса (`hljs.highlightElement`).
+  2. **Tool-специфичные рендеры** для топ-10 инструментов:
+     - `orchestrate_task` → **«Задача»** (многострочный текст) + `parallel` как badge;
+     - `code_agent_with_review` / `code_agent` / `planner_*_agent` → **«Задача»** + **«Контекст»** (свёрнутый);
+     - `send_email` → to / cc / subject + preview body (collapsed);
+     - `vision_agent` → action + target + координаты (badge);
+     - `database_agent` → action + SQL (block);
+     - `run_python` / `run_javascript` → code preview с подсветкой;
+     - `browser_agent` → задача + URL;
+     - default → pretty-print JSON.
+  3. **Сворачивание вложенных объектов** (`<details>` для `context`, `arguments`, etc.).
+  4. **Max-height 40vh** + внутренняя прокрутка (без горизонтального скролла — `white-space: pre-wrap; word-break: break-word`).
+  5. **Кнопка «Показать полностью» / «Свернуть»** для длинных блоков (>500 символов).
+- **Что НЕ входит:**
+  - Diff-view (для `save_file` / `replace_text_in_file`) — отдельный KI-250 (v2.0.x), требует snapshot текущего файла.
+  - Multi-file diff — v2.1+.
+- **Оценка:** ~2-3 ч (frontend-only + локализация).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -5952,9 +5987,9 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Implemented (v1.7.0) | 1 |
 | Deferred | 5 |
 | Documented | 13 |
-| Planned | 23 |
+| Planned | 24 |
 | Partially Fixed | 1 |
-| **Всего** | **203** |
+| **Всего** | **204** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
 KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),
