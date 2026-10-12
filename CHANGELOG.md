@@ -18,6 +18,16 @@
 
 ## [Unreleased]
 
+### Added
+- **KI-126 Фаза 2 — Debate для `planner_agent`** (в работе):
+  - **Шаг 2A:** Entity `AgentDebateRound` + 4 nullable-колонки для
+    3-ролевого паттерна (Debate): `ProOutput`, `ContraOutput`,
+    `JudgeVerdict`, `JudgeFeedbackJson`. Миграция
+    `AddDebateRoleColumns` (SqlServer).
+    Для `PatternType = "ActorCritic"` новые поля = `null`;
+    для `PatternType = "Debate"` — `ActorOutput` / `CriticVerdict`
+    / `CriticFeedbackJson` = `null`.
+
 ---
 
 ## [1.13.17] — 2026-10-11

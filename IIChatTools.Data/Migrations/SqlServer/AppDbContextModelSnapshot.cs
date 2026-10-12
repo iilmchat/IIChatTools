@@ -37,6 +37,9 @@ namespace IIChatTools.Data.Migrations.SqlServer
                     b.Property<string>("ActorOutput")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ContraOutput")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("CostUsd")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
@@ -61,6 +64,15 @@ namespace IIChatTools.Data.Migrations.SqlServer
                     b.Property<string>("EscalationProvider")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("JudgeFeedbackJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("JudgeVerdict")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProOutput")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RoundNumber")
                         .HasColumnType("int");
