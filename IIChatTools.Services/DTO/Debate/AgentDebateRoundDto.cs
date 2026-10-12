@@ -96,5 +96,49 @@ namespace IIChatTools.Services.DTO.Debate
 
         /// <summary>Длительность раунда (мс).</summary>
         public int DurationMs { get; set; }
+
+        // ============================================================
+        // v2.0.0 (KI-126, Фаза 3): поля Orchestrator-Worker.
+        // Заполняются только при PatternType = "Orchestrator".
+        // Для ActorCritic / Debate — null.
+        // ============================================================
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): идентификатор подзадачи ("1", "2", ...).
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public string SubtaskId { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): имя агента-исполнителя подзадачи
+        /// (<c>web_agent</c>, <c>code_agent</c>, ...).
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public string SubtaskAgent { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): текст подзадачи.
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public string SubtaskTask { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): статус подзадачи:
+        /// <c>pending</c> | <c>running</c> | <c>completed</c> | <c>failed</c> | <c>rejected</c>.
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public string SubtaskStatus { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): финальный ответ Worker'а.
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public string SubtaskResult { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): сообщение об ошибке при status = "failed".
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public string SubtaskError { get; set; }
     }
 }

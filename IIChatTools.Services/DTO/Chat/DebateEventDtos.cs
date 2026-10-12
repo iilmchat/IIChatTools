@@ -160,4 +160,107 @@ namespace IIChatTools.Services.DTO.Chat
         /// <summary>Суммарная стоимость сессии в USD.</summary>
         public decimal TotalCostUsd { get; set; }
     }
+
+    // ============================================================
+    // v2.0.0 (KI-126, Фаза 3): SSE-события Orchestrator-Worker.
+    // Отдельные от debate_* — семантически разные (подзадачи vs раунды).
+    // См. DESIGN_ORCHESTRATOR_WORKER § 6.2.
+    // ============================================================
+
+    /// <summary>
+    /// Payload SSE-события <c>orchestrator_started</c> — Orchestrator-сессия
+    /// началась (v2.0.0, KI-126, Фаза 3).
+    /// </summary>
+    public class ChatOrchestratorStartedDto
+    {
+        /// <summary>Идентификатор сессии.</summary>
+        public int SessionId { get; set; }
+
+        /// <summary>Исходная задача (от Chat LLM).</summary>
+        public string Task { get; set; }
+
+        /// <summary>Флаг параллельного выполнения (от декомпозитора).</summary>
+        public bool Parallel { get; set; }
+
+        /// <summary>Максимум подзадач (из ConfigSnapshot).</summary>
+        public int MaxSubtasks { get; set; }
+
+        /// <summary>Whitelist агентов-воркеров (снимок на момент старта).</summary>
+        public System.Collections.Generic.List<string> AllowedWorkerAgents { get; set; }
+
+        /// <summary>
+        /// Политика Human-in-the-loop:
+        /// <c>BetweenSubtasks</c> | <c>AtEnd</c> | <c>Never</c>.
+        /// UI использует это поле для показа inline-блока feedback.
+        /// </summary>
+        public string HumanApproval { get; set; }
+    }
+
+    /// <summary>
+    /// Payload SSE-события <c>orchestrator_round</c> — завершена одна
+    /// подзадача Orchestrator'а (v2.0.0, KI-126, Фаза 3).
+    /// </summary>
+    public class ChatOrchestratorRoundDto
+    {
+        /// <summary>Идентификатор сессии.</summary>
+        public int SessionId { get; set; }
+
+        /// <summary>Идентификатор подзадачи ("1", "2", ...).</summary>
+        public string SubtaskId { get; set; }
+
+        /// <summary>Имя агента-исполнителя подзадачи.</summary>
+        public string Agent { get; set; }
+
+        /// <summary>Текст подзадачи.</summary>
+        public string Task { get; set; }
+
+        /// <summary>
+        /// Статус подзадачи:
+        /// <c>pending</c> | <c>running</c> | <c>completed</c> | <c>failed</c> | <c>rejected</c>.
+        /// </summary>
+        public string Status { get; set; }
+
+        /// <summary>Финальный ответ Worker'а (при status = "completed").</summary>
+        public string Result { get; set; }
+
+        /// <summary>Сообщение об ошибке (при status = "failed" / "rejected").</summary>
+        public string Error { get; set; }
+
+        /// <summary>Длительность подзадачи (мс).</summary>
+        public int DurationMs { get; set; }
+
+        /// <summary>Токенов prompt (если Worker вернул).</summary>
+        public int TokensIn { get; set; }
+
+        /// <summary>Токенов completion (если Worker вернул).</summary>
+        public int TokensOut { get; set; }
+    }
+
+    /// <summary>
+    /// Payload SSE-события <c>orchestrator_completed</c> — Orchestrator-сессия
+    /// завершена (v2.0.0, KI-126, Фаза 3).
+    /// </summary>
+    public class ChatOrchestratorCompletedDto
+    {
+        /// <summary>Идентификатор сессии.</summary>
+        public int SessionId { get; set; }
+
+        /// <summary>Общее число подзадач.</summary>
+        public int TotalSubtasks { get; set; }
+
+        /// <summary>Число успешно выполненных подзадач.</summary>
+        public int CompletedSubtasks { get; set; }
+
+        /// <summary>Число проваленных подзадач (failed + rejected).</summary>
+        public int FailedSubtasks { get; set; }
+
+        /// <summary>
+        /// Финальный артефакт (сводка / отчёт / сравнение),
+        /// сформированный агрегатором (Chat LLM) на основе Blackboard snapshot.
+        /// </summary>
+        public string FinalArtifact { get; set; }
+
+        /// <summary>Общая длительность сессии (мс).</summary>
+        public long TotalDurationMs { get; set; }
+    }
 }

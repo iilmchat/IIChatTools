@@ -262,5 +262,50 @@ namespace IIChatTools.Services.DTO.Chat
                 Type = "debate_completed",
                 Data = dto
             };
+
+        // ============================================================
+        // v2.0.0 (KI-126, Фаза 3): SSE-события Orchestrator-Worker.
+        // Отдельные от debate_* — семантически разные (подзадачи vs раунды).
+        // См. DESIGN_ORCHESTRATOR_WORKER § 6.2.
+        // ============================================================
+
+        /// <summary>
+        /// Создаёт событие <c>orchestrator_started</c> — Orchestrator-сессия
+        /// началась (v2.0.0, KI-126, Фаза 3).
+        /// </summary>
+        /// <param name="dto">Метаданные сессии (задача, parallel, whitelist, ...).</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent OrchestratorStarted(ChatOrchestratorStartedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "orchestrator_started",
+                Data = dto
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>orchestrator_round</c> — завершена одна
+        /// подзадача Orchestrator'а (v2.0.0, KI-126, Фаза 3).
+        /// </summary>
+        /// <param name="dto">Данные подзадачи (id, agent, status, result, ...).</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent OrchestratorRound(ChatOrchestratorRoundDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "orchestrator_round",
+                Data = dto
+            };
+
+        /// <summary>
+        /// Создаёт событие <c>orchestrator_completed</c> — Orchestrator-сессия
+        /// завершена (v2.0.0, KI-126, Фаза 3).
+        /// </summary>
+        /// <param name="dto">Финальный артефакт + статистика.</param>
+        /// <returns>Событие стрима</returns>
+        public static ChatStreamEvent OrchestratorCompleted(ChatOrchestratorCompletedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "orchestrator_completed",
+                Data = dto
+            };
     }
 }

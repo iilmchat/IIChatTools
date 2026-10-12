@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace IIChatTools.Services.DTO.Debate
 {
     /// <summary>
@@ -28,6 +30,33 @@ namespace IIChatTools.Services.DTO.Debate
         /// Максимум раундов actor-critic (default 3, из DESIGN § 3.1).
         /// </summary>
         public int MaxRounds { get; set; } = 3;
+
+        // ============================================================
+        // v2.0.0 (KI-126, Фаза 3): поля Orchestrator-Worker.
+        // Заполняются только при PatternType = "Orchestrator".
+        // Для ActorCritic / Debate — null / default.
+        // ============================================================
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): максимум подзадач для Orchestrator
+        /// (default 5, из DESIGN_ORCHESTRATOR_WORKER § 7).
+        /// Если декомпозитор вернул больше — обрезаем до MaxSubtasks.
+        /// </summary>
+        public int MaxSubtasks { get; set; } = 5;
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): флаг параллельного выполнения подзадач.
+        /// Определяется декомпозитором (orchestrator_planner_agent) —
+        /// default false (последовательно).
+        /// </summary>
+        public bool Parallel { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): whitelist агентов-воркеров на момент старта
+        /// сессии. Orchestrator может вызывать только агентов из этого списка
+        /// (DESIGN_ORCHESTRATOR_WORKER § 2.4).
+        /// </summary>
+        public List<string> AllowedWorkerAgents { get; set; }
 
         /// <summary>
         /// Token budget сессии (default 50000, из DESIGN § 3.1).

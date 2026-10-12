@@ -110,6 +110,38 @@ namespace IIChatTools.Services.DTO.Debate
         /// </summary>
         public string JudgeAgent { get; set; }
 
+        // ============================================================
+        // v2.0.0 (KI-126, Фаза 3): поля Orchestrator-Worker.
+        // Заполняются только при PatternType = "Orchestrator".
+        // ============================================================
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): имя агента-декомпозитора
+        /// (обычно <c>orchestrator_planner_agent</c>).
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public string OrchestratorAgent { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): общее число подзадач.
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public int TotalSubtasks { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): число успешно выполненных подзадач
+        /// (status = "completed").
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public int CompletedSubtasks { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): число проваленных подзадач
+        /// (status = "failed" или "rejected").
+        /// Только для <c>PatternType = "Orchestrator"</c>.
+        /// </summary>
+        public int FailedSubtasks { get; set; }
+
         /// <summary>
         /// Раунды сессии (сортировка по <c>RoundNumber</c> asc).
         /// Пустой список, если раундов ещё нет.
