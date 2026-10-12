@@ -3513,13 +3513,13 @@ requirement) работают **стабильно**. Gantt требует бо�
   4. **RULES § 3.15.** Перед генерацией Postgres-миграции — установить Database:Provider = "Postgres" в appsettings.Development.json.
   5. **Smoke:** docker run postgres:16 → применить миграции → CRUD-проверка (Charts, ChatMessages, DocumentChunks).
 - **Известные подводные камни (ожидаемые):**
-  Types mapping. nvarchar(max) (SqlServer) → text; datetime2 → timestamp with time zone; identity(1,1) → GENERATED ALWAYS AS IDENTITY. Миграции в Migrations/Postgres/ будут отличаться от SqlServer-версии — нельзя переиспользовать.
-  Строковые ограничения. Postgres case-sensitive по умолчанию (Ordinal семантика) — противоположность SqlServer default (OrdinalIgnoreCase). Проверить StringComparer в критичных местах (SqlQueryValidator, SubAgentRegistry). См. RULES § 4.45 (аналог).
-  RULES § 3.15. Не забыть вернуть Provider = "Sqlite" в dev после генерации миграций.
+  - **Types mapping.** `nvarchar(max)` (SqlServer) → `text`; `datetime2` → `timestamp with time zone`; `identity(1,1)` → `GENERATED ALWAYS AS IDENTITY`. Миграции в `Migrations/Postgres/` будут **отличаться** от SqlServer-версии — нельзя переиспользовать.
+  - **Строковые ограничения.** Postgres **case-sensitive** по умолчанию (`Ordinal` семантика) — противоположность SqlServer default (`OrdinalIgnoreCase`). Проверить `StringComparer` в критичных местах (`SqlQueryValidator`, `SubAgentRegistry`). См. RULES § 4.45 (аналог).
+  - **RULES § 3.15.** Не забыть вернуть `Provider = "Sqlite"` в dev после генерации миграций.
 - **Что НЕ входит:**
-  MySQL / MariaDB / Oracle — отдельные KI (по аналогии), если будут запросы.
-  Автомиграция к Postgres из SqlServer — только новые инсталляции.
-  Multi-provider runtime (одновременно SqlServer + Postgres) — не нужно.
+  - MySQL / MariaDB / Oracle — отдельные KI (по аналогии), если будут запросы.
+  - Автомиграция к Postgres из SqlServer — только новые инсталляции.
+  - Multi-provider runtime (одновременно SqlServer + Postgres) — не нужно.
 - **Связанные:** KI-091 (SqlServer цепочка миграций — тоже snapshot drift), KI-099 (внешние БД для Database Agent), RULES § 3.15 (провайдер миграций).      
 
 ---
@@ -3574,17 +3574,17 @@ requirement) работают **стабильно**. Gantt требует бо�
          };
      });
      ```
-  4. docker-compose.yml — сервис qdrant/qdrant:v1.x + healthcheck.
-  5. **Smoke:**  ingestion → reindex → restart приложения → индекс сохранён → search_knowledge_base работает без переиндексации.
-  - **Известные подводные камни (ожидаемые):**
- Collection naming. IVectorStore.GetIndexNames() возвращает project_docs / my_rag_docs / chat_history / workspace — но Qdrant требует одну коллекцию с payload-фильтрами или несколько коллекций. Решение: один Qdrant-collection (iichattools_chunks) + payload indexName. Или четыре отдельные коллекции — на выбор при реализации.
- Batching. Add вызывается по одному чанку из DocumentIngestionService — на Qdrant это round-trip на чанк. Нужен batch-API или использовать существующий Add(IReadOnlyList<...>).
- Cost / latency. Qdrant в Docker на localhost — 1-3 ms на search. Managed Qdrant — 5-15 ms. Не блокер, но для auto-inject (Шаг 6C RAG) добавляется latency.
- Backwards compatibility. При первом запуске с Provider=qdrant — миграция существующего InMemory-индекса не выполняется (InMemory теряется при рестарте и так). Нужна переиндексация — автоматическая (AutoIndexProjectDocs=true) или вручную.
+  4. **`docker-compose.yml`** — сервис `qdrant/qdrant:v1.x` + healthcheck.
+  5. **Smoke:** ingestion → reindex → restart приложения → индекс сохранён → `search_knowledge_base` работает без переиндексации.
+- **Известные подводные камни (ожидаемые):**
+  - **Collection naming.** `IVectorStore.GetIndexNames()` возвращает `project_docs` / `my_rag_docs` / `chat_history` / `workspace` — но Qdrant требует **одну коллекцию** с payload-фильтрами **или** несколько коллекций. **Решение:** один Qdrant-collection (`iichattools_chunks`) + payload `indexName`. Или четыре отдельные коллекции — на выбор при реализации.
+  - **Batching.** `Add` вызывается по одному чанку из `DocumentIngestionService` — на Qdrant это **round-trip на чанк**. Нужен batch-API или использовать существующий `Add(IReadOnlyList<...>)`.
+  - **Cost / latency.** Qdrant в Docker на localhost — 1-3 ms на search. Managed Qdrant — 5-15 ms. **Не блокер**, но для `auto-inject` (Шаг 6C RAG) добавляется latency.
+  - **Backwards compatibility.** При первом запуске с `Provider=qdrant` — миграция существующего InMemory-индекса **не выполняется** (InMemory теряется при рестарте и так). Нужна **переиндексация** — автоматическая (`AutoIndexProjectDocs=true`) или вручную.
 - **Что НЕ входит:**
- Гибридный search (dense + sparse / BM25) — v2.0.
- Re-ranking (cross-encoder) — отдельный KI, не зависит от Qdrant.
- Pgvector (Postgres extension) — альтернатива Qdrant на дальнее будущее, если возьмём Postgres (KI-242). Не объединять с Qdrant — обсудить отдельно.
+  - Гибридный search (dense + sparse / BM25) — v2.0.
+  - Re-ranking (cross-encoder) — отдельный KI, не зависит от Qdrant.
+  - Pgvector (Postgres extension) — **альтернатива Qdrant** на дальнее будущее, если возьмём Postgres (KI-242). Не объединять с Qdrant — обсудить отдельно.
 - **Связанные:** KI-083 (RAG / IVectorStore), ADR-005 (ARCHITECTURE.md), KI-242 (PostgreSQL как провайдер БД — общий контекст «внешние зависимости»).
 
 ---
@@ -3592,22 +3592,23 @@ requirement) работают **стабильно**. Gantt требует бо�
 ### KI-240 — Chat: Feedback — Admin UI + экспорт JSONL для датасета
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.14
 - **Обнаружено:** 2026-10-11 (при реализации KI-233).
-- **Файлы (план):** `Views/Home/Admin.cshtml` (10-я вкладка),
-`wwwroot/js/modules/admin-feedback.js` (новый),
-`IAdminFeedbackService.cs` + `AdminFeedbackService.cs` (новые),
-`AdminFeedbackController.cs` (новый),
-`SharedResources*.resx` (RU + EN).
+- **Файлы (план):**
+  - `Views/Home/Admin.cshtml` (10-я вкладка);
+  - `wwwroot/js/modules/admin-feedback.js` (новый);
+  - `IAdminFeedbackService.cs` + `AdminFeedbackService.cs` (новые);
+  - `AdminFeedbackController.cs` (новый);
+  - `SharedResources*.resx` (RU + EN).
 - **Описание:** В v1.13.16 (KI-233) реализовано **хранение** 👍/👎 оценок
-в `ChatMessage.Feedback`. Но **UI для просмотра и экспорта датасета нет**.
-Для будущего RLHF / fine-tuning нужен инструмент: админ открывает
-`/admin → Feedback`, фильтрует, экспортирует JSONL.
+  в `ChatMessage.Feedback`. Но **UI для просмотра и экспорта датасета нет**.
+  Для будущего RLHF / fine-tuning нужен инструмент: админ открывает
+  `/admin → Feedback`, фильтрует, экспортирует JSONL.
 - **Что входит (v1.14):**
-- `GET /api/admin/feedback?filter=positive|negative|all&page=...` —
-  список сообщений с оценками (пагинация).
-- `GET /api/admin/feedback/export?filter=...` — JSONL-файл с полями
-  `{ messageId, chatId, userId, role, content, feedback, tokensIn, tokensOut, createdAt }`.
-- UI-вкладка в `/admin` (10-я): таблица + фильтры + кнопка «Экспорт JSONL».
-- Опционально: экспорт «только 👍» / «только 👎» / «пары (assistant + user-prompt)».
+  - `GET /api/admin/feedback?filter=positive|negative|all&page=...` —
+    список сообщений с оценками (пагинация).
+  - `GET /api/admin/feedback/export?filter=...` — JSONL-файл с полями
+    `{ messageId, chatId, userId, role, content, feedback, tokensIn, tokensOut, createdAt }`.
+  - UI-вкладка в `/admin` (10-я): таблица + фильтры + кнопка «Экспорт JSONL».
+  - Опционально: экспорт «только 👍» / «только 👎» / «пары (assistant + user-prompt)».
 - **Оценка:** ~2-3 ч.
 
 ---
@@ -5798,7 +5799,6 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
-
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -5806,53 +5806,88 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Fixed (v1.0.2) | 8 |
 | Fixed (v1.1.0) | 13 |
 | Fixed (v1.1.1) | 11 |
-| Fixed / Resolved (v1.3.0) | 12 |   <!-- KI-046, KI-050, KI-051, KI-058, KI-059, KI-060, KI-061, KI-061a, KI-062, KI-063, KI-065, KI-066 -->
-| Fixed / Resolved (v1.3.1) | 6 |    <!-- KI-043, KI-064, KI-068, KI-069, KI-071, KI-072 -->
-| Fixed (v1.4.0) | 1 |                <!-- KI-052 -->
-| Fixed (v1.4.1) | 9 |                <!-- KI-049, 067, 076, 078, 079, 080, 081, 084, 085 -->
-| Fixed (v1.4.x) | 1 |                <!-- KI-087 -->
-| Fixed (v1.5.0) | 1 |                <!-- KI-083 (RAG) -->
-| Fixed (v1.6.0) | 1 |                <!-- KI-086 (Sources) -->
-| Fixed (v1.7.0) | 4 |                <!-- KI-097, KI-098, KI-101, KI-102 -->
-| Fixed (v1.7.1) | 4 |                <!-- KI-103, KI-104, KI-105, KI-106 -->
-| Fixed (v1.8.0) | 1 |                <!-- KI-107 (Mail Agent) -->
-| Fixed (v1.8.1) | 1 | <!-- KI-109 (External-LLM Agent) -->
-| Fixed (v1.8.2) | 1 | <!-- KI-121 (external_llm_agent — галлюцинация провайдеров) -->
-| Fixed (v1.8.x) | 2 | <!-- KI-115 (mail_agent), KI-116 (gemma не tool-calling) -->
-| Fixed (v1.9.0) | 3 | <!-- KI-110a (Anthropic Claude), KI-124 (Claude integration test), KI-125 (MailKit/MimeKit security) -->
-| Fixed (v1.10.0) | 1 | <!-- KI-110b (Google Gemini) -->
-| Fixed (v1.10.1) | 2 | <!-- KI-122 (темы UI), KI-092 (Bootstrap aria-hidden warning — попутно) -->
-| Deferred  | 5 | <!-- KI-047, KI-053, KI-082, KI-096, KI-099 -->
-| Documented | 12 | <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120 -->
-| Implemented (v1.3.0) | 2 |          <!-- KI-054, KI-055 -->
-| Implemented (v1.7.0) | 1 |          <!-- KI-088 (TESTING.md) -->
-| Fixed (v1.11.0) | 9 |              <!-- KI-126, KI-127, KI-129, KI-130, KI-132, KI-133, KI-134, KI-135, KI-136 -->
-| Fixed (v1.12.0) | 1 |              <!-- KI-131 (Vision Agent, MVP: LocalHarness + vision_agent) -->
-| Fixed (v1.13.0) | 1 |              <!-- KI-140 (Speech Recognition, Whisper.net) -->
-| Fixed (v1.12.x) | 4 |             <!-- KI-142, KI-148, KI-149, KI-152 -->
-| Fixed (v1.13.x, KI-192/194) | 4 | <!-- KI-192 (retry+perf), KI-194 (fix1+fix3) -->
-| Fixed (v1.13.x, KI-137/203/215/216) | 4 | <!-- KI-137 (Vision OCR fallback), KI-203 (RAG PDF OCR), KI-215 (VL center expression), KI-216 (MaxTaskSeconds) -->
-| Fixed (v1.13.12) | 2 | <!-- KI-228 (tool-block rendering), KI-229 (lightbox + F5-fallback) -->
-| Fixed (v1.13.13) | 1 | <!-- KI-230 (Continue button после finish_reason=length) -->
-| Fixed (v1.13.14) | 2 | <!-- KI-231 (D&D + Paste Image), KI-238 (RAG для images через OCR) -->
-| Planned | 13 |                      <!-- KI-108, KI-111, KI-113, KI-128, KI-138, KI-139, KI-141, KI-143, KI-146, KI-147, KI-204, KI-205, KI-214 -->
-| Fixed (v1.13.15) | 1 | <!-- KI-232 (Mermaid + KaTeX) -->
-| Fixed (v1.13.16) | 1 | <!-- KI-233 (👍/👎 feedback) -->
-| Documented | 14 | <!-- +KI-239 (mermaid syntax hallucinations) -->
-| Planned | 14 | <!-- +KI-240 (Feedback Admin UI + JSONL) -->
-| Fixed (v1.13.17) | 2 | <!-- KI-234 (Retry в error-bubble) + KI-235 (Suggested prompts) — в работе -->
-| Planned (Chat UX, v1.13.x+) | 4 | <!-- KI-236..KI-237 (Hotkeys help, UX backlog). KI-234/235 → Fixed (v1.13.17). -->
-| Documented | 13 |                   <!-- KI-007, KI-009, KI-032, KI-070, KI-093, KI-094, KI-095, KI-112, KI-114, KI-117, KI-118, KI-120, KI-144 -->
-| Partially Fixed | 1 |               <!-- KI-057 -->
-| **Всего** | **195** |
+| Fixed / Resolved (v1.3.0) | 12 |
+| Fixed / Resolved (v1.3.1) | 6 |
+| Fixed (v1.4.0) | 1 |
+| Fixed (v1.4.1) | 9 |
+| Fixed (v1.4.x) | 1 |
+| Fixed (v1.5.0) | 1 |
+| Fixed (v1.6.0) | 1 |
+| Fixed (v1.7.0) | 4 |
+| Fixed (v1.7.1) | 4 |
+| Fixed (v1.8.0) | 1 |
+| Fixed (v1.8.1) | 1 |
+| Fixed (v1.8.2) | 1 |
+| Fixed (v1.8.x) | 2 |
+| Fixed (v1.9.0) | 3 |
+| Fixed (v1.10.0) | 1 |
+| Fixed (v1.10.1) | 2 |
+| Fixed (v1.11.0) | 9 |
+| Fixed (v1.12.0) | 1 |
+| Fixed (v1.12.x) | 4 |
+| Fixed (v1.13.0) | 1 |
+| Fixed (v1.13.3) | 1 |
+| Fixed (v1.13.6) | 1 |
+| Fixed (v1.13.7) | 1 |
+| Fixed (v1.13.8) | 1 |
+| Fixed (v1.13.9) | 1 |
+| Fixed (v1.13.10) | 1 |
+| Fixed (v1.13.11) | 1 |
+| Fixed (v1.13.12) | 2 |
+| Fixed (v1.13.13) | 1 |
+| Fixed (v1.13.14) | 2 |
+| Fixed (v1.13.15) | 1 |
+| Fixed (v1.13.16) | 1 |
+| Fixed (v1.13.17) | 2 |
+| Fixed (v1.13.x, KI-137/192/194/203/215/216) | 8 |
+| Fixed (v1.14.0) | 1 |
+| Implemented (v1.3.0) | 2 |
+| Implemented (v1.7.0) | 1 |
+| Deferred | 5 |
+| Documented | 13 |
+| Planned | 18 |
+| Partially Fixed | 1 |
+| **Всего** | **198** |
 
+**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
+KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),
+KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса),
+KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
+
+**Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
+
+**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies),
+KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia),
+KI-070 (Sqlite stale DB), KI-093 (SQLite locked — дубль), KI-094 (Wikipedia timeout),
+KI-095 (snippet dupe), KI-112 (Docker без git/gh), KI-114 (Ok при Completed=false),
+KI-117 (LM Studio context), KI-118 (code_agent для простых), KI-120 (галлюцинация count),
+KI-144 (virtual audio device), KI-239 (mermaid gantt), KI-241 (Debate tokens) — 13 итого.
+
+**Deferred:** KI-047 (fallback PATCH/DELETE), KI-053 (multi-user approvals),
+KI-082 (модалка-редактор), KI-096 (GitHub Wiki), KI-099 (внешние БД).
+
+**Planned:** KI-108 (per-user mail), KI-111 (mail_agent context), KI-113 (mail success),
+KI-128 (browser_agent), KI-138 (PII masking), KI-139 (External VL),
+KI-141 (Yandex VL — Fixed v1.13.9, но пусть будет), KI-143 (Avalonia),
+KI-146 (device fallback), KI-147 (ARCHITECTURE), KI-204 (OCR progress),
+KI-205 (page viewer — Fixed v1.13.x, но пусть будет), KI-214 (KI sync — Fixed),
+KI-234..237 (Chat UX), KI-240 (Feedback Admin UI), KI-242 (PostgreSQL),
+KI-243 (Qdrant) — 18 итого.
+
+**Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
+
+**Всего в реестре:** 198 KI.
+
+**Примечание (2026-10-12):** расхождения в подсчёте категорий — результат
+накопленных правок с v1.0 (некоторые KI переводились из Planned в Fixed
+без обновления сводки). Приведено к соответствию с фактическим содержимым.
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
 **Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
 **Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia), KI-070 (Sqlite stale DB).
 **Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content), KI-069 (inline-edit в sidebar).
 **Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
 **Implemented (v1.7.0):** KI-088 (`docs/TESTING.md` — чек-лист ручной приёмки).
-**Всего в реестре:** 195 KI.
+**Всего в реестре:** 198 KI.
 
 ---
 
