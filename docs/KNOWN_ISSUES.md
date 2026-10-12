@@ -5941,6 +5941,35 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-250 — Toggle вида дебатов: перенести в блок (Вариант 3)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-12 (smoke Шага 3H KI-126 Ф3).
+- **Файлы (план):**
+  - `Views/Chat/Index.cshtml` — удалить `#btn-debate-view` из header;
+  - `wwwroot/js/modules/chat.js` — `renderDebateContainerInner` /
+    `renderOrchestratorContainerInner`: добавить toggle-кнопку в шапку
+    блока; перейти от глобального `state.debateView` к per-block
+    (или оставить глобальное, но визуально привязать к блоку);
+  - `wwwroot/css/chat.css` — `.chat-debate-header .chat-debate-view-toggle`.
+- **Описание:** Сейчас toggle вида Actor-Critic / Debate / Orchestrator
+  вынесен в **header чата** (`#btn-debate-view`, вторая-третья кнопка
+  справа). Семантически **не связано** с блоками в ленте: пользователь
+  ожидает, что toggle влияет на **текущий блок**, а не на все дебаты
+  в чате сразу. Иконка `btn-outline-secondary` маленькая и неочевидная.
+- **Принятое решение (Вариант 3):** перенести toggle **внутрь**
+  `.chat-debate-header` / `.chat-orchestrator-header` — правый угол.
+  Пользователь видит кнопку «Свернуть / Развернуть» именно там, где
+  находятся раунды / подзадачи.
+- **Что НЕ входит:**
+  - Per-block state (сейчас — глобальный `state.debateView`,
+    сохраняется в `localStorage`). Переход к per-block — v2.1+,
+    если понадобится.
+  - Контекстное меню (правый клик) — пересмотрим после smoke.
+- **Оценка:** ~30 мин (frontend-only).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
