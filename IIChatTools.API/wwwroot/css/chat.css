@@ -3860,3 +3860,129 @@ pre.chat-katex-fallback {
     outline: 2px solid var(--bs-primary);
     outline-offset: 1px;
 }
+
+
+/* ============================================================
+   KI-249 (v2.0.1): Tool-специфичный рендер параметров approval.
+   ============================================================ */
+
+.chat-approval-params {
+    max-height: 40vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    padding: .6rem .75rem;
+    font-size: .85rem;
+    line-height: 1.45;
+}
+
+.chat-approval-content {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+/* Одно поле label + value. */
+.chat-approval-field {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+
+.chat-approval-field-label {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    font-size: .8rem;
+}
+
+.chat-approval-field-value {
+    color: var(--bs-body-color);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: .82rem;
+    line-height: 1.5;
+}
+
+.chat-approval-field-value-mono {
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+}
+
+/* Badge'и (parallel, action, maxSubtasks). */
+.chat-approval-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+}
+
+.chat-approval-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .15rem .5rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    font-size: .75rem;
+    font-family: var(--bs-font-monospace);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+}
+
+/* Code-блок (SQL, Python, JS, JSON). */
+.chat-approval-code {
+    margin: 0;
+    padding: .5rem .65rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    font-size: .75rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+    color: var(--bs-body-color);
+}
+
+.chat-approval-code code {
+    font-family: var(--bs-font-monospace);
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Сырой JSON — когда paramsJson не парсится. */
+.chat-approval-raw {
+    margin: 0;
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--bs-body-color);
+}
+
+/* Свёрнутый блок «Другие поля (N)». */
+.chat-approval-other {
+    margin-top: .25rem;
+    border-top: 1px dashed var(--bs-border-color);
+    padding-top: .4rem;
+}
+
+.chat-approval-other-summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: .78rem;
+    color: var(--bs-primary);
+    padding: .1rem 0;
+    user-select: none;
+}
+
+.chat-approval-other-summary::-webkit-details-marker { display: none; }
+.chat-approval-other-summary:hover { text-decoration: underline; }
+
+.chat-approval-other[open] > .chat-approval-other-summary {
+    margin-bottom: .35rem;
+}

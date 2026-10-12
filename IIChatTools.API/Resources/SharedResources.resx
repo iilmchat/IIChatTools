@@ -1092,6 +1092,53 @@
   <data name="ChatEmptyChatHint" xml:space="preserve">
     <value>Chat history is empty. Start a dialog.</value>
   </data>
+  <!-- ===== v2.0.1 (KI-249): Approval params renderer ===== -->
+  <data name="ApprovalParamTask" xml:space="preserve">
+    <value>Task</value>
+  </data>
+  <data name="ApprovalParamContext" xml:space="preserve">
+    <value>Context</value>
+  </data>
+  <data name="ApprovalParamTo" xml:space="preserve">
+    <value>To</value>
+  </data>
+  <data name="ApprovalParamCc" xml:space="preserve">
+    <value>CC</value>
+  </data>
+  <data name="ApprovalParamSubject" xml:space="preserve">
+    <value>Subject</value>
+  </data>
+  <data name="ApprovalParamBody" xml:space="preserve">
+    <value>Body</value>
+  </data>
+  <data name="ApprovalParamAction" xml:space="preserve">
+    <value>Action</value>
+  </data>
+  <data name="ApprovalParamTarget" xml:space="preserve">
+    <value>Target</value>
+  </data>
+  <data name="ApprovalParamSql" xml:space="preserve">
+    <value>SQL query</value>
+  </data>
+  <data name="ApprovalParamCode" xml:space="preserve">
+    <value>Code</value>
+  </data>
+  <data name="ApprovalParamLanguage" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="ApprovalParamParallel" xml:space="preserve">
+    <value>Parallel</value>
+  </data>
+  <data name="ApprovalParamMaxSubtasks" xml:space="preserve">
+    <value>Max subtasks</value>
+  </data>
+  <data name="ApprovalParamOtherFields" xml:space="preserve">
+    <value>Other fields ({0})</value>
+  </data>
+  <data name="ApprovalParamRawJson" xml:space="preserve">
+    <value>JSON</value>
+  </data>
+
   <!-- ===== v2.0.0 (KI-126, Ф3, Шаг 3H): Orchestrator-Worker UI ===== -->
   <data name="ChatOrchestratorTitle" xml:space="preserve">
     <value>Orchestration</value>
