@@ -113,6 +113,16 @@ namespace IIChatTools.Services.Implementation
         /// </summary>
         private const string VisionAgentToolName = "vision_agent";
 
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2, Шаг 2C.1c): имя Debate-оркестратора
+        /// (Pro / Contra / Judge).
+        /// Явно добавляется в <c>allowedNames</c> при построении <c>tools[]</c>
+        /// для Chat (RULES § 4.44). Если <c>SubAgents:planner_with_debate:Enabled = false</c>
+        /// или tool не зарегистрирован в DI — фильтр по имени в
+        /// <see cref="ToolDefinitionsBuilder.Build"/> его пропустит.
+        /// </summary>
+        private const string PlannerWithDebateToolName = "planner_with_debate";
+
         /// <summary>Сколько top-K чанков вставлять в system prompt (по умолчанию).</summary>
         private const int DefaultAutoInjectTopK = 5;
 
@@ -300,7 +310,41 @@ namespace IIChatTools.Services.Implementation
             "    ПРИМЕР 7: «Напиши формулу Эйлера» →\n" +
             "    Ответ ассистента (обычный текст, БЕЗ tool-call):\n" +
             "    Формула Эйлера: $e^{i\\pi} + 1 = 0$.\n" +
-            "    НЕ вызывай `code_agent`! LaTeX-формула рендерится в UI.";
+            "    НЕ вызывай `code_agent`! LaTeX-формула рендерится в UI.\n" +
+            "\n" +
+            "15. АРХИТЕКТУРНЫЕ / СТРАТЕГИЧЕСКИЕ РЕШЕНИЯ — используй\n" +
+            "    `planner_with_debate` (3-ролевой Debate: Pro / Contra /\n" +
+            "    Judge). ВЫБИРАЙ ЭТОТ ИНСТРУМЕНТ когда пользователь:\n" +
+            "    - оценивает / сравнивает архитектурные подходы\n" +
+            "      («REST vs gRPC», «Sqlite vs Postgres», «какой\n" +
+            "      паттерн использовать»);\n" +
+            "    - планирует крупную фичу / миграцию / рефакторинг\n" +
+            "      («мигрировать на Qdrant», «перейти на Minimal API»);\n" +
+            "    - оценивает риски предлагаемого решения\n" +
+            "      («оцени риски использования X»);\n" +
+            "    - выбирает между технологиями / библиотеками.\n" +
+            "    Оркестратор запустит Pro (защитник) → Contra (скептик)\n" +
+            "    → Judge (арбитр) до 3 раундов и вернёт вердикт\n" +
+            "    (Approved / Rejected / Uncertain).\n" +
+            "\n" +
+            "    НЕ используй planner_with_debate для ПРОСТЫХ задач:\n" +
+            "    - сохранить факт в память → `planner_agent`\n" +
+            "      (save_memory);\n" +
+            "    - получить системную информацию → `planner_agent`\n" +
+            "      (get_system_info);\n" +
+            "    - тривиальный вопрос без выбора между вариантами.\n" +
+            "\n" +
+            "    ПРИМЕР 8: «Оцени план: использовать REST вместо gRPC для\n" +
+            "    IIChatTools» или «Стоит ли мигрировать на Qdrant?» или\n" +
+            "    «Сравни Postgres и Sqlite для нашего проекта» →\n" +
+            "    вызови `planner_with_debate` с задачей = текстом\n" +
+            "    предложения. НЕ отвечай своими знаниями — Debate даст\n" +
+            "    сбалансированную оценку с аргументами За и Против.\n" +
+            "\n" +
+            "    ПРИМЕР 9: «Запомни, что я люблю тёмную тему» или\n" +
+            "    «Какая у меня ОС?» → вызови `planner_agent`. НЕ\n" +
+            "    запускай Debate — это лишние 3 LLM-вызова на 2 минуты\n" +
+            "    ради простого действия.";
 
         private readonly IChatService _chatService;
         private readonly IChatLlmClient _chatLlmClient;
@@ -586,6 +630,13 @@ namespace IIChatTools.Services.Implementation
                 if (!allowedNames.Contains(VisionAgentToolName, StringComparer.OrdinalIgnoreCase))
                 {
                     allowedNames.Add(VisionAgentToolName);
+                }
+
+                // v1.14.0 (KI-126, Фаза 2, Шаг 2C.1c): Debate-оркестратор
+                // (Pro / Contra / Judge). RULES § 4.44 — обязательно в allowedNames.
+                if (!allowedNames.Contains(PlannerWithDebateToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(PlannerWithDebateToolName);
                 }
 
                 tools = ToolDefinitionsBuilder.Build(

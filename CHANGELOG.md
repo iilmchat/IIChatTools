@@ -82,6 +82,15 @@
     `planner_judge_agent` (в обоих `appsettings*.json`) — для
     консистентности с `planner_pro_agent` и defense-in-depth
     (в дополнение к `AllowedTools: ["__no_tools__"]`).
+  - **Шаг 2C.1c:** `planner_with_debate` зарегистрирован в DI
+    (`Startup.cs` → `RegisterSpecializedAgentTools`, рядом с
+    `CodeAgentWithReviewTool`). Добавлен в `allowedNames` в
+    `ChatStreamService.StreamAsync` (RULES § 4.44) — Chat-LLM теперь
+    видит оркестратор (**18 инструментов** вместо 17). Правило 15
+    в `DefaultSystemPrompt`: архитектурные / стратегические решения
+    (сравнение подходов, миграция, оценка рисков) → `planner_with_debate`;
+    простые задачи (сохранить факт / получить системную инфу) →
+    `planner_agent`. Плюс ПРИМЕР 8 и ПРИМЕР 9 (разграничение).
 
 ---
 

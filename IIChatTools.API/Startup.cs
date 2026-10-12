@@ -620,6 +620,12 @@ namespace IIChatTools.API
             // Требует явного добавления в allowedNames ChatStreamService (RULES § 4.44).
             services.AddScoped<ITool, CodeAgentWithReviewTool>();
 
+            // v1.14.0 (KI-126, Фаза 2, Шаг 2C.1c): top-level Debate оркестратор
+            // (Pro / Contra / Judge). Не наследник AgentToolBase — по образцу
+            // CodeAgentWithReviewTool. Требует явного добавления в allowedNames
+            // ChatStreamService (RULES § 4.44).
+            services.AddScoped<ITool, PlannerWithDebateTool>();
+
             // v1.7.0 (KI-097, Фаза 5): Database Agent tool.
             // Не регистрируется при SqlAgent:Enabled = false (DESIGN § 3.4).
             RegisterSqlAgentTools(services, Configuration);
