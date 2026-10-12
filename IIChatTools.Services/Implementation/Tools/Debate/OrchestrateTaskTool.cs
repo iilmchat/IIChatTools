@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.Interfaces;
@@ -209,23 +210,75 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 }
             }
 
-            // ---------- 6. Выполнение (в 3D — всегда последовательно) ----------
-            // Шаг 3E: parallel=true + семафор + External pre-checks.
-            // Шаг 3D: параллелизм игнорируется, все подзадачи идут последовательно.
-            if (plan.Parallel && parallelOverride != false)
+            // ---------- 6. Выполнение ----------
+            // v2.0.0 (KI-126, Фаза 3, Шаг 3E): параллелизм + External-detection.
+            //
+            // Логика:
+            //   1. Если parallel=false (default или override) — последовательно.
+            //   2. Если parallel=true, но есть external_llm_agent — maxParallel = 1
+            //      (последовательно, чтобы не «добивать» circuit breaker).
+            //   3. Иначе — Task.WhenAll + SemaphoreSlim(maxParallel).
+            //
+            // Pre-checks circuit breaker / budget — отложены (см. KI-247):
+            //   - orchestrate_task не знает, какого провайдера выберет
+            //     external_llm_agent (у него fallback chain);
+            //   - сам ExternalLlmClient уже проверяет breaker + budget на
+            //     каждом вызове (v1.8.1, KI-109).
+            var hasExternalWorker = subtasks.Any(s =>
+                string.Equals(s.Agent, "external_llm_agent", StringComparison.OrdinalIgnoreCase));
+
+            var effectiveParallel = plan.Parallel
+                && parallelOverride != false
+                && !hasExternalWorker;
+
+            var maxParallel = hasExternalWorker ? 1 : config.MaxParallel;
+
+            if (hasExternalWorker)
             {
                 _logger.LogInformation(
-                    "OrchestrateTaskTool: parallel=true запрошено декомпозитором, " +
-                    "но в Шаге 3D выполняется последовательно (Шаг 3E включит " +
-                    "параллелизм).");
+                    "OrchestrateTaskTool: обнаружен external_llm_agent в подзадачах — " +
+                    "снижаем maxParallel до 1 (последовательное выполнение External).");
             }
 
-            foreach (var st in subtasks)
-            {
-                if (st.Status == "rejected")
-                    continue;
+            var activeSubtasks = subtasks.Where(s => s.Status != "rejected").ToList();
 
-                await ExecuteSubtaskAsync(context, st);
+            if (effectiveParallel && activeSubtasks.Count > 1)
+            {
+                _logger.LogInformation(
+                    "OrchestrateTaskTool: параллельное выполнение " +
+                    "(maxParallel={Max}, подзадач={Count})",
+                    maxParallel, activeSubtasks.Count);
+
+                using var semaphore = new SemaphoreSlim(maxParallel);
+
+                var tasks = activeSubtasks.Select(async st =>
+                {
+                    await semaphore.WaitAsync(context.CancellationToken);
+                    try
+                    {
+                        await ExecuteSubtaskAsync(context, st);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+            }
+            else
+            {
+                if (plan.Parallel && hasExternalWorker)
+                {
+                    _logger.LogInformation(
+                        "OrchestrateTaskTool: parallel=true запрошено, но из-за " +
+                        "external_llm_agent выполняем последовательно.");
+                }
+
+                foreach (var st in activeSubtasks)
+                {
+                    await ExecuteSubtaskAsync(context, st);
+                }
             }
 
             stopwatch.Stop();
@@ -252,8 +305,10 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 totalSubtasks = subtasks.Count,
                 completedSubtasks = completed,
                 failedSubtasks = failed,
-                parallel = false,   // Шаг 3E включит реальный параллелизм
+                parallel = effectiveParallel,
                 parallelRequested = plan.Parallel,
+                hasExternalWorker = hasExternalWorker,
+                maxParallel = maxParallel,
                 truncated,
                 totalDurationMs = stopwatch.ElapsedMilliseconds,
                 reasoning = plan.Reasoning

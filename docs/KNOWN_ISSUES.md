@@ -5857,6 +5857,34 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-247 — Orchestrator: pre-checks circuit breaker / budget на уровне оркестратора
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-12 (Шаг 3E KI-126 Ф3).
+- **Описание:** В v2.0.0 `OrchestrateTaskTool` **не делает pre-check**
+  `IExternalLlmCircuitBreaker.IsOpen(provider)` / `IExternalLlmBudgetTracker.CanSpend(userId, cost)`
+  перед запуском `external_llm_agent`. Защита обеспечивается двумя другими
+  механизмами:
+  1. **External-detection:** если среди подзадач есть `external_llm_agent`,
+     оркестратор снижает `maxParallel` до 1 (последовательно). Параллельные
+     External-вызовы не «добивают» breaker.
+  2. **Сам `ExternalLlmClient`** уже проверяет breaker + budget на каждом
+     вызове (v1.8.1, KI-109).
+- **Что можно добавить (v2.0.x):**
+  - Pre-check `IsOpen` + `CanSpend` в `OrchestrateTaskTool.ExecuteSubtaskAsync`
+    перед вызовом любого агента, чьё имя совпадает с `external_llm_agent`.
+  - Провайдер: читать из `ExternalLlm:DefaultProvider` (default) — это будет
+    workaround для случая, когда orchestrate_task не знает, какой именно
+    провайдер выберет агент.
+  - При `IsOpen` / `!CanSpend` — `subtask.Status = "rejected"` + `Error`
+    с причиной (без вызова агента).
+- **Не блокер v2.0.0:** защита избыточна (см. п. 1-2 выше). Pre-check
+  даст только более ранний отказ + точное сообщение в UI.
+- **Оценка:** ~1 ч (нужны точные сигнатуры `IExternalLlmCircuitBreaker` /
+  `IExternalLlmBudgetTracker`).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
@@ -5903,9 +5931,9 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Implemented (v1.7.0) | 1 |
 | Deferred | 5 |
 | Documented | 13 |
-| Planned | 21 |
+| Planned | 22 |
 | Partially Fixed | 1 |
-| **Всего** | **201** |
+| **Всего** | **202** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
 KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),
