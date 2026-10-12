@@ -1092,6 +1092,32 @@
   <data name="ChatEmptyChatHint" xml:space="preserve">
     <value>Chat history is empty. Start a dialog.</value>
   </data>
+  <!-- ===== v2.0.0 (KI-126, Ф3, Шаг 3H): Orchestrator-Worker UI ===== -->
+  <data name="ChatOrchestratorTitle" xml:space="preserve">
+    <value>Orchestration</value>
+  </data>
+  <data name="ChatOrchestratorSubtask" xml:space="preserve">
+    <value>Subtask {0}</value>
+  </data>
+  <data name="ChatOrchestratorProgress" xml:space="preserve">
+    <value>{0} / {1}</value>
+  </data>
+  <data name="ChatOrchestratorMaxSubtasks" xml:space="preserve">
+    <value>Max {0} subtasks</value>
+  </data>
+  <data name="ChatOrchestratorDetailsShow" xml:space="preserve">
+    <value>▼ Show results</value>
+  </data>
+  <data name="ChatOrchestratorTask" xml:space="preserve">
+    <value>Task</value>
+  </data>
+  <data name="ChatOrchestratorResult" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="ChatOrchestratorError" xml:space="preserve">
+    <value>Error</value>
+  </data>
+
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Try one of these:</value>
   </data>

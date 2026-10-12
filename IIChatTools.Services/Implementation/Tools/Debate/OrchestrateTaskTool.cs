@@ -380,6 +380,9 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
             var data = new
             {
+                // v2.0.0 (KI-126, Ф3, Шаг 3H): для F5-восстановления
+                // orchestrator-блоков в UI.
+                sessionId,
                 finalArtifact,
                 subtasks = subtasks.Select(s => new
                 {

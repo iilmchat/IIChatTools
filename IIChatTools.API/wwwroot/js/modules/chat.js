@@ -75,6 +75,10 @@ const state = {
     // Формат: { [sessionId]: { started, rounds: [], completed } }
     debates: {},
 
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): кэш Orchestrator-сессий по sessionId.
+    // Формат: { [sessionId]: { started, subtasks: [], completed } }
+    orchestrators: {},
+
     // v1.11.0 (KI-126, Шаг 1G.3): черновики feedback между раундами.
     // Формат: { [sessionId]: { status, expiresAt, text } }
     //   status: 'pending' | 'sending' | 'sent' | 'skipped' | 'timeout'
@@ -1617,6 +1621,8 @@ async function selectChat(chatId) {
     // DOM будет перерисован, старые sessionId неактуальны.
     state.debates = {};
     state.feedbackDrafts = {};
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): сброс кэша Orchestrator-сессий.
+    state.orchestrators = {};
     // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
     state.debateSessionByToolCallId = {};
 
@@ -2208,6 +2214,17 @@ function handleSseEvent(name, data, assistantBubble) {
             handleDebateCompleted(assistantBubble, data);
             break;
 
+        // v2.0.0 (KI-126, Ф3, Шаг 3H): события Orchestrator-Worker.
+        case 'orchestrator_started':
+            handleOrchestratorStarted(assistantBubble, data);
+            break;
+        case 'orchestrator_round':
+            handleOrchestratorRound(assistantBubble, data);
+            break;
+        case 'orchestrator_completed':
+            handleOrchestratorCompleted(assistantBubble, data);
+            break;
+
         case 'done':
             showTypingIndicator(assistantBubble, false);
 
@@ -2637,7 +2654,7 @@ function refreshDebateViews() {
 function prefillDebatesFromChatDetail(chatDetail) {
     if (!chatDetail) return;
 
-    // 1. Заполнить state.debates[sid] для каждой сессии.
+    // 1. Заполнить state.debates[sid] / state.orchestrators[sid] для каждой сессии.
     const sessions = Array.isArray(chatDetail.debateSessions)
         ? chatDetail.debateSessions
         : [];
@@ -2648,6 +2665,42 @@ function prefillDebatesFromChatDetail(chatDetail) {
         // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): PatternType — ветвление рендера.
         const patternType = s.patternType || 'ActorCritic';
         const isDebate = patternType === 'Debate';
+        const isOrchestrator = patternType === 'Orchestrator';
+
+        // v2.0.0 (KI-126, Ф3, Шаг 3H): Orchestrator — отдельный кэш.
+        if (isOrchestrator) {
+            const subtasks = (Array.isArray(s.rounds) ? s.rounds : []).map(r => ({
+                subtaskId: r.subtaskId,
+                agent: r.subtaskAgent,
+                task: r.subtaskTask,
+                status: r.subtaskStatus || 'pending',
+                result: r.subtaskResult,
+                error: r.subtaskError,
+                durationMs: r.durationMs || 0
+            }));
+
+            state.orchestrators[s.sessionId] = {
+                started: {
+                    sessionId: s.sessionId,
+                    task: s.task || '',
+                    parallel: false,
+                    maxSubtasks: s.totalSubtasks || subtasks.length || 5,
+                    allowedWorkerAgents: [],
+                    humanApproval: s.humanApproval || 'Never'
+                },
+                subtasks,
+                completed: s.finalVerdict ? {
+                    sessionId: s.sessionId,
+                    totalSubtasks: s.totalSubtasks || subtasks.length,
+                    completedSubtasks: s.completedSubtasks || 0,
+                    failedSubtasks: s.failedSubtasks || 0,
+                    finalArtifact: parseFinalArtifact(s.finalArtifactJson),
+                    totalDurationMs: 0
+                } : null
+            };
+
+            continue;  // Orchestrator обработан, не идём в debates.
+        }
 
         state.debates[s.sessionId] = {
             started: {
@@ -2707,10 +2760,12 @@ function prefillDebatesFromChatDetail(chatDetail) {
     }
 
     // 2. Построить маппинг toolCallId → sessionId из tool-сообщений.
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): все multi-agent top-level tools
+    // (code_agent_with_review, planner_with_debate, orchestrate_task).
+    // Используем общий признак — наличие debateSessionId в metadata.
     const messages = Array.isArray(chatDetail.messages) ? chatDetail.messages : [];
     for (const m of messages) {
         if (m.role !== 'tool') continue;
-        if (m.toolName !== 'code_agent_with_review') continue;
         if (!Number.isFinite(m.debateSessionId)) continue;
         if (!m.toolCallId) continue;
         state.debateSessionByToolCallId[m.toolCallId] = m.debateSessionId;
@@ -3340,6 +3395,254 @@ async function skipFeedback(sessionId) {
     refreshFeedbackBlock(sessionId);
 }
 
+// ============================================================
+// v2.0.0 (KI-126, Ф3, Шаг 3H): Рендер Orchestrator-Worker.
+// ============================================================
+
+/**
+ * Обрабатывает SSE-событие `orchestrator_started`.
+ * @param {HTMLElement} bubble — текущий assistant-пузырь.
+ * @param {object} data — ChatOrchestratorStartedDto.
+ */
+function handleOrchestratorStarted(bubble, data) {
+    if (!bubble || !data?.sessionId) return;
+
+    state.orchestrators[data.sessionId] = {
+        started: { ...data },
+        subtasks: [],
+        completed: null
+    };
+
+    const bodyEl = bubble.querySelector('.chat-message-body');
+    if (!bodyEl) return;
+
+    const existing = bodyEl.querySelector(
+        `[data-orchestrator-session-id="${data.sessionId}"]`);
+    if (existing) return;
+
+    const container = document.createElement('div');
+    container.className = 'chat-debate-block chat-orchestrator-block';
+    container.dataset.orchestratorSessionId = data.sessionId;
+    container.innerHTML = renderOrchestratorContainerInner(data.sessionId);
+
+    const toolsEl = bodyEl.querySelector('.chat-message-tools');
+    if (toolsEl) {
+        toolsEl.appendChild(container);
+    } else {
+        const actionsEl = bodyEl.querySelector('.chat-message-actions');
+        if (actionsEl) {
+            bodyEl.insertBefore(container, actionsEl);
+        } else {
+            bodyEl.appendChild(container);
+        }
+    }
+
+    scrollToBottom();
+}
+
+/**
+ * Обрабатывает SSE-событие `orchestrator_round` — завершена подзадача.
+ * @param {HTMLElement} bubble
+ * @param {object} data — ChatOrchestratorRoundDto.
+ */
+function handleOrchestratorRound(bubble, data) {
+    if (!bubble || !data?.sessionId) return;
+
+    const entry = state.orchestrators[data.sessionId];
+    if (!entry) {
+        console.warn(`[chat] orchestrator_round без orchestrator_started: sessionId=${data.sessionId}`);
+        return;
+    }
+
+    // Заменяем существующую подзадачу по subtaskId или добавляем новую.
+    const existingIdx = entry.subtasks.findIndex(s => s.subtaskId === data.subtaskId);
+    if (existingIdx >= 0) {
+        entry.subtasks[existingIdx] = data;
+    } else {
+        entry.subtasks.push(data);
+    }
+
+    const container = bubble.querySelector(
+        `[data-orchestrator-session-id="${data.sessionId}"]`);
+    if (container) {
+        container.innerHTML = renderOrchestratorContainerInner(data.sessionId);
+    }
+
+    scrollToBottom();
+}
+
+/**
+ * Обрабатывает SSE-событие `orchestrator_completed`.
+ * @param {HTMLElement} bubble
+ * @param {object} data — ChatOrchestratorCompletedDto.
+ */
+function handleOrchestratorCompleted(bubble, data) {
+    if (!bubble || !data?.sessionId) return;
+
+    const entry = state.orchestrators[data.sessionId];
+    if (!entry) {
+        console.warn(`[chat] orchestrator_completed без orchestrator_started: sessionId=${data.sessionId}`);
+        return;
+    }
+
+    entry.completed = data;
+
+    const container = bubble.querySelector(
+        `[data-orchestrator-session-id="${data.sessionId}"]`);
+    if (container) {
+        container.innerHTML = renderOrchestratorContainerInner(data.sessionId);
+    }
+
+    showTypingIndicator(bubble, false);
+    scrollToBottom();
+}
+
+/**
+ * Возвращает HTML блоков Orchestrator для assistant-сообщения (F5-режим).
+ * @param {object} msg
+ * @returns {string}
+ */
+function renderOrchestratorsForMessage(msg) {
+    if (!msg || msg.role !== 'assistant' || !msg.toolCallsJson) return '';
+
+    let calls;
+    try { calls = JSON.parse(msg.toolCallsJson); }
+    catch { return ''; }
+    if (!Array.isArray(calls) || calls.length === 0) return '';
+
+    const sids = new Set();
+    for (const call of calls) {
+        if (call?.function?.name !== 'orchestrate_task') continue;
+        const callId = call.id;
+        if (!callId) continue;
+        const sid = state.debateSessionByToolCallId[callId];
+        if (Number.isFinite(sid) && state.orchestrators[sid]) {
+            sids.add(sid);
+        }
+    }
+
+    if (sids.size === 0) return '';
+
+    return Array.from(sids).map(sid => `
+        <div class="chat-debate-block chat-orchestrator-block"
+             data-orchestrator-session-id="${sid}">
+            ${renderOrchestratorContainerInner(sid)}
+        </div>`).join('');
+}
+
+/**
+ * Рендер содержимого Orchestrator-блока (без внешней обёртки).
+ * @param {number} sessionId
+ * @returns {string} HTML
+ */
+function renderOrchestratorContainerInner(sessionId) {
+    const entry = state.orchestrators[sessionId];
+    if (!entry || !entry.started) return '';
+
+    const started = entry.started;
+    const subtasks = entry.subtasks || [];
+    const completed = entry.completed;
+
+    // Прогресс: completed + failed + rejected считаются как «обработанные».
+    const processed = subtasks.filter(s =>
+        s.status === 'completed' || s.status === 'failed' || s.status === 'rejected').length;
+    const total = completed?.totalSubtasks
+        || started.maxSubtasks
+        || Math.max(subtasks.length, 1);
+    const progressPercent = total > 0
+        ? Math.round(processed / total * 100)
+        : 0;
+
+    const titleText = L('labelOrchestratorTitle', '🎭 Orchestration');
+    const maxSubtasks = started.maxSubtasks || 5;
+    const progressText = fmt(
+        L('labelOrchestratorProgress', '{0} / {1}'),
+        processed, total);
+
+    const headerHtml = `
+        <div class="chat-debate-header">
+            <span class="chat-debate-icon">🎭</span>
+            <span class="chat-debate-title">${escapeHtml(titleText)}</span>
+            <span class="chat-debate-task" title="${escapeAttr(started.task || '')}">${escapeHtml(truncateText(started.task || '', 80))}</span>
+            <span class="chat-debate-meta">${escapeHtml(fmt(L('labelOrchestratorMaxSubtasks', 'Max {0} subtasks'), maxSubtasks))}</span>
+            <span class="chat-orchestrator-progress-text">${escapeHtml(progressText)}</span>
+        </div>`;
+
+    const progressHtml = `
+        <div class="chat-orchestrator-progress">
+            <div class="chat-orchestrator-progress-fill" style="width: ${progressPercent}%"></div>
+        </div>`;
+
+    // Подзадачи: dialog → раскрыты; collapsed → свёрнуты (кроме running).
+    const isDialog = state.debateView === 'dialog';
+
+    const subtasksHtml = subtasks.map(st => {
+        const status = String(st.status || 'pending').toLowerCase();
+        const icon = {
+            'completed': '✅',
+            'failed': '❌',
+            'rejected': '⛔',
+            'running': '🔄',
+            'pending': '⏳'
+        }[status] || '⏳';
+
+        const subtaskLabel = fmt(
+            L('labelOrchestratorSubtask', 'Subtask {0}'),
+            st.subtaskId || '?');
+
+        const durationText = st.durationMs > 0
+            ? fmt(L('labelDuration', '{0} с'), (st.durationMs / 1000).toFixed(1))
+            : '';
+
+        const taskPreview = truncateText(st.task || '', 100);
+        const openAttr = (isDialog || status === 'running') ? ' open' : '';
+
+        let bodyHtml = '';
+        if (st.task) {
+            bodyHtml += `<div class="chat-orchestrator-subtask-full-task">`
+                + `<strong>${escapeHtml(L('labelOrchestratorTask', 'Task'))}:</strong> `
+                + `${escapeHtml(st.task)}</div>`;
+        }
+        if (status === 'completed' && st.result) {
+            bodyHtml += `<div class="chat-orchestrator-subtask-result">`
+                + `<strong>${escapeHtml(L('labelOrchestratorResult', 'Result'))}:</strong>`
+                + `<pre>${escapeHtml(st.result)}</pre></div>`;
+        }
+        if ((status === 'failed' || status === 'rejected') && st.error) {
+            bodyHtml += `<div class="chat-orchestrator-subtask-error">`
+                + `<strong>${escapeHtml(L('labelOrchestratorError', 'Error'))}:</strong> `
+                + `${escapeHtml(st.error)}</div>`;
+        }
+
+        return `
+            <details class="chat-orchestrator-subtask" data-status="${escapeAttr(status)}"${openAttr}>
+                <summary class="chat-orchestrator-subtask-header">
+                    <span class="chat-orchestrator-subtask-status">${icon}</span>
+                    <span class="chat-orchestrator-subtask-id">${escapeHtml(subtaskLabel)}</span>
+                    <span class="chat-orchestrator-subtask-agent">${escapeHtml(st.agent || '')}</span>
+                    <span class="chat-orchestrator-subtask-task" title="${escapeAttr(st.task || '')}">${escapeHtml(taskPreview)}</span>
+                    ${durationText ? `<span class="chat-orchestrator-subtask-duration">${escapeHtml(durationText)}</span>` : ''}
+                </summary>
+                <div class="chat-orchestrator-subtask-body">${bodyHtml || '—'}</div>
+            </details>`;
+    }).join('');
+
+    // Финальный артефакт — свёрнут.
+    let finalHtml = '';
+    if (completed?.finalArtifact) {
+        const showLabel = L('labelOrchestratorDetailsShow', '▼ Show results');
+        finalHtml = `
+            <details class="chat-orchestrator-final">
+                <summary class="chat-orchestrator-final-summary">${escapeHtml(showLabel)}</summary>
+                <pre class="chat-orchestrator-final-content">${escapeHtml(completed.finalArtifact)}</pre>
+            </details>`;
+    }
+
+    return `${headerHtml}${progressHtml}
+        <div class="chat-orchestrator-subtasks">${subtasksHtml}</div>
+        ${finalHtml}`;
+}
+
 // ============ Рендер сообщений ============
 
 /**
@@ -3564,6 +3867,9 @@ function renderMessage(msg, opts = {}) {
     // восстанавливаются при F5 через state.debates + маппинг toolCallId.
     const debatesHtml = renderDebatesForMessage(msg);
 
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): блоки Orchestrator — отдельный рендер.
+    const orchestratorsHtml = renderOrchestratorsForMessage(msg);
+
     // User-сообщения — plain text (пользователь пишет текст, а не Markdown).
     // Assistant — полноценный Markdown-рендер.
     const contentHtml = msg.content
@@ -3607,8 +3913,8 @@ function renderMessage(msg, opts = {}) {
 
     // v1.11.0 (KI-129): контейнер .chat-message-tools — для консистентности
     // с live-режимом (в appendAssistantBubble он создаётся заранее).
-    const toolsContent = (toolCallsHtml || debatesHtml)
-        ? `<div class="chat-message-tools">${toolCallsHtml}${debatesHtml}</div>`
+    const toolsContent = (toolCallsHtml || debatesHtml || orchestratorsHtml)
+        ? `<div class="chat-message-tools">${toolCallsHtml}${debatesHtml}${orchestratorsHtml}</div>`
         : '';
 
     return `
@@ -4431,6 +4737,8 @@ function showEmptyState() {
     // v1.11.0 (KI-126, Шаг 1G.2): сброс кэша дебатов.
     state.debates = {};
     state.feedbackDrafts = {};
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): сброс кэша Orchestrator-сессий.
+    state.orchestrators = {};
     // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
     state.debateSessionByToolCallId = {};
 

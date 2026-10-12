@@ -1013,11 +1013,16 @@ namespace IIChatTools.Services.Implementation
                     // при отмене (KI-135) CodeAgentWithReviewTool возвращает
                     // Fail с Data.sessionId, и мы должны записать этот sessionId.
                     string toolMetadataJson = null;
-                    if (string.Equals(
-                            functionName,
-                            CodeAgentWithReviewToolName,
-                            StringComparison.Ordinal)
-                        && toolResult.Data != null)
+
+                    // v2.0.0 (KI-126, Ф3, Шаг 3H): расширено на все
+                    // multi-agent top-level tools (ActorCritic / Debate /
+                    // Orchestrator) — для F5-восстановления блоков в UI.
+                    var isMultiAgentTool =
+                        string.Equals(functionName, CodeAgentWithReviewToolName, StringComparison.Ordinal)
+                        || string.Equals(functionName, PlannerWithDebateToolName, StringComparison.Ordinal)
+                        || string.Equals(functionName, OrchestrateTaskToolName, StringComparison.Ordinal);
+
+                    if (isMultiAgentTool && toolResult.Data != null)
                     {
                         try
                         {
