@@ -91,6 +91,24 @@
     (сравнение подходов, миграция, оценка рисков) → `planner_with_debate`;
     простые задачи (сохранить факт / получить системную инфу) →
     `planner_agent`. Плюс ПРИМЕР 8 и ПРИМЕР 9 (разграничение).
+  - **Шаг 2C.2:** эскалация на внешнюю LLM при Judge `Uncertain` +
+    Human-in-the-loop между раундами (после Judge `Rejected`).
+    - `PlannerWithDebateTool` +3 зависимости: `IAgentDebateCoordinator`
+      (Singleton), `IExternalLlmClient` (Singleton),
+      `IExternalProviderRegistry` (Singleton).
+    - `TryEscalateAsync`: при `Uncertain` → `ask_external_llm` (провайдер
+      из `SubAgents:planner_with_debate:EscalationProvider`, default
+      `deepseek`) → **второй раунд Judge** с ответом внешней LLM как
+      доп. контекстом (`BuildJudgeTaskWithExternalContext`). SSE
+      `debate_escalated`. При неудаче — остаётся `Uncertain`.
+      Токены/стоимость эскалации пишутся в `AgentDebateRound`
+      (`WasEscalated`, `EscalationProvider`, `TokensIn/Out`, `CostUsd`).
+    - Human-in-the-loop: после Judge `Rejected` (и `round < maxRounds`,
+      и `HumanApproval = "BetweenRounds"`) — `WaitForFeedbackAsync`
+      (макс 5 мин через `AgentDebateCoordinator`). Feedback передаётся
+      в следующий `BuildProTask` (в `lastJudgeFeedback`) и имеет
+      приоритет над feedback Judge.
+    - По образцу `CodeAgentWithReviewTool` (KI-126, Шаг 1F / 1E-part2).
 
 ---
 
