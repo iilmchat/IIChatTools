@@ -27,6 +27,16 @@
     Для `PatternType = "ActorCritic"` новые поля = `null`;
     для `PatternType = "Debate"` — `ActorOutput` / `CriticVerdict`
     / `CriticFeedbackJson` = `null`.
+  - **Шаг 2B:** 3 новых агента-роли Debate:
+    `planner_pro_agent` (защитник, JSON `{arguments, coveredCases,
+    conclusion}`), `planner_contra_agent` (скептик, JSON `{issues,
+    risks, conclusion}`), `planner_judge_agent` (арбитр, JSON
+    `{verdict, reasoning, issues, summary}`). Все — `AllowedTools = []`,
+    `RequiresApproval = false`, `MaxSteps = 3`. Секции
+    `SubAgents:planner_*_agent` в обоих `appsettings*.json`,
+    регистрация в `RegisterSpecializedAgentTools`.
+    Chat-LLM их **не видит** напрямую (используются внутри
+    `planner_with_debate`, Шаг 2C).
 
 ---
 

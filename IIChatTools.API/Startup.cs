@@ -837,6 +837,16 @@ namespace IIChatTools.API
             services.AddScoped<ITool, GitHubAgentTool>();
             services.AddScoped<ITool, PlannerAgentTool>();
 
+            // v1.14.0 (KI-126, Фаза 2): 3 роли Debate для planner_agent.
+            // Используются ВНУТРИ planner_with_debate (top-level ITool,
+            // Шаг 2C) — их имена НЕ добавляются в allowedNames
+            // ChatStreamService, поэтому Chat-LLM их напрямую не видит
+            // (RULES § 4.44 — top-level allowedNames расширяем только
+            // для самого оркестратора).
+            services.AddScoped<ITool, PlannerProAgentTool>();
+            services.AddScoped<ITool, PlannerContraAgentTool>();
+            services.AddScoped<ITool, PlannerJudgeAgentTool>();
+
             // v1.11.0 (KI-126, Шаг 1C): агент-критик для Actor-Critic.
             // Не требует approval (read-only: получает код, возвращает JSON).
             // См. DESIGN_MULTI_AGENT_DEBATE.md § 2.2, § 6.
