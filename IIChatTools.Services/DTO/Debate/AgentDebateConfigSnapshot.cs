@@ -14,6 +14,17 @@ namespace IIChatTools.Services.DTO.Debate
     public class AgentDebateConfigSnapshot
     {
         /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): тип паттерна.
+        /// <list type="bullet">
+        ///   <item><c>"ActorCritic"</c> (default) — Actor + Critic (Ф1, code_agent);</item>
+        ///   <item><c>"Debate"</c> — Pro + Contra + Judge (Ф2, planner_agent).</item>
+        /// </list>
+        /// Default <c>"ActorCritic"</c> — backward-compat со старыми сессиями,
+        /// где поля не сериализовались.
+        /// </summary>
+        public string PatternType { get; set; } = "ActorCritic";
+
+        /// <summary>
         /// Максимум раундов actor-critic (default 3, из DESIGN § 3.1).
         /// </summary>
         public int MaxRounds { get; set; } = 3;
@@ -29,8 +40,33 @@ namespace IIChatTools.Services.DTO.Debate
 
         /// <summary>
         /// Модель критика. Default = actor (гетерогенная — только через эскалацию).
+        /// Заполняется для <c>PatternType = "ActorCritic"</c>.
         /// </summary>
         public string CriticModel { get; set; }
+
+        // ============================================================
+        // v1.14.0 (KI-126, Фаза 2): модели ролей Debate.
+        // Заполняются только при PatternType = "Debate".
+        // Для ActorCritic — null.
+        // ============================================================
+
+        /// <summary>
+        /// Модель Pro-агента (защитник предложения).
+        /// Заполняется только при <c>PatternType = "Debate"</c>.
+        /// </summary>
+        public string ProModel { get; set; }
+
+        /// <summary>
+        /// Модель Contra-агента (скептик).
+        /// Заполняется только при <c>PatternType = "Debate"</c>.
+        /// </summary>
+        public string ContraModel { get; set; }
+
+        /// <summary>
+        /// Модель Judge-агента (арбитр).
+        /// Заполняется только при <c>PatternType = "Debate"</c>.
+        /// </summary>
+        public string JudgeModel { get; set; }
 
         /// <summary>
         /// Разрешить эскалацию на <c>ask_external_llm</c> при

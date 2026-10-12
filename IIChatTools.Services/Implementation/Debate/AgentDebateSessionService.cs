@@ -77,6 +77,25 @@ namespace IIChatTools.Services.Implementation.Debate
         /// </summary>
         private const string CriticAgentName = "code_reviewer_agent";
 
+        // ============================================================
+        // v1.14.0 (KI-126, Фаза 2): роли Debate.
+        // ============================================================
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Pro-агента (защитник) для Debate.
+        /// </summary>
+        private const string ProAgentName = "planner_pro_agent";
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Contra-агента (скептик) для Debate.
+        /// </summary>
+        private const string ContraAgentName = "planner_contra_agent";
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Judge-агента (арбитр) для Debate.
+        /// </summary>
+        private const string JudgeAgentName = "planner_judge_agent";
+
         private readonly AppDbContext _db;
         private readonly IChatService _chatService;
         private readonly IAgentDebateCoordinator _coordinator;
@@ -275,6 +294,13 @@ namespace IIChatTools.Services.Implementation.Debate
                 }
             }
 
+            // v1.14.0 (KI-126, Фаза 2): ветвление по PatternType.
+            // ActorCritic (Ф1) — Actor + Critic.
+            // Debate (Ф2) — Pro + Contra + Judge.
+            var patternType = session.PatternType ?? PatternActorCritic;
+            var isDebate = string.Equals(
+                patternType, "Debate", StringComparison.OrdinalIgnoreCase);
+
             return new AgentDebateStatusDto
             {
                 SessionId = session.Id,
@@ -289,8 +315,14 @@ namespace IIChatTools.Services.Implementation.Debate
                 CompletedAt = session.CompletedAt,
                 MaxRounds = maxRounds,
                 HumanApproval = humanApproval,
-                ActorAgent = ActorAgentName,
-                CriticAgent = CriticAgentName,
+                PatternType = patternType,
+                // ActorCritic-роли (v1.11.0).
+                ActorAgent = isDebate ? null : ActorAgentName,
+                CriticAgent = isDebate ? null : CriticAgentName,
+                // Debate-роли (v1.14.0).
+                ProAgent = isDebate ? ProAgentName : null,
+                ContraAgent = isDebate ? ContraAgentName : null,
+                JudgeAgent = isDebate ? JudgeAgentName : null,
                 Rounds = rounds.Select(ToRoundDto).ToList()
             };
         }
@@ -412,9 +444,16 @@ namespace IIChatTools.Services.Implementation.Debate
             {
                 SessionId = sessionId,
                 RoundNumber = round.RoundNumber,
+                // ActorCritic:
                 ActorOutput = round.ActorOutput,
                 CriticVerdict = round.CriticVerdict,
                 CriticFeedbackJson = round.CriticFeedbackJson,
+                // Debate (v1.14.0, KI-126, Фаза 2):
+                ProOutput = round.ProOutput,
+                ContraOutput = round.ContraOutput,
+                JudgeVerdict = round.JudgeVerdict,
+                JudgeFeedbackJson = round.JudgeFeedbackJson,
+                // Общие:
                 ActorModel = round.ActorModel,
                 CriticModel = round.CriticModel,
                 WasEscalated = round.WasEscalated,
@@ -493,9 +532,16 @@ namespace IIChatTools.Services.Implementation.Debate
             return new AgentDebateRoundDto
             {
                 RoundNumber = entity.RoundNumber,
+                // ActorCritic:
                 ActorOutput = entity.ActorOutput,
                 CriticVerdict = entity.CriticVerdict,
                 CriticFeedbackJson = entity.CriticFeedbackJson,
+                // Debate (v1.14.0, KI-126, Фаза 2):
+                ProOutput = entity.ProOutput,
+                ContraOutput = entity.ContraOutput,
+                JudgeVerdict = entity.JudgeVerdict,
+                JudgeFeedbackJson = entity.JudgeFeedbackJson,
+                // Общие:
                 ActorModel = entity.ActorModel,
                 CriticModel = entity.CriticModel,
                 WasEscalated = entity.WasEscalated,

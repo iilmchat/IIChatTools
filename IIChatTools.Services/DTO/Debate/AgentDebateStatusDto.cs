@@ -70,16 +70,45 @@ namespace IIChatTools.Services.DTO.Debate
         public string HumanApproval { get; set; }
 
         /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): тип паттерна.
+        /// <c>"ActorCritic"</c> (Ф1) | <c>"Debate"</c> (Ф2).
+        /// UI ветвится по этому полю для рендера 2- или 3-ролевого блока.
+        /// </summary>
+        public string PatternType { get; set; }
+
+        /// <summary>
         /// Имя actor-агента. Для Ф1 (Actor-Critic) — константа <c>code_agent</c>.
+        /// Заполняется только при <c>PatternType = "ActorCritic"</c>.
         /// v1.11.0 (KI-129).
         /// </summary>
         public string ActorAgent { get; set; }
 
         /// <summary>
         /// Имя critic-агента. Для Ф1 (Actor-Critic) — константа
-        /// <c>code_reviewer_agent</c>. v1.11.0 (KI-129).
+        /// <c>code_reviewer_agent</c>. Заполняется только при
+        /// <c>PatternType = "ActorCritic"</c>. v1.11.0 (KI-129).
         /// </summary>
         public string CriticAgent { get; set; }
+
+        // ============================================================
+        // v1.14.0 (KI-126, Фаза 2): роли Debate.
+        // Заполняются только при PatternType = "Debate".
+        // ============================================================
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Pro-агента (защитник).
+        /// </summary>
+        public string ProAgent { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Contra-агента (скептик).
+        /// </summary>
+        public string ContraAgent { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Judge-агента (арбитр).
+        /// </summary>
+        public string JudgeAgent { get; set; }
 
         /// <summary>
         /// Раунды сессии (сортировка по <c>RoundNumber</c> asc).

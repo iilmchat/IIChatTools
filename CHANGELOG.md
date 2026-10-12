@@ -44,10 +44,23 @@
     `GetEnabled()` по `!a.Internal` при построении `allowedNames`.
     Роли `planner_pro_agent` / `planner_contra_agent` /
     `planner_judge_agent` помечены `"Internal": true` — Chat-tools
-    возвращены к **16 инструментам** (было ошибочно 20 после Шага 2B).
+    возвращены к **17 инструментам** (было ошибочно 20 после Шага 2B;
+    базовая линия до Фазы 2 = 17, не 16).
     Оркестратор `planner_with_debate` (Шаг 2C) по-прежнему сможет
     вызывать эти роли через `IToolRegistry.ExecuteAsync` — флаг
     влияет только на публичную видимость в Chat-tools.
+  - **Шаг 2C.1a:** DTO-расширения для Debate:
+    `AgentDebateConfigSnapshot` + `PatternType` (`ActorCritic` default |
+    `Debate`) + `ProModel` / `ContraModel` / `JudgeModel`;
+    `AgentDebateRoundDto` + `ProOutput` / `ContraOutput` /
+    `JudgeVerdict` / `JudgeFeedbackJson`; `AgentDebateStatusDto` +
+    `PatternType` + `ProAgent` / `ContraAgent` / `JudgeAgent`
+    (сохраняем `ActorAgent` / `CriticAgent` для backward-compat);
+    SSE-DTO (`ChatDebate{Started,Round,Completed,Escalated}Dto`) +
+    `PatternType` + nullable-поля Debate.
+    `AgentDebateSessionService`: проброс новых полей в entity
+    (`AddRoundAsync`), DTO-проекция (`ToRoundDto`), ветвление
+    `BuildStatusDto` по `PatternType` (ActorCritic vs Debate).
 
 ---
 

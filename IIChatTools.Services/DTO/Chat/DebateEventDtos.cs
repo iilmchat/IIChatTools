@@ -12,11 +12,32 @@ namespace IIChatTools.Services.DTO.Chat
         /// <summary>Исходная задача для review.</summary>
         public string Task { get; set; }
 
-        /// <summary>Имя actor-агента (обычно <c>code_agent</c>).</summary>
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): тип паттерна — <c>"ActorCritic"</c> | <c>"Debate"</c>.
+        /// UI использует для ветвления рендера (2 или 3 роли).
+        /// </summary>
+        public string PatternType { get; set; }
+
+        /// <summary>Имя actor-агента (обычно <c>code_agent</c>). Только для ActorCritic.</summary>
         public string ActorAgent { get; set; }
 
-        /// <summary>Имя critic-агента (обычно <c>code_reviewer_agent</c>).</summary>
+        /// <summary>Имя critic-агента (обычно <c>code_reviewer_agent</c>). Только для ActorCritic.</summary>
         public string CriticAgent { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Pro-агента. Только для Debate.
+        /// </summary>
+        public string ProAgent { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Contra-агента. Только для Debate.
+        /// </summary>
+        public string ContraAgent { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): имя Judge-агента. Только для Debate.
+        /// </summary>
+        public string JudgeAgent { get; set; }
 
         /// <summary>Максимум раундов (из снимка конфига).</summary>
         public int MaxRounds { get; set; }
@@ -45,17 +66,41 @@ namespace IIChatTools.Services.DTO.Chat
         /// <summary>Порядковый номер раунда (1..N).</summary>
         public int RoundNumber { get; set; }
 
-        /// <summary>Вывод actor'а (код / текст).</summary>
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): тип паттерна — <c>"ActorCritic"</c> | <c>"Debate"</c>.
+        /// UI использует для ветвления рендера раунда.
+        /// </summary>
+        public string PatternType { get; set; }
+
+        // ----- Поля ActorCritic -----
+
+        /// <summary>Вывод actor'а. Только для ActorCritic.</summary>
         public string ActorOutput { get; set; }
 
-        /// <summary>Вердикт критика: <c>Approved</c> | <c>Rejected</c> | <c>Uncertain</c>.</summary>
+        /// <summary>Вердикт критика. Только для ActorCritic.</summary>
         public string CriticVerdict { get; set; }
 
-        /// <summary>
-        /// Feedback критика (JSON со списком issues или текст).
-        /// <c>null</c>, если вердикт Approved без замечаний.
-        /// </summary>
+        /// <summary>Feedback критика. Только для ActorCritic.</summary>
         public string CriticFeedback { get; set; }
+
+        // ----- Поля Debate (v1.14.0, KI-126, Фаза 2) -----
+
+        /// <summary>v1.14.0 (KI-126, Фаза 2): вывод Pro-агента. Только для Debate.</summary>
+        public string ProOutput { get; set; }
+
+        /// <summary>v1.14.0 (KI-126, Фаза 2): вывод Contra-агента. Только для Debate.</summary>
+        public string ContraOutput { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): вердикт Judge'а.
+        /// <c>Approved</c> | <c>Rejected</c> | <c>Uncertain</c>. Только для Debate.
+        /// </summary>
+        public string JudgeVerdict { get; set; }
+
+        /// <summary>v1.14.0 (KI-126, Фаза 2): JSON обоснования Judge'а. Только для Debate.</summary>
+        public string JudgeFeedback { get; set; }
+
+        // ----- Общее -----
 
         /// <summary>Был ли раунд с эскалацией на внешнюю LLM.</summary>
         public bool WasEscalated { get; set; }
@@ -69,6 +114,12 @@ namespace IIChatTools.Services.DTO.Chat
     {
         /// <summary>Идентификатор сессии.</summary>
         public int SessionId { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): тип паттерна.
+        /// <c>"ActorCritic"</c> | <c>"Debate"</c>.
+        /// </summary>
+        public string PatternType { get; set; }
 
         /// <summary>Причина эскалации (обычно текст вопроса критика).</summary>
         public string Reason { get; set; }
@@ -87,6 +138,12 @@ namespace IIChatTools.Services.DTO.Chat
     {
         /// <summary>Идентификатор сессии.</summary>
         public int SessionId { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): тип паттерна.
+        /// <c>"ActorCritic"</c> | <c>"Debate"</c>.
+        /// </summary>
+        public string PatternType { get; set; }
 
         /// <summary>
         /// Финальный вердикт: <c>Approved</c> | <c>Rejected</c> |

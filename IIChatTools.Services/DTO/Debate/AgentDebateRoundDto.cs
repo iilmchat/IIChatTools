@@ -14,7 +14,11 @@ namespace IIChatTools.Services.DTO.Debate
         /// <summary>Порядковый номер раунда (1..N).</summary>
         public int RoundNumber { get; set; }
 
-        /// <summary>Вывод actor'а (код / текст).</summary>
+        /// <summary>
+        /// Вывод actor'а (код / текст).
+        /// Заполняется только при <c>PatternType = "ActorCritic"</c>.
+        /// При <c>PatternType = "Debate"</c> = <c>null</c>.
+        /// </summary>
         public string ActorOutput { get; set; }
 
         /// <summary>
@@ -26,8 +30,42 @@ namespace IIChatTools.Services.DTO.Debate
         /// JSON со списком issues от критика (формат из DESIGN § 2.3:
         /// <c>[{ severity, location, description, suggestion }]</c>).
         /// <c>null</c>, если критик вернул Approved без замечаний.
+        /// Заполняется только при <c>PatternType = "ActorCritic"</c>.
         /// </summary>
         public string CriticFeedbackJson { get; set; }
+
+        // ============================================================
+        // v1.14.0 (KI-126, Фаза 2): поля ролей Debate.
+        // Заполняются только при PatternType = "Debate".
+        // Для ActorCritic — null.
+        // ============================================================
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): вывод Pro-агента (защитник предложения).
+        /// JSON <c>{arguments, coveredCases, conclusion}</c> (см. промпт
+        /// <c>SubAgents:planner_pro_agent:SystemPrompt</c>).
+        /// </summary>
+        public string ProOutput { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): вывод Contra-агента (скептик).
+        /// JSON <c>{issues, risks, conclusion}</c>.
+        /// </summary>
+        public string ContraOutput { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): вердикт Judge'а:
+        /// <c>Approved</c> | <c>Rejected</c> | <c>Uncertain</c>.
+        /// </summary>
+        public string JudgeVerdict { get; set; }
+
+        /// <summary>
+        /// v1.14.0 (KI-126, Фаза 2): JSON с обоснованием Judge'а
+        /// (reasoning + список принятых issues). Формат из промпта
+        /// <c>SubAgents:planner_judge_agent:SystemPrompt</c>:
+        /// <c>{verdict, reasoning, issues, summary}</c>.
+        /// </summary>
+        public string JudgeFeedbackJson { get; set; }
 
         /// <summary>Модель, использованная для actor'а.</summary>
         public string ActorModel { get; set; }
