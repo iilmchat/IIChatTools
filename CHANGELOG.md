@@ -61,6 +61,22 @@
     `AgentDebateSessionService`: проброс новых полей в entity
     (`AddRoundAsync`), DTO-проекция (`ToRoundDto`), ветвление
     `BuildStatusDto` по `PatternType` (ActorCritic vs Debate).
+  - **Шаг 2C.1b:** новый top-level инструмент `planner_with_debate`
+    (`PlannerWithDebateTool : ITool`, файл
+    `Implementation/Tools/Debate/PlannerWithDebateTool.cs`). Цикл
+    `Pro → Contra → Judge` (3 последовательных LLM-вызова через
+    `IToolRegistry.ExecuteAsync`). Persist в `AgentDebateRound` (поля
+    `ProOutput` / `ContraOutput` / `JudgeVerdict` / `JudgeFeedbackJson`).
+    SSE: `debate_started` / `debate_round` / `debate_completed` с
+    `PatternType = "Debate"`. `RequiresApprovalByDefault = true`.
+    Задачи ролям формируются с явным запретом на инструменты
+    (`BuildProTask` / `BuildContraTask` / `BuildJudgeTask`).
+    Дополнительно: у 3 ролей `AllowedTools` в `appsettings*.json`
+    заменено с `[]` на `["__no_tools__"]` — теперь роли физически
+    не могут вызывать инструменты (`ToolDefinitionsBuilder.Build`
+    возвращает пустой `tools[]`).
+    **Отложено в Шаг 2C.2:** эскалация на `ask_external_llm` при
+    Judge `Uncertain` + Human-in-the-loop после Judge `Rejected`.
 
 ---
 
