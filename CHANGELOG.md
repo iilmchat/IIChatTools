@@ -77,6 +77,11 @@
     возвращает пустой `tools[]`).
     **Отложено в Шаг 2C.2:** эскалация на `ask_external_llm` при
     Judge `Uncertain` + Human-in-the-loop после Judge `Rejected`.
+  - **Шаг 2C.1b-fix:** правило 5 («ЗАПРЕЩЕНО использовать инструменты»)
+    добавлено в SystemPrompt `planner_contra_agent` и
+    `planner_judge_agent` (в обоих `appsettings*.json`) — для
+    консистентности с `planner_pro_agent` и defense-in-depth
+    (в дополнение к `AllowedTools: ["__no_tools__"]`).
 
 ---
 
