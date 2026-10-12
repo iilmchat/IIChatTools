@@ -266,6 +266,14 @@ namespace IIChatTools.Data
                 entity.Property(e => e.EscalationProvider).HasMaxLength(50);
                 entity.Property(e => e.CostUsd).HasPrecision(18, 6);
 
+                // v2.0.0 (KI-126, Фаза 3): поля Orchestrator-Worker.
+                entity.Property(e => e.SubtaskId).HasMaxLength(20);
+                entity.Property(e => e.SubtaskAgent).HasMaxLength(100);
+                entity.Property(e => e.SubtaskTask);            // nvarchar(max)
+                entity.Property(e => e.SubtaskStatus).HasMaxLength(30);
+                entity.Property(e => e.SubtaskResult);          // nvarchar(max)
+                entity.Property(e => e.SubtaskError);           // nvarchar(max)
+
                 // FK на Session с каскадным удалением.
                 entity.HasOne(e => e.Session)
                     .WithMany(s => s.Rounds)

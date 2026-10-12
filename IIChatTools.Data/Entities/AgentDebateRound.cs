@@ -68,6 +68,46 @@ namespace IIChatTools.Data.Entities
         public string JudgeFeedbackJson { get; set; }
 
         // ============================================================
+        // v2.0.0 (KI-126, Фаза 3): поля Orchestrator-Worker.
+        // Заполняются только при PatternType = "Orchestrator".
+        // Для ActorCritic / Debate — null.
+        // ============================================================
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): идентификатор подзадачи ("1", "2", ...).
+        /// Только для PatternType = "Orchestrator".
+        /// </summary>
+        public string SubtaskId { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): имя агента-исполнителя подзадачи
+        /// (web_agent, code_agent, ...).
+        /// </summary>
+        public string SubtaskAgent { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): текст подзадачи.
+        /// </summary>
+        public string SubtaskTask { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): статус подзадачи:
+        /// pending | running | completed | failed | rejected.
+        /// </summary>
+        public string SubtaskStatus { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): финальный ответ Worker'а.
+        /// </summary>
+        public string SubtaskResult { get; set; }
+
+        /// <summary>
+        /// v2.0.0 (KI-126, Фаза 3): сообщение об ошибке
+        /// при SubtaskStatus = "failed" / "rejected".
+        /// </summary>
+        public string SubtaskError { get; set; }
+
+        // ============================================================
         // Общие поля для обоих паттернов.
         // ============================================================
 

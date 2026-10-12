@@ -80,6 +80,27 @@ namespace IIChatTools.Data.Migrations.SqlServer
                     b.Property<int>("SessionId")
                         .HasColumnType("int");
 
+                    b.Property<string>("SubtaskAgent")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SubtaskError")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SubtaskId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SubtaskResult")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SubtaskStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("SubtaskTask")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("TokensIn")
                         .HasColumnType("int");
 
