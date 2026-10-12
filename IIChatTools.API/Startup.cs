@@ -853,6 +853,12 @@ namespace IIChatTools.API
             services.AddScoped<ITool, PlannerContraAgentTool>();
             services.AddScoped<ITool, PlannerJudgeAgentTool>();
 
+            // v2.0.0 (KI-126, Фаза 3): агент-декомпозитор для Orchestrator-Worker.
+            // Используется ВНУТРИ orchestrate_task (top-level ITool, Шаг 3D).
+            // Internal: true в appsettings — не попадает в allowedNames Chat
+            // (RULES § 4.44). Сам orchestrate_task регистрируется в Шаге 3G.
+            services.AddScoped<ITool, OrchestratorPlannerAgentTool>();
+
             // v1.11.0 (KI-126, Шаг 1C): агент-критик для Actor-Critic.
             // Не требует approval (read-only: получает код, возвращает JSON).
             // См. DESIGN_MULTI_AGENT_DEBATE.md § 2.2, § 6.
