@@ -1092,6 +1092,79 @@
   <data name="ChatEmptyChatHint" xml:space="preserve">
     <value>История пуста. Начните диалог.</value>
   </data>
+    <!-- ===== v2.0.1 (KI-249): Approval params renderer ===== -->
+  <data name="ApprovalParamTask" xml:space="preserve">
+    <value>Задача</value>
+  </data>
+  <data name="ApprovalParamContext" xml:space="preserve">
+    <value>Контекст</value>
+  </data>
+  <data name="ApprovalParamTo" xml:space="preserve">
+    <value>Кому</value>
+  </data>
+  <data name="ApprovalParamCc" xml:space="preserve">
+    <value>Копия</value>
+  </data>
+  <data name="ApprovalParamSubject" xml:space="preserve">
+    <value>Тема</value>
+  </data>
+  <data name="ApprovalParamBody" xml:space="preserve">
+    <value>Текст</value>
+  </data>
+  <data name="ApprovalParamAction" xml:space="preserve">
+    <value>Действие</value>
+  </data>
+  <data name="ApprovalParamTarget" xml:space="preserve">
+    <value>Цель</value>
+  </data>
+  <data name="ApprovalParamSql" xml:space="preserve">
+    <value>SQL-запрос</value>
+  </data>
+  <data name="ApprovalParamCode" xml:space="preserve">
+    <value>Код</value>
+  </data>
+  <data name="ApprovalParamLanguage" xml:space="preserve">
+    <value>Язык</value>
+  </data>
+  <data name="ApprovalParamParallel" xml:space="preserve">
+    <value>Параллельно</value>
+  </data>
+  <data name="ApprovalParamMaxSubtasks" xml:space="preserve">
+    <value>Макс. подзадач</value>
+  </data>
+  <data name="ApprovalParamOtherFields" xml:space="preserve">
+    <value>Другие поля ({0})</value>
+  </data>
+  <data name="ApprovalParamRawJson" xml:space="preserve">
+    <value>JSON</value>
+  </data>
+
+  <!-- ===== v2.0.0 (KI-126, Ф3, Шаг 3H): Orchestrator-Worker UI ===== -->
+  <data name="ChatOrchestratorTitle" xml:space="preserve">
+    <value>Оркестрация задач</value>
+  </data>
+  <data name="ChatOrchestratorSubtask" xml:space="preserve">
+    <value>Подзадача {0}</value>
+  </data>
+  <data name="ChatOrchestratorProgress" xml:space="preserve">
+    <value>{0} / {1}</value>
+  </data>
+  <data name="ChatOrchestratorMaxSubtasks" xml:space="preserve">
+    <value>Max {0} подзадач</value>
+  </data>
+  <data name="ChatOrchestratorDetailsShow" xml:space="preserve">
+    <value>▼ Показать результаты</value>
+  </data>
+  <data name="ChatOrchestratorTask" xml:space="preserve">
+    <value>Задача</value>
+  </data>
+  <data name="ChatOrchestratorResult" xml:space="preserve">
+    <value>Результат</value>
+  </data>
+  <data name="ChatOrchestratorError" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Попробуйте так:</value>
   </data>

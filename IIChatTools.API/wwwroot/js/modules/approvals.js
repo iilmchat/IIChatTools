@@ -81,9 +81,18 @@ function _showApprovalModal({ toolName, parametersJson, expiresAt, approveUrl, r
 
         document.getElementById('approval-tool-name').textContent = toolName;
 
-        let pretty = parametersJson;
-        try { pretty = JSON.stringify(JSON.parse(parametersJson), null, 2); } catch { /* оставляем как есть */ }
-        document.getElementById('approval-params').textContent = pretty;
+        // KI-249 (v2.0.1): рендерим параметры человекочитаемо (tool-specific).
+        const paramsEl = document.getElementById('approval-params');
+        if (paramsEl) {
+            paramsEl.innerHTML = renderToolParams(toolName, parametersJson);
+
+            // Подсветка hljs для code-блоков (если библиотека загружена).
+            if (window.hljs) {
+                paramsEl.querySelectorAll('pre code').forEach(el => {
+                    try { window.hljs.highlightElement(el); } catch { /* ignore */ }
+                });
+            }
+        }
 
         const countdownEl = document.getElementById('approval-countdown');
         const approveBtn = document.getElementById('approval-approve');
@@ -283,4 +292,269 @@ function _makeDraggable(modalEl) {
     modalEl.addEventListener('hidden.bs.modal', resetDrag, { once: true });
 
     header.addEventListener('mousedown', onMouseDown);
+}
+
+
+// ============================================================
+// KI-249 (v2.0.1): Tool-специфичный рендер параметров approval.
+// ============================================================
+
+/**
+ * Читает локализованные метки из data-label-* на #approval-params.
+ * RULES § 4.17: JS-строки — через data-* (не хардкодить).
+ * @returns {object}
+ */
+function approvalLabels() {
+    const el = document.getElementById('approval-params');
+    return {
+        task:         el?.dataset.labelTask         || 'Task',
+        context:      el?.dataset.labelContext      || 'Context',
+        to:           el?.dataset.labelTo           || 'To',
+        cc:           el?.dataset.labelCc           || 'CC',
+        subject:      el?.dataset.labelSubject      || 'Subject',
+        body:         el?.dataset.labelBody         || 'Body',
+        action:       el?.dataset.labelAction       || 'Action',
+        target:       el?.dataset.labelTarget       || 'Target',
+        sql:          el?.dataset.labelSql          || 'SQL',
+        code:         el?.dataset.labelCode         || 'Code',
+        language:     el?.dataset.labelLanguage     || 'Language',
+        parallel:     el?.dataset.labelParallel     || 'Parallel',
+        maxSubtasks:  el?.dataset.labelMaxSubtasks  || 'Max subtasks',
+        otherFields:  el?.dataset.labelOtherFields  || 'Other fields',
+        rawJson:      el?.dataset.labelRawJson      || 'JSON'
+    };
+}
+
+/**
+ * Список агентов-обёрток с полем `task` (для единого рендера).
+ * KI-249 (v2.0.1).
+ */
+const AGENT_TASK_TOOLS = new Set([
+    'file_system_agent', 'code_agent', 'code_reviewer_agent',
+    'code_agent_with_review', 'web_agent', 'git_agent', 'github_agent',
+    'planner_agent', 'planner_pro_agent', 'planner_contra_agent',
+    'planner_judge_agent', 'planner_with_debate', 'mail_agent',
+    'external_llm_agent', 'browser_agent', 'vision_agent',
+    'orchestrator_planner_agent', 'consult_secondary_agent'
+]);
+
+/**
+ * KI-249 (v2.0.1): рендерит параметры вызова в HTML.
+ * Диспетчер по имени tool'а. Default — pretty-print JSON.
+ *
+ * @param {string} toolName
+ * @param {string} parametersJson
+ * @returns {string} HTML
+ */
+function renderToolParams(toolName, parametersJson) {
+    let params;
+    try { params = JSON.parse(parametersJson); }
+    catch { params = null; }
+
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+        // Не JSON-объект — показываем как есть.
+        const L = approvalLabels();
+        return renderRawJson(parametersJson, L);
+    }
+
+    const L = approvalLabels();
+
+    // Tool-специфичные рендеры.
+    if (toolName === 'orchestrate_task') return renderOrchestrateTaskParams(params, L);
+    if (toolName === 'send_email') return renderSendEmailParams(params, L);
+    if (toolName === 'database_agent') return renderDatabaseAgentParams(params, L);
+    if (toolName === 'run_python' || toolName === 'run_javascript') {
+        return renderCodeParams(params, toolName, L);
+    }
+
+    // Все агенты-обёртки с полем task.
+    if (AGENT_TASK_TOOLS.has(toolName)) return renderAgentTaskParams(params, L);
+
+    // Default — pretty JSON.
+    return renderDefaultJson(params, L);
+}
+
+/**
+ * Общий рендер: карточка с полем label + value.
+ * @param {string} label
+ * @param {string} value
+ * @param {object} [opts] — { mono: bool, maxHeight: '200px' }
+ * @returns {string}
+ */
+function renderField(label, value, opts = {}) {
+    const mono = opts.mono ? ' chat-approval-field-value-mono' : '';
+    return `
+        <div class="chat-approval-field">
+            <div class="chat-approval-field-label">${escapeHtml(label)}:</div>
+            <div class="chat-approval-field-value${mono}">${escapeHtml(value)}</div>
+        </div>`;
+}
+
+/**
+ * Рендер: Orchestrator-Worker (top-level task + badges).
+ */
+function renderOrchestrateTaskParams(params, L) {
+    const parts = [];
+    if (params.task) parts.push(renderField(L.task, params.task));
+
+    const badges = [];
+    if (typeof params.parallel === 'boolean') {
+        const icon = params.parallel ? '✅' : '❌';
+        const word = params.parallel ? 'Да' : 'Нет';
+        badges.push(`<span class="chat-approval-badge">${escapeHtml(L.parallel)}: ${icon} ${escapeHtml(word)}</span>`);
+    }
+    if (Number.isFinite(params.maxSubtasks)) {
+        badges.push(`<span class="chat-approval-badge">${escapeHtml(L.maxSubtasks)}: ${params.maxSubtasks}</span>`);
+    }
+
+    const otherFields = Object.keys(params)
+        .filter(k => k !== 'task' && k !== 'parallel' && k !== 'maxSubtasks');
+
+    let otherHtml = '';
+    if (otherFields.length > 0) {
+        const json = JSON.stringify(
+            Object.fromEntries(otherFields.map(k => [k, params[k]])), null, 2);
+        otherHtml = renderOtherFields(otherFields.length, json, L);
+    }
+
+    const badgesHtml = badges.length > 0
+        ? `<div class="chat-approval-badges">${badges.join('')}</div>`
+        : '';
+
+    return `<div class="chat-approval-content">${parts.join('')}${badgesHtml}${otherHtml}</div>`;
+}
+
+/**
+ * Рендер: агенты-обёртки с полем task.
+ */
+function renderAgentTaskParams(params, L) {
+    const parts = [];
+    if (params.task) parts.push(renderField(L.task, params.task));
+    if (params.context) parts.push(renderField(L.context, params.context));
+
+    const otherFields = Object.keys(params)
+        .filter(k => k !== 'task' && k !== 'context');
+
+    let otherHtml = '';
+    if (otherFields.length > 0) {
+        const json = JSON.stringify(
+            Object.fromEntries(otherFields.map(k => [k, params[k]])), null, 2);
+        otherHtml = renderOtherFields(otherFields.length, json, L);
+    }
+
+    return `<div class="chat-approval-content">${parts.join('')}${otherHtml}</div>`;
+}
+
+/**
+ * Рендер: send_email.
+ */
+function renderSendEmailParams(params, L) {
+    const parts = [];
+    if (params.to) parts.push(renderField(L.to, String(params.to)));
+    if (params.cc) parts.push(renderField(L.cc, String(params.cc)));
+    if (params.subject) parts.push(renderField(L.subject, params.subject));
+    if (params.body) parts.push(renderField(L.body, params.body));
+
+    const otherFields = Object.keys(params)
+        .filter(k => !['to', 'cc', 'subject', 'body'].includes(k));
+
+    let otherHtml = '';
+    if (otherFields.length > 0) {
+        const json = JSON.stringify(
+            Object.fromEntries(otherFields.map(k => [k, params[k]])), null, 2);
+        otherHtml = renderOtherFields(otherFields.length, json, L);
+    }
+
+    return `<div class="chat-approval-content">${parts.join('')}${otherHtml}</div>`;
+}
+
+/**
+ * Рендер: database_agent (action + sql + другие).
+ */
+function renderDatabaseAgentParams(params, L) {
+    const parts = [];
+    if (params.action) parts.push(renderField(L.action, params.action));
+    if (params.connection) parts.push(renderField('Connection', params.connection));
+    if (params.table) parts.push(renderField('Table', params.table));
+
+    let sqlHtml = '';
+    if (params.sql) {
+        sqlHtml = `
+            <div class="chat-approval-field">
+                <div class="chat-approval-field-label">${escapeHtml(L.sql)}:</div>
+                <pre class="chat-approval-code"><code class="language-sql">${escapeHtml(params.sql)}</code></pre>
+            </div>`;
+    }
+
+    const otherFields = Object.keys(params)
+        .filter(k => !['action', 'connection', 'table', 'sql'].includes(k));
+
+    let otherHtml = '';
+    if (otherFields.length > 0) {
+        const json = JSON.stringify(
+            Object.fromEntries(otherFields.map(k => [k, params[k]])), null, 2);
+        otherHtml = renderOtherFields(otherFields.length, json, L);
+    }
+
+    return `<div class="chat-approval-content">${parts.join('')}${sqlHtml}${otherHtml}</div>`;
+}
+
+/**
+ * Рендер: run_python / run_javascript.
+ */
+function renderCodeParams(params, toolName, L) {
+    const lang = toolName === 'run_python' ? 'python' : 'javascript';
+    const code = params.code || params.script || params.source || '';
+
+    let codeHtml = '';
+    if (code) {
+        codeHtml = `
+            <div class="chat-approval-field">
+                <div class="chat-approval-field-label">${escapeHtml(L.code)} (${escapeHtml(lang)}):</div>
+                <pre class="chat-approval-code"><code class="language-${lang}">${escapeHtml(code)}</code></pre>
+            </div>`;
+    }
+
+    const otherFields = Object.keys(params)
+        .filter(k => k !== 'code' && k !== 'script' && k !== 'source');
+
+    let otherHtml = '';
+    if (otherFields.length > 0) {
+        const json = JSON.stringify(
+            Object.fromEntries(otherFields.map(k => [k, params[k]])), null, 2);
+        otherHtml = renderOtherFields(otherFields.length, json, L);
+    }
+
+    return `<div class="chat-approval-content">${codeHtml}${otherHtml}</div>`;
+}
+
+/**
+ * Рендер: default (pretty JSON).
+ */
+function renderDefaultJson(params, L) {
+    const json = JSON.stringify(params, null, 2);
+    return `<div class="chat-approval-content">
+        <pre class="chat-approval-code"><code class="language-json">${escapeHtml(json)}</code></pre>
+    </div>`;
+}
+
+/**
+ * Рендер: сырой JSON (когда paramsJson не парсится).
+ */
+function renderRawJson(raw, L) {
+    return `<div class="chat-approval-content">
+        <pre class="chat-approval-raw">${escapeHtml(raw || '')}</pre>
+    </div>`;
+}
+
+/**
+ * Рендер: свёрнутый блок «Другие поля (N)».
+ */
+function renderOtherFields(count, json, L) {
+    const label = L.otherFields.replace('{0}', String(count));
+    return `
+        <details class="chat-approval-other">
+            <summary class="chat-approval-other-summary">▸ ${escapeHtml(label)}</summary>
+            <pre class="chat-approval-code"><code class="language-json">${escapeHtml(json)}</code></pre>
+        </details>`;
 }

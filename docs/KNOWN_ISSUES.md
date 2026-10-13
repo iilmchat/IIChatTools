@@ -2158,9 +2158,9 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ---
 
-### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate)
+### KI-126 — Автономное взаимодействие суб-агентов (Actor-Critic / Debate / Orchestrator)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v1.11.0 / v1.14.0 / v2.0.0
 - **Обнаружено:** 2026-10-01 (обсуждение с пользователем)
 - **DESIGN:** [`docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`](development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md)
 - **Прогресс Ф1 (v1.11.0, все 10 шагов закрыты 2026-10-02):**
@@ -2245,9 +2245,26 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
   - **Reflection** (один агент сам себя критикует) — рассматривался, но
     менее эффективен, чем Actor-Critic. Отложен.
 - **Оценка:** ~12-15 ч (Ф1 ~5-6 ч, Ф2 ~5-6 ч, Ф3 ~3-4 ч).
+- **Фаза 3 (v2.0.0, 2026-10-12):** Orchestrator-Worker + Blackboard.
+  - ✅ **3A** — Расширение DTO (MaxSubtasks / Parallel / AllowedWorkerAgents
+    + 6 Subtask*-полей + 3 SSE-DTO `ChatOrchestrator*`).
+  - ✅ **3B** — Внутренний агент `orchestrator_planner_agent` (`Internal: true`).
+  - ✅ **3C** — `IAgentBlackboard` + `InMemoryAgentBlackboard` (Singleton, TTL 30 мин).
+  - ✅ **3D** — Top-level `ITool` `orchestrate_task` (свой loop, `Func<IToolRegistry>`).
+  - ✅ **3E** — Параллелизм (`Task.WhenAll` + семафор) + External-detection.
+  - ✅ **3F** — Persistence (`AgentDebateSession` / `AgentDebateRound`) +
+    SSE `orchestrator_*` + Blackboard cleanup.
+  - ✅ **3G-fix** — 3 бага после smoke: PatternType / Subtask*-поля / лог-verdict.
+  - ✅ **3H** — UI: блок `🎭 Оркестрация задач` с прогресс-баром + subtasks.
+  - ✅ **3J** — +37 unit-тестов (1142 → 1179, фактически 1180 с skip).
+  - ✅ **3K** — Релиз v2.0.0.
+  - **DESIGN:** `docs/development/v2.0/DESIGN_ORCHESTRATOR_WORKER.md`.
+  - **Отложено:** KI-245 (Admin UI whitelist), KI-246 (fallback воркер),
+    KI-247 (External pre-checks), KI-248 (HITL).
 - **Связанные:** KI-052 (Multi-Agent — база), KI-109 (External-LLM —
   для эскалации), KI-111 (stateless agent — решается через Blackboard в Фазе 3),
-  KI-113 (галлюцинация успеха — критик частично закрывает).
+  KI-113 (галлюцинация успеха — критик частично закрывает),
+  KI-244..250 (planned, Ф3+).
 
 ---
 
@@ -5906,6 +5923,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+<<<<<<< HEAD
 ### KI-251 — RAG: поддержка TIFF / TIF (одностраничные и multipage)
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
@@ -5974,6 +5992,99 @@ requirement) работают **стабильно**. Gantt требует бо�
   - Этап C: ~3-4 ч (условно, при необходимости).
 - **Рекомендация:** начать с **Этапа B**, зафиксировав в KI-251
   как единую задачу (A+B вместе).
+=======
+### KI-249 — Redesign модалки approval: человекочитаемые параметры вызова
+
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v2.0.1
+- **Обнаружено:** 2026-10-12 (smoke Шага 3G KI-126 Ф3).
+- **Файлы (план):**
+  - `wwwroot/js/modules/approvals.js` — функция `renderToolParams(toolName, paramsJson)`;
+  - `Views/Shared/_ApprovalModal.cshtml` — заменить `<pre id="approval-params">` на `<div id="approval-params">` (или оставить `<pre>` + добавить wrapper);
+  - `wwwroot/css/chat.css` — стили `.chat-approval-params*` (или отдельный `approvals.css`);
+  - `.resx` (RU + EN) — ключи для tool-специфичных заголовков («Задача», «Контекст», «Получатели», etc.).
+- **Описание:** В v1.3 (KI-054) модалка approval рендерит `parametersJson` в `<pre>` как **сырую JSON-строку**. Для длинных параметров (например, `orchestrate_task.task` = 300+ символов, `code_agent.task`, `send_email.body`, `run_python.code`):
+  - текст уходит за границу 500px-блока;
+  - появляется горизонтальный скролл;
+  - пользователь не может быстро понять, что именно подтверждает;
+  - нет подсветки синтаксиса, хотя `highlight.js` уже подключён.
+- **Industry best practice (ChatGPT / Claude / GitHub Copilot approvals):**
+  1. **Pretty-print** JSON + подсветка синтаксиса (`hljs.highlightElement`).
+  2. **Tool-специфичные рендеры** для топ-10 инструментов:
+     - `orchestrate_task` → **«Задача»** (многострочный текст) + `parallel` как badge;
+     - `code_agent_with_review` / `code_agent` / `planner_*_agent` → **«Задача»** + **«Контекст»** (свёрнутый);
+     - `send_email` → to / cc / subject + preview body (collapsed);
+     - `vision_agent` → action + target + координаты (badge);
+     - `database_agent` → action + SQL (block);
+     - `run_python` / `run_javascript` → code preview с подсветкой;
+     - `browser_agent` → задача + URL;
+     - default → pretty-print JSON.
+  3. **Сворачивание вложенных объектов** (`<details>` для `context`, `arguments`, etc.).
+  4. **Max-height 40vh** + внутренняя прокрутка (без горизонтального скролла — `white-space: pre-wrap; word-break: break-word`).
+  5. **Кнопка «Показать полностью» / «Свернуть»** для длинных блоков (>500 символов).
+- **Что НЕ входит:**
+  - Diff-view (для `save_file` / `replace_text_in_file`) — отдельный KI-250 (v2.0.x), требует snapshot текущего файла.
+  - Multi-file diff — v2.1+.
+- **Оценка:** ~2-3 ч (frontend-only + локализация).
+- **Реализовано (v2.0.1, 2026-10-12):**
+  - `approvals.js`: `renderToolParams(toolName, paramsJson)` — диспетчер.
+    Tool-специфичные рендеры: `orchestrate_task`, 17 агентов-обёрток
+    с полем `task`, `send_email`, `database_agent`, `run_python` /
+    `run_javascript`, default → pretty JSON.
+  - `renderField` / `renderOtherFields` / `renderRawJson` — helpers.
+  - `AGENT_TASK_TOOLS` — Set имён агентов.
+  - hljs-подсветка для code-блоков (если библиотека загружена).
+  - `_ApprovalModal.cshtml`: `<pre id="approval-params">` → `<div>` +
+    15 `data-label-*` (RULES § 4.17).
+  - `chat.css`: `.chat-approval-params*` (max-height 40vh, internal scroll,
+    `white-space: pre-wrap`, без гориз. скролла).
+  - `.resx` (RU + EN): +15 ключей `ApprovalParam*`.
+  - **Smoke:** `orchestrate_task`, `code_agent_with_review`,
+    `database_agent` — все рендерятся корректно (task / context /
+    action / SQL + `▸ Другие поля (N)` + badges).
+
+---
+
+### KI-250 — Toggle вида дебатов: перенести в блок (Вариант 3)
+
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v2.0.1
+- **Обнаружено:** 2026-10-12 (smoke Шага 3H KI-126 Ф3).
+- **Файлы (план):**
+  - `Views/Chat/Index.cshtml` — удалить `#btn-debate-view` из header;
+  - `wwwroot/js/modules/chat.js` — `renderDebateContainerInner` /
+    `renderOrchestratorContainerInner`: добавить toggle-кнопку в шапку
+    блока; перейти от глобального `state.debateView` к per-block
+    (или оставить глобальное, но визуально привязать к блоку);
+  - `wwwroot/css/chat.css` — `.chat-debate-header .chat-debate-view-toggle`.
+- **Описание:** Сейчас toggle вида Actor-Critic / Debate / Orchestrator
+  вынесен в **header чата** (`#btn-debate-view`, вторая-третья кнопка
+  справа). Семантически **не связано** с блоками в ленте: пользователь
+  ожидает, что toggle влияет на **текущий блок**, а не на все дебаты
+  в чате сразу. Иконка `btn-outline-secondary` маленькая и неочевидная.
+- **Принятое решение (Вариант 3):** перенести toggle **внутрь**
+  `.chat-debate-header` / `.chat-orchestrator-header` — правый угол.
+  Пользователь видит кнопку «Свернуть / Развернуть» именно там, где
+  находятся раунды / подзадачи.
+- **Что НЕ входит:**
+  - Per-block state (сейчас — глобальный `state.debateView`,
+    сохраняется в `localStorage`). Переход к per-block — v2.1+,
+    если понадобится.
+  - Контекстное меню (правый клик) — пересмотрим после smoke.
+- **Оценка:** ~30 мин (frontend-only).
+- **Реализовано (v2.0.1, 2026-10-12):**
+  - Удалена кнопка `#btn-debate-view` из chat-header.
+  - **Per-block override:** `state.debateViewBySessionId[sessionId]`.
+    Toggle переключает только текущий блок.
+  - Новая кнопка-иконка `▶` (collapsed) / `▼` (dialog) в правом углу
+    `.chat-debate-header` / `.chat-orchestrator-header`
+    (`[data-toggle-session-id]`).
+  - Helpers: `getDebateViewFor` / `toggleDebateViewFor` /
+    `refreshViewBySessionId`. Удалены `applyDebateViewUI` и старый
+    обработчик `#btn-debate-view`.
+  - `chat.css`: `.chat-debate-view-toggle` — компактная icon-кнопка.
+  - `Index.cshtml`: удалён `<button>` из header; +2 `data-label-*`.
+  - **Smoke:** toggle работает per-block; в collapsed → `▶`, в dialog →
+    `▼`; клик разворачивает/сворачивает **только этот блок**.
+>>>>>>> 8c61ea2460b74d1192eeccfb2a05c7fced0f4598
 
 ---
 
@@ -6019,13 +6130,15 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Fixed (v1.13.17) | 2 |
 | Fixed (v1.13.x, KI-137/192/194/203/215/216) | 8 |
 | Fixed (v1.14.0) | 1 |
+| Fixed (v2.0.0, KI-126 Ф3) | 1 |
 | Implemented (v1.3.0) | 2 |
 | Implemented (v1.7.0) | 1 |
 | Deferred | 5 |
 | Documented | 13 |
+| Fixed (v2.0.1, KI-249/250) | 2 |
 | Planned | 23 |
 | Partially Fixed | 1 |
-| **Всего** | **203** |
+| **Всего** | **205** |
 
 **Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
 KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),

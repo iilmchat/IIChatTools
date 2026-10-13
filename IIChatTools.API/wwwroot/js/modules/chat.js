@@ -67,13 +67,23 @@ const state = {
     // v1.13.x (KI-207): + textLayer (DOM), textLayerDto, searchHits, searchIndex.
     pagesViewer: null,
 
-    // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed')
+    // v1.11.0 (KI-126, Шаг 1G.1): вид отображения дебатов ('dialog' | 'collapsed').
+    // KI-250 (v2.0.1): это DEFAULT-значение (из localStorage). Per-block
+    // override — в state.debateViewBySessionId.
     debateView: 'collapsed',
+
+    // KI-250 (v2.0.1): per-block override вида (sessionId → 'dialog' | 'collapsed').
+    // Пусто → используется глобальный state.debateView.
+    debateViewBySessionId: {},
 
     // v1.11.0 (KI-126, Шаг 1G.2): кэш данных дебатов по sessionId.
     // Нужен для перерендера блока при смене вида (dialog ⇄ collapsed).
     // Формат: { [sessionId]: { started, rounds: [], completed } }
     debates: {},
+
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): кэш Orchestrator-сессий по sessionId.
+    // Формат: { [sessionId]: { started, subtasks: [], completed } }
+    orchestrators: {},
 
     // v1.11.0 (KI-126, Шаг 1G.3): черновики feedback между раундами.
     // Формат: { [sessionId]: { status, expiresAt, text } }
@@ -115,7 +125,6 @@ export async function initChatPage() {
     state.debateView = savedDebateView === 'dialog' ? 'dialog' : 'collapsed';
 
     bindEvents();
-    applyDebateViewUI();
     initLightboxHandlers();   // KI-229
 
     // v1.13.0 (KI-140): инициализация голосового ввода (Speech Recognition).
@@ -193,10 +202,6 @@ function bindEvents() {
     if (modelSelect) {
         modelSelect.addEventListener('change', onChatModelChanged);
     }
-
-    // v1.11.0 (KI-126, Шаг 1G.1): переключатель вида отображения дебатов.
-    document.getElementById('btn-debate-view')
-        ?.addEventListener('click', toggleDebateView);
 
     // KI-079: кнопка toggle (одна, работает в обоих состояниях)
     document.getElementById('btn-collapse-sidebar')
@@ -465,6 +470,19 @@ function bindEvents() {
         hotkeyHelpModal.querySelectorAll('[data-action="close"]')
             .forEach(el => el.addEventListener('click', closeHotkeyHelp));
     }
+
+    // KI-250 (v2.0.1): делегированный click по toggle-кнопке внутри
+    // .chat-debate-header / .chat-orchestrator-header. Переключает
+    // ТОЛЬКО текущий блок (per-block state).
+    document.getElementById('chat-messages')
+        ?.addEventListener('click', (e) => {
+            const toggleBtn = e.target.closest('[data-toggle-session-id]');
+            if (!toggleBtn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const sid = parseInt(toggleBtn.dataset.toggleSessionId, 10);
+            if (Number.isFinite(sid)) toggleDebateViewFor(sid);
+        });
 
     // KI-083 (Шаг 6D): вложения чата (RAG)
     document.getElementById('btn-attach-file')
@@ -777,44 +795,50 @@ function toggleSidebar() {
 // ============ v1.11.0 (KI-126, Шаг 1G.1): Вид отображения дебатов ============
 
 /**
- * Переключает вид отображения раундов Actor-Critic.
- * Сохраняет выбор в localStorage и перерисовывает уже отображённые раунды.
+ * KI-250 (v2.0.1): возвращает текущий вид для конкретной сессии.
+ * Per-block override (state.debateViewBySessionId), если задан,
+ * иначе — глобальный state.debateView.
+ * @param {number} sessionId
+ * @returns {'dialog'|'collapsed'}
  */
-function toggleDebateView() {
-    state.debateView = state.debateView === 'dialog' ? 'collapsed' : 'dialog';
-    try {
-        localStorage.setItem(LS_KEY_DEBATE_VIEW, state.debateView);
-    } catch {
-        // Приватный режим — игнорируем.
-    }
-    applyDebateViewUI();
-    refreshDebateViews();
+function getDebateViewFor(sessionId) {
+    const override = state.debateViewBySessionId?.[sessionId];
+    return override || state.debateView;
 }
 
 /**
- * Обновляет иконку и title кнопки-селектора в зависимости от текущего вида.
+ * KI-250 (v2.0.1): переключает вид для конкретной сессии (per-block).
+ * Перерисовывает ТОЛЬКО этот блок, не трогая остальные.
+ * @param {number} sessionId
  */
-function applyDebateViewUI() {
-    const btn = document.getElementById('btn-debate-view');
-    if (!btn) return;
+function toggleDebateViewFor(sessionId) {
+    const current = getDebateViewFor(sessionId);
+    state.debateViewBySessionId[sessionId] = current === 'dialog' ? 'collapsed' : 'dialog';
+    refreshViewBySessionId(sessionId);
+}
 
-    const isDialog = state.debateView === 'dialog';
-    const label = isDialog
-        ? (btn.dataset.labelCollapsed || 'Collapsed')
-        : (btn.dataset.labelDialog || 'Dialog');
+/**
+ * KI-250 (v2.0.1): перерисовывает конкретный блок (Debate или Orchestrator)
+ * по sessionId.
+ * @param {number} sessionId
+ */
+function refreshViewBySessionId(sessionId) {
+    const view = getDebateViewFor(sessionId);
+    const isDialog = view === 'dialog';
 
-    btn.title = label;
-    btn.setAttribute('aria-label', label);
+    // Debate block
+    document.querySelectorAll(`[data-debate-session-id="${sessionId}"]`).forEach(c => {
+        c.classList.toggle('chat-debate-dialog', isDialog);
+        c.classList.toggle('chat-debate-collapsed', !isDialog);
+        c.innerHTML = renderDebateContainerInner(sessionId);
+    });
 
-    // Смена SVG: в диалоговом режиме — иконка списка, в свернутом — иконка диалога.
-    // Используем inline SVG для избежания внешних зависимостей.
-    if (isDialog) {
-        // Иконка «свернуть» (список)
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>`;
-    } else {
-        // Иконка «развернуть» (диалог)
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2zm0 1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm0 5a1 1 0 0 1 1-1h8a1 1 0 0 1 0 2H3a1 1 0 0 1-1-1z"/></svg>`;
-    }
+    // Orchestrator block
+    document.querySelectorAll(`[data-orchestrator-session-id="${sessionId}"]`).forEach(c => {
+        c.classList.toggle('chat-debate-dialog', isDialog);
+        c.classList.toggle('chat-debate-collapsed', !isDialog);
+        c.innerHTML = renderOrchestratorContainerInner(sessionId);
+    });
 }
 
 // refreshDebateViews() — см. секцию «Рендер дебатов (Actor-Critic)» ниже.
@@ -1617,6 +1641,10 @@ async function selectChat(chatId) {
     // DOM будет перерисован, старые sessionId неактуальны.
     state.debates = {};
     state.feedbackDrafts = {};
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): сброс кэша Orchestrator-сессий.
+    state.orchestrators = {};
+    // KI-250 (v2.0.1): сброс per-block override (при смене чата — новые sessionId).
+    state.debateViewBySessionId = {};
     // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
     state.debateSessionByToolCallId = {};
 
@@ -2208,6 +2236,17 @@ function handleSseEvent(name, data, assistantBubble) {
             handleDebateCompleted(assistantBubble, data);
             break;
 
+        // v2.0.0 (KI-126, Ф3, Шаг 3H): события Orchestrator-Worker.
+        case 'orchestrator_started':
+            handleOrchestratorStarted(assistantBubble, data);
+            break;
+        case 'orchestrator_round':
+            handleOrchestratorRound(assistantBubble, data);
+            break;
+        case 'orchestrator_completed':
+            handleOrchestratorCompleted(assistantBubble, data);
+            break;
+
         case 'done':
             showTypingIndicator(assistantBubble, false);
 
@@ -2608,10 +2647,26 @@ function refreshDebateViews() {
         const sessionId = parseInt(container.dataset.debateSessionId, 10);
         if (!Number.isFinite(sessionId)) return;
 
-        // Обновляем класс и полностью перерендериваем содержимое.
-        container.classList.toggle('chat-debate-dialog', state.debateView === 'dialog');
-        container.classList.toggle('chat-debate-collapsed', state.debateView === 'collapsed');
+        const view = getDebateViewFor(sessionId);
+        container.classList.toggle('chat-debate-dialog', view === 'dialog');
+        container.classList.toggle('chat-debate-collapsed', view === 'collapsed');
         container.innerHTML = renderDebateContainerInner(sessionId);
+    });
+}
+
+/**
+ * KI-250 (v2.0.1): то же для Orchestrator-блоков.
+ */
+function refreshOrchestratorViews() {
+    const containers = document.querySelectorAll('[data-orchestrator-session-id]');
+    containers.forEach(container => {
+        const sessionId = parseInt(container.dataset.orchestratorSessionId, 10);
+        if (!Number.isFinite(sessionId)) return;
+
+        const view = getDebateViewFor(sessionId);
+        container.classList.toggle('chat-debate-dialog', view === 'dialog');
+        container.classList.toggle('chat-debate-collapsed', view === 'collapsed');
+        container.innerHTML = renderOrchestratorContainerInner(sessionId);
     });
 }
 
@@ -2637,7 +2692,7 @@ function refreshDebateViews() {
 function prefillDebatesFromChatDetail(chatDetail) {
     if (!chatDetail) return;
 
-    // 1. Заполнить state.debates[sid] для каждой сессии.
+    // 1. Заполнить state.debates[sid] / state.orchestrators[sid] для каждой сессии.
     const sessions = Array.isArray(chatDetail.debateSessions)
         ? chatDetail.debateSessions
         : [];
@@ -2648,6 +2703,42 @@ function prefillDebatesFromChatDetail(chatDetail) {
         // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): PatternType — ветвление рендера.
         const patternType = s.patternType || 'ActorCritic';
         const isDebate = patternType === 'Debate';
+        const isOrchestrator = patternType === 'Orchestrator';
+
+        // v2.0.0 (KI-126, Ф3, Шаг 3H): Orchestrator — отдельный кэш.
+        if (isOrchestrator) {
+            const subtasks = (Array.isArray(s.rounds) ? s.rounds : []).map(r => ({
+                subtaskId: r.subtaskId,
+                agent: r.subtaskAgent,
+                task: r.subtaskTask,
+                status: r.subtaskStatus || 'pending',
+                result: r.subtaskResult,
+                error: r.subtaskError,
+                durationMs: r.durationMs || 0
+            }));
+
+            state.orchestrators[s.sessionId] = {
+                started: {
+                    sessionId: s.sessionId,
+                    task: s.task || '',
+                    parallel: false,
+                    maxSubtasks: s.totalSubtasks || subtasks.length || 5,
+                    allowedWorkerAgents: [],
+                    humanApproval: s.humanApproval || 'Never'
+                },
+                subtasks,
+                completed: s.finalVerdict ? {
+                    sessionId: s.sessionId,
+                    totalSubtasks: s.totalSubtasks || subtasks.length,
+                    completedSubtasks: s.completedSubtasks || 0,
+                    failedSubtasks: s.failedSubtasks || 0,
+                    finalArtifact: parseFinalArtifact(s.finalArtifactJson),
+                    totalDurationMs: 0
+                } : null
+            };
+
+            continue;  // Orchestrator обработан, не идём в debates.
+        }
 
         state.debates[s.sessionId] = {
             started: {
@@ -2707,10 +2798,12 @@ function prefillDebatesFromChatDetail(chatDetail) {
     }
 
     // 2. Построить маппинг toolCallId → sessionId из tool-сообщений.
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): все multi-agent top-level tools
+    // (code_agent_with_review, planner_with_debate, orchestrate_task).
+    // Используем общий признак — наличие debateSessionId в metadata.
     const messages = Array.isArray(chatDetail.messages) ? chatDetail.messages : [];
     for (const m of messages) {
         if (m.role !== 'tool') continue;
-        if (m.toolName !== 'code_agent_with_review') continue;
         if (!Number.isFinite(m.debateSessionId)) continue;
         if (!m.toolCallId) continue;
         state.debateSessionByToolCallId[m.toolCallId] = m.debateSessionId;
@@ -2792,7 +2885,7 @@ function renderDebateContainerInner(sessionId) {
     if (!entry || !entry.started) return '';
 
     const started = entry.started;
-    const isDialog = state.debateView === 'dialog';
+    const isDialog = getDebateViewFor(sessionId) === 'dialog';
 
     // v1.14.0 (KI-126, Фаза 2, Шаг 2D.1): ветвление по паттерну.
     // ActorCritic (Ф1, code_agent) — Actor + Critic.
@@ -2817,6 +2910,11 @@ function renderDebateContainerInner(sessionId) {
         : L('labelDebateTitle', 'Actor-Critic');
     const icon = isDebate ? '⚖️' : '⚔️';
 
+    const toggleLabel = isDialog
+        ? L('labelDebateViewCollapsed', 'Collapse')
+        : L('labelDebateViewDialog', 'Expand');
+    const toggleIcon = isDialog ? '▼' : '▶';
+
     const headerHtml = `
         <div class="chat-debate-header">
             <span class="chat-debate-icon">${icon}</span>
@@ -2824,6 +2922,11 @@ function renderDebateContainerInner(sessionId) {
             <span class="chat-debate-task" title="${escapeAttr(started.task)}">${escapeHtml(truncateText(started.task, 80))}</span>
             <span class="chat-debate-meta">${escapeHtml(fmt(L('labelDebateMaxRounds', 'Max {0} rounds'), started.maxRounds))}</span>
             ${entry.rounds.length > 0 ? `<span class="chat-debate-rounds-count">${escapeHtml(fmt(L('labelDebateRoundsCount', '{0} rounds'), entry.rounds.length))}</span>` : ''}
+            <button type="button"
+                    class="chat-debate-view-toggle"
+                    data-toggle-session-id="${sessionId}"
+                    title="${escapeAttr(toggleLabel)}"
+                    aria-label="${escapeAttr(toggleLabel)}">${toggleIcon}</button>
         </div>
     `;
 
@@ -3340,6 +3443,262 @@ async function skipFeedback(sessionId) {
     refreshFeedbackBlock(sessionId);
 }
 
+// ============================================================
+// v2.0.0 (KI-126, Ф3, Шаг 3H): Рендер Orchestrator-Worker.
+// ============================================================
+
+/**
+ * Обрабатывает SSE-событие `orchestrator_started`.
+ * @param {HTMLElement} bubble — текущий assistant-пузырь.
+ * @param {object} data — ChatOrchestratorStartedDto.
+ */
+function handleOrchestratorStarted(bubble, data) {
+    if (!bubble || !data?.sessionId) return;
+
+    state.orchestrators[data.sessionId] = {
+        started: { ...data },
+        subtasks: [],
+        completed: null
+    };
+
+    const bodyEl = bubble.querySelector('.chat-message-body');
+    if (!bodyEl) return;
+
+    const existing = bodyEl.querySelector(
+        `[data-orchestrator-session-id="${data.sessionId}"]`);
+    if (existing) return;
+
+    const container = document.createElement('div');
+    container.className = 'chat-debate-block chat-orchestrator-block';
+    container.dataset.orchestratorSessionId = data.sessionId;
+    container.innerHTML = renderOrchestratorContainerInner(data.sessionId);
+
+    const toolsEl = bodyEl.querySelector('.chat-message-tools');
+    if (toolsEl) {
+        toolsEl.appendChild(container);
+    } else {
+        const actionsEl = bodyEl.querySelector('.chat-message-actions');
+        if (actionsEl) {
+            bodyEl.insertBefore(container, actionsEl);
+        } else {
+            bodyEl.appendChild(container);
+        }
+    }
+
+    scrollToBottom();
+}
+
+/**
+ * Обрабатывает SSE-событие `orchestrator_round` — завершена подзадача.
+ * @param {HTMLElement} bubble
+ * @param {object} data — ChatOrchestratorRoundDto.
+ */
+function handleOrchestratorRound(bubble, data) {
+    if (!bubble || !data?.sessionId) return;
+
+    const entry = state.orchestrators[data.sessionId];
+    if (!entry) {
+        console.warn(`[chat] orchestrator_round без orchestrator_started: sessionId=${data.sessionId}`);
+        return;
+    }
+
+    // Заменяем существующую подзадачу по subtaskId или добавляем новую.
+    const existingIdx = entry.subtasks.findIndex(s => s.subtaskId === data.subtaskId);
+    if (existingIdx >= 0) {
+        entry.subtasks[existingIdx] = data;
+    } else {
+        entry.subtasks.push(data);
+    }
+
+    const container = bubble.querySelector(
+        `[data-orchestrator-session-id="${data.sessionId}"]`);
+    if (container) {
+        container.innerHTML = renderOrchestratorContainerInner(data.sessionId);
+    }
+
+    scrollToBottom();
+}
+
+/**
+ * Обрабатывает SSE-событие `orchestrator_completed`.
+ * @param {HTMLElement} bubble
+ * @param {object} data — ChatOrchestratorCompletedDto.
+ */
+function handleOrchestratorCompleted(bubble, data) {
+    if (!bubble || !data?.sessionId) return;
+
+    const entry = state.orchestrators[data.sessionId];
+    if (!entry) {
+        console.warn(`[chat] orchestrator_completed без orchestrator_started: sessionId=${data.sessionId}`);
+        return;
+    }
+
+    entry.completed = data;
+
+    const container = bubble.querySelector(
+        `[data-orchestrator-session-id="${data.sessionId}"]`);
+    if (container) {
+        container.innerHTML = renderOrchestratorContainerInner(data.sessionId);
+    }
+
+    showTypingIndicator(bubble, false);
+    scrollToBottom();
+}
+
+/**
+ * Возвращает HTML блоков Orchestrator для assistant-сообщения (F5-режим).
+ * @param {object} msg
+ * @returns {string}
+ */
+function renderOrchestratorsForMessage(msg) {
+    if (!msg || msg.role !== 'assistant' || !msg.toolCallsJson) return '';
+
+    let calls;
+    try { calls = JSON.parse(msg.toolCallsJson); }
+    catch { return ''; }
+    if (!Array.isArray(calls) || calls.length === 0) return '';
+
+    const sids = new Set();
+    for (const call of calls) {
+        if (call?.function?.name !== 'orchestrate_task') continue;
+        const callId = call.id;
+        if (!callId) continue;
+        const sid = state.debateSessionByToolCallId[callId];
+        if (Number.isFinite(sid) && state.orchestrators[sid]) {
+            sids.add(sid);
+        }
+    }
+
+    if (sids.size === 0) return '';
+
+    return Array.from(sids).map(sid => `
+        <div class="chat-debate-block chat-orchestrator-block"
+             data-orchestrator-session-id="${sid}">
+            ${renderOrchestratorContainerInner(sid)}
+        </div>`).join('');
+}
+
+/**
+ * Рендер содержимого Orchestrator-блока (без внешней обёртки).
+ * @param {number} sessionId
+ * @returns {string} HTML
+ */
+function renderOrchestratorContainerInner(sessionId) {
+    const entry = state.orchestrators[sessionId];
+    if (!entry || !entry.started) return '';
+
+    const started = entry.started;
+    const subtasks = entry.subtasks || [];
+    const completed = entry.completed;
+
+    // Прогресс: completed + failed + rejected считаются как «обработанные».
+    const processed = subtasks.filter(s =>
+        s.status === 'completed' || s.status === 'failed' || s.status === 'rejected').length;
+    const total = completed?.totalSubtasks
+        || started.maxSubtasks
+        || Math.max(subtasks.length, 1);
+    const progressPercent = total > 0
+        ? Math.round(processed / total * 100)
+        : 0;
+
+    const titleText = L('labelOrchestratorTitle', '🎭 Orchestration');
+    const maxSubtasks = started.maxSubtasks || 5;
+    const progressText = fmt(
+        L('labelOrchestratorProgress', '{0} / {1}'),
+        processed, total);
+
+    const isDialog = getDebateViewFor(sessionId) === 'dialog';
+    const toggleLabel = isDialog
+        ? L('labelDebateViewCollapsed', 'Collapse')
+        : L('labelDebateViewDialog', 'Expand');
+    const toggleIcon = isDialog ? '▼' : '▶';
+
+    const headerHtml = `
+        <div class="chat-debate-header">
+            <span class="chat-debate-icon">🎭</span>
+            <span class="chat-debate-title">${escapeHtml(titleText)}</span>
+            <span class="chat-debate-task" title="${escapeAttr(started.task || '')}">${escapeHtml(truncateText(started.task || '', 80))}</span>
+            <span class="chat-debate-meta">${escapeHtml(fmt(L('labelOrchestratorMaxSubtasks', 'Max {0} subtasks'), maxSubtasks))}</span>
+            <span class="chat-orchestrator-progress-text">${escapeHtml(progressText)}</span>
+            <button type="button"
+                    class="chat-debate-view-toggle"
+                    data-toggle-session-id="${sessionId}"
+                    title="${escapeAttr(toggleLabel)}"
+                    aria-label="${escapeAttr(toggleLabel)}">${toggleIcon}</button>
+        </div>`;
+
+    const progressHtml = `
+        <div class="chat-orchestrator-progress">
+            <div class="chat-orchestrator-progress-fill" style="width: ${progressPercent}%"></div>
+        </div>`;
+
+    const subtasksHtml = subtasks.map(st => {
+        const status = String(st.status || 'pending').toLowerCase();
+        const icon = {
+            'completed': '✅',
+            'failed': '❌',
+            'rejected': '⛔',
+            'running': '🔄',
+            'pending': '⏳'
+        }[status] || '⏳';
+
+        const subtaskLabel = fmt(
+            L('labelOrchestratorSubtask', 'Subtask {0}'),
+            st.subtaskId || '?');
+
+        const durationText = st.durationMs > 0
+            ? fmt(L('labelDuration', '{0} с'), (st.durationMs / 1000).toFixed(1))
+            : '';
+
+        const taskPreview = truncateText(st.task || '', 100);
+        const openAttr = (isDialog || status === 'running') ? ' open' : '';
+
+        let bodyHtml = '';
+        if (st.task) {
+            bodyHtml += `<div class="chat-orchestrator-subtask-full-task">`
+                + `<strong>${escapeHtml(L('labelOrchestratorTask', 'Task'))}:</strong> `
+                + `${escapeHtml(st.task)}</div>`;
+        }
+        if (status === 'completed' && st.result) {
+            bodyHtml += `<div class="chat-orchestrator-subtask-result">`
+                + `<strong>${escapeHtml(L('labelOrchestratorResult', 'Result'))}:</strong>`
+                + `<pre>${escapeHtml(st.result)}</pre></div>`;
+        }
+        if ((status === 'failed' || status === 'rejected') && st.error) {
+            bodyHtml += `<div class="chat-orchestrator-subtask-error">`
+                + `<strong>${escapeHtml(L('labelOrchestratorError', 'Error'))}:</strong> `
+                + `${escapeHtml(st.error)}</div>`;
+        }
+
+        return `
+            <details class="chat-orchestrator-subtask" data-status="${escapeAttr(status)}"${openAttr}>
+                <summary class="chat-orchestrator-subtask-header">
+                    <span class="chat-orchestrator-subtask-status">${icon}</span>
+                    <span class="chat-orchestrator-subtask-id">${escapeHtml(subtaskLabel)}</span>
+                    <span class="chat-orchestrator-subtask-agent">${escapeHtml(st.agent || '')}</span>
+                    <span class="chat-orchestrator-subtask-task" title="${escapeAttr(st.task || '')}">${escapeHtml(taskPreview)}</span>
+                    ${durationText ? `<span class="chat-orchestrator-subtask-duration">${escapeHtml(durationText)}</span>` : ''}
+                </summary>
+                <div class="chat-orchestrator-subtask-body">${bodyHtml || '—'}</div>
+            </details>`;
+    }).join('');
+
+    // Финальный артефакт — свёрнут.
+    let finalHtml = '';
+    if (completed?.finalArtifact) {
+        const showLabel = L('labelOrchestratorDetailsShow', '▼ Show results');
+        finalHtml = `
+            <details class="chat-orchestrator-final">
+                <summary class="chat-orchestrator-final-summary">${escapeHtml(showLabel)}</summary>
+                <pre class="chat-orchestrator-final-content">${escapeHtml(completed.finalArtifact)}</pre>
+            </details>`;
+    }
+
+    return `${headerHtml}${progressHtml}
+        <div class="chat-orchestrator-subtasks">${subtasksHtml}</div>
+        ${finalHtml}`;
+}
+
 // ============ Рендер сообщений ============
 
 /**
@@ -3564,6 +3923,9 @@ function renderMessage(msg, opts = {}) {
     // восстанавливаются при F5 через state.debates + маппинг toolCallId.
     const debatesHtml = renderDebatesForMessage(msg);
 
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): блоки Orchestrator — отдельный рендер.
+    const orchestratorsHtml = renderOrchestratorsForMessage(msg);
+
     // User-сообщения — plain text (пользователь пишет текст, а не Markdown).
     // Assistant — полноценный Markdown-рендер.
     const contentHtml = msg.content
@@ -3607,8 +3969,8 @@ function renderMessage(msg, opts = {}) {
 
     // v1.11.0 (KI-129): контейнер .chat-message-tools — для консистентности
     // с live-режимом (в appendAssistantBubble он создаётся заранее).
-    const toolsContent = (toolCallsHtml || debatesHtml)
-        ? `<div class="chat-message-tools">${toolCallsHtml}${debatesHtml}</div>`
+    const toolsContent = (toolCallsHtml || debatesHtml || orchestratorsHtml)
+        ? `<div class="chat-message-tools">${toolCallsHtml}${debatesHtml}${orchestratorsHtml}</div>`
         : '';
 
     return `
@@ -4431,6 +4793,10 @@ function showEmptyState() {
     // v1.11.0 (KI-126, Шаг 1G.2): сброс кэша дебатов.
     state.debates = {};
     state.feedbackDrafts = {};
+    // v2.0.0 (KI-126, Ф3, Шаг 3H): сброс кэша Orchestrator-сессий.
+    state.orchestrators = {};
+    // KI-250 (v2.0.1): сброс per-block override.
+    state.debateViewBySessionId = {};
     // v1.11.0 (KI-129): сброс маппинга toolCallId → sessionId.
     state.debateSessionByToolCallId = {};
 

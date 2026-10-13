@@ -3640,3 +3640,349 @@ pre.chat-katex-fallback {
     line-height: 1.4;
 }
 
+
+/* ============================================================
+   v2.0.0 (KI-126, Ф3, Шаг 3H): Orchestrator-Worker UI.
+   Переиспользует .chat-debate-block / .chat-debate-header.
+   ============================================================ */
+
+/* Прогресс-бар. */
+.chat-orchestrator-progress {
+    height: 4px;
+    background: var(--bs-secondary-bg);
+    border-radius: 2px;
+    margin: .35rem 1rem .5rem;
+    overflow: hidden;
+}
+
+.chat-orchestrator-progress-fill {
+    height: 100%;
+    background: var(--bs-primary);
+    transition: width .3s ease;
+}
+
+/* Текстовый счётчик прогресса в шапке. */
+.chat-orchestrator-progress-text {
+    flex-shrink: 0;
+    font-family: var(--bs-font-monospace);
+    font-size: .75rem;
+    color: var(--bs-emphasis-color);
+    font-weight: 600;
+    padding: 0 .35rem;
+}
+
+/* Список подзадач. */
+.chat-orchestrator-subtasks {
+    padding: 0 .75rem .5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+}
+
+/* Одна подзадача — <details>. */
+.chat-orchestrator-subtask {
+    border: 1px solid var(--bs-border-color);
+    border-left-width: 3px;
+    border-radius: .375rem;
+    background: var(--bs-body-bg);
+    font-size: .82rem;
+    overflow: hidden;
+}
+
+.chat-orchestrator-subtask[data-status="completed"] { border-left-color: var(--bs-success); }
+.chat-orchestrator-subtask[data-status="failed"]    { border-left-color: var(--bs-danger); }
+.chat-orchestrator-subtask[data-status="rejected"]  { border-left-color: var(--bs-danger); }
+.chat-orchestrator-subtask[data-status="running"]   { border-left-color: var(--bs-primary); }
+.chat-orchestrator-subtask[data-status="pending"]   { border-left-color: var(--bs-secondary-color); }
+
+/* Шапка подзадачи. */
+.chat-orchestrator-subtask-header {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .4rem .6rem;
+    cursor: pointer;
+    list-style: none;
+    background: var(--bs-tertiary-bg);
+    user-select: none;
+}
+
+.chat-orchestrator-subtask-header::-webkit-details-marker { display: none; }
+.chat-orchestrator-subtask-header:hover { background: var(--bs-secondary-bg); }
+
+.chat-orchestrator-subtask-status {
+    flex-shrink: 0;
+    font-size: .95rem;
+    line-height: 1;
+}
+
+.chat-orchestrator-subtask-id {
+    flex-shrink: 0;
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    font-size: .78rem;
+}
+
+.chat-orchestrator-subtask-agent {
+    flex-shrink: 0;
+    padding: .05rem .4rem;
+    background: var(--bs-secondary-bg);
+    border-radius: .25rem;
+    font-family: var(--bs-font-monospace);
+    font-size: .7rem;
+    color: var(--bs-body-color);
+}
+
+.chat-orchestrator-subtask-task {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+}
+
+.chat-orchestrator-subtask-duration {
+    flex-shrink: 0;
+    font-family: var(--bs-font-monospace);
+    font-size: .72rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Тело подзадачи. */
+.chat-orchestrator-subtask-body {
+    padding: .5rem .75rem;
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    font-size: .8rem;
+    line-height: 1.5;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.chat-orchestrator-subtask-full-task,
+.chat-orchestrator-subtask-result,
+.chat-orchestrator-subtask-error {
+    margin-bottom: .5rem;
+    word-break: break-word;
+}
+
+.chat-orchestrator-subtask-full-task:last-child,
+.chat-orchestrator-subtask-result:last-child,
+.chat-orchestrator-subtask-error:last-child {
+    margin-bottom: 0;
+}
+
+.chat-orchestrator-subtask-result pre {
+    margin: .25rem 0 0;
+    padding: .5rem .6rem;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    font-size: .75rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.chat-orchestrator-subtask-error {
+    color: var(--bs-danger-text-emphasis);
+}
+
+/* Финальный артефакт. */
+.chat-orchestrator-final {
+    margin: 0 .75rem .75rem;
+    border-top: 1px dashed var(--bs-border-color);
+    padding-top: .5rem;
+}
+
+.chat-orchestrator-final-summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--bs-primary);
+    padding: .15rem 0;
+    user-select: none;
+}
+
+.chat-orchestrator-final-summary::-webkit-details-marker { display: none; }
+.chat-orchestrator-final-summary:hover { text-decoration: underline; }
+
+.chat-orchestrator-final-content {
+    margin: .5rem 0 0;
+    padding: .6rem .8rem;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    font-size: .8rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+
+/* ============================================================
+   KI-250 (v2.0.1): toggle вида дебатов внутри блока.
+   ============================================================ */
+
+.chat-debate-view-toggle {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    font-size: .7rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+.chat-debate-view-toggle:hover {
+    background: var(--bs-body-bg);
+    color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.chat-debate-view-toggle:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 1px;
+}
+
+
+/* ============================================================
+   KI-249 (v2.0.1): Tool-специфичный рендер параметров approval.
+   ============================================================ */
+
+.chat-approval-params {
+    max-height: 40vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    padding: .6rem .75rem;
+    font-size: .85rem;
+    line-height: 1.45;
+}
+
+.chat-approval-content {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+/* Одно поле label + value. */
+.chat-approval-field {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+
+.chat-approval-field-label {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    font-size: .8rem;
+}
+
+.chat-approval-field-value {
+    color: var(--bs-body-color);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: .82rem;
+    line-height: 1.5;
+}
+
+.chat-approval-field-value-mono {
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+}
+
+/* Badge'и (parallel, action, maxSubtasks). */
+.chat-approval-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+}
+
+.chat-approval-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .15rem .5rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    font-size: .75rem;
+    font-family: var(--bs-font-monospace);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+}
+
+/* Code-блок (SQL, Python, JS, JSON). */
+.chat-approval-code {
+    margin: 0;
+    padding: .5rem .65rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    font-size: .75rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+    color: var(--bs-body-color);
+}
+
+.chat-approval-code code {
+    font-family: var(--bs-font-monospace);
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Сырой JSON — когда paramsJson не парсится. */
+.chat-approval-raw {
+    margin: 0;
+    font-family: var(--bs-font-monospace);
+    font-size: .78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--bs-body-color);
+}
+
+/* Свёрнутый блок «Другие поля (N)». */
+.chat-approval-other {
+    margin-top: .25rem;
+    border-top: 1px dashed var(--bs-border-color);
+    padding-top: .4rem;
+}
+
+.chat-approval-other-summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: .78rem;
+    color: var(--bs-primary);
+    padding: .1rem 0;
+    user-select: none;
+}
+
+.chat-approval-other-summary::-webkit-details-marker { display: none; }
+.chat-approval-other-summary:hover { text-decoration: underline; }
+
+.chat-approval-other[open] > .chat-approval-other-summary {
+    margin-bottom: .35rem;
+}

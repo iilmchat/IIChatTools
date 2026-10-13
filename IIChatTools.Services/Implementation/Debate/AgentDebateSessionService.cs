@@ -162,12 +162,19 @@ namespace IIChatTools.Services.Implementation.Debate
             if (snapshot.MaxRounds <= 0) snapshot.MaxRounds = DefaultMaxRounds;
             if (snapshot.TokenBudget <= 0) snapshot.TokenBudget = DefaultTokenBudget;
 
+            // v2.0.0 (KI-126, Фаза 3): PatternType берём из snapshot
+            // с fallback на ActorCritic (backward-compat).
+            if (string.IsNullOrWhiteSpace(snapshot.PatternType))
+            {
+                snapshot.PatternType = PatternActorCritic;
+            }
+
             var session = new AgentDebateSession
             {
                 ChatId = chatId,
                 InitiatedByUserId = userId,
                 Task = task.Trim(),
-                PatternType = PatternActorCritic,
+                PatternType = snapshot.PatternType,
                 Status = StatusPending,
                 FinalVerdict = null,
                 FinalArtifactJson = null,
@@ -294,12 +301,42 @@ namespace IIChatTools.Services.Implementation.Debate
                 }
             }
 
-            // v1.14.0 (KI-126, Фаза 2): ветвление по PatternType.
+            // v1.14.0 (KI-126, Фаза 2) + v2.0.0 (KI-126, Фаза 3):
+            // ветвление по PatternType на 3 паттерна.
             // ActorCritic (Ф1) — Actor + Critic.
             // Debate (Ф2) — Pro + Contra + Judge.
+            // Orchestrator (Ф3) — декомпозитор + subtasks.
             var patternType = session.PatternType ?? PatternActorCritic;
             var isDebate = string.Equals(
                 patternType, "Debate", StringComparison.OrdinalIgnoreCase);
+            var isOrchestrator = string.Equals(
+                patternType, "Orchestrator", StringComparison.OrdinalIgnoreCase);
+            var isActorCritic = !isDebate && !isOrchestrator;
+
+            // v2.0.0 (KI-126, Фаза 3): статистика подзадач — для UI-заголовка.
+            int totalSubtasks = 0;
+            int completedSubtasks = 0;
+            int failedSubtasks = 0;
+
+            if (isOrchestrator)
+            {
+                totalSubtasks = rounds.Count;
+                foreach (var r in rounds)
+                {
+                    if (string.Equals(r.SubtaskStatus, "completed",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        completedSubtasks++;
+                    }
+                    else if (string.Equals(r.SubtaskStatus, "failed",
+                                 StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(r.SubtaskStatus, "rejected",
+                                 StringComparison.OrdinalIgnoreCase))
+                    {
+                        failedSubtasks++;
+                    }
+                }
+            }
 
             return new AgentDebateStatusDto
             {
@@ -317,12 +354,17 @@ namespace IIChatTools.Services.Implementation.Debate
                 HumanApproval = humanApproval,
                 PatternType = patternType,
                 // ActorCritic-роли (v1.11.0).
-                ActorAgent = isDebate ? null : ActorAgentName,
-                CriticAgent = isDebate ? null : CriticAgentName,
+                ActorAgent = isActorCritic ? ActorAgentName : null,
+                CriticAgent = isActorCritic ? CriticAgentName : null,
                 // Debate-роли (v1.14.0).
                 ProAgent = isDebate ? ProAgentName : null,
                 ContraAgent = isDebate ? ContraAgentName : null,
                 JudgeAgent = isDebate ? JudgeAgentName : null,
+                // Orchestrator (v2.0.0, KI-126, Фаза 3):
+                OrchestratorAgent = isOrchestrator ? "orchestrator_planner_agent" : null,
+                TotalSubtasks = isOrchestrator ? totalSubtasks : 0,
+                CompletedSubtasks = isOrchestrator ? completedSubtasks : 0,
+                FailedSubtasks = isOrchestrator ? failedSubtasks : 0,
                 Rounds = rounds.Select(ToRoundDto).ToList()
             };
         }
@@ -453,6 +495,13 @@ namespace IIChatTools.Services.Implementation.Debate
                 ContraOutput = round.ContraOutput,
                 JudgeVerdict = round.JudgeVerdict,
                 JudgeFeedbackJson = round.JudgeFeedbackJson,
+                // Orchestrator (v2.0.0, KI-126, Фаза 3):
+                SubtaskId = round.SubtaskId,
+                SubtaskAgent = round.SubtaskAgent,
+                SubtaskTask = round.SubtaskTask,
+                SubtaskStatus = round.SubtaskStatus,
+                SubtaskResult = round.SubtaskResult,
+                SubtaskError = round.SubtaskError,
                 // Общие:
                 ActorModel = round.ActorModel,
                 CriticModel = round.CriticModel,
@@ -481,9 +530,16 @@ namespace IIChatTools.Services.Implementation.Debate
 
             await _db.SaveChangesAsync(cancellationToken);
 
+            // v2.0.0 (KI-126, Фаза 3): для Orchestrator вердикт = SubtaskStatus
+            // (CriticVerdict / JudgeVerdict = null). Fallback для лога.
+            var logVerdict = round.CriticVerdict
+                ?? round.JudgeVerdict
+                ?? round.SubtaskStatus
+                ?? "n/a";
+
             _logger.LogDebug(
                 "Debate session {SessionId}: раунд {Round} добавлен (verdict={Verdict})",
-                sessionId, round.RoundNumber, round.CriticVerdict);
+                sessionId, round.RoundNumber, logVerdict);
 
             return true;
         }
@@ -541,6 +597,13 @@ namespace IIChatTools.Services.Implementation.Debate
                 ContraOutput = entity.ContraOutput,
                 JudgeVerdict = entity.JudgeVerdict,
                 JudgeFeedbackJson = entity.JudgeFeedbackJson,
+                // Orchestrator (v2.0.0, KI-126, Фаза 3):
+                SubtaskId = entity.SubtaskId,
+                SubtaskAgent = entity.SubtaskAgent,
+                SubtaskTask = entity.SubtaskTask,
+                SubtaskStatus = entity.SubtaskStatus,
+                SubtaskResult = entity.SubtaskResult,
+                SubtaskError = entity.SubtaskError,
                 // Общие:
                 ActorModel = entity.ActorModel,
                 CriticModel = entity.CriticModel,

@@ -1,7 +1,7 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.33,
-**Обновлено:** 2026-10-11
+**Версия:** 1.4.35,
+**Обновлено:** 2026-10-12
 **Назначение:** единый свод правил для команды и ассистента.
 
 При работе над проектом **все** изменения должны соответствовать этим правилам.
@@ -210,6 +210,7 @@
 | KI-203 | 🟡 | ✅ **Fixed (v1.13.x)** | RAG: OCR сканов PDF (Tesseract + PDFtoImage). | — |
 | KI-206 | 🟢 | ✅ Fixed (v1.13.x) | RAG: Page viewer UX (thumbnails, zoom, скролл) | — |
 | KI-207 | 🟢 | ✅ Fixed (v1.13.x) | RAG: Page viewer — text layer + поиск + выделение | — |
+| KI-126 | 🟡 Medium | ✅ **Fixed (v1.11.0 / v1.14.0 / v2.0.0)** | Actor-Critic / Debate / Orchestrator мультиагенты | — |
 
 **Fixed в v1.7.0:** KI-097 (Database Agent), KI-098 (Admin UI whitelist), KI-101 (per-action approval), KI-102 (Admin UI локализация).
 
@@ -279,6 +280,8 @@
 | 2026-10-08 | **1.4.31** | § 7 — KI-206 → Fixed (page viewer UX). **Docs-only.** |
 | 2026-10-08 | **1.4.32** | § 7 — KI-207 → Fixed (text layer + поиск). **Docs-only.** |
 | 2026-10-11 | **1.4.33** | § 4.52 (CS1631 в `try-catch` — паттерн «сохранить в переменную, yield вне блока»), § 4.53 (расширение § 4.34: grep по fake'ам после изменения ЛЮБОГО сервис-интерфейса). **Прецеденты:** KI-230 (`ChatStreamService.ContinueInternalAsync`, `FakeChatService` в `ChatAttachmentsControllerTests`). |
+| 2026-10-12 | **1.4.34** | § 7 — актуализация KI-выжимки: KI-126 → Fixed (Ф3 в v2.0.0). **Docs-only.** |
+| 2026-10-12 | **1.4.35** | § 7 — KI-249 → Fixed (v2.0.1), KI-250 → Fixed (v2.0.1). **Docs-only.** |
 
 ---
 
