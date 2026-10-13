@@ -5906,6 +5906,77 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-251 — RAG: поддержка TIFF / TIF (одностраничные и multipage)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-13 (запрос пользователя).
+- **Файлы (план):**
+  - `IIChatTools.API/appsettings.json` +
+    `appsettings.Development.json` — `Rag:Ingestion:AllowedExtensions`
+    + `.tif`, `.tiff`.
+  - `IIChatTools.API/Views/Chat/Index.cshtml` — `accept` атрибут input.
+  - `IIChatTools.Services/Implementation/Rag/Parsers/ImageOcrParser.cs` —
+    multipage support (Вариант B).
+  - `IIChatTools.Services/Implementation/Rag/TesseractOcrService.cs` —
+    (опционально) обработка multipage через Leptonica / PDFium.
+  - `IIChatTools.Tests/UnitTests/Rag/ImageOcrParserTests.cs` (новый) —
+    покрытие TIFF-кейсов.
+  - `.resx` (RU + EN) — обновить hint в `RagAttachButtonTooltip`
+    («PDF / TXT / MD / CSV / код / TIFF»).
+- **Описание:** Сейчас `Rag:Ingestion:AllowedExtensions` поддерживает
+  6 image-форматов (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`)
+  через `ImageOcrParser` (v1.13.14, KI-238). **TIFF / TIF не входят.**
+  Между тем TIFF — распространённый формат **сканов документов**
+  (паспорта, договоры, факсы, медицинские снимки), особенно в
+  корпоративном документообороте (Windows Fax, Xerox, Canon).
+- **Три этапа реализации:**
+  - **Этап A (минимальный, ~10 мин):**
+    - Добавить `.tif`, `.tiff` в `AllowedExtensions` (RU + EN).
+    - Обновить `accept` в `<input type="file">` + `RagAttachButtonTooltip`.
+    - **Ограничение:** обрабатывается только **первая страница**
+      multipage TIFF (Leptonica `pixRead` по умолчанию).
+  - **Этап B (средний, ~1-2 ч, рекомендуется):**
+    - Multipage support в `ImageOcrParser`:
+      - Определить число страниц через **PDFium** (уже подключён
+        через `PDFtoImage 5.0.0`, умеет TIFF) или **Leptonica**
+        (`pixReadMem` для multipage).
+      - Если страниц > 1 — цикл по страницам, OCR каждой,
+        склейка через `\n\n--- page N ---\n\n`.
+      - Метаданные: `pages`, `parser=ImageOcr+MultiPage`.
+    - Опционально: ограничить `MaxPagesToOcr` (по образцу
+      `Rag:Ingestion:Ocr:MaxPagesToOcr`, default 100).
+  - **Этап C (комплексный, ~3-4 ч, при необходимости):**
+    - Отдельный `TiffParser : IRagDocumentParser`.
+    - Поддержка всех схем сжатия TIFF (LZW / JPEG-in-TIFF / CCITT G4 /
+      Deflate / PackBits).
+    - Приоритет в `RagDocumentParserRegistry` (перед `ImageOcrParser`).
+    - Применять, если Этап B не покроет специфичные сжатия.
+- **Известные подводные камни (ожидаемые):**
+  - **1-bit bilevel CCITT G4** — самая частая схема для сканов;
+    Leptonica обрабатывает штатно.
+  - **JPEG-in-TIFF** — иногда падает на `Pix.LoadFromMemory`;
+    fallback — сохранить байты во временный файл и загрузить
+    через `Pix.LoadFromFile`.
+  - **16-bit grayscale / 32-bit RGBA** — Leptonica конвертирует
+    автоматически, но OCR-качество может быть ниже (Tesseract
+    ожидает 8-bit grayscale / 1-bit bilevel).
+  - **Большие файлы** — multipage TIFF на 50 страниц × 10 MB = 500 MB;
+    нужен `MaxFileSizeBytes` (уже есть — 32 MB default; может
+    потребоваться увеличить).
+- **Не входит:**
+  - OCR для **PDF-сканов** (уже работает с v1.13.x, KI-203).
+  - Поддержка **multi-page PDF** (уже работает через `PdfParser`).
+  - Поддержка форматов **`.webp` (animated), `.heic`, `.avif`** —
+    отдельные KI при необходимости.
+- **Оценка:**
+  - Этап A: ~10 мин.
+  - Этап B: ~1-2 ч.
+  - Этап C: ~3-4 ч (условно, при необходимости).
+- **Рекомендация:** начать с **Этапа B**, зафиксировав в KI-251
+  как единую задачу (A+B вместе).
+
+---
+
 ## Сводка по статусам
 
 | Статус | Кол-во |
