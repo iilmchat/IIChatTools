@@ -1185,6 +1185,23 @@
     <value>Отмена</value>
   </data>
 
+  <!-- ===== v2.1.0 (Фаза 5): Todo Tracking ===== -->
+  <data name="ChatTodoPanelTitle" xml:space="preserve">
+    <value>План задач</value>
+  </data>
+  <data name="ChatTodoStatusPending" xml:space="preserve">
+    <value>Ожидает</value>
+  </data>
+  <data name="ChatTodoStatusInProgress" xml:space="preserve">
+    <value>В работе</value>
+  </data>
+  <data name="ChatTodoStatusCompleted" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="ChatTodoAddButton" xml:space="preserve">
+    <value>Добавить задачу</value>
+  </data>
+
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Попробуйте так:</value>
   </data>

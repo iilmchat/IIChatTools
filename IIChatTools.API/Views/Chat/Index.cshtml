@@ -126,6 +126,23 @@
                     aria-label="@Localizer["ChatSearchInChatClose"]">✕</button>
         </div>
 
+        <!-- v2.1.0 (Фаза 5): план задач чата -->
+        <div id="chat-todo-panel"
+             class="chat-todo-panel d-none"
+             aria-live="polite"
+             data-label-title="@Localizer["ChatTodoPanelTitle"]"
+             data-label-status-pending="@Localizer["ChatTodoStatusPending"]"
+             data-label-status-in-progress="@Localizer["ChatTodoStatusInProgress"]"
+             data-label-status-completed="@Localizer["ChatTodoStatusCompleted"]"
+             data-label-add="@Localizer["ChatTodoAddButton"]">
+            <div class="chat-todo-header">
+                <span class="chat-todo-title"></span>
+                <span id="chat-todo-progress" class="chat-todo-progress"></span>
+                <button id="btn-add-todo" type="button" class="chat-todo-add"></button>
+            </div>
+            <div id="chat-todo-list" class="chat-todo-list"></div>
+        </div>
+
         <!-- Лента сообщений -->
         <div id="chat-messages" class="chat-messages"
              data-speech-enabled="@(Configuration.GetValue<bool>("Speech:Enabled") ? "true" : "false")"

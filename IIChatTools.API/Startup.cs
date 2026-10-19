@@ -653,12 +653,18 @@ namespace IIChatTools.API
             services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
             services.AddSingleton<IJobCancellationRegistry, JobCancellationRegistry>();
             services.AddScoped<IBackgroundJobService, BackgroundJobService>();
+            services.AddScoped<ITodoService, TodoService>();
             services.AddHostedService<BackgroundJobRunner>();
 
             // v2.1.0: Tools для управления фоновыми задачами
             services.AddScoped<ITool, StartBackgroundJobTool>();
             services.AddScoped<ITool, GetJobStatusTool>();
             services.AddScoped<ITool, CancelJobTool>();
+
+            // v2.1.0 (Фаза 5): Todo-tools
+            services.AddScoped<ITool, AddTodoTool>();
+            services.AddScoped<ITool, UpdateTodoStatusTool>();
+            services.AddScoped<ITool, ListTodosTool>();
 
             // ============ 11. Политики авторизации ============
             services.AddAuthorization(options =>

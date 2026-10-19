@@ -104,6 +104,10 @@ const state = {
     jobs: {},
     // jobStreams: jobId → EventSource
     jobStreams: {},
+
+    // v2.1.0 (Фаза 5): план задач чата.
+    todos: [],
+    todoRefreshTimer: null,
 };
 
 // ============ Инициализация ============
@@ -132,6 +136,7 @@ export async function initChatPage() {
 
     bindEvents();
     bindJobsPanelEvents();    // v2.1.0 (Фаза 4): делегирование кнопок «Отмена»
+    bindTodoPanelEvents();    // v2.1.0 (Фаза 5): чек-боксы + «Добавить»
     window.addEventListener('beforeunload', closeAllJobStreams);
     initLightboxHandlers();   // KI-229
 
@@ -1634,8 +1639,10 @@ async function selectChat(chatId) {
     // принудительно сохраняем (blur → save), чтобы не потерять ввод.
     _flushActiveInlineEdit();
 
-    // v2.1.0 (Фаза 4): старые job-SSE не должны переживать смену чата.
+    // v2.1.0 (Фаза 4/5): старые job-SSE и todo-панель не должны
+    // переживать смену чата.
     resetJobsPanel();
+    resetTodoPanel();
 
     const res = await apiGet(`/api/chats/${chatId}`);
     if (!res.success) {
@@ -1679,6 +1686,9 @@ async function selectChat(chatId) {
 
     // v2.1.0 (Фаза 4): восстановить панель фоновых задач после F5/смены чата.
     await loadJobsForChat(chatId);
+
+    // v2.1.0 (Фаза 5): восстановить план задач.
+    await loadTodos(chatId);
 
     enableInput(true);
 
@@ -2093,6 +2103,223 @@ async function maybeGenerateTitle() {
         // Фоновая фича — не показываем toast, только warning в консоль.
         console.warn('[chat] Ошибка AI-title:', ex);
     }
+}
+
+// ============ v2.1.0 (Фаза 5): Todo / план задач ============
+
+/**
+ * Локализованные подписи панели todo (RULES § 4.17: только data-*).
+ * @returns {{title: string, add: string, statuses: Object}}
+ */
+function getTodoLabels() {
+    const panel = document.getElementById('chat-todo-panel');
+    const ds = panel?.dataset || {};
+    return {
+        title: ds.labelTitle || '',
+        add: ds.labelAdd || '',
+        statuses: {
+            Pending: ds.labelStatusPending || '',
+            InProgress: ds.labelStatusInProgress || '',
+            Completed: ds.labelStatusCompleted || ''
+        }
+    };
+}
+
+/**
+ * Загружает todo активного чата (F5 / после tool_result / done).
+ * @param {number} chatId
+ */
+async function loadTodos(chatId) {
+    if (!Number.isFinite(Number(chatId))) return;
+
+    try {
+        const res = await apiGet(`/api/chats/${chatId}/todos`);
+        state.todos = res.success && Array.isArray(res.data) ? res.data : [];
+    } catch (ex) {
+        console.warn('[chat] Не удалось загрузить план задач:', ex);
+        state.todos = [];
+    }
+
+    renderTodoPanel();
+}
+
+/**
+ * Перерисовывает панель todo.
+ */
+function renderTodoPanel() {
+    const panel = document.getElementById('chat-todo-panel');
+    const list = document.getElementById('chat-todo-list');
+    if (!panel || !list) return;
+
+    const labels = getTodoLabels();
+    const hasChat = state.activeChatId != null;
+    panel.classList.toggle('d-none', !hasChat);
+
+    const titleEl = panel.querySelector('.chat-todo-title');
+    if (titleEl) titleEl.textContent = labels.title;
+
+    const addBtn = document.getElementById('btn-add-todo');
+    if (addBtn) addBtn.textContent = labels.add;
+
+    if (!hasChat) {
+        list.innerHTML = '';
+        return;
+    }
+
+    const todos = Array.isArray(state.todos) ? state.todos : [];
+    const completed = todos.filter(t => t.status === 'Completed').length;
+    const progressEl = document.getElementById('chat-todo-progress');
+    if (progressEl) progressEl.textContent = `${completed}/${todos.length}`;
+
+    list.innerHTML = todos.map(todo => renderTodoItem(todo, labels)).join('');
+}
+
+/**
+ * HTML одного пункта плана.
+ * @param {object} todo
+ * @param {object} labels
+ * @returns {string}
+ */
+function renderTodoItem(todo, labels) {
+    const status = todo.status || 'Pending';
+    const statusLabel = labels.statuses[status] || status;
+    const cls = status === 'InProgress'
+        ? 'in-progress'
+        : String(status).toLowerCase().replace(/[^a-z-]/g, '');
+    const glyph = status === 'Completed' ? '☑'
+        : (status === 'InProgress' ? '◐' : '☐');
+
+    return `
+        <div class="chat-todo-item todo-status-${cls}" data-todo-id="${todo.id}">
+            <button type="button"
+                    class="chat-todo-check"
+                    data-todo-toggle="${todo.id}"
+                    data-todo-status="${escapeHtml(status)}"
+                    aria-label="${escapeHtml(statusLabel)}"
+                    title="${escapeHtml(statusLabel)}">${glyph}</button>
+            <span class="chat-todo-text">${escapeHtml(todo.title || '')}</span>
+        </div>`;
+}
+
+/**
+ * Делегирование кликов: чек-боксы + «Добавить».
+ */
+function bindTodoPanelEvents() {
+    const list = document.getElementById('chat-todo-list');
+    const addBtn = document.getElementById('btn-add-todo');
+
+    if (list && list.dataset.todoBound !== '1') {
+        list.dataset.todoBound = '1';
+        list.addEventListener('click', (event) => {
+            const check = event.target.closest('[data-todo-toggle]');
+            if (!check) return;
+            toggleTodoStatus(Number(check.dataset.todoToggle), check.dataset.todoStatus);
+        });
+    }
+
+    if (addBtn && addBtn.dataset.todoBound !== '1') {
+        addBtn.dataset.todoBound = '1';
+        addBtn.addEventListener('click', addTodo);
+    }
+}
+
+/**
+ * Циклически меняет статус: Pending → InProgress → Completed → Pending.
+ * @param {number} todoId
+ * @param {string} currentStatus
+ */
+async function toggleTodoStatus(todoId, currentStatus) {
+    const current = currentStatus || 'Pending';
+    const next = current === 'Pending'
+        ? 'InProgress'
+        : (current === 'InProgress' ? 'Completed' : 'Pending');
+
+    try {
+        const response = await fetch(`/api/chats/${state.activeChatId}/todos/${todoId}`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: next })
+        }).then(r => r.json());
+
+        if (!response.success) {
+            if (response.message) toast(response.message, 'error');
+            return;
+        }
+
+        if (response.data) {
+            state.todos = state.todos.map(t =>
+                t.id === todoId ? { ...t, ...response.data } : t);
+            renderTodoPanel();
+        } else {
+            await loadTodos(state.activeChatId);
+        }
+    } catch (ex) {
+        if (ex?.message) toast(ex.message, 'error');
+    }
+}
+
+/**
+ * Добавляет пункт плана через prompt → POST.
+ */
+async function addTodo() {
+    if (state.activeChatId == null) return;
+
+    const labels = getTodoLabels();
+    const title = window.prompt(labels.add || '');
+    if (title == null || title.trim().length === 0) return;
+
+    try {
+        const res = await apiPost(`/api/chats/${state.activeChatId}/todos`, {
+            title: title.trim()
+        });
+
+        if (!res.success) {
+            if (res.message) toast(res.message, 'error');
+            return;
+        }
+
+        await loadTodos(state.activeChatId);
+    } catch (ex) {
+        if (ex?.message) toast(ex.message, 'error');
+    }
+}
+
+/**
+ * Обновляет todo после tool_result/done (debounce 250 мс).
+ */
+function scheduleTodoRefresh() {
+    if (state.activeChatId == null) return;
+
+    if (state.todoRefreshTimer) clearTimeout(state.todoRefreshTimer);
+    state.todoRefreshTimer = setTimeout(() => {
+        state.todoRefreshTimer = null;
+        if (state.activeChatId != null) loadTodos(state.activeChatId);
+    }, 250);
+}
+
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isTodoTool(name) {
+    return name === 'add_todo' || name === 'update_todo_status';
+}
+
+/**
+ * Сброс панели при смене чата / пустом состоянии.
+ */
+function resetTodoPanel() {
+    if (state.todoRefreshTimer) {
+        clearTimeout(state.todoRefreshTimer);
+        state.todoRefreshTimer = null;
+    }
+    state.todos = [];
+
+    const panel = document.getElementById('chat-todo-panel');
+    const list = document.getElementById('chat-todo-list');
+    panel?.classList.add('d-none');
+    if (list) list.innerHTML = '';
 }
 
 // ============ v2.1.0 (Фаза 4): Background Jobs ============
@@ -2536,6 +2763,8 @@ function handleSseEvent(name, data, assistantBubble) {
 
         case 'tool_result':
             appendToolResultBlock(assistantBubble, data);
+            // v2.1.0 (Фаза 5): LLM могла изменить план — обновим панель.
+            if (isTodoTool(data?.name)) scheduleTodoRefresh();
             break;
 
         case 'tool_approval_required':
@@ -2575,6 +2804,8 @@ function handleSseEvent(name, data, assistantBubble) {
 
         case 'done':
             showTypingIndicator(assistantBubble, false);
+            // v2.1.0 (Фаза 5): статусы todo могли измениться за стрим.
+            scheduleTodoRefresh();
 
             // KI-230: если это Continue-стрим — merge appended в основной
             // контент + markdown-перерендер СУЩЕСТВУЮЩЕГО bubble.
@@ -5103,8 +5334,9 @@ async function onChatModelChanged(e) {
 }
 
 function showEmptyState() {
-    // v2.1.0 (Фаза 4): нет активного чата — нет и панели задач.
+    // v2.1.0 (Фаза 4/5): нет активного чата — нет панелей.
     resetJobsPanel();
+    resetTodoPanel();
 
     const headerEl = document.getElementById('chat-header');
     if (headerEl) {

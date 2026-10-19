@@ -101,6 +101,11 @@ namespace IIChatTools.Services.Implementation
         private const string GetJobStatusToolName = "get_job_status";
         private const string CancelJobToolName = "cancel_job";
 
+        // v2.1.0 (Фаза 5): Todo-tools.
+        private const string AddTodoToolName = "add_todo";
+        private const string UpdateTodoStatusToolName = "update_todo_status";
+        private const string ListTodosToolName = "list_todos";
+
         /// <summary>
         /// v1.11.0 (KI-126, Шаг 1D): имя Actor-Critic оркестратора.
         /// Явно добавляется в <c>allowedNames</c> при построении <c>tools[]</c>
@@ -397,7 +402,12 @@ namespace IIChatTools.Services.Implementation
             "\n" +
             "    Для проверки статуса используй `get_job_status(jobId)`, для отмены — `cancel_job(jobId)`.\n" +
             "\n" +
-            "    НЕ ЖДИ завершения фоновой задачи в текущем стриме.";
+            "    НЕ ЖДИ завершения фоновой задачи в текущем стриме.\n" +
+            "\n" +
+            "18. ДЛЯ СЛОЖНЫХ ЗАДАЧ (3+ шагов, исследование, сборка отчёта) —\n" +
+            "    используй `add_todo`, чтобы составить план. Обновляй статусы\n" +
+            "    через `update_todo_status`. НЕ добавляй todo для простых\n" +
+            "    одношаговых задач.";
 
 
         private readonly IChatService _chatService;
@@ -712,6 +722,20 @@ namespace IIChatTools.Services.Implementation
                 if (!allowedNames.Contains(CancelJobToolName, StringComparer.OrdinalIgnoreCase))
                 {
                     allowedNames.Add(CancelJobToolName);
+                }
+
+                // v2.1.0 (Фаза 5): Todo-tools. RULES § 4.44.
+                if (!allowedNames.Contains(AddTodoToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(AddTodoToolName);
+                }
+                if (!allowedNames.Contains(UpdateTodoStatusToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(UpdateTodoStatusToolName);
+                }
+                if (!allowedNames.Contains(ListTodosToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(ListTodosToolName);
                 }
 
                 tools = ToolDefinitionsBuilder.Build(

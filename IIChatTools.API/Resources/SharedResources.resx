@@ -1185,6 +1185,23 @@
     <value>Cancel</value>
   </data>
 
+  <!-- ===== v2.1.0 (Фаза 5): Todo Tracking ===== -->
+  <data name="ChatTodoPanelTitle" xml:space="preserve">
+    <value>Task Plan</value>
+  </data>
+  <data name="ChatTodoStatusPending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="ChatTodoStatusInProgress" xml:space="preserve">
+    <value>In Progress</value>
+  </data>
+  <data name="ChatTodoStatusCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="ChatTodoAddButton" xml:space="preserve">
+    <value>Add Task</value>
+  </data>
+
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Try one of these:</value>
   </data>

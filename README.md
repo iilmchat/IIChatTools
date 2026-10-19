@@ -399,7 +399,7 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/admin/sql-agent/connections/{name}/reset` | Сбросить к baseline (Admin) |
 ---
 
-## Инструменты (66)
+## Инструменты (72)
 
 | Группа | Кол-во | Требуют подтверждения |
 | :--- | :---: | :---: |
@@ -424,11 +424,14 @@ dotnet run --project IIChatTools.API
 | **+ `external_llm_agent` (v1.8.1)** | **+1** | — |
 | **+ `planner_with_debate` (v1.14.0)** | **+1** | **✅** |
 | **+ `orchestrate_task` (v2.0.0)** | **+1** | **✅** |
-| **Итого (ToolRegistry)** | **66** | — |
+| **+ Background Jobs (v2.1.0)** | **+3** | **✅ (`start`)** |
+| **+ Todo Tracking (v2.1.0)** | **+3** | — |
+| **Итого (ToolRegistry)** | **72** | — |
 
-> **Примечание:** Chat видит **19 инструментов** — 12 не-internal агентов
+> **Примечание:** Chat видит **25 инструментов** — 12 не-internal агентов
 > из `SubAgentRegistry` + `consult_secondary_agent` + 3 RAG-tool
-> + `database_agent` + `vision_agent` + `orchestrate_task`:
+> + `database_agent` + `vision_agent` + `orchestrate_task`
+> + 3 job-tool + 3 todo-tool:
 > **Агенты:** `file_system_agent`, `code_agent`,
 > `code_reviewer_agent` (v1.11.0, KI-126), `code_agent_with_review` (v1.11.0),
 > `browser_agent`, `web_agent`, `git_agent`, `github_agent`, `planner_agent`,
@@ -439,7 +442,10 @@ dotnet run --project IIChatTools.API
 > (v1.5.0, KI-083);
 > **+ `database_agent`** (v1.7.0, KI-097);
 > **+ `vision_agent`** (v1.12.0, KI-131);
-> **+ `orchestrate_task`** (v2.0.0, KI-126 Ф3).
+> **+ `orchestrate_task`** (v2.0.0, KI-126 Ф3);
+> **+ Background Jobs**: `start_background_job`, `get_job_status`, `cancel_job`
+> (v2.1.0, KI-259);
+> **+ Todo**: `add_todo`, `update_todo_status`, `list_todos` (v2.1.0, Фаза 5).
 > Internal-агенты (`planner_pro_agent`, `planner_contra_agent`,
 > `planner_judge_agent`, `orchestrator_planner_agent`) в Chat не публикуются —
 > доступны только внутри оркестраторов (`ChatStreamService` фильтрует `Internal`).
@@ -989,7 +995,7 @@ IIChatTools.API  (net10.0)
   └── Startup.cs: DI + 46 инструментов (40 raw + 6 агентов) + Chat services
       ↓ DI
 IIChatTools.Services  (net10.0)
-  ├── ToolRegistry (66 инструментов: 40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator)
+  ├── ToolRegistry (69 инструментов: 40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator)
   ├── Agents: SubAgentRegistry (Singleton, v1.4.0)
   ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator (Singleton)
   ├── LmStudioClient (SSE-стриминг + tool calling + ModelOverride)
@@ -1127,7 +1133,7 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 1201/1209 тестов проходят (unit + integration), 8 Skip (реальные
+**Статус**: 1216/1224 тестов проходят (unit + integration), 8 Skip (реальные
 провайдеры — DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini;
 Chrome CDP — KI-161).
 

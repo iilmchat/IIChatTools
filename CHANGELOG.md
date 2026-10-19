@@ -18,18 +18,36 @@
 
 ## [Unreleased]
 
+### Planned
+- **KI-262** — Todo: гонка `SortOrder` (v2.1.x).
+- **KI-258** — Cooperative cancellation (v2.1.x).
+- **KI-257** — Durable queue (v2.1.x).
+
+---
+
+## [2.1.0] — 2026-10-20
+
+**Background Jobs + Todo Tracking (v2.1.0).** Фоновые задачи для Orchestrator / Vision / Smoke и список задач (Todo) для LLM.
+
 ### Added
-- **v2.1.0 Фаза 4 — Background Jobs UI**: REST `/api/jobs`, SSE
-  `job_started` / `job_progress` / `job_completed`, панель активных задач
-  в Chat (прогресс, статусы, отмена), локализация RU/EN.
+- **Background Jobs (v2.1.0)**: 
+  - `BackgroundJob` + `ChatTodo` entities, миграция `AddBackgroundJobsAndTodos`.
+  - `BackgroundJobQueue` (Channel<int>, bounded 100).
+  - `BackgroundJobRunner` (HostedService, SemaphoreSlim 2, `CreateLinkedTokenSource`).
+  - `IJobCancellationRegistry` (per-job CTS, linked с хостом).
+  - Tools: `start_background_job`, `get_job_status`, `cancel_job`.
+  - REST + SSE (`/api/jobs/*`), UI-панель с прогресс-баром и EventSource.
+- **Todo Tracking (v2.1.0)**:
+  - `TodoService` + `ChatTodoDto`.
+  - Tools: `add_todo`, `update_todo_status`, `list_todos`.
+  - REST (`/api/chats/{chatId}/todos`), UI-панель `#chat-todo-panel` с чек-боксами.
+  - Правило 18 в `DefaultSystemPrompt`: сложные задачи (3+ шагов) → `add_todo`.
 
 ### Fixed
-- **KI-259** — реальная отмена фоновых задач: `IJobCancellationRegistry`
-  (Singleton), linked `CancellationTokenSource` для runner'а, `Cancel`
-  из `CancelJobTool`/`BackgroundJobsController`, очистка CTS в `finally`.
-- Background Jobs: `GetAsync` переведён на `AsNoTracking` (SSE-прогресс
-  больше не «замерзает»), удалены дублирующиеся регистрации job-tools,
-  отмена задачи больше не перетирается поздним `Completed`/`Failed`.
+- **KI-259** — реальная отмена фоновых задач (per-job CTS).
+- **KI-260** — очередь больше не теряет jobId при переполнении.
+- **KI-261** — лимит `MaxJobsPerUser` теперь enforced.
+- **KI-262** — Todo: гонка `SortOrder` (Planned, v2.1.x).
 
 ## [2.0.3] — 2026-10-19
 
