@@ -106,14 +106,8 @@
   - `_Layout.cshtml` использует `@AppVersion.Current` вместо хардкода.
   - Ключ `"Добро пожаловать в IIChatTools v1.0"` → `"WelcomeTitle"` с плейсхолдером `{0}`.
   - В `Home/Index.cshtml` — `@string.Format(Localizer["WelcomeTitle"].Value, AppVersion.Current)`.
-
----
-
-### KI-031a — Версия в **ключе** .resx ломает локализацию при смене версии
-- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** v1.1.0
-- **Файлы:** `SharedResources.resx`, `SharedResources.ru.resx`
-- **Причина:** Ключ `"Добро пожаловать в IIChatTools v1.0"` содержит версию. При смене версии пришлось бы править ключ и все ссылки в Razor.
-- **Решение:** ключ переименован в `WelcomeTitle`, версия вынесена в плейсхолдер `{0}`.
+  - **Дополнение (ранее KI-031a):** ключ `.resx` больше не содержит версию —
+    при смене версии правится только плейсхолдер `{0}`, а не ключ и все ссылки в Razor.
 
 ---
 
@@ -457,6 +451,9 @@
 - **Файлы:** `IIChatTools.API/wwwroot/css/chat.css`
 - **Описание:** В `.input-group` (textarea + кнопка «Отправить») `textarea` без `min-height` при одном ряде текста «проседала» ниже кнопки — кнопка визуально выступала над/под textarea.
 - **Решение:** `min-height: calc(1.5em + 0.75rem + 2px)` для textarea (стандарт Bootstrap `.form-control`), `.input-group` → `align-items: stretch`, `.btn` → `align-self: stretch; height: auto`.
+- **Дополнение (ранее KI-061a):** остаточная проблема — Bootstrap `box-shadow: 0 0 0 .25rem`
+  при фокусе на textarea расширялся вправо и перекрывал кнопку. Focus-ring перенесён
+  на `.input-group:focus-within`; `textarea:focus` и `.btn:focus` — `box-shadow: none`.
 
 ---
 
@@ -466,15 +463,6 @@
 - **Файлы:** `IIChatTools.API/wwwroot/js/modules/chat.js`
 - **Описание:** При создании нового чата (и при выборе существующего) фокус не переводился в поле ввода — пользователю приходилось кликать по textarea мышкой.
 - **Решение:** В `selectChat()` после `enableInput(true)` добавлен `setTimeout(() => input.focus(), 0)`. Так как `createChat()` вызывает `selectChat()`, оба сценария покрыты. ChatGPT-style.
-
----
-
-### KI-061a — box-shadow фокуса textarea перекрывал кнопку
-- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v1.3.0 (2.1.3.1)
-- **Обнаружено:** 2026-09-23 (smoke-тест) | **Устранено:** 2026-09-23
-- **Файлы:** `IIChatTools.API/wwwroot/css/chat.css`
-- **Описание:** Остаточная проблема KI-061: после фикса `min-height` Bootstrap `box-shadow: 0 0 0 .25rem` при фокусе на textarea расширялся вправо и визуально перекрывал кнопку «Отправить».
-- **Решение:** Focus-ring перенесён с textarea на `.input-group:focus-within` (общая тень вокруг всего блока). `textarea:focus` и `.btn:focus` — `box-shadow: none`.
 
 ---
 
@@ -5923,7 +5911,6 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
-<<<<<<< HEAD
 ### KI-251 — RAG: поддержка TIFF / TIF (одностраничные и multipage)
 
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
@@ -5992,7 +5979,9 @@ requirement) работают **стабильно**. Gantt требует бо�
   - Этап C: ~3-4 ч (условно, при необходимости).
 - **Рекомендация:** начать с **Этапа B**, зафиксировав в KI-251
   как единую задачу (A+B вместе).
-=======
+
+---
+
 ### KI-249 — Redesign модалки approval: человекочитаемые параметры вызова
 
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** v2.0.1
@@ -6084,101 +6073,99 @@ requirement) работают **стабильно**. Gantt требует бо�
   - `Index.cshtml`: удалён `<button>` из header; +2 `data-label-*`.
   - **Smoke:** toggle работает per-block; в collapsed → `▶`, в dialog →
     `▼`; клик разворачивает/сворачивает **только этот блок**.
->>>>>>> 8c61ea2460b74d1192eeccfb2a05c7fced0f4598
+
+---
+
+### KI-252 — KNOWN_ISSUES.md: конфликтные маркеры и расхождение сводки (Зомби-KI)
+
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.0.1)** | **Исправлено в:** v2.0.1
+- **Обнаружено:** 2026-10-19 (аудит документации v2.0.1, `scripts/setup/check-zombie-ki.ps1`).
+- **Файлы:** `docs/KNOWN_ISSUES.md`, `scripts/setup/check-zombie-ki.ps1`.
+- **Симптом:** в HEAD (`c385d7e`) оставались маркеры merge-конфликта; сводка
+  «205 / Всего 198» не соответствовала содержимому; скрипт давал ложное «Зомби-KI!».
+- **Что сделано (v2.0.1, 2026-10-19):**
+  - удалены 3 маркера merge-конфликта (`<<<<<<< HEAD`, `=======`, `>>>>>>>`);
+  - слиты подсекции: `KI-031a` → `KI-031`, `KI-061a` → `KI-061`
+    (содержимое сохранено как «Дополнение (ранее KI-…a)»);
+  - `KI-110a` / `KI-110b` — **не дубли**, а две секции одного номера `KI-110`
+    (Anthropic / Gemini); оставлены как есть;
+  - сводка пересчитана: **236 секций → 234**, **233 уникальных номера**,
+    сумма статусов = **233**;
+  - `check-zombie-ki.ps1` переведён на толерантный по-секционный подсчёт
+    (emoji-статусы; `Implemented`/`Resolved` → `Fixed`).
+- **Проверка:** `pwsh -ExecutionPolicy Bypass -File scripts/setup/check-zombie-ki.ps1`
+  → `Всего KI: 233`, `Сумма статусов: 233`, без предупреждения.
+- **Побочная находка (не входит в KI-252):** `scripts/sync-known-issues.ps1`
+  (KI-214) не парсит суффиксные ID (`KI-110a/b`) — регулярка ждёт `KI-(\d+)`
+  непосредственно перед тире. Кандидат на отдельный KI при следующем пересчёте.
+- **Связанные:** KI-214 (sync с GitHub Issues), `scripts/setup/check-zombie-ki.ps1`.
+
+---
+
+### KI-253 — qa/MANUAL_TESTING_GUIDE.md устарел (v1.8.1, 424 теста)
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-19 (аудит документации v2.0.1).
+- **Файлы:** `docs/qa/MANUAL_TESTING_GUIDE.md` (бывший `docs/TESTING.md`).
+- **Описание:** чек-лист остановился на **v1.8.1**:
+  - smoke-сценарии § 2 — только до v1.8.0 (Mail / External-LLM);
+  - нет сценариев Vision Agent (v1.12.0), Speech Recognition (v1.13.0),
+    Actor-Critic / Debate / Orchestrator (v1.11 / v1.14 / v2.0.0),
+    redesign approval-модалки (KI-249) и toggle дебатов (KI-250);
+  - в § 1 и § 5 указано **424/424** теста, фактически — **1180**;
+  - версия документа 1.8.1, хотя актуальный релиз — v2.0.1.
+- **Что нужно:** bump до v2.0.1; +smoke для `orchestrate_task`, `planner_with_debate`,
+  `code_agent_with_review`, Vision/Speech; актуализировать счётчик тестов и § 5.
+- **Связанные:** KI-088 (создание чек-листа), KI-126, KI-131, KI-140, KI-249, KI-250.
+
+---
+
+### KI-254 — RULES.md § 7: выжимка KI устарела (99 KI vs 230)
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Обнаружено:** 2026-10-19 (аудит документации v2.0.1).
+- **Файлы:** `docs/development/RULES.md` (§ 7 «Отложенные задачи»).
+- **Описание:** выжимка зафиксирована «после релиза v1.13.1»:
+  «**Всего в реестре:** ~99 KI. **Fixed/Resolved:** ~88…» — фактически
+  **230 уникальных KI** (233 заголовка с дублями). Часть строк противоречит
+  реестру: KI-214 в RULES — `Planned`, в KNOWN_ISSUES — `Fixed (v1.13.3)`;
+  KI-147 — `Planned`, в реестре — `Fixed (v1.13.x)`; KI-192/204/205/206
+  помечены в реестре `Planned`, хотя в RULES — исправлены.
+- **Что нужно:** пересобрать § 7 из актуального реестра (или заменить таблицу
+  ссылкой на `KNOWN_ISSUES.md` + автоматический отчёт скрипта).
+- **Связанные:** KI-252 (сводка), `scripts/setup/check-zombie-ki.ps1`.
 
 ---
 
 ## Сводка по статусам
 
+**Пересчитано:** 2026-10-19 (KI-252). Считаются **уникальные номера** `KI-XXX`;
+суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
+
 | Статус | Кол-во |
-|--------|--------|
-| Fixed (v1.0.2) | 8 |
-| Fixed (v1.1.0) | 13 |
-| Fixed (v1.1.1) | 11 |
-| Fixed / Resolved (v1.3.0) | 12 |
-| Fixed / Resolved (v1.3.1) | 6 |
-| Fixed (v1.4.0) | 1 |
-| Fixed (v1.4.1) | 9 |
-| Fixed (v1.4.x) | 1 |
-| Fixed (v1.5.0) | 1 |
-| Fixed (v1.6.0) | 1 |
-| Fixed (v1.7.0) | 4 |
-| Fixed (v1.7.1) | 4 |
-| Fixed (v1.8.0) | 1 |
-| Fixed (v1.8.1) | 1 |
-| Fixed (v1.8.2) | 1 |
-| Fixed (v1.8.x) | 2 |
-| Fixed (v1.9.0) | 3 |
-| Fixed (v1.10.0) | 1 |
-| Fixed (v1.10.1) | 2 |
-| Fixed (v1.11.0) | 9 |
-| Fixed (v1.12.0) | 1 |
-| Fixed (v1.12.x) | 4 |
-| Fixed (v1.13.0) | 1 |
-| Fixed (v1.13.3) | 1 |
-| Fixed (v1.13.6) | 1 |
-| Fixed (v1.13.7) | 1 |
-| Fixed (v1.13.8) | 1 |
-| Fixed (v1.13.9) | 1 |
-| Fixed (v1.13.10) | 1 |
-| Fixed (v1.13.11) | 1 |
-| Fixed (v1.13.12) | 2 |
-| Fixed (v1.13.13) | 1 |
-| Fixed (v1.13.14) | 2 |
-| Fixed (v1.13.15) | 1 |
-| Fixed (v1.13.16) | 1 |
-| Fixed (v1.13.17) | 2 |
-| Fixed (v1.13.x, KI-137/192/194/203/215/216) | 8 |
-| Fixed (v1.14.0) | 1 |
-| Fixed (v2.0.0, KI-126 Ф3) | 1 |
-| Implemented (v1.3.0) | 2 |
-| Implemented (v1.7.0) | 1 |
-| Deferred | 5 |
-| Documented | 13 |
-| Fixed (v2.0.1, KI-249/250) | 2 |
-| Planned | 23 |
-| Partially Fixed | 1 |
-| **Всего** | **205** |
+|--------|-------:|
+| Fixed (включая Implemented / Resolved) | 151 |
+| Planned | 44 |
+| Documented | 24 |
+| Deferred | 8 |
+| Partially Fixed | 4 |
+| In Progress | 1 |
+| Won't Fix | 1 |
+| **Всего** | **233** |
 
-**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX),
-KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси),
-KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса),
-KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
+**Сверка:** 151 + 44 + 24 + 8 + 4 + 1 + 1 = **233**.
 
-**Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
+- **Секций `### KI-`:** 234 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
+- **Уникальных номеров:** 233.
+- **Дублей по полному ID:** 0.
+- **`KI-110a` / `KI-110b`:** две самостоятельные секции одного номера `KI-110`
+  (Anthropic / Gemini); в счёте учитываются один раз.
+- **`Implemented`** (KI-054, KI-055) и **`Resolved`** (KI-008, KI-051)
+  приравнены к `Fixed` (как и в `check-zombie-ki.ps1`).
+- **`In Progress`:** KI-234 — единственный.
 
-**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies),
-KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia),
-KI-070 (Sqlite stale DB), KI-093 (SQLite locked — дубль), KI-094 (Wikipedia timeout),
-KI-095 (snippet dupe), KI-112 (Docker без git/gh), KI-114 (Ok при Completed=false),
-KI-117 (LM Studio context), KI-118 (code_agent для простых), KI-120 (галлюцинация count),
-KI-144 (virtual audio device), KI-239 (mermaid gantt), KI-241 (Debate tokens) — 13 итого.
-
-**Deferred:** KI-047 (fallback PATCH/DELETE), KI-053 (multi-user approvals),
-KI-082 (модалка-редактор), KI-096 (GitHub Wiki), KI-099 (внешние БД).
-
-**Planned:** KI-108 (per-user mail), KI-111 (mail_agent context), KI-113 (mail success),
-KI-128 (browser_agent), KI-138 (PII masking), KI-139 (External VL),
-KI-141 (Yandex VL — Fixed v1.13.9, но пусть будет), KI-143 (Avalonia),
-KI-146 (device fallback), KI-147 (ARCHITECTURE), KI-204 (OCR progress),
-KI-205 (page viewer — Fixed v1.13.x, но пусть будет), KI-214 (KI sync — Fixed),
-KI-234..237 (Chat UX), KI-240 (Feedback Admin UI), KI-242 (PostgreSQL),
-KI-243 (Qdrant) — 18 итого.
-
-**Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
-
-**Всего в реестре:** 198 KI.
-
-**Примечание (2026-10-12):** расхождения в подсчёте категорий — результат
-накопленных правок с v1.0 (некоторые KI переводились из Planned в Fixed
-без обновления сводки). Приведено к соответствию с фактическим содержимым.
-**Fixed / Resolved (v1.3.0):** KI-046 (MessageCount), KI-050 (rate limiting UX), KI-051 (анализаторы), KI-058 (модалка approvals UX), KI-059 (placeholder как прокси), KI-060 (user-Markdown), KI-061 (textarea/кнопка), KI-061a (box-shadow фокуса), KI-062 (фокус), KI-063 (Stop-кнопка), KI-065 (Retry после Stop), KI-066 (Copy после done).
-**Implemented (v1.3.0):** KI-054 (approvals в чате), KI-055 (tool calling в чате).
-**Documented:** KI-007 (gh метки), KI-009 (SSO-сайты), KI-032 (старые cookies), KI-043 (RateLimitingMiddleware memory), KI-049 (tokens=null в stream), KI-064 (SSL wikipedia), KI-070 (Sqlite stale DB).
-**Deferred:** KI-047 (fallback PATCH/DELETE), KI-052 (специализированные суб-агенты), KI-053 (multi-user approvals), KI-067 (per-user chat retention), KI-068 (search by message content), KI-069 (inline-edit в sidebar).
-**Partially Fixed:** KI-057 (embedding-модели — TODO v1.3.x).
-**Implemented (v1.7.0):** KI-088 (`docs/TESTING.md` — чек-лист ручной приёмки).
-**Всего в реестре:** 198 KI.
+Проверка: `pwsh -ExecutionPolicy Bypass -File scripts/setup/check-zombie-ki.ps1`
+→ `Всего KI: 233`, `Сумма статусов: 233`.
 
 ---
 

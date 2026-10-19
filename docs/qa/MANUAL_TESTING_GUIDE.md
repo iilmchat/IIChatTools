@@ -1,9 +1,12 @@
-# TESTING.md — Чек-лист ручной приёмки IIChatTools
+# MANUAL_TESTING_GUIDE.md — Чек-лист ручной приёмки IIChatTools
+
+> **Расположение:** `docs/qa/MANUAL_TESTING_GUIDE.md` (переименован из `docs/TESTING.md`
+> при реорганизации документации v2.0.1).
 
 **Версия:** 1.8.1
 **Обновлено:** 2026-09-30
 **Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0), KI-103 (локализация `/status` — v1.7.1), KI-104 (PDF/DOCX парсеры — v1.7.1), KI-107 (Mail Agent — v1.8.0), KI-109 (External-LLM Agent — v1.8.1).
-**Связанные DESIGN:** [v1.3](development/v1.3/DESIGN.md) (Chat UI), [v1.4](development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](development/v1.5/DESIGN.md) (RAG), [v1.7](development/v1.7/DESIGN_DB_AGENT.md) (Database Agent).
+**Связанные DESIGN:** [v1.3](../development/v1.3/DESIGN.md) (Chat UI), [v1.4](../development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](../development/v1.5/DESIGN.md) (RAG), [v1.7](../development/v1.7/DESIGN_DB_AGENT.md) (Database Agent).
 
 ---
 
@@ -23,7 +26,7 @@
 - **UI/UX** (§ 4) — локализация, вёрстка, hotkeys. ~15 минут.
 - **Что НЕ покрыто** (§ 5) — важно: явный список того, что проверять **вручную**.
 
-**Дефект →** фиксировать в [KNOWN_ISSUES.md](KNOWN_ISSUES.md) с номером `KI-XXX` (RULES § 1.13).
+**Дефект →** фиксировать в [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) с номером `KI-XXX` (RULES § 1.13).
 
 ---
 

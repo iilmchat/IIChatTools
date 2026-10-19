@@ -3,7 +3,7 @@
 **Версия:** v1.13.1
 **Дата:** 2026-10-04 (обновлено)
 **Статус:** MVP Released (v1.13.1, fix1-fix11)
-**Связанные документы:** [RULES.md](../../RULES.md) · [DESIGN v1.11 (Actor-Critic)](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) · [ARCHITECTURE.md](../../ARCHITECTURE.md) · KI-140 · KI-144 · KI-145 · KI-146
+**Связанные документы:** [RULES.md](../RULES.md) · [DESIGN v1.11 (Actor-Critic)](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) · [ARCHITECTURE.md](../ARCHITECTURE.md) · KI-140 · KI-144 · KI-145 · KI-146
 
 ---
 
@@ -1200,10 +1200,10 @@ DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini).
 - [MediaStreamTrackProcessor (WebCodecs)](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrackProcessor)
 - [Web Audio API — decodeAudioData](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData)
 - [MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)
-- [KI-140](../KNOWN_ISSUES.md#ki-140) — Speech Recognition
-- [KI-144](../KNOWN_ISSUES.md#ki-144) — virtual audio device
-- [KI-145](../KNOWN_ISSUES.md#ki-145) — device picker
-- [KI-146](../KNOWN_ISSUES.md#ki-146) — fallback + дедупликация
+- [KI-140](../../KNOWN_ISSUES.md#ki-140) — Speech Recognition
+- [KI-144](../../KNOWN_ISSUES.md#ki-144) — virtual audio device
+- [KI-145](../../KNOWN_ISSUES.md#ki-145) — device picker
+- [KI-146](../../KNOWN_ISSUES.md#ki-146) — fallback + дедупликация
 
 ---
 

@@ -522,7 +522,7 @@ Top-level `ITool` в Chat (не наследник `AgentToolBase` — по об
 - [ARCHITECTURE.md](../ARCHITECTURE.md) — обзор архитектуры.
 - [DESIGN v1.4](../v1.4/DESIGN.md) — Multi-Agent (база).
 - [DESIGN v1.8 External-LLM](../v1.8/DESIGN_EXTERNAL_LLM.md) — эскалация.
-- [KI-126](../KNOWN_ISSUES.md#ki-126) — запись в реестре.
+- [KI-126](../../KNOWN_ISSUES.md#ki-126) — запись в реестре.
 
 ---
 

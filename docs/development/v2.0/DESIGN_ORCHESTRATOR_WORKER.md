@@ -4,7 +4,7 @@
 **Дата:** 2026-10-12
 **Статус:** Draft — ждёт согласования перед реализацией.
 **Релиз-цель:** v2.0.0 (Major — финальная часть мультиагентной трилогии).
-**Связанные документы:** [RULES.md](../../RULES.md) · [DESIGN_MULTI_AGENT_DEBATE.md](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) · [ARCHITECTURE.md](../ARCHITECTURE.md) · KI-126 · KI-244 (Reflection — отдельно).
+**Связанные документы:** [RULES.md](../RULES.md) · [DESIGN_MULTI_AGENT_DEBATE.md](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) · [ARCHITECTURE.md](../ARCHITECTURE.md) · KI-126 · KI-244 (Reflection — отдельно).
 
 ---
 
@@ -627,7 +627,7 @@ LM Studio на 4B-модели не любит **параллельные** вы
 
 - [DESIGN_MULTI_AGENT_DEBATE.md](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) — Ф1/Ф2 (Actor-Critic + Debate).
 - [DESIGN v1.8 External-LLM](../v1.8/DESIGN_EXTERNAL_LLM.md) — circuit breaker + budget tracker.
-- [RULES.md](../../RULES.md) — § 4.44, § 4.51, § 4.52, § 4.53.
+- [RULES.md](../RULES.md) — § 4.44, § 4.51, § 4.52, § 4.53.
 - [ARCHITECTURE.md](../ARCHITECTURE.md) — ADR-002, ADR-016.
 - [KI-126](../../KNOWN_ISSUES.md#ki-126) — родительский KI (Ф1 → Ф2 → Ф3).
 - KI-244 (Reflection — planned).

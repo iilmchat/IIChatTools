@@ -26,8 +26,22 @@
 - **KI-246** — Fallback на другого воркера при fail в Orchestrator (v2.0.x).
 - **KI-247** — Pre-checks circuit breaker / budget на уровне Orchestrator (v2.0.x).
 - **KI-248** — Human-in-the-loop между подзадачами Orchestrator (v2.0.x).
-- **KI-249** — Redesign модалки approval (человекочитаемые params) (v2.0.x).
-- **KI-250** — Toggle вида дебатов в блок (Вариант 3) (v2.0.x).
+- **KI-251** — RAG: поддержка TIFF / TIF (v2.0.x).
+- **KI-253** — qa/MANUAL_TESTING_GUIDE.md устарел (v2.0.x).
+- **KI-254** — RULES.md § 7: выжимка KI устарела (v2.0.x).
+
+### Changed
+- **Документация v2.0.1 — реорганизация `docs/`**:
+  - новый хаб [`docs/README.md`](docs/README.md) (навигация по ролям);
+  - `docs/TESTING.md` → [`docs/qa/MANUAL_TESTING_GUIDE.md`](docs/qa/MANUAL_TESTING_GUIDE.md);
+  - разделы Chat UI / Multi-Agent / RAG вынесены из README в
+    [`docs/user_guide/USER_GUIDE.md`](docs/user_guide/USER_GUIDE.md);
+  - добавлены каталоги `docs/development/adr/` и `docs/development/reports/`;
+  - README: актуализированы метрики (66 инструментов, 19 tools в Chat) и ссылки;
+  - исправлены 9 битых относительных ссылок в design-документах.
+
+### Fixed
+- **KI-252** — Merge-маркеры и дубли в `KNOWN_ISSUES.md`, пересчёт сводки (233 KI).
 
 ---
 
