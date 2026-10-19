@@ -96,5 +96,11 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
             => string.Equals(status, "Completed", StringComparison.Ordinal)
             || string.Equals(status, "Failed", StringComparison.Ordinal)
             || string.Equals(status, "Cancelled", StringComparison.Ordinal);
+
+        public async Task<int> CountActiveByUserAsync(int userId)
+        {
+            return await _db.BackgroundJobs
+                .CountAsync(j => j.UserId == userId && (j.Status == "Pending" || j.Status == "Running"));
+        }
     }
 }

@@ -6175,25 +6175,33 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-259 — Background Jobs: отмена не останавливает выполнение
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.1.0)** | **Исправлено в:** v2.1.0
 - **Обнаружено:** 2026-10-20 (Фаза 4, DSH).
-- **Файлы:** `BackgroundJobsController.cs`, `BackgroundJobRunner.cs`, `CancelJobTool.cs`, `BackgroundJobService.cs`.
-- **Описание:** `POST /api/jobs/{id}/cancel` и `cancel_job` только меняют
-  `Status` на `Cancelled`. `BackgroundJobRunner` передаёт в tool
+- **Файлы:** `BackgroundJobsController.cs`, `BackgroundJobRunner.cs`, `CancelJobTool.cs`, `JobCancellationRegistry.cs`.
+- **Описание:** `POST /api/jobs/{id}/cancel` и `cancel_job` только меняли
+  `Status` на `Cancelled`. `BackgroundJobRunner` передавал в tool
   `stoppingToken` хоста, а не per-job CTS, поэтому Orchestrator/Vision/Smoke
-  продолжают выполняться (тратят токены/CPU, Vision управляет мышью).
-  Фаза 4 добавила защиту «не перетирать Cancelled» после возврата tool,
-  но это не останавливает саму работу.
-- **Решение:** `IJobCancellationRegistry` (Singleton, `jobId → CTS`);
-  `Cancel` вызывает `Cancel()`, `ToolExecutionContext.CancellationToken` —
-  linked token; `CancelRequestedAt`, статус `Cancelling`; тест на реальную
-  остановку (или документированный grace).
+  продолжали выполняться (тратили токены/CPU, Vision управлял мышью).
+- **Реализовано (v2.1.0, 2026-10-20):**
+  - `IJobCancellationRegistry` + `JobCancellationRegistry` (Singleton,
+    `ConcurrentDictionary<int, CancellationTokenSource>`);
+  - `CancelJobTool` и `BackgroundJobsController.Cancel` после
+    `UpdateStatusAsync("Cancelled")` вызывают `_cancellationRegistry.Cancel(id)`;
+  - `BackgroundJobRunner`: `jobCts = GetOrCreate(jobId)` +
+    `CreateLinkedTokenSource(hostToken, jobCts.Token)`; `effectiveToken`
+    передаётся в `ToolExecutionContext.CancellationToken` и progress-pump;
+  - `Remove(jobId)` + `Dispose()` в `finally`; повторная проверка статуса
+    перед стартом (отмена Pending);
+  - DI: `AddSingleton<IJobCancellationRegistry, JobCancellationRegistry>()`;
+  - +4 unit-теста реестра.
+- **Осталось:** кооперативность самих tool'ов (Puppeteer/LLM могут не
+  проверять `ct` между шагами) — см. KI-258.
 - **Связанные:** KI-260, `DESIGN_BACKGROUND_JOBS § 9.7`.
 
 ---
 
 ### KI-260 — BackgroundJobQueue: DropWrite теряет задачи
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.1.0)** | **Исправлено в:** v2.1.0
 - **Обнаружено:** 2026-10-20 (Фаза 4, DSH).
 - **Файлы:** `BackgroundJobQueue.cs`, `StartBackgroundJobTool.cs`.
 - **Описание:** `Channel.CreateBounded(..., FullMode = DropWrite)`;
@@ -6208,7 +6216,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-261 — Background Jobs: не enforced MaxJobsPerUser
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.1.0)** | **Исправлено в:** v2.1.0
 - **Обнаружено:** 2026-10-20 (Фаза 4, DSH).
 - **Файлы:** `StartBackgroundJobTool.cs`, `BackgroundJobOptions.cs`.
 - **Описание:** `BackgroundJobOptions.MaxJobsPerUser = 3` объявлен, но
@@ -6228,8 +6236,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 152 |
-| Planned | 50 |
+| Fixed (включая Implemented / Resolved) | 155 |
+| Planned | 47 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 4 |
@@ -6237,7 +6245,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **240** |
 
-**Сверка:** 152 + 50 + 24 + 8 + 4 + 1 + 1 = **240**.
+**Сверка:** 155 + 47 + 24 + 8 + 4 + 1 + 1 = **240**.
 
 - **Секций `### KI-`:** 241 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
 - **Уникальных номеров:** 240.

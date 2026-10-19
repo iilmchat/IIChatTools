@@ -9,10 +9,14 @@ namespace IIChatTools.Services.Implementation.Tools.BackgroundJobs
     public class CancelJobTool : ITool
     {
         private readonly IBackgroundJobService _jobService;
+        private readonly IJobCancellationRegistry _cancellationRegistry;
 
-        public CancelJobTool(IBackgroundJobService jobService)
+        public CancelJobTool(
+            IBackgroundJobService jobService,
+            IJobCancellationRegistry cancellationRegistry)
         {
             _jobService = jobService;
+            _cancellationRegistry = cancellationRegistry;
         }
 
         public string Name => "cancel_job";
@@ -38,6 +42,12 @@ namespace IIChatTools.Services.Implementation.Tools.BackgroundJobs
                 return ToolResult.Fail($"Задача уже завершена (статус: {job.Status}).");
 
             await _jobService.UpdateStatusAsync(job.Id, "Cancelled", job.Progress, "Отменено пользователем");
+
+            // KI-259: будим runner/tool реальным CancellationToken.
+            // Если задача ещё в очереди — CTS отсутствует, но runner
+            // увидит статус Cancelled и не запустит её.
+            _cancellationRegistry.Cancel(job.Id);
+
             return ToolResult.Ok(new { jobId = job.Id, status = "Cancelled" }, "Задача отменена.");
         }
     }

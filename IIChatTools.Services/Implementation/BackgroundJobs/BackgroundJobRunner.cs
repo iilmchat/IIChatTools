@@ -18,6 +18,7 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
     {
         private readonly IBackgroundJobQueue _queue;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IJobCancellationRegistry _cancellationRegistry;
         private readonly ILogger<BackgroundJobRunner> _logger;
         private readonly BackgroundJobOptions _options;
         private readonly SemaphoreSlim _semaphore;
@@ -25,11 +26,13 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
         public BackgroundJobRunner(
             IBackgroundJobQueue queue,
             IServiceScopeFactory scopeFactory,
+            IJobCancellationRegistry cancellationRegistry,
             ILogger<BackgroundJobRunner> logger,
             IOptions<BackgroundJobOptions> options)
         {
             _queue = queue;
             _scopeFactory = scopeFactory;
+            _cancellationRegistry = cancellationRegistry;
             _logger = logger;
             _options = options.Value;
             _semaphore = new SemaphoreSlim(_options.MaxConcurrentJobs);
@@ -68,14 +71,32 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
             var job = await jobService.GetAsync(jobId);
             if (job == null || job.Status == "Cancelled") return;
 
-            _logger.LogInformation("Starting job {JobId} of type {Type}", jobId, job.Type);
-            await jobService.UpdateStatusAsync(jobId, "Running", 0, "Инициализация...");
+            // KI-259: per-job CTS. Связываем с stoppingToken хоста — отмена
+            // задачи или graceful shutdown останавливают tool.
+            var jobCts = _cancellationRegistry.GetOrCreate(jobId);
 
             Channel<ChatStreamEvent> eventChannel = null;
             Task pumpTask = null;
+            CancellationTokenSource linkedCts = null;
 
             try
             {
+                linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, jobCts.Token);
+                var effectiveToken = linkedCts.Token;
+
+                // Между проверкой job и созданием CTS отмена могла уже прийти
+                // (job.Status = Cancelled). Повторно проверяем, чтобы не
+                // запускать tool после отмены.
+                var latestBeforeStart = await jobService.GetAsync(jobId);
+                if (latestBeforeStart == null || latestBeforeStart.Status == "Cancelled")
+                {
+                    _logger.LogInformation("Job {JobId}: cancelled before start", jobId);
+                    return;
+                }
+
+                _logger.LogInformation("Starting job {JobId} of type {Type}", jobId, job.Type);
+                await jobService.UpdateStatusAsync(jobId, "Running", 0, "Инициализация...");
+
                 // Параметры, которые передал LLM при запуске
                 var parameters = JObject.Parse(job.ParametersJson);
                 
@@ -87,7 +108,7 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
                     UserId = job.UserId,
                     ChatId = job.ChatId,
                     WorkspaceRoot = workspaceRoot,
-                    CancellationToken = ct
+                    CancellationToken = effectiveToken
                 };
 
                 ToolResult result = null;
@@ -120,7 +141,7 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
                 eventChannel = Channel.CreateUnbounded<ChatStreamEvent>(
                     new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
                 context.EventWriter = eventChannel.Writer;
-                pumpTask = PumpProgressAsync(eventChannel.Reader, jobId, ct);
+                pumpTask = PumpProgressAsync(eventChannel.Reader, jobId, effectiveToken);
 
                 // ВАЖНО: KI-260 — мы выполняем тул в фоне. Если тул требует approval,
                 // он либо упадёт, либо выполнится (в зависимости от реализации). 
@@ -171,12 +192,15 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
                 if (pumpTask != null)
                 {
                     try { await pumpTask; }
-                    catch (OperationCanceledException) { /* host shutdown */ }
+                    catch (OperationCanceledException) { /* job cancel / host shutdown */ }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Job {JobId}: progress pump failed", jobId);
                     }
                 }
+
+                linkedCts?.Dispose();
+                _cancellationRegistry.Remove(jobId);
             }
         }
 

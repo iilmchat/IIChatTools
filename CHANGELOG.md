@@ -24,6 +24,9 @@
   в Chat (прогресс, статусы, отмена), локализация RU/EN.
 
 ### Fixed
+- **KI-259** — реальная отмена фоновых задач: `IJobCancellationRegistry`
+  (Singleton), linked `CancellationTokenSource` для runner'а, `Cancel`
+  из `CancelJobTool`/`BackgroundJobsController`, очистка CTS в `finally`.
 - Background Jobs: `GetAsync` переведён на `AsNoTracking` (SSE-прогресс
   больше не «замерзает»), удалены дублирующиеся регистрации job-tools,
   отмена задачи больше не перетирается поздним `Completed`/`Failed`.

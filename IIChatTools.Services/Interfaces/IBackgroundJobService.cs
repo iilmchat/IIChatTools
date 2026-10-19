@@ -25,5 +25,7 @@ namespace IIChatTools.Services.Interfaces
         Task UpdateStatusAsync(
             int jobId, string status, int progress, string message,
             string resultJson = null, string error = null);
+
+        Task<int> CountActiveByUserAsync(int userId);
     }
 }

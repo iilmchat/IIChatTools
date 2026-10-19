@@ -33,18 +33,23 @@ namespace IIChatTools.API.Controllers
         private const int MaxListItems = 50;
 
         private readonly IBackgroundJobService _jobs;
+        private readonly IJobCancellationRegistry _cancellationRegistry;
         private readonly ILogger<BackgroundJobsController> _logger;
 
         /// <summary>
         /// Создаёт контроллер.
         /// </summary>
         /// <param name="jobs">Сервис фоновых задач.</param>
+        /// <param name="cancellationRegistry">Реестр токенов отмены (KI-259).</param>
         /// <param name="logger">Логгер.</param>
         public BackgroundJobsController(
             IBackgroundJobService jobs,
+            IJobCancellationRegistry cancellationRegistry,
             ILogger<BackgroundJobsController> logger)
         {
             _jobs = jobs ?? throw new ArgumentNullException(nameof(jobs));
+            _cancellationRegistry = cancellationRegistry
+                ?? throw new ArgumentNullException(nameof(cancellationRegistry));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -118,6 +123,10 @@ namespace IIChatTools.API.Controllers
 
             await _jobs.UpdateStatusAsync(
                 id, "Cancelled", job.Progress, "Отменено пользователем");
+
+            // KI-259: реально будим tool; иначе Orchestrator/Vision
+            // продолжат работать до естественного завершения.
+            _cancellationRegistry.Cancel(id);
 
             var updated = await _jobs.GetAsync(id);
             _logger.LogInformation(

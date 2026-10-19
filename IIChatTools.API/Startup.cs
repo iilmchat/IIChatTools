@@ -651,6 +651,7 @@ namespace IIChatTools.API
             // Background Jobs (v2.1.0)
             services.Configure<BackgroundJobOptions>(Configuration.GetSection("BackgroundJobs"));
             services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
+            services.AddSingleton<IJobCancellationRegistry, JobCancellationRegistry>();
             services.AddScoped<IBackgroundJobService, BackgroundJobService>();
             services.AddHostedService<BackgroundJobRunner>();
 

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
+using IIChatTools.Services.DTO.BackgroundJobs;
 using IIChatTools.Services.Interfaces;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Implementation.Tools.BackgroundJobs
@@ -11,11 +13,16 @@ namespace IIChatTools.Services.Implementation.Tools.BackgroundJobs
     {
         private readonly IBackgroundJobService _jobService;
         private readonly IBackgroundJobQueue _queue;
+        private readonly IOptions<BackgroundJobOptions> _options;
 
-        public StartBackgroundJobTool(IBackgroundJobService jobService, IBackgroundJobQueue queue)
+        public StartBackgroundJobTool(
+            IBackgroundJobService jobService,
+            IBackgroundJobQueue queue,
+            IOptions<BackgroundJobOptions> options)
         {
             _jobService = jobService;
             _queue = queue;
+            _options = options;
         }
 
         public string Name => "start_background_job";
@@ -38,8 +45,16 @@ namespace IIChatTools.Services.Implementation.Tools.BackgroundJobs
             if (type != "Orchestrator" && type != "Vision" && type != "Smoke")
                 return ToolResult.Fail($"Неизвестный тип задачи: '{type}'. Допустимые: Orchestrator, Vision, Smoke.");
 
+            // KI-261: enforce MaxJobsPerUser
+            var activeCount = await _jobService.CountActiveByUserAsync(context.UserId);
+            var maxPerUser = _options.Value.MaxJobsPerUser;
+            if (activeCount >= maxPerUser)
+                return ToolResult.Fail(
+                    $"У вас уже {activeCount} активных фоновых задач (максимум {maxPerUser}). " +
+                    "Дождитесь завершения или отмените их.");
+
             var job = await _jobService.CreateAsync(context.UserId, context.ChatId, type, parameters.ToString(Newtonsoft.Json.Formatting.None));
-            
+
             if (!_queue.TryEnqueue(job.Id))
             {
                 await _jobService.UpdateStatusAsync(job.Id, "Failed", 0, "Очередь переполнена", error: "Очередь переполнена");
