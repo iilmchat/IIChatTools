@@ -750,6 +750,7 @@ namespace IIChatTools.API
             services.AddScoped<ITool, FindFilesTool>();
             services.AddScoped<ITool, GetFileMetadataTool>();
             services.AddScoped<ITool, FuzzyFindLocalFilesTool>();
+            services.AddScoped<ITool, GrepCodeTool>(); // <--- ДОБАВИТЬ ЭТО
         }
 
         /// <summary>
