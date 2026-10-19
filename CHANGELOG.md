@@ -18,6 +18,23 @@
 
 ## [Unreleased]
 
+## [2.0.3] — 2026-10-19
+
+**Browser Smoke Runner (KI-256).** Декларативные E2E-сценарии через `browser_session_control`.
+
+### Added
+- **KI-256**: Команда `run_smoke` в `browser_session_control` (по образцу DSH UI CDP Smoke). Поддерживает `goto`, `click`, `click_by_text`, `type`, `press_key`, `wait_for_selector`, `assert_text`, `assert_selector`, `screenshot`, `wait`. Авто-скриншоты, таймауты, graceful fail.
+
+### Changed
+- **KI-257, KI-258**: Заведены как Planned (архитектурный долг browser-инструментов и регистрозависимость `assert_text`).
+- **Docs**: README метрики обновлены (1209 тестов).
+
+### Added
+- **KI-256** — `browser_session_control:run_smoke`: декларативный smoke-сценарий
+  (goto / click / click_by_text / type / press_key / wait_for_selector /
+  assert_text / assert_selector / screenshot / wait), общий таймаут 60 с,
+  скриншоты в workspace.
+
 ## [2.0.2] — 2026-10-19
 
 **TIFF multipage support + grep_code tool (KI-251, KI-255).**

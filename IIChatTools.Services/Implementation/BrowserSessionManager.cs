@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Browser;
 using IIChatTools.Services.Extensions;
+using IIChatTools.Services.Implementation.Browser;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -811,6 +812,46 @@ namespace IIChatTools.Services.Implementation
 
                     case "get_url":
                         return ToolResult.Ok(new { url = page.Url, title = await SafeGetTitleAsync(page) });
+
+                    // v2.0.3 (KI-256): декларативный smoke-сценарий в текущей сессии.
+                    // Шаги: goto / click / click_by_text / type / press_key /
+                    // wait_for_selector / assert_text / assert_selector / screenshot / wait.
+                    case "run_smoke":
+                    {
+                        if (!BrowserSmokeRunner.TryParse(
+                                arguments["steps"], out var plan, out var parseError, out var parseFailedStep))
+                        {
+                            return ToolResult.Fail(parseError, new
+                            {
+                                success = false,
+                                passed = false,
+                                failedStep = parseFailedStep,
+                                durationMs = 0L,
+                                screenshots = Array.Empty<string>(),
+                                error = parseError
+                            });
+                        }
+
+                        using var smokeCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
+                        smokeCts.CancelAfter(TimeSpan.FromSeconds(BrowserSmokeRunner.OverallTimeoutSeconds));
+
+                        var runner = new BrowserSmokeRunner(_logger);
+                        var smokeResult = await runner.RunAsync(page, plan, context, timeoutMs, smokeCts.Token);
+
+                        var payload = new
+                        {
+                            success = smokeResult.Passed,
+                            passed = smokeResult.Passed,
+                            failedStep = smokeResult.FailedStep,
+                            durationMs = smokeResult.DurationMs,
+                            screenshots = smokeResult.Screenshots,
+                            error = smokeResult.Error
+                        };
+
+                        return smokeResult.Passed
+                            ? ToolResult.Ok(payload)
+                            : ToolResult.Fail(smokeResult.Error, payload);
+                    }
 
                     default:
                         return ToolResult.Fail($"Неизвестная команда: {command}");

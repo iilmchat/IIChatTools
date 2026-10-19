@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
@@ -46,9 +46,12 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
             "click_by_text (клик по видимому тексту — для элементов без id/name: dropdown, cookie-banner, Vue SPA), " +
             "get_content (HTML, по умолчанию 10 000 символов), " +
             "screenshot, screenshot_to_file (сохранить PNG в workspace), " +
-            "get_url, go_back, go_forward, reload. " +
+            "get_url, go_back, go_forward, reload, " +
+            "run_smoke (декларативный сценарий: steps[] с actions goto/click/click_by_text/type/" +
+            "press_key/wait_for_selector/assert_text/assert_selector/screenshot/wait; " +
+            "возвращает passed/failedStep/durationMs/screenshots; общий таймаут 60 с). " +
             "Для поиска селекторов используй get_selectors — НЕ get_content. " +
-            "Для элементов без CSS-селектора — click_by_text."+
+            "Для элементов без CSS-селектора — click_by_text. " +
             "Для сохранения PNG в workspace пользователя используйте команду screenshot_to_file с относительным path (например, 'minsk.png').";
 
         /// <inheritdoc />
@@ -58,14 +61,15 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
         public IReadOnlyList<ToolParameterDescriptor> Parameters => new[]
         {
             new ToolParameterDescriptor { Name = "sessionId", Type = "string", Description = "Идентификатор сессии.", Required = true },
-            new ToolParameterDescriptor { Name = "command", Type = "string", Description = "Команда: goto|click|type|wait_for_selector|evaluate|get_content|screenshot|get_url|go_back|go_forward|reload.", Required = true },
+            new ToolParameterDescriptor { Name = "command", Type = "string", Description = "Команда: goto|click|type|wait_for_selector|evaluate|get_content|screenshot|get_url|go_back|go_forward|reload|run_smoke.", Required = true },
             new ToolParameterDescriptor { Name = "url", Type = "string", Description = "URL (для команды goto).", Required = false },
             new ToolParameterDescriptor { Name = "selector", Type = "string", Description = "CSS-селектор (для click/type/wait_for_selector).", Required = false },
             new ToolParameterDescriptor { Name = "text", Type = "string", Description = "Текст: для команды type — вводимый текст; для click_by_text — видимый текст элемента.", Required = false },
             new ToolParameterDescriptor { Name = "script", Type = "string", Description = "JS-код для evaluate.", Required = false },
             new ToolParameterDescriptor { Name = "path", Type = "string", Description = "Относительный путь в workspace для screenshot_to_file (например, 'minsk.png').", Required = false },
             new ToolParameterDescriptor { Name = "maxLength", Type = "integer", Description = "Максимум символов HTML для get_content (default 10000, max 100000).", Required = false },
-            new ToolParameterDescriptor { Name = "timeoutMs", Type = "integer", Description = "Таймаут операции (мс).", Required = false, Default = 15000 }
+            new ToolParameterDescriptor { Name = "steps", Type = "array", Description = "Шаги для run_smoke: [{ action, url|selector|text|key|path|contains|timeoutMs|ms }]. Максимум 50 шагов.", Required = false },
+            new ToolParameterDescriptor { Name = "timeoutMs", Type = "integer", Description = "Таймаут операции (мс); для run_smoke — таймаут шага по умолчанию (общий лимит смоука 60 с).", Required = false, Default = 15000 }
         };
 
         /// <inheritdoc />

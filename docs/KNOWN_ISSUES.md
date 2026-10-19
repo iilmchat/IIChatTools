@@ -6146,6 +6146,34 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-256 — Browser Smoke: декларативные E2E-сценарии (run_smoke)
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.0.3)** | **Исправлено в:** v2.0.3
+- **Обнаружено:** 2026-10-19 (gap-анализ после DSH).
+- **Файлы:** `BrowserSessionControlTool.cs`, `BrowserSessionManager.cs`, `BrowserSmokeDtos.cs` (new), `BrowserSmokeRunner.cs` (new).
+- **Описание:** Chat/LLM не мог выполнять атомарные E2E-проверки (открыть сайт -> кликнуть -> проверить текст -> скриншот) за один tool-call. Приходилось делать это по шагам.
+- **Решение:** Новая команда `run_smoke` в `browser_session_control`. Принимает JSON-массив `steps`. Поддерживает `goto`, `click`, `click_by_text`, `type`, `press_key`, `wait_for_selector`, `assert_text`, `assert_selector`, `screenshot`, `wait`. Возвращает `passed`, `failedStep`, `durationMs`, `screenshots[]`. Таймаут 60 сек, авто-скриншоты в workspace.
+- **Связанные:** KI-128 (Browser workflow), KI-257, KI-258.
+
+---
+
+### KI-257 — BrowserSessionControlTool: cast к конкретному BrowserSessionManager
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Обнаружено:** 2026-10-19 (DSH, при аудите KI-256).
+- **Файлы:** `BrowserSessionControlTool.cs`.
+- **Описание:** Для вызова `run_smoke` тул кастует `IBrowserSessionManager` к конкретному классу `BrowserSessionManager`. Из-за этого нельзя подставить Moq-менеджер в интеграционные тесты (нужен реальный Chromium). Решение: вынести все команды `ExecuteCommandAsync` в интерфейс.
+- **Связанные:** KI-256.
+
+---
+
+### KI-258 — run_smoke: assert_text регистрозависим
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Обнаружено:** 2026-10-19 (DSH, при аудите KI-256).
+- **Файлы:** `BrowserSmokeRunner.cs`.
+- **Описание:** Проверка `assert_text` использует `StringComparison.Ordinal`. Для UI-текста (где регистр может меняться стилями) это может давать ложные FAIL. Решение: добавить параметр `ignoreCase: true` по умолчанию.
+- **Связанные:** KI-256.
+
+---
+
 ## Сводка по статусам
 
 **Пересчитано:** 2026-10-19 (KI-252). Считаются **уникальные номера** `KI-XXX`;
@@ -6153,14 +6181,14 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 151 |
-| Planned | 45 |
+| Fixed (включая Implemented / Resolved) | 152 |
+| Planned | 47 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 4 |
 | In Progress | 1 |
 | Won't Fix | 1 |
-| **Всего** | **234** |
+| **Всего** | **237** |
 
 **Сверка:** 151 + 45 + 24 + 8 + 4 + 1 + 1 = **234**.
 
