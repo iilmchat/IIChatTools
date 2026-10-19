@@ -98,6 +98,12 @@ const state = {
     // v1.13.13 (KI-230): активный Continue-стрим. null — не идёт.
     // { bubble, contentEl, appendEl, assistantMessageId, appendedRaw }
     appendTarget: null,
+
+    // v2.1.0 (Фаза 4): фоновые задачи.
+    // jobs: jobId → { id, type, title, status, progress, message, error }
+    jobs: {},
+    // jobStreams: jobId → EventSource
+    jobStreams: {},
 };
 
 // ============ Инициализация ============
@@ -125,6 +131,8 @@ export async function initChatPage() {
     state.debateView = savedDebateView === 'dialog' ? 'dialog' : 'collapsed';
 
     bindEvents();
+    bindJobsPanelEvents();    // v2.1.0 (Фаза 4): делегирование кнопок «Отмена»
+    window.addEventListener('beforeunload', closeAllJobStreams);
     initLightboxHandlers();   // KI-229
 
     // v1.13.0 (KI-140): инициализация голосового ввода (Speech Recognition).
@@ -1626,6 +1634,9 @@ async function selectChat(chatId) {
     // принудительно сохраняем (blur → save), чтобы не потерять ввод.
     _flushActiveInlineEdit();
 
+    // v2.1.0 (Фаза 4): старые job-SSE не должны переживать смену чата.
+    resetJobsPanel();
+
     const res = await apiGet(`/api/chats/${chatId}`);
     if (!res.success) {
         toast(res.message || 'Не удалось загрузить чат', 'error');
@@ -1665,6 +1676,9 @@ async function selectChat(chatId) {
 
     // KI-083 (Шаг 6D): загрузить вложения активного чата.
     await loadAttachments();
+
+    // v2.1.0 (Фаза 4): восстановить панель фоновых задач после F5/смены чата.
+    await loadJobsForChat(chatId);
 
     enableInput(true);
 
@@ -2081,6 +2095,313 @@ async function maybeGenerateTitle() {
     }
 }
 
+// ============ v2.1.0 (Фаза 4): Background Jobs ============
+
+/**
+ * Возвращает локализованные подписи из data-* панели задач
+ * (RULES § 4.17: никаких строк в JS).
+ * @returns {{title: string, cancel: string, statuses: Object}}
+ */
+function getJobLabels() {
+    const panel = document.getElementById('chat-jobs-panel');
+    const ds = panel?.dataset || {};
+    return {
+        // RULES § 4.17: строки приходят только из data-* (Razor/.resx).
+        title: ds.labelTitle || '',
+        cancel: ds.labelCancel || '',
+        statuses: {
+            Pending: ds.labelStatusPending || ds.labelStatusRunning || '',
+            Running: ds.labelStatusRunning || '',
+            Completed: ds.labelStatusCompleted || '',
+            Failed: ds.labelStatusFailed || '',
+            Cancelled: ds.labelStatusCancelled || ''
+        }
+    };
+}
+
+/**
+ * Привязывает делегирование кнопок отмены (один раз).
+ */
+function bindJobsPanelEvents() {
+    const list = document.getElementById('chat-jobs-list');
+    if (!list || list.dataset.jobsBound === '1') return;
+
+    list.dataset.jobsBound = '1';
+    list.addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-job-cancel]');
+        if (!btn) return;
+        const jobId = Number(btn.dataset.jobCancel);
+        if (Number.isFinite(jobId)) cancelJob(jobId);
+    });
+}
+
+/**
+ * Перерисовывает панель и карточки из state.jobs.
+ */
+function renderJobsPanel() {
+    const panel = document.getElementById('chat-jobs-panel');
+    const list = document.getElementById('chat-jobs-list');
+    if (!panel || !list) return;
+
+    const labels = getJobLabels();
+    const titleEl = panel.querySelector('.chat-jobs-title');
+    if (titleEl) titleEl.textContent = labels.title;
+
+    const jobs = Object.values(state.jobs)
+        .filter(j => j && Number.isFinite(Number(j.id)))
+        .sort((a, b) => Number(b.id) - Number(a.id));
+
+    panel.classList.toggle('d-none', jobs.length === 0);
+
+    if (jobs.length === 0) {
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = jobs.map(job => renderJobCard(job, labels)).join('');
+}
+
+/**
+ * HTML одной карточки задачи.
+ * @param {object} job
+ * @param {object} labels
+ * @returns {string}
+ */
+function renderJobCard(job, labels) {
+    const status = job.status || 'Pending';
+    const statusClass = status === 'Pending'
+        ? 'running'
+        : String(status).toLowerCase().replace(/[^a-z-]/g, '');
+    const statusLabel = labels.statuses[status] || status;
+    const progress = Math.max(0, Math.min(100, Number(job.progress) || 0));
+    const title = job.title || job.type || `#${job.id}`;
+    const canCancel = status === 'Pending' || status === 'Running';
+
+    return `
+        <div class="chat-job-card job-status-${statusClass}" data-job-id="${job.id}">
+            <div class="chat-job-card-main">
+                <span class="chat-job-type">${escapeHtml(job.type || 'Job')}</span>
+                <span class="chat-job-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+                <span class="chat-job-status">${escapeHtml(statusLabel)}</span>
+                ${canCancel ? `<button type="button" class="chat-job-cancel"
+                        data-job-cancel="${job.id}"
+                        title="${escapeHtml(labels.cancel)}"
+                        aria-label="${escapeHtml(labels.cancel)}">${escapeHtml(labels.cancel)}</button>` : ''}
+            </div>
+            <div class="chat-job-progress" role="progressbar"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+                <div class="chat-job-progress-bar" style="width:${progress}%"></div>
+            </div>
+            ${job.message ? `<div class="chat-job-message" title="${escapeHtml(job.message)}">${escapeHtml(job.message)}</div>` : ''}
+        </div>`;
+}
+
+/**
+ * Обрабатывает SSE `job_started` из Chat-стрима.
+ * @param {object} data { jobId, type, status }
+ */
+function handleJobStarted(data) {
+    const jobId = Number(data?.jobId);
+    if (!Number.isFinite(jobId) || jobId <= 0) return;
+
+    const existing = state.jobs[jobId] || {};
+    state.jobs[jobId] = {
+        ...existing,
+        id: jobId,
+        type: data.type || existing.type || 'Job',
+        status: data.status || existing.status || 'Pending',
+        progress: Number.isFinite(Number(existing.progress)) ? Number(existing.progress) : 0,
+        message: existing.message || ''
+    };
+
+    renderJobsPanel();
+    openJobStream(jobId);
+}
+
+/**
+ * Открывает EventSource на /api/jobs/{id}/stream.
+ * @param {number} jobId
+ */
+function openJobStream(jobId) {
+    if (!Number.isFinite(jobId) || state.jobStreams[jobId]) return;
+    if (typeof EventSource === 'undefined') return;
+
+    const source = new EventSource(`/api/jobs/${jobId}/stream`);
+    state.jobStreams[jobId] = source;
+
+    source.addEventListener('job_progress', (event) => {
+        const data = parseJobEvent(event);
+        if (!data) return;
+        applyJobProgress(jobId, data);
+    });
+
+    source.addEventListener('job_completed', (event) => {
+        const data = parseJobEvent(event);
+        if (data) applyJobCompleted(jobId, data);
+        closeJobStream(jobId);
+    });
+
+    source.onerror = () => {
+        // EventSource сам переподключается в CONNECTING; закрываем только
+        // окончательный отказ (404/сеть/сервер закрыл поток).
+        if (source.readyState === EventSource.CLOSED) {
+            closeJobStream(jobId);
+        }
+    };
+}
+
+/**
+ * @param {MessageEvent} event
+ * @returns {object|null}
+ */
+function parseJobEvent(event) {
+    try {
+        return JSON.parse(event.data || '{}');
+    } catch (ex) {
+        console.warn('[chat] job SSE: bad JSON', ex);
+        return null;
+    }
+}
+
+/**
+ * Обновляет карточку по `job_progress`.
+ * @param {number} jobId
+ * @param {object} data
+ */
+function applyJobProgress(jobId, data) {
+    const job = state.jobs[jobId] || { id: jobId };
+    job.id = jobId;
+    job.type = data.type || job.type || 'Job';
+    job.status = data.status || job.status || 'Running';
+    job.progress = Number.isFinite(Number(data.progress))
+        ? Number(data.progress)
+        : (job.progress || 0);
+    job.message = data.message || '';
+    job.title = job.title || data.title || job.type;
+
+    state.jobs[jobId] = job;
+    renderJobsPanel();
+}
+
+/**
+ * Обновляет карточку по `job_completed`.
+ * @param {number} jobId
+ * @param {object} data
+ */
+function applyJobCompleted(jobId, data) {
+    const job = state.jobs[jobId] || { id: jobId };
+    job.id = jobId;
+    job.type = data.type || job.type || 'Job';
+    job.status = data.status || 'Completed';
+    job.progress = Number.isFinite(Number(data.progress))
+        ? Number(data.progress)
+        : (job.status === 'Completed' ? 100 : (job.progress || 0));
+    job.message = data.message || '';
+    job.error = data.error || null;
+    job.title = job.title || data.title || job.type;
+
+    state.jobs[jobId] = job;
+    renderJobsPanel();
+
+    const labels = getJobLabels();
+    const label = labels.statuses[job.status] || job.status;
+    const toastType = job.status === 'Completed'
+        ? 'success'
+        : (job.status === 'Cancelled' ? 'info' : 'error');
+    toast(`${job.type}: ${label}`, toastType);
+}
+
+/**
+ * Закрывает один EventSource.
+ * @param {number} jobId
+ */
+function closeJobStream(jobId) {
+    const source = state.jobStreams[jobId];
+    if (source) {
+        try { source.close(); } catch { /* ignore */ }
+        delete state.jobStreams[jobId];
+    }
+}
+
+/**
+ * Закрывает все job-SSE (смена чата, F5, beforeunload).
+ */
+function closeAllJobStreams() {
+    Object.keys(state.jobStreams).forEach(id => closeJobStream(Number(id)));
+    state.jobStreams = {};
+}
+
+/**
+ * Полный сброс панели (нет активного чата / смена чата).
+ */
+function resetJobsPanel() {
+    closeAllJobStreams();
+    state.jobs = {};
+    renderJobsPanel();
+}
+
+/**
+ * Загружает задачи чата (F5) и подписывается на активные.
+ * @param {number} chatId
+ */
+async function loadJobsForChat(chatId) {
+    if (!Number.isFinite(Number(chatId))) return;
+
+    state.jobs = {};
+    try {
+        const res = await apiGet(`/api/jobs?chatId=${encodeURIComponent(chatId)}`);
+        if (res.success && Array.isArray(res.data)) {
+            res.data.forEach(dto => {
+                if (!dto || !Number.isFinite(Number(dto.id))) return;
+                state.jobs[dto.id] = {
+                    id: dto.id,
+                    type: dto.type || 'Job',
+                    title: dto.title || dto.type || `#${dto.id}`,
+                    status: dto.status || 'Pending',
+                    progress: Number(dto.progress) || 0,
+                    message: dto.message || '',
+                    error: dto.error || null
+                };
+            });
+        }
+    } catch (ex) {
+        console.warn('[chat] Не удалось загрузить фоновые задачи:', ex);
+    }
+
+    renderJobsPanel();
+
+    Object.values(state.jobs)
+        .filter(job => job.status === 'Pending' || job.status === 'Running')
+        .forEach(job => openJobStream(Number(job.id)));
+}
+
+/**
+ * Отменяет задачу через REST и обновляет карточку.
+ * @param {number} jobId
+ */
+async function cancelJob(jobId) {
+    if (!Number.isFinite(jobId)) return;
+
+    try {
+        const res = await apiPost(`/api/jobs/${jobId}/cancel`, {});
+        if (!res.success) {
+            if (res.message) toast(res.message, 'error');
+            return;
+        }
+
+        if (res.data) {
+            const job = state.jobs[jobId] || { id: jobId };
+            job.status = res.data.status || 'Cancelled';
+            job.progress = Number(res.data.progress) || job.progress || 0;
+            job.message = res.data.message || job.message || '';
+            state.jobs[jobId] = job;
+            renderJobsPanel();
+        }
+    } catch (ex) {
+        if (ex?.message) toast(ex.message, 'error');
+    }
+}
+
 /**
  * Фаза 2.1.3: прерывает текущий SSE-стрим (Stop).
  * Сервер получит разрыв соединения → CancellationToken отменится.
@@ -2245,6 +2566,11 @@ function handleSseEvent(name, data, assistantBubble) {
             break;
         case 'orchestrator_completed':
             handleOrchestratorCompleted(assistantBubble, data);
+            break;
+
+        // v2.1.0 (Фаза 4): фоновая задача запущена tool'ом start_background_job.
+        case 'job_started':
+            handleJobStarted(data);
             break;
 
         case 'done':
@@ -4777,6 +5103,9 @@ async function onChatModelChanged(e) {
 }
 
 function showEmptyState() {
+    // v2.1.0 (Фаза 4): нет активного чата — нет и панели задач.
+    resetJobsPanel();
+
     const headerEl = document.getElementById('chat-header');
     if (headerEl) {
         // KI-079: header остаётся видимым (в нём кнопка «Открыть sidebar»).

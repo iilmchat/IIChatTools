@@ -1165,6 +1165,26 @@
     <value>Ошибка</value>
   </data>
 
+  <!-- ===== v2.1.0 (Фаза 4): Background Jobs ===== -->
+  <data name="ChatJobsPanelTitle" xml:space="preserve">
+    <value>Фоновые задачи</value>
+  </data>
+  <data name="JobStatusRunning" xml:space="preserve">
+    <value>Выполняется</value>
+  </data>
+  <data name="JobStatusCompleted" xml:space="preserve">
+    <value>Завершено</value>
+  </data>
+  <data name="JobStatusFailed" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="JobStatusCancelled" xml:space="preserve">
+    <value>Отменено</value>
+  </data>
+  <data name="JobCancelButton" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Попробуйте так:</value>
   </data>

@@ -97,6 +97,10 @@ namespace IIChatTools.Services.Implementation
         /// </summary>
         private const string DatabaseAgentToolName = "database_agent";
 
+        private const string StartBackgroundJobToolName = "start_background_job";
+        private const string GetJobStatusToolName = "get_job_status";
+        private const string CancelJobToolName = "cancel_job";
+
         /// <summary>
         /// v1.11.0 (KI-126, Шаг 1D): имя Actor-Critic оркестратора.
         /// Явно добавляется в <c>allowedNames</c> при построении <c>tools[]</c>
@@ -380,7 +384,21 @@ namespace IIChatTools.Services.Implementation
             "    conclusion» → вызови `orchestrate_task`.\n" +
             "\n" +
             "    ПРИМЕР 12: «Посчитай 2+2» → вызови `code_agent` напрямую.\n" +
-            "    НЕ `orchestrate_task` — это одиночная задача.";
+            "    НЕ `orchestrate_task` — это одиночная задача." +
+            "\n" +
+            "17. ДОЛГИЕ ЗАДАЧИ (Background Jobs) — используй `start_background_job`,\n" +
+            "    чтобы не блокировать чат. ВЫБИРАЙ ЭТОТ ИНСТРУМЕНТ для:\n" +
+            "    - Orchestrator (оркестрация сложных задач, 5-15 мин);\n" +
+            "    - Vision (управление компьютером, до 15 мин);\n" +
+            "    - Smoke (длинные E2E-сценарии).\n" +
+            "\n" +
+            "    После запуска сообщи пользователю: «Задача запущена в фоне (ID: N).\n" +
+            "    Можете продолжать общение, я сообщу о результате».\n" +
+            "\n" +
+            "    Для проверки статуса используй `get_job_status(jobId)`, для отмены — `cancel_job(jobId)`.\n" +
+            "\n" +
+            "    НЕ ЖДИ завершения фоновой задачи в текущем стриме.";
+
 
         private readonly IChatService _chatService;
         private readonly IChatLlmClient _chatLlmClient;
@@ -680,6 +698,20 @@ namespace IIChatTools.Services.Implementation
                 if (!allowedNames.Contains(OrchestrateTaskToolName, StringComparer.OrdinalIgnoreCase))
                 {
                     allowedNames.Add(OrchestrateTaskToolName);
+                }
+
+                // v2.1.0 (Background Jobs): явно добавляем в allowedNames.
+                if (!allowedNames.Contains(StartBackgroundJobToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(StartBackgroundJobToolName);
+                }
+                if (!allowedNames.Contains(GetJobStatusToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(GetJobStatusToolName);
+                }
+                if (!allowedNames.Contains(CancelJobToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(CancelJobToolName);
                 }
 
                 tools = ToolDefinitionsBuilder.Build(
@@ -1087,6 +1119,15 @@ namespace IIChatTools.Services.Implementation
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Ошибка сохранения tool message");
+                    }
+
+                    // v2.1.0 (Фаза 4): UI должен узнать о фоне ДО tool_result,
+                    // чтобы успеть создать карточку и открыть job-SSE.
+                    if (toolResult.Success
+                        && string.Equals(functionName, StartBackgroundJobToolName, StringComparison.Ordinal)
+                        && TryBuildJobStarted(toolResult.Data, args, out var jobStartedDto))
+                    {
+                        yield return ChatStreamEvent.JobStarted(jobStartedDto);
                     }
 
                     // SSE-событие: tool_result
@@ -1908,6 +1949,39 @@ namespace IIChatTools.Services.Implementation
             var clone = json.DeepClone();
             RemoveBase64Fields(clone);
             return clone;
+        }
+
+        /// <summary>
+        /// v2.1.0 (Фаза 4): извлекает данные для SSE-события <c>job_started</c>
+        /// из результата <c>start_background_job</c>.
+        /// </summary>
+        /// <param name="data">ToolResult.Data (анонимный объект / JObject).</param>
+        /// <param name="args">Аргументы вызова (fallback для type).</param>
+        /// <param name="dto">Заполненный DTO при успехе.</param>
+        /// <returns><c>true</c>, если jobId найден.</returns>
+        private static bool TryBuildJobStarted(object data, JObject args, out ChatJobStartedDto dto)
+        {
+            dto = null;
+            if (data == null) return false;
+
+            try
+            {
+                var json = data as JObject ?? JObject.FromObject(data);
+                var jobId = json["jobId"]?.Value<int?>() ?? 0;
+                if (jobId <= 0) return false;
+
+                dto = new ChatJobStartedDto
+                {
+                    JobId = jobId,
+                    Type = json["type"]?.ToString() ?? args?["type"]?.ToString() ?? "Unknown",
+                    Status = json["status"]?.ToString() ?? "Pending"
+                };
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>

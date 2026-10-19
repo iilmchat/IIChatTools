@@ -18,6 +18,16 @@
 
 ## [Unreleased]
 
+### Added
+- **v2.1.0 Фаза 4 — Background Jobs UI**: REST `/api/jobs`, SSE
+  `job_started` / `job_progress` / `job_completed`, панель активных задач
+  в Chat (прогресс, статусы, отмена), локализация RU/EN.
+
+### Fixed
+- Background Jobs: `GetAsync` переведён на `AsNoTracking` (SSE-прогресс
+  больше не «замерзает»), удалены дублирующиеся регистрации job-tools,
+  отмена задачи больше не перетирается поздним `Completed`/`Failed`.
+
 ## [2.0.3] — 2026-10-19
 
 **Browser Smoke Runner (KI-256).** Декларативные E2E-сценарии через `browser_session_control`.

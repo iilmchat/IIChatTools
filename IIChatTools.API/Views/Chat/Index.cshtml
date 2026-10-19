@@ -220,6 +220,23 @@
             </div>
         </div>
 
+        <!-- v2.1.0 (Фаза 4): панель фоновых задач -->
+        <div id="chat-jobs-panel"
+             class="chat-jobs-panel d-none"
+             aria-live="polite"
+             data-label-title="@Localizer["ChatJobsPanelTitle"]"
+             data-label-status-pending="@Localizer["JobStatusRunning"]"
+             data-label-status-running="@Localizer["JobStatusRunning"]"
+             data-label-status-completed="@Localizer["JobStatusCompleted"]"
+             data-label-status-failed="@Localizer["JobStatusFailed"]"
+             data-label-status-cancelled="@Localizer["JobStatusCancelled"]"
+             data-label-cancel="@Localizer["JobCancelButton"]">
+            <div class="chat-jobs-header">
+                <span class="chat-jobs-title"></span>
+            </div>
+            <div id="chat-jobs-list" class="chat-jobs-list"></div>
+        </div>
+
         <!-- Поле ввода (KI-080: DeepSeek-style, full-width rounded) -->
         <div class="chat-input">
             <!-- KI-083 Шаг 6D: hidden input для выбора файлов (multiple) -->

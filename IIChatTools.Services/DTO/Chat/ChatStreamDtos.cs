@@ -64,6 +64,21 @@ namespace IIChatTools.Services.DTO.Chat
     }
 
     /// <summary>
+    /// v2.1.0 (Фаза 4): событие <c>job_started</c> — LLM запустила фоновую задачу.
+    /// </summary>
+    public class ChatJobStartedDto
+    {
+        /// <summary>Идентификатор фоновой задачи.</summary>
+        public int JobId { get; set; }
+
+        /// <summary>Тип: Orchestrator / Vision / Smoke.</summary>
+        public string Type { get; set; }
+
+        /// <summary>Статус на момент запуска (обычно Pending).</summary>
+        public string Status { get; set; }
+    }
+
+    /// <summary>
     /// Одно SSE-событие стрима.
     /// Формат сериализации: <c>event: {type}\ndata: {payload}\n\n</c>.
     /// </summary>
@@ -305,6 +320,22 @@ namespace IIChatTools.Services.DTO.Chat
             => new ChatStreamEvent
             {
                 Type = "orchestrator_completed",
+                Data = dto
+            };
+
+        // ============================================================
+        // v2.1.0 (Фаза 4): Background Jobs.
+        // ============================================================
+
+        /// <summary>
+        /// Создаёт событие <c>job_started</c> — фоновая задача запущена.
+        /// </summary>
+        /// <param name="dto">jobId / type / status.</param>
+        /// <returns>Событие стрима.</returns>
+        public static ChatStreamEvent JobStarted(ChatJobStartedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "job_started",
                 Data = dto
             };
     }

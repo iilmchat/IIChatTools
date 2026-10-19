@@ -6174,6 +6174,53 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-259 — Background Jobs: отмена не останавливает выполнение
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Обнаружено:** 2026-10-20 (Фаза 4, DSH).
+- **Файлы:** `BackgroundJobsController.cs`, `BackgroundJobRunner.cs`, `CancelJobTool.cs`, `BackgroundJobService.cs`.
+- **Описание:** `POST /api/jobs/{id}/cancel` и `cancel_job` только меняют
+  `Status` на `Cancelled`. `BackgroundJobRunner` передаёт в tool
+  `stoppingToken` хоста, а не per-job CTS, поэтому Orchestrator/Vision/Smoke
+  продолжают выполняться (тратят токены/CPU, Vision управляет мышью).
+  Фаза 4 добавила защиту «не перетирать Cancelled» после возврата tool,
+  но это не останавливает саму работу.
+- **Решение:** `IJobCancellationRegistry` (Singleton, `jobId → CTS`);
+  `Cancel` вызывает `Cancel()`, `ToolExecutionContext.CancellationToken` —
+  linked token; `CancelRequestedAt`, статус `Cancelling`; тест на реальную
+  остановку (или документированный grace).
+- **Связанные:** KI-260, `DESIGN_BACKGROUND_JOBS § 9.7`.
+
+---
+
+### KI-260 — BackgroundJobQueue: DropWrite теряет задачи
+- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Обнаружено:** 2026-10-20 (Фаза 4, DSH).
+- **Файлы:** `BackgroundJobQueue.cs`, `StartBackgroundJobTool.cs`.
+- **Описание:** `Channel.CreateBounded(..., FullMode = DropWrite)`;
+  `TryWrite` при переполнении может вернуть `true`, **молча выбросив**
+  jobId. `start_background_job` считает задачу запущенной, но она навсегда
+  остаётся `Pending` (нет в очереди, нет ошибки).
+- **Решение:** `FullMode = Wait` (тогда `TryWrite` = false и tool вернёт
+  «очередь переполнена»), либо `WriteAsync` + отдельный счётчик; тест
+  на переполнение.
+- **Связанные:** KI-259.
+
+---
+
+### KI-261 — Background Jobs: не enforced MaxJobsPerUser
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Обнаружено:** 2026-10-20 (Фаза 4, DSH).
+- **Файлы:** `StartBackgroundJobTool.cs`, `BackgroundJobOptions.cs`.
+- **Описание:** `BackgroundJobOptions.MaxJobsPerUser = 3` объявлен, но
+  `StartBackgroundJobTool` его не читает и не считает активные задачи.
+  Пользователь может поставить в очередь сколько угодно job (до 100).
+- **Решение:** `IJobConcurrencyLimiter` (Singleton, per-user) или
+  `CountAsync(userId, active statuses)` перед созданием; вернуть
+  `Fail("Уже выполняется 3 фоновые задачи")`.
+- **Связанные:** KI-259, KI-260.
+
+---
+
 ## Сводка по статусам
 
 **Пересчитано:** 2026-10-19 (KI-252). Считаются **уникальные номера** `KI-XXX`;
@@ -6182,18 +6229,18 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Статус | Кол-во |
 |--------|-------:|
 | Fixed (включая Implemented / Resolved) | 152 |
-| Planned | 47 |
+| Planned | 50 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 4 |
 | In Progress | 1 |
 | Won't Fix | 1 |
-| **Всего** | **237** |
+| **Всего** | **240** |
 
-**Сверка:** 151 + 45 + 24 + 8 + 4 + 1 + 1 = **234**.
+**Сверка:** 152 + 50 + 24 + 8 + 4 + 1 + 1 = **240**.
 
-- **Секций `### KI-`:** 234 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
-- **Уникальных номеров:** 233.
+- **Секций `### KI-`:** 241 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
+- **Уникальных номеров:** 240.
 - **Дублей по полному ID:** 0.
 - **`KI-110a` / `KI-110b`:** две самостоятельные секции одного номера `KI-110`
   (Anthropic / Gemini); в счёте учитываются один раз.
@@ -6202,7 +6249,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 - **`In Progress`:** KI-234 — единственный.
 
 Проверка: `pwsh -ExecutionPolicy Bypass -File scripts/setup/check-zombie-ki.ps1`
-→ `Всего KI: 233`, `Сумма статусов: 233`.
+→ `Всего KI: 240`, `Сумма статусов: 240`.
 
 ---
 

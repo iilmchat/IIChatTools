@@ -54,6 +54,10 @@ namespace IIChatTools.Data
         /// Раунды внутри сессий Actor-Critic / Debate (v1.11.0, KI-126).
         /// </summary>
         public DbSet<AgentDebateRound> AgentDebateRounds { get; set; }
+
+        public DbSet<BackgroundJob> BackgroundJobs { get; set; }
+        public DbSet<ChatTodo> ChatTodos { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -283,6 +287,46 @@ namespace IIChatTools.Data
                 // Индекс: загрузка раундов сессии в порядке номеров.
                 entity.HasIndex(e => new { e.SessionId, e.RoundNumber })
                     .HasDatabaseName("IX_AgentDebateRounds_Session_RoundNumber");
+            });
+
+            // BackgroundJob
+            modelBuilder.Entity<BackgroundJob>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Type).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+                entity.Property(e => e.ProgressMessage).HasMaxLength(500);
+                entity.Property(e => e.Error).HasMaxLength(2000);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Chat)
+                    .WithMany()
+                    .HasForeignKey(e => e.ChatId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.ChatId);
+            });
+
+            // ChatTodo
+            modelBuilder.Entity<ChatTodo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Description).HasMaxLength(2000);
+                entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+                entity.HasOne(e => e.Chat)
+                    .WithMany()
+                    .HasForeignKey(e => e.ChatId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.ChatId);
             });
         }
     }

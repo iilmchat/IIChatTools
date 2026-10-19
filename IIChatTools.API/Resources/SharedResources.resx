@@ -1165,6 +1165,26 @@
     <value>Error</value>
   </data>
 
+  <!-- ===== v2.1.0 (Фаза 4): Background Jobs ===== -->
+  <data name="ChatJobsPanelTitle" xml:space="preserve">
+    <value>Background Jobs</value>
+  </data>
+  <data name="JobStatusRunning" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="JobStatusCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="JobStatusFailed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="JobStatusCancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="JobCancelButton" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+
   <data name="ChatPromptsTitle" xml:space="preserve">
     <value>Try one of these:</value>
   </data>

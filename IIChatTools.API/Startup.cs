@@ -13,10 +13,12 @@ using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): Sq
 using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.DTO.ExternalLlm;               // v1.8.1 (KI-109): External-LLM
 using IIChatTools.Services.DTO.Cache;                     // v1.8.2: ToolResultCacheOptions
+using IIChatTools.Services.DTO.BackgroundJobs;            // <--- ДОБАВИТЬ
 using IIChatTools.Services.DTO.Speech;
 using IIChatTools.Services.DTO.Rag;                       // v1.13.x (KI-203): OcrOptions
 using IIChatTools.Services.Implementation.ExternalLlm;    // v1.8.1 (KI-109): ExternalLlmClient и т.д.
 using IIChatTools.Services.Implementation.Cache;          // v1.8.2: ToolResultCache
+using IIChatTools.Services.Implementation.BackgroundJobs; // <--- ДОБАВИТЬ
 using IIChatTools.Services.Implementation.ChatLlm;        // v1.13.10 (KI-224): IChatLlmClient + LmStudio обёртка
 using IIChatTools.Services.Implementation.Rag.Parsers;    // v1.5.0 (KI-083): PlainTextParser
 using IIChatTools.Services.Implementation.Tools.Browser;
@@ -25,6 +27,7 @@ using IIChatTools.Services.Implementation.Tools.CodeExecution;
 using IIChatTools.Services.Implementation.Tools.FileSystem;
 using IIChatTools.Services.Implementation.Tools.Git;
 using IIChatTools.Services.Implementation.Tools.GitHub;
+using IIChatTools.Services.Implementation.Tools.BackgroundJobs;
 using IIChatTools.Services.Implementation.Speech;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.Implementation.VisionAgent;    // v1.12.0 (KI-131, Ф2.2): LocalHarnessVisionBackend
@@ -645,6 +648,17 @@ namespace IIChatTools.API
             // Не регистрируются при Mail:Enabled = false (DESIGN_MAIL_AGENT § 3.1).
             RegisterMailTools(services, Configuration);
 
+            // Background Jobs (v2.1.0)
+            services.Configure<BackgroundJobOptions>(Configuration.GetSection("BackgroundJobs"));
+            services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
+            services.AddScoped<IBackgroundJobService, BackgroundJobService>();
+            services.AddHostedService<BackgroundJobRunner>();
+
+            // v2.1.0: Tools для управления фоновыми задачами
+            services.AddScoped<ITool, StartBackgroundJobTool>();
+            services.AddScoped<ITool, GetJobStatusTool>();
+            services.AddScoped<ITool, CancelJobTool>();
+
             // ============ 11. Политики авторизации ============
             services.AddAuthorization(options =>
             {
@@ -750,7 +764,7 @@ namespace IIChatTools.API
             services.AddScoped<ITool, FindFilesTool>();
             services.AddScoped<ITool, GetFileMetadataTool>();
             services.AddScoped<ITool, FuzzyFindLocalFilesTool>();
-            services.AddScoped<ITool, GrepCodeTool>(); // <--- ДОБАВИТЬ ЭТО
+            services.AddScoped<ITool, GrepCodeTool>();
         }
 
         /// <summary>
