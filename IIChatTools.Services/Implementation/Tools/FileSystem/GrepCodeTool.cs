@@ -27,24 +27,19 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
         public string Description => "Ищет текст или регулярное выражение внутри файлов workspace. Возвращает совпадения с контекстом. Используй вместо перебора read_file для поиска по коду.";
         public bool RequiresApprovalByDefault => false;
 
-        public JObject ParametersSchema => new JObject
+        public IReadOnlyList<ToolParameterDescriptor> Parameters => new List<ToolParameterDescriptor>
         {
-            ["type"] = "object",
-            ["properties"] = new JObject
-            {
-                ["pattern"] = new JObject { ["type"] = "string", ["description"] = "Строка или regex для поиска" },
-                ["path"] = new JObject { ["type"] = "string", ["description"] = "Относительный путь от workspace (по умолчанию '.')" },
-                ["include"] = new JObject { ["type"] = "array", ["items"] = new JObject { ["type"] = "string" }, ["description"] = "Маски файлов (например, ['*.cs', '*.md'])" },
-                ["exclude"] = new JObject { ["type"] = "array", ["items"] = new JObject { ["type"] = "string" }, ["description"] = "Исключения (например, ['bin/**', 'obj/**'])" },
-                ["contextLines"] = new JObject { ["type"] = "integer", ["description"] = "Строк контекста до/после (0-5)", ["minimum"] = 0, ["maximum"] = 5 },
-                ["maxResults"] = new JObject { ["type"] = "integer", ["description"] = "Максимум результатов (по умолчанию 50, макс 200)" },
-                ["caseSensitive"] = new JObject { ["type"] = "boolean", ["description"] = "Учитывать регистр (по умолчанию false)" },
-                ["regex"] = new JObject { ["type"] = "boolean", ["description"] = "Использовать регулярное выражение (по умолчанию false)" }
-            },
-            ["required"] = new JArray { "pattern" }
+            new() { Name = "pattern", Type = "string", Description = "Строка или regex для поиска", Required = true },
+            new() { Name = "path", Type = "string", Description = "Относительный путь от workspace (по умолчанию '.')", Required = false },
+            new() { Name = "include", Type = "array", Description = "Маски файлов (например, ['*.cs', '*.md'])", Required = false },
+            new() { Name = "exclude", Type = "array", Description = "Исключения (например, ['bin/**', 'obj/**'])", Required = false },
+            new() { Name = "contextLines", Type = "integer", Description = "Строк контекста до/после (0-5)", Required = false },
+            new() { Name = "maxResults", Type = "integer", Description = "Максимум результатов (по умолчанию 50, макс 200)", Required = false },
+            new() { Name = "caseSensitive", Type = "boolean", Description = "Учитывать регистр (по умолчанию false)", Required = false },
+            new() { Name = "regex", Type = "boolean", Description = "Использовать регулярное выражение (по умолчанию false)", Required = false }
         };
 
-        public async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments, CancellationToken cancellationToken = default)
+        public async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
         {
             try
             {
@@ -61,9 +56,9 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
                 var useRegex = arguments["regex"]?.Value<bool>() ?? false;
 
                 // 1. Безопасное разрешение пути
-                var workspaceRoot = await _workspaceResolver.GetWorkspacePathAsync(context.UserId, cancellationToken);
-                if (!PathHelper.TryGetSafeFullPath(workspaceRoot, relativePath, out var fullPath, out var error))
-                    return ToolResult.Fail($"Недопустимый путь: {error}");
+                var workspaceRoot = await _workspaceResolver.GetWorkspacePathAsync(context.UserId);
+                if (!PathHelper.TryGetSafeFullPath(relativePath, workspaceRoot, out var fullPath))
+                    return ToolResult.Fail($"Недопустимый путь: {relativePath}");
 
                 if (!Directory.Exists(fullPath))
                     return ToolResult.Fail($"Директория не найдена: {relativePath}");
@@ -71,7 +66,7 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
                 // 2. Подготовка regex
                 var regexOptions = RegexOptions.Compiled;
                 if (!caseSensitive) regexOptions |= RegexOptions.IgnoreCase;
-                
+
                 Regex regex;
                 try
                 {
@@ -87,9 +82,8 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
                 var searchOption = SearchOption.AllDirectories;
                 var files = Directory.EnumerateFiles(fullPath, "*.*", searchOption)
                     .Where(f => !exclude.Any(e => f.Contains(e.Replace("**", ""), StringComparison.OrdinalIgnoreCase)))
-                    .Where(f => include.Length == 0 || include.Any(i => 
+                    .Where(f => include.Length == 0 || include.Any(i =>
                     {
-                        var ext = Path.GetExtension(f);
                         var mask = i.Replace("*", "");
                         return i.StartsWith("*") ? f.EndsWith(mask, StringComparison.OrdinalIgnoreCase) : f.Contains(mask, StringComparison.OrdinalIgnoreCase);
                     }))
@@ -103,11 +97,9 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
 
                 foreach (var file in files)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
                     if (totalMatches >= maxResults) { isTruncated = true; break; }
 
-                    var lines = await File.ReadAllLinesAsync(file, cancellationToken);
+                    var lines = await File.ReadAllLinesAsync(file, CancellationToken.None);
                     for (int i = 0; i < lines.Length; i++)
                     {
                         if (regex.IsMatch(lines[i]))
@@ -135,10 +127,6 @@ namespace IIChatTools.Services.Implementation.Tools.FileSystem
                     totalMatches,
                     truncated = isTruncated
                 }, $"Найдено совпадений: {totalMatches}" + (isTruncated ? " (обрезано)" : ""));
-            }
-            catch (OperationCanceledException)
-            {
-                return ToolResult.Fail("Поиск отменён.");
             }
             catch (Exception ex)
             {

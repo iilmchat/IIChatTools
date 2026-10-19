@@ -71,6 +71,7 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
             // 2. Проверка на multipage TIFF (только для Windows, где доступен System.Drawing).
             if ((ext == "tif" || ext == "tiff") && OperatingSystem.IsWindows())
             {
+#pragma warning disable CA1416
                 try
                 {
                     using var ms = new MemoryStream(bytes);
@@ -81,16 +82,16 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                     {
                         _logger.LogInformation("ImageOcrParser: multipage TIFF '{File}' ({Count} страниц).", filePath, frameCount);
                         var textBuilder = new System.Text.StringBuilder();
-                        
+
                         for (int i = 0; i < frameCount; i++)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
                             image.SelectActiveFrame(FrameDimension.Page, i);
-                            
+
                             using var pageMs = new MemoryStream();
                             image.Save(pageMs, ImageFormat.Png);
                             var pageBytes = pageMs.ToArray();
-                            
+
                             var pageText = await _ocrService.RecognizeAsync(pageBytes, cancellationToken);
                             textBuilder.AppendLine($"\n\n--- page {i + 1} ---\n\n");
                             textBuilder.Append(pageText);
@@ -112,6 +113,7 @@ namespace IIChatTools.Services.Implementation.Rag.Parsers
                 {
                     _logger.LogWarning(ex, "ImageOcrParser: не удалось обработать multipage TIFF как многстраничный. Fallback на 1 страницу.");
                 }
+#pragma warning restore CA1416
             }
 
             // 3. OCR для обычных изображений (или fallback для TIFF).

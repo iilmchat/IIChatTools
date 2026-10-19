@@ -18,6 +18,20 @@
 
 ## [Unreleased]
 
+## [2.0.2] — 2026-10-19
+
+**TIFF multipage support + grep_code tool (KI-251, KI-255).**
+
+### Added
+- **KI-255**: Новый tool `grep_code` для поиска по содержимому файлов (аналог `grep`). Поддерживает regex, маски файлов (`include`/`exclude`), контекст и лимиты. Добавлен в `file_system_agent`. Защита от ReDoS через `TimeSpan.FromSeconds(1)`.
+- **KI-251**: `ImageOcrParser` теперь поддерживает `.tif` / `.tiff` и **multipage TIFF** (Windows-only, через `System.Drawing.Common`). Метаданные содержат `pageCount`.
+
+### Changed
+- **v2.0.1-post (DSH)**: Реорганизация документации (роли user_guide / qa / development, ADR, Reports). Сводка KI пересчитана (233).
+
+### Fixed
+- **KI-252 (Fixed)**: Merge-маркеры, дубли KI-031/061, устаревшая сводка в `KNOWN_ISSUES.md`.
+
 ### Planned
 - **KI-242** — PostgreSQL как провайдер основного `AppDbContext` (v2.0.x+).
 - **KI-243** — Qdrant как внешний `IVectorStore` (v2.0.x+).
