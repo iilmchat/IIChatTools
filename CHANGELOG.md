@@ -18,8 +18,14 @@
 
 ## [Unreleased]
 
+### Planned
+- **KI-264** — документация коллизии номеров.
+- **KI-265** — durable queue для Background Jobs (v2.1.x).
+
+## [2.1.1] — 2026-10-20
+
 ### Fixed
-- **KI-258 / KI-263 — Cooperative cancellation (v2.1.1, в работе).**
+- **KI-258/KI-263** — cooperative cancellation...
   `orchestrate_task` помечает отменённые подзадачи `cancelled` (не `failed`),
   останавливается между подзадачами и завершает `AgentDebateSession` через
   `CancelAsync`; `vision_agent` и `browser_session_control:run_smoke` проверяют
@@ -29,10 +35,6 @@
   `Task.WaitAsync(ct)`; `BackgroundJobRunner` при кооперативном Fail после
   отмены ставит job `Cancelled`, а не `Failed`. +4 unit-теста.
   Нумерацию см. в KI-264.
-
-### Planned
-- **KI-265** — Durable queue фоновых задач (v2.1.x).
-- **KI-262** — Todo: гонка `SortOrder` (v2.1.x).
 
 ---
 
