@@ -5809,22 +5809,42 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-244 — Reflection (один агент критикует сам себя)
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.1+
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v2.2.0
 - **Обнаружено:** 2026-10-12 (обсуждение KI-126 Ф3).
-- **DESIGN:** [`docs/development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md`](development/v1.11/DESIGN_MULTI_AGENT_DEBATE.md) § 1.3.
+- **DESIGN:** [`docs/development/v2.2/DESIGN_REFLECTION.md`](development/v2.2/DESIGN_REFLECTION.md)
+  (v1.1, Implemented); исходно — `v1.11/DESIGN_MULTI_AGENT_DEBATE.md` § 1.3.
 - **Описание:** Четвёртый мультиагентный паттерн после Actor-Critic (v1.11.0),
   Debate (v1.14.0) и Orchestrator-Worker (v2.0.0). Один агент пишет артефакт →
   критикует сам себя → переписывает → повторяет до max-rounds / Approved.
 - **Отличие от Actor-Critic:** используется **один** агент (совмещённый
-  Actor+Critic), а не два. Меньше latency, но слабее «свежий взгляд».
-- **Возможный scope:**
-  - Новый top-level `ITool` `reflect_task` (по образцу `code_agent_with_review`).
-  - Расширение `SubAgents:reflect_task` с полями `MaxRounds`, `SelfCritiquePrompt`.
-  - SSE-события `reflect_*` (новые, не переиспользуем `debate_*`).
-  - UI: тот же `.chat-debate-block`, `patternType = "Reflection"`.
-- **Обоснование отсрочки:** концептуально проще, чем Orchestrator-Worker, но
-  требует отдельного DESIGN-документа. Не смешивать с Ф3.
-- **Оценка:** ~5-6 ч (по образцу Ф1).
+  Actor+Critic), а не два. Меньше конфигурации и сущностей, но слабее «свежий взгляд»
+  (та же модель → те же слепые зоны; см. KI-267).
+- **Реализовано (v2.2.0, Фазы 1–5):**
+  - top-level `ITool` **`reflect_task`** (`Tools/Debate/ReflectTaskTool.cs`):
+    валидация `task` (≤8000) / `maxRounds` (1..5, default 2, алиас `max_rounds`),
+    pre-check отмены, проверка `reflector_agent` (наличие / `Disabled` /
+    `SystemPrompt` + `SelfCritiquePrompt`);
+  - внутренний агент **`reflector_agent`** (`Internal: true`): новый
+    `SubAgentDescriptor.SelfCritiquePrompt`, чтение в `SubAgentRegistry`; вызов
+    через `Func<ISubAgentService>` + `SubAgentTaskRequest.SystemPromptOverride`
+    (ADR-001 DESIGN);
+  - `ReflectionCritiqueParser` — lenient-парсер JSON `{verdict, issues[], summary}`;
+  - цикл draft → self-critique → rewrite; duplicate-draft guard; `Uncertain`-выход;
+    `Rejected` без `issues` → `Uncertain`; при исчерпании раундов —
+    `MaxRoundsReached`; persistence в `AgentDebateSession`/`AgentDebateRound`
+    (`PatternType="Reflection"`, **без миграции**);
+  - SSE **`reflect_started` / `reflect_round` / `reflect_completed`**
+    (`ChatStreamEvent` + DTO) + UI `.chat-debate-block` (`patternType="Reflection"`)
+    + F5 (`BuildStatusDto.ReflectionAgent`, prefill, `debateTools`);
+  - `ChatStreamService`: `allowedNames` + `isMultiAgentTool` + правило
+    `DefaultSystemPrompt`; `Startup.cs`: DI-регистрация;
+  - +25 unit-тестов (`ReflectTaskToolTests`); Build 0 warnings / 0 errors,
+    Test **1245 passed / 0 failed / 8 skipped / 1253 total**.
+- **Ограничения:** см. KI-266 (audit/Admin UI для виртуального агента),
+  KI-267 (гетерогенная модель/эскалация), KI-268 (Reflection как Background Job),
+  KI-269 (дублирование черновиков в `AgentStates`).
+- **Связанные:** KI-126, KI-241 (нулевые токены), KI-132 (без `rounds[]` в Data),
+  KI-263 (cooperative cancellation — паттерн учтён), KI-266…KI-271.
 
 ---
 
@@ -6363,28 +6383,56 @@ requirement) работают **стабильно**. Gantt требует бо�
 - **Решение:** `PersistState=false` для Reflection (в `SubAgentTaskRequest`) или retention для `AgentStates`.
 - **Связанные:** KI-244 (Reflection), KI-111 (stateless agent).
 
+### KI-270 — Reflection: настройки `SubAgents:reflect_task` игнорируются
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Обнаружено:** 2026-10-20 (DSH, Фаза 5 — при написании тестов).
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/Debate/ReflectTaskTool.cs`.
+- **Описание:** конфиг `SubAgents:reflect_task` (`MaxRounds`, `TokenBudget`,
+  `RequiresApproval`) **не читается**: `maxRounds` берётся только из аргумента
+  (default 2), `TokenBudget` захардкожен `50000` в `AgentDebateConfigSnapshot`.
+  Изменение `appsettings` не влияет на поведение (в отличие от
+  `code_agent_with_review`/`orchestrate_task`, которые читают `IConfiguration`).
+- **Решение:** inject `IConfiguration`; default `maxRounds` из
+  `SubAgents:reflect_task:MaxRounds` (clamp 1..5); `TokenBudget` — в snapshot;
+  тест «конфиг переопределяет default».
+- **Связанные:** KI-244, DESIGN v2.2 § 8.1.
+
+### KI-271 — Reflection: `FinalArtifactJson` хранил сырой текст вместо JSON
+
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v2.2.0
+- **Обнаружено:** 2026-10-20 (DSH, Фаза 5 — при написании тестов).
+- **Файлы:** `IIChatTools.Services/Implementation/Tools/Debate/ReflectTaskTool.cs`.
+- **Описание:** `CompleteAsync` получал **сам draft** вместо
+  `{ "finalArtifact": "..." }`; F5-парсер UI (`parseFinalArtifact`) спасал
+  fallback'ом, но контракт расходился с DESIGN § 4.3 и остальными паттернами.
+- **Fix (Фаза 5):** перед `CompleteAsync` — `JsonConvert.SerializeObject(
+  new { finalArtifact = draft })`; `ToolResult.data` и SSE по-прежнему отдают
+  сырой финальный текст (как и ожидает UI live-режима).
+- **Связанные:** KI-244, KI-132.
+
 ---
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-10-20 (после регистрации KI-263…KI-265). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-10-20 (после KI-244 → Fixed, v2.2.0 и регистрации KI-263…KI-271). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 156 |
-| Planned | 49 |
+| Fixed (включая Implemented / Resolved) | 160 |
+| Planned | 51 |
 | Documented | 25 |
 | Deferred | 8 |
 | Partially Fixed | 4 |
 | In Progress | 1 |
 | Won't Fix | 1 |
-| **Всего** | **245** |
+| **Всего** | **250** |
 
-**Сверка:** 156 + 49 + 25 + 8 + 4 + 1 + 1 = **244**.
+**Сверка:** 160 + 51 + 25 + 8 + 4 + 1 + 1 = **250**.
 
-- **Секций `### KI-`:** 245 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
-- **Уникальных номеров:** 244.
+- **Секций `### KI-`:** 251 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
+- **Уникальных номеров:** 250.
 - **Дублей по полному ID:** 0.
 - **`KI-110a` / `KI-110b`:** две самостоятельные секции одного номера `KI-110`
   (Anthropic / Gemini); в счёте учитываются один раз.

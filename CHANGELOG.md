@@ -18,6 +18,24 @@
 
 ## [Unreleased]
 
+### Added
+- **Reflection (v2.2.0, KI-244)** — четвёртый мультиагентный паттерн
+  (Actor-Critic → Debate → Orchestrator → **Reflection**): top-level `ITool`
+  **`reflect_task`** — один агент пишет черновик → критикует сам себя →
+  переписывает до `Approved` / `MaxRounds`. Внутренний агент **`reflector_agent`**
+  (`Internal: true`, новый ключ `SelfCritiquePrompt` в `SubAgents`), SSE-события
+  **`reflect_started` / `reflect_round` / `reflect_completed`**, UI-блок
+  `.chat-debate-block` (`patternType = "Reflection"`) + F5-восстановление.
+  Сущности БД переиспользованы (`AgentDebateSession` / `AgentDebateRound`),
+  **миграция не требуется**. DESIGN: `docs/development/v2.2/DESIGN_REFLECTION.md`.
+- **`ReflectTaskToolTests`** — +25 unit-тестов (валидация, happy-path 1/2 раунда,
+  `MaxRoundsReached`, `Uncertain`, duplicate-guard, persistence, отмена, SSE).
+
+### Fixed
+- **KI-244:** если все раунды самокритики отклонены, итоговый вердикт теперь
+  **`MaxRoundsReached`** (ранее оставался `Rejected` — терялась разница между
+  «критика против» и «исчерпан лимит»). Обнаружено при написании Фазы 5.
+
 ### Planned
 - **KI-264** — документация коллизии номеров.
 - **KI-265** — durable queue для Background Jobs (v2.1.x).

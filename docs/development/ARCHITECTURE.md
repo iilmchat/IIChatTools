@@ -1,6 +1,6 @@
 # Архитектура IIChatTools
 
-**Версия:** 2.0.0 (обновлено 2026-10-12)
+**Версия:** 2.2.0 (обновлено 2026-10-20)
 **Статус:** Living document — обновляется при значимых архитектурных изменениях.
 **Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md), [DESIGN v1.7 (Database Agent)](v1.7/DESIGN_DB_AGENT.md).
 
@@ -16,7 +16,12 @@
 **Actor-Critic Debate — `code_agent_with_review` (v1.11.0)**,
 **Vision Agent — computer-use pattern (v1.12.0; OCR-fallback для мелкого текста в v1.13.x, KI-137)**,
 **Speech Recognition — офлайн STT через Whisper.net (v1.13.0 → v1.13.1)**,
-**RAG OCR — распознавание сканов PDF через Tesseract (v1.13.x, KI-203)**.
+**RAG OCR — распознавание сканов PDF через Tesseract (v1.13.x, KI-203)**,
+**Reflection — `reflect_task` (v2.2.0, KI-244): четвёртый мультиагентный паттерн
+«черновик → самокритика → переписывание»**.
+
+**Мультиагентная серия (4 паттерна):** Actor-Critic (v1.11.0) → Debate (v1.14.0)
+→ Orchestrator-Worker (v2.0.0) → **Reflection (v2.2.0, KI-244)**.
 
 **Ключевая идея:** LLM работает в **изолированной песочнице** (`Workspace`) и не имеет
 прямого доступа к системе. Все действия — через инструменты с подтверждениями (`Approvals`).
@@ -383,6 +388,11 @@ Chat видит **16 инструментов** в v1.13.1: 9 агентов и�
 
 **Зачем:** одна модель (особенно 4B) плохо выбирает из 40 инструментов.
 Внутри агента — узкий набор + свой system prompt → точнее выбор.
+
+**v2.2.0 (KI-244):** добавлен четвёртый паттерн — top-level `reflect_task`
+(агент `reflector_agent`, `Internal: true`): один агент пишет черновик,
+критикует его (`SelfCritiquePrompt`) и переписывает до `Approved` / `MaxRounds`.
+UI — тот же `.chat-debate-block` (`patternType = "Reflection"`), SSE `reflect_*`.
 
 ### § 6.3. RAG-инструменты (v1.5.0)
 

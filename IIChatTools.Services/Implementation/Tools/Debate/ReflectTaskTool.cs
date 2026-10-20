@@ -234,11 +234,23 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     }
                 }
 
+                // 6.6. v2.2.0 (KI-244): если все раунды отклонены и лимит
+                // исчерпан — итоговый вердикт MaxRoundsReached (DESIGN § 3.1;
+                // иначе теряется разница между «критика против» и «лимит»).
+                if (verdict == "Rejected" && completedRounds >= maxRounds)
+                {
+                    verdict = "MaxRoundsReached";
+                }
+
                 // 7. Финализация сессии
                 try
                 {
+                    // v2.2.0 (KI-244): FinalArtifactJson — единый формат с
+                    // остальными паттернами: { "finalArtifact": "..." }
+                    // (его читает UI-функция parseFinalArtifact при F5).
+                    var artifactJson = JsonConvert.SerializeObject(new { finalArtifact = draft });
                     await _sessionService.CompleteAsync(
-                        sessionId.Value, verdict, draft, CancellationToken.None);
+                        sessionId.Value, verdict, artifactJson, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {

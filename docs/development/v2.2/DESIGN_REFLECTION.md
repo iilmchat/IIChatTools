@@ -1,10 +1,10 @@
 # DESIGN — Reflection (самокритика, KI-244)
 
-**Версия:** v1.0 (Draft)
+**Версия:** v1.1 (Implemented)
 **Дата:** 2026-10-20
-**Статус:** Draft — ждёт согласования
+**Статус:** Implemented (v2.2.0) — Фазы 1–5
 **Релиз-цель:** v2.2.0
-**HEAD:** `0d10e74` (v2.1.1)
+**HEAD:** `fb51a94` (Фазы 1–4) + незакоммиченные изменения Фазы 5
 **Связанные документы:** [RULES.md](../RULES.md) · [DESIGN v1.11 Multi-Agent](../v1.11/DESIGN_MULTI_AGENT_DEBATE.md) · [DESIGN v2.0 Orchestrator-Worker](../v2.0/DESIGN_ORCHESTRATOR_WORKER.md) · [DESIGN v2.1 Background Jobs](../v2.1/DESIGN_BACKGROUND_JOBS.md) · [ARCHITECTURE.md](../ARCHITECTURE.md) · KI-244 · KI-126 · KI-241 · KI-132
 
 ---
@@ -1183,6 +1183,10 @@ Moq `ISubAgentRegistry`, `NullLogger`. Проверяем:
   привязать `AgentState` к чату + retention; либо хранить в `AgentStates`
   только усечённое описание задачи.
 - **Связанные:** KI-244, KI-241, ADR-001 (§ 2.4).
+
+> **Фаза 5 (2026-10-20):** при написании тестов найдены и зарегистрированы
+> **KI-270** (конфиг `SubAgents:reflect_task` не читается — хардкод 2/50000; Planned)
+> и **KI-271** (`FinalArtifactJson` хранил сырой текст вместо JSON — ✅ Fixed v2.2.0).
 
 ---
 

@@ -24,7 +24,8 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 - **⚔️ Actor-Critic Debate (v1.11.0, KI-126)** — автономное взаимодействие Actor (`code_agent`) и Critic (`code_reviewer_agent`) через top-level tool `code_agent_with_review`. До 3 раундов, эскалация на внешнюю LLM при `Uncertain`. UI: селектор «диалог / сворачиваемый», feedback между раундами. SSE-события `debate_started` / `debate_round` / `debate_escalated` / `debate_completed`.
 - **⚖️ Debate (Pro / Contra / Judge) (v1.14.0, KI-126 Фаза 2)** — top-level tool `planner_with_debate` для сложных архитектурных решений (сравнение подходов, миграция, оценка рисков). Три роли: **Pro** ⚖️ (защитник предложения) → **Contra** 🛑 (скептик) → **Judge** 👨‍⚖️ (арбитр с вердиктом Approved / Rejected / Uncertain). До 3 раундов. Эскалация на внешнюю LLM при `Uncertain`, Human-in-the-loop после `Rejected`. Роли `planner_pro_agent` / `planner_contra_agent` / `planner_judge_agent` помечены `Internal` — Chat-LLM их не видит напрямую. UI: тот же селектор «диалог / сворачиваемый», рендер 3 ролей + feedback-блок.
 - **🎭 Orchestrator-Worker + Blackboard (v2.0.0, KI-126 Ф3)** — top-level tool `orchestrate_task` для **сложных multi-step задач**: декомпозиция на 2-5 подзадач → распределение между агентами-воркерами (`web_agent`, `code_agent`, ...) → выполнение последовательно / параллельно (`parallel: true|false`) → агрегация через shared state **Blackboard** (in-memory + persistence в БД). SSE-события `orchestrator_started` / `orchestrator_round` / `orchestrator_completed`. UI: прогресс-бар `N/M`, список подзадач с иконками статуса (✅/❌/⛔/🔄/⏳), свёрнутый финальный артефакт.
-- **66 инструментов** для LLM (40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator).
+- **🪞 Reflection (v2.2.0, KI-244)** — четвёртый мультиагентный паттерн: top-level tool `reflect_task` — один агент (`reflector_agent`) пишет черновик → **критикует сам себя** (как злой ревьюер) → переписывает до `Approved` / `MaxRounds` (default 2, max 5). Идеален для текстов, ТЗ, планов и кода средней сложности (для критичного кода — `code_agent_with_review`). SSE-события `reflect_started` / `reflect_round` / `reflect_completed`. UI: тот же блок `.chat-debate-block` с `patternType = "Reflection"` (карточки «Черновик» + «Самокритика»), F5-восстановление.
+- **73 инструмента** для LLM (40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator + 1 Reflection + 3 job + 3 todo).
 - **Tool calling в чате** — LLM сама вызывает инструменты в multi-turn loop (до 5 итераций).
 - **Approvals в чате** — mutating-инструменты требуют подтверждения через модалку (drag-and-drop, countdown, approve/reject).
 - **Суб-агенты** — делегирование многошаговых задач с авто-отладкой.
@@ -399,7 +400,7 @@ dotnet run --project IIChatTools.API
 | `POST` | `/api/admin/sql-agent/connections/{name}/reset` | Сбросить к baseline (Admin) |
 ---
 
-## Инструменты (72)
+## Инструменты (73)
 
 | Группа | Кол-во | Требуют подтверждения |
 | :--- | :---: | :---: |
@@ -424,11 +425,12 @@ dotnet run --project IIChatTools.API
 | **+ `external_llm_agent` (v1.8.1)** | **+1** | — |
 | **+ `planner_with_debate` (v1.14.0)** | **+1** | **✅** |
 | **+ `orchestrate_task` (v2.0.0)** | **+1** | **✅** |
+| **+ `reflect_task` (v2.2.0, KI-244)** | **+1** | **✅** |
 | **+ Background Jobs (v2.1.0)** | **+3** | **✅ (`start`)** |
 | **+ Todo Tracking (v2.1.0)** | **+3** | — |
-| **Итого (ToolRegistry)** | **72** | — |
+| **Итого (ToolRegistry)** | **73** | — |
 
-> **Примечание:** Chat видит **25 инструментов** — 12 не-internal агентов
+> **Примечание:** Chat видит **26 инструментов** — 12 не-internal агентов
 > из `SubAgentRegistry` + `consult_secondary_agent` + 3 RAG-tool
 > + `database_agent` + `vision_agent` + `orchestrate_task`
 > + 3 job-tool + 3 todo-tool:
@@ -443,6 +445,7 @@ dotnet run --project IIChatTools.API
 > **+ `database_agent`** (v1.7.0, KI-097);
 > **+ `vision_agent`** (v1.12.0, KI-131);
 > **+ `orchestrate_task`** (v2.0.0, KI-126 Ф3);
+> **+ `reflect_task`** (v2.2.0, KI-244);
 > **+ Background Jobs**: `start_background_job`, `get_job_status`, `cancel_job`
 > (v2.1.0, KI-259);
 > **+ Todo**: `add_todo`, `update_todo_status`, `list_todos` (v2.1.0, Фаза 5).
@@ -992,10 +995,10 @@ IIChatTools.API  (net10.0)
   ├── Razor Views (RU/EN через IStringLocalizer<SharedResources>)
   ├── ES-модули: api, ui, status, approvals, admin, admin-agents, test, chat
   ├── Program.cs: ConfigureDefaultProxy + миграции по провайдеру + LoadSubAgentOverrides
-  └── Startup.cs: DI + 46 инструментов (40 raw + 6 агентов) + Chat services
+  └── Startup.cs: DI + 47 инструментов (40 raw + 6 агентов + 1 Reflection) + Chat services
       ↓ DI
 IIChatTools.Services  (net10.0)
-  ├── ToolRegistry (69 инструментов: 40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator)
+  ├── ToolRegistry (73 инструментов: 40 raw + 10 агентов + 3 RAG + 1 SqlAgent + 7 mail + 3 external-LLM + 1 Vision + 1 review-orchestrator + 1 Reflection + 3 job + 3 todo)
   ├── Agents: SubAgentRegistry (Singleton, v1.4.0)
   ├── Chat: ChatService, ChatStreamService, ChatApprovalCoordinator (Singleton)
   ├── LmStudioClient (SSE-стриминг + tool calling + ModelOverride)
