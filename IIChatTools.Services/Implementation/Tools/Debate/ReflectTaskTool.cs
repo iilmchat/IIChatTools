@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;      // <--- Добавлено
+using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
@@ -11,31 +11,32 @@ using IIChatTools.Services.DTO.Debate;
 using IIChatTools.Services.DTO.SubAgent;
 using IIChatTools.Services.Implementation.Debate;
 using IIChatTools.Services.Interfaces;
+using Microsoft.Extensions.Configuration; // <--- Добавлено
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Implementation.Tools.Debate
 {
-    /// <summary>
-    /// v2.2.0 (KI-244): Паттерн Reflection (черновик + самокритика + переписывание).
-    /// </summary>
     public class ReflectTaskTool : ITool
     {
         private readonly Func<ISubAgentService> _subAgentServiceFactory;
         private readonly ISubAgentRegistry _subAgentRegistry;
         private readonly IAgentDebateSessionService _sessionService;
+        private readonly IConfiguration _configuration; // <--- Добавлено
         private readonly ILogger<ReflectTaskTool> _logger;
 
         public ReflectTaskTool(
             Func<ISubAgentService> subAgentServiceFactory,
             ISubAgentRegistry subAgentRegistry,
             IAgentDebateSessionService sessionService,
+            IConfiguration configuration, // <--- Добавлено
             ILogger<ReflectTaskTool> logger)
         {
             _subAgentServiceFactory = subAgentServiceFactory;
             _subAgentRegistry = subAgentRegistry;
             _sessionService = sessionService;
+            _configuration = configuration;
             _logger = logger;
         }
 
@@ -48,7 +49,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         public IReadOnlyList<ToolParameterDescriptor> Parameters => new List<ToolParameterDescriptor>
         {
             new() { Name = "task", Type = "string", Description = "Задача для черновика (≤8000 символов)", Required = true },
-            new() { Name = "maxRounds", Type = "integer", Description = "Макс. раундов (1..5, по умолчанию 2)", Required = false }
+            new() { Name = "maxRounds", Type = "integer", Description = "Макс. раундов (1..5, по умолчанию из конфига)", Required = false }
         };
 
         public async Task<ToolResult> ExecuteAsync(ToolExecutionContext context, JObject arguments)
@@ -58,10 +59,17 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             if (string.IsNullOrWhiteSpace(task) || task.Length > 8000)
                 return ToolResult.Fail("Параметр 'task' обязателен (не более 8000 символов).");
 
+            // KI-270: читаем настройки из конфига.
+            // Indexer (не GetValue<T>) — работает с любой IConfiguration,
+            // включая fake в тестах; консистентно с CodeAgentWithReviewTool
+            // и PlannerWithDebateTool (RULES § 4.56).
+            var defaultMaxRounds = GetIntConfig("SubAgents:reflect_task:MaxRounds", 2);
             var maxRounds = arguments["maxRounds"]?.Value<int>()
                             ?? arguments["max_rounds"]?.Value<int>()
-                            ?? 2;
+                            ?? defaultMaxRounds;
             maxRounds = Math.Clamp(maxRounds, 1, 5);
+
+            var tokenBudget = GetIntConfig("SubAgents:reflect_task:TokenBudget", 50000);
 
             if (context.CancellationToken.IsCancellationRequested)
                 return ToolResult.Fail("Операция отменена.");
@@ -84,7 +92,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 {
                     PatternType = "Reflection",
                     MaxRounds = maxRounds,
-                    TokenBudget = 50000,
+                    TokenBudget = tokenBudget,
                     AllowEscalation = false,
                     HumanApproval = "Never",
                     ActorModel = descriptor.Model,
@@ -155,7 +163,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     ReflectionCritiqueParser.TryParse(
                         critiqueRaw, out verdict, out issues, out summary);
 
-                    // 6.2. Persist раунда (используем AgentDebateRoundDto)
+                    // 6.2. Persist раунда
                     try
                     {
                         var roundDto = new AgentDebateRoundDto
@@ -234,23 +242,22 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     }
                 }
 
-                // 6.6. v2.2.0 (KI-244): если все раунды отклонены и лимит
-                // исчерпан — итоговый вердикт MaxRoundsReached (DESIGN § 3.1;
-                // иначе теряется разница между «критика против» и «лимит»).
-                if (verdict == "Rejected" && completedRounds >= maxRounds)
-                {
-                    verdict = "MaxRoundsReached";
-                }
-
                 // 7. Финализация сессии
+                // KI-244 (DESIGN § 3.1): если все раунды Rejected и лимит исчерпан —
+                // итоговый вердикт MaxRoundsReached. Иначе теряется разница между
+                // «критика против» и «исчерпан лимит» (одинаковые Rejected в обоих случаях).
+                var finalVerdict = verdict == "Approved"
+                    ? "Approved"
+                    : (verdict == "Uncertain"
+                        ? "Uncertain"
+                        : (completedRounds >= maxRounds ? "MaxRoundsReached" : verdict));
+
+                // KI-271: сохраняем как JSON {finalArtifact}, а не сырой текст
+                var finalArtifactJson = JsonConvert.SerializeObject(new { finalArtifact = draft });
                 try
                 {
-                    // v2.2.0 (KI-244): FinalArtifactJson — единый формат с
-                    // остальными паттернами: { "finalArtifact": "..." }
-                    // (его читает UI-функция parseFinalArtifact при F5).
-                    var artifactJson = JsonConvert.SerializeObject(new { finalArtifact = draft });
                     await _sessionService.CompleteAsync(
-                        sessionId.Value, verdict, artifactJson, CancellationToken.None);
+                        sessionId.Value, finalVerdict, finalArtifactJson, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
@@ -261,7 +268,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 await EmitEventAsync(context, ChatStreamEvent.ReflectCompleted(new ChatReflectCompletedDto
                 {
                     SessionId = sessionId.Value,
-                    Verdict = verdict,
+                    Verdict = finalVerdict,
                     TotalRounds = completedRounds,
                     FinalArtifact = draft
                 }));
@@ -269,13 +276,13 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 var data = new
                 {
                     sessionId = sessionId.Value,
-                    verdict,
+                    verdict = finalVerdict,
                     totalRounds = completedRounds,
                     finalArtifact = draft
                 };
 
                 return ToolResult.Ok(data,
-                    $"Reflection завершён: {verdict} ({completedRounds} раундов).");
+                    $"Reflection завершён: {finalVerdict} ({completedRounds} раундов).");
             }
             catch (OperationCanceledException)
             {
@@ -347,6 +354,19 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             {
                 _logger.LogWarning(ex, "ReflectTask: не удалось отменить сессию {SessionId}", sessionId);
             }
+        }
+
+        /// <summary>
+        /// Читает int из конфига с fallback. Использует indexer (не GetValue&lt;T&gt;),
+        /// чтобы работал с любой IConfiguration — включая fake в тестах.
+        /// Консистентно с CodeAgentWithReviewTool / PlannerWithDebateTool.
+        /// </summary>
+        /// <param name="key">Полный ключ (например, <c>SubAgents:reflect_task:MaxRounds</c>).</param>
+        /// <param name="defaultValue">Значение при отсутствии / невалидном значении.</param>
+        private int GetIntConfig(string key, int defaultValue)
+        {
+            var raw = _configuration[key];
+            return int.TryParse(raw, out var v) ? v : defaultValue;
         }
 
         private static string ComputeHash(string text)

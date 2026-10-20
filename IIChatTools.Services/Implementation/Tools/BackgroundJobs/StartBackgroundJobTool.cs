@@ -26,12 +26,12 @@ namespace IIChatTools.Services.Implementation.Tools.BackgroundJobs
         }
 
         public string Name => "start_background_job";
-        public string Description => "Запускает долгую задачу в фоне (Orchestrator, Vision, Smoke), чтобы не блокировать чат. Возвращает jobId, по которому можно отслеживать статус.";
+        public string Description => "Запускает долгую задачу в фоне (Orchestrator, Vision, Smoke, Reflection), чтобы не блокировать чат. Возвращает jobId, по которому можно отслеживать статус.";
         public bool RequiresApprovalByDefault => true;
 
         public IReadOnlyList<ToolParameterDescriptor> Parameters => new List<ToolParameterDescriptor>
         {
-            new() { Name = "type", Type = "string", Description = "Тип задачи: Orchestrator, Vision, Smoke", Required = true },
+            new() { Name = "type", Type = "string", Description = "Тип задачи: Orchestrator, Vision, Smoke, Reflection", Required = true },
             new() { Name = "parameters", Type = "object", Description = "Параметры задачи (JSON-объект)", Required = true }
         };
 
@@ -42,8 +42,8 @@ namespace IIChatTools.Services.Implementation.Tools.BackgroundJobs
             if (string.IsNullOrWhiteSpace(type) || parameters == null)
                 return ToolResult.Fail("Параметры 'type' и 'parameters' обязательны.");
 
-            if (type != "Orchestrator" && type != "Vision" && type != "Smoke")
-                return ToolResult.Fail($"Неизвестный тип задачи: '{type}'. Допустимые: Orchestrator, Vision, Smoke.");
+            if (type != "Orchestrator" && type != "Vision" && type != "Smoke" && type != "Reflection")
+                return ToolResult.Fail($"Неизвестный тип задачи: '{type}'. Допустимые: Orchestrator, Vision, Smoke, Reflection.");
 
             // KI-261: enforce MaxJobsPerUser
             var activeCount = await _jobService.CountActiveByUserAsync(context.UserId);

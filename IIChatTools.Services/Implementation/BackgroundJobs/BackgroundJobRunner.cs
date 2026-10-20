@@ -128,6 +128,9 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
                         parameters["command"] = "run_smoke";
                         parameters["sessionId"] = parameters["sessionId"]?.ToString() ?? "";
                         break;
+                    case "Reflection":
+                        toolName = "reflect_task";
+                        break;
                     default:
                         throw new InvalidOperationException($"Неизвестный тип задачи: {job.Type}");
                 }

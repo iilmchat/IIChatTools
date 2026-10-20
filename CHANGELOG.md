@@ -18,6 +18,10 @@
 
 ## [Unreleased]
 
+### Fixed
+- **KI-270** — `ReflectTaskTool` читает `MaxRounds` и `TokenBudget` из конфига (`IConfiguration`).
+- **KI-268** — Reflection добавлен в `start_background_job` и `BackgroundJobRunner`.
+
 ### Added
 - **Reflection (v2.2.0, KI-244)** — четвёртый мультиагентный паттерн
   (Actor-Critic → Debate → Orchestrator → **Reflection**): top-level `ITool`
@@ -32,9 +36,25 @@
   `MaxRoundsReached`, `Uncertain`, duplicate-guard, persistence, отмена, SSE).
 
 ### Fixed
-- **KI-244:** если все раунды самокритики отклонены, итоговый вердикт теперь
-  **`MaxRoundsReached`** (ранее оставался `Rejected` — терялась разница между
-  «критика против» и «исчерпан лимит»). Обнаружено при написании Фазы 5.
+- **KI-244 (v2.2.2):** если все раунды самокритики отклонены, итоговый вердикт
+  теперь **`MaxRoundsReached`** (ранее оставался `Rejected` — терялась разница
+  между «критика против» и «исчерпан лимит»). По DESIGN_REFLECTION § 3.1:
+  `finalVerdict = verdict == "Approved" ? "Approved"
+                : (verdict == "Uncertain" ? "Uncertain"
+                : (completedRounds >= maxRounds ? "MaxRoundsReached" : verdict))`.
+  Применяется и в `AgentDebateSession.FinalVerdict` (через `CompleteAsync`),
+  и в SSE `reflect_completed`, и в `ToolResult.data.verdict`. **KI-272**
+  фиксирует расхождение CHANGELOG ↔ код с v2.2.0.
+- **`ReflectTaskTool` — `NotImplementedException` в unit-тестах (v2.2.2)**:
+  после KI-270-fix (v2.2.1) `ReflectTaskTool.ExecuteAsync` читал конфиг
+  через `_configuration.GetValue<int>(...)`. Этот extension внутри вызывает
+  `GetSection(key).Value`, а `FakeConfiguration.GetSection` в тестах бросает
+  `NotImplementedException` → **20 падений** `ReflectTaskToolTests`.
+  Заменено на indexer-паттерн `_configuration[key]` + `int.TryParse` (helper
+  `GetIntConfig`) — консистентно с `CodeAgentWithReviewTool` /
+  `PlannerWithDebateTool` (RULES § 4.56). `FakeConfiguration` в тестах удалён,
+  заменён на `new ConfigurationBuilder().AddInMemoryCollection(...).Build()`
+  (canonical `IConfiguration`, поддерживает и indexer, и `GetSection`).
 
 ### Planned
 - **KI-264** — документация коллизии номеров.

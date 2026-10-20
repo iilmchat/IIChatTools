@@ -6366,7 +6366,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-268 — Reflection как тип Background Job
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.1)** | **Исправлено в:** v2.2.1
 - **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
 - **Файлы:** `BackgroundJobRunner.cs`, `StartBackgroundJobTool.cs`.
 - **Описание:** `start_background_job` знает только `Orchestrator`, `Vision`, `Smoke`. Длинные Reflection-сессии (5 раундов × 2 вызова) могут занимать >2 минут и блокировать чат. Нужно добавить тип `Reflection` в whitelist Background Jobs.
@@ -6383,9 +6383,10 @@ requirement) работают **стабильно**. Gantt требует бо�
 - **Решение:** `PersistState=false` для Reflection (в `SubAgentTaskRequest`) или retention для `AgentStates`.
 - **Связанные:** KI-244 (Reflection), KI-111 (stateless agent).
 
-### KI-270 — Reflection: настройки `SubAgents:reflect_task` игнорируются
+---
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.2.x
+### KI-270 — Reflection: настройки игнорируются
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.1)** | **Исправлено в:** v2.2.1
 - **Обнаружено:** 2026-10-20 (DSH, Фаза 5 — при написании тестов).
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/Debate/ReflectTaskTool.cs`.
 - **Описание:** конфиг `SubAgents:reflect_task` (`MaxRounds`, `TokenBudget`,
@@ -6398,8 +6399,9 @@ requirement) работают **стабильно**. Gantt требует бо�
   тест «конфиг переопределяет default».
 - **Связанные:** KI-244, DESIGN v2.2 § 8.1.
 
-### KI-271 — Reflection: `FinalArtifactJson` хранил сырой текст вместо JSON
+---
 
+### KI-271 — Reflection: `FinalArtifactJson` хранил сырой текст вместо JSON
 - **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v2.2.0
 - **Обнаружено:** 2026-10-20 (DSH, Фаза 5 — при написании тестов).
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/Debate/ReflectTaskTool.cs`.
@@ -6413,26 +6415,46 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-272 — Reflection: `MaxRoundsReached` не применялся в коде (расхождение с CHANGELOG)
+
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** v2.2.2
+- **Обнаружено:** 2026-10-20 (после KI-270-fix — при прогоне `ReflectTaskToolTests`).
+- **Файлы:** `ReflectTaskTool.cs` (секция «7. Финализация сессии»),
+  `CHANGELOG.md` (запись KI-244 в `[Unreleased]`).
+- **Описание:** запись `CHANGELOG [Unreleased] → Fixed → KI-244` заявляла, что
+  «если все раунды самокритики отклонены, итоговый вердикт теперь `MaxRoundsReached`»,
+  но в коде `ReflectTaskTool` трансформации не было: `verdict` (`"Rejected"`)
+  уходил напрямую в `CompleteAsync`, в SSE `reflect_completed` и в
+  `ToolResult.data.verdict`. Тест `ExecuteAsync_AllRejected_ReturnsMaxRoundsReached`
+  (написан в Фазе 5) маскировался падением `FakeConfiguration.GetSection`
+  (KI-270-fix), из-за чего расхождение не было видно при `dotnet test`.
+- **Fix (v2.2.2):** добавлен блок `var finalVerdict = ...` по DESIGN § 3.1
+  перед `CompleteAsync`; `finalVerdict` используется в `AgentDebateSession.FinalVerdict`,
+  SSE `reflect_completed` и `ToolResult.data.verdict`.
+- **Связанные:** KI-244, KI-270, DESIGN v2.2 § 3.1.
+
+---
+
 ## Сводка по статусам
 
-**Пересчитано:** 2026-10-20 (после KI-244 → Fixed, v2.2.0 и регистрации KI-263…KI-271). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-10-20 (после KI-244 → Fixed, v2.2.0, KI-272 → Fixed, v2.2.2 и регистрации KI-263…KI-271). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 160 |
+| Fixed (включая Implemented / Resolved) | 161 |
 | Planned | 51 |
 | Documented | 25 |
 | Deferred | 8 |
 | Partially Fixed | 4 |
 | In Progress | 1 |
 | Won't Fix | 1 |
-| **Всего** | **250** |
+| **Всего** | **251** |
 
-**Сверка:** 160 + 51 + 25 + 8 + 4 + 1 + 1 = **250**.
+**Сверка:** 161 + 51 + 25 + 8 + 4 + 1 + 1 = **251**.
 
-- **Секций `### KI-`:** 251 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
-- **Уникальных номеров:** 250.
+- **Секций `### KI-`:** 252 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272).
+- **Уникальных номеров:** 251.
 - **Дублей по полному ID:** 0.
 - **`KI-110a` / `KI-110b`:** две самостоятельные секции одного номера `KI-110`
   (Anthropic / Gemini); в счёте учитываются один раз.

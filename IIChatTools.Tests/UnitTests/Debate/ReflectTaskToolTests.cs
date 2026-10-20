@@ -13,6 +13,8 @@ using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
 using Xunit;
+using Microsoft.Extensions.Configuration;   // <--- IConfiguration
+using Microsoft.Extensions.Primitives;      // <--- IChangeToken
 
 namespace IIChatTools.Tests.UnitTests.Debate
 {
@@ -243,10 +245,22 @@ namespace IIChatTools.Tests.UnitTests.Debate
             registry ??= new FakeSubAgentRegistry { Descriptor = CreateDescriptor() };
             sessions ??= new FakeAgentDebateSessionService();
 
+            // Канонический ConfigurationBuilder вместо FakeConfiguration:
+            // поддерживает и indexer, и GetSection — устраняет риск рецидива
+            // (FakeConfiguration бросал NotImplementedException в GetSection).
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    { "SubAgents:reflect_task:MaxRounds", "2" },
+                    { "SubAgents:reflect_task:TokenBudget", "50000" }
+                })
+                .Build();
+
             return new ReflectTaskTool(
                 () => subAgent,
                 registry,
                 sessions,
+                config,
                 NullLogger<ReflectTaskTool>.Instance);
         }
 
@@ -795,5 +809,5 @@ namespace IIChatTools.Tests.UnitTests.Debate
             Assert.Equal(UserId, sessions.StartCalls[0].UserId);
             Assert.Equal("Reflection", sessions.StartCalls[0].Config.PatternType);
         }
-    }
+    }    
 }
