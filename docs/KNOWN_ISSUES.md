@@ -5024,6 +5024,9 @@ requirement) работают **стабильно**. Gantt требует бо�
 - **Что подтверждено:** правило 11 (KI-184) покрывает случай STOP:
   Chat **не** пыталась делать лишние vision_agent actions или planner_agent.
 - **Не баг:** это ожидаемое поведение — документация для истории.
+- **Актуализация (v2.1.1, KI-263):** текст `result.Error` унифицирован с
+  внешней отменой — теперь `"Операция отменена."` (STOP в overlay остаётся
+  отменой пользователя; см. `VisionAgentService.RunTaskAsync`, catch overlay-STOP).
 
 ---
 
@@ -6195,7 +6198,9 @@ requirement) работают **стабильно**. Gantt требует бо�
   - DI: `AddSingleton<IJobCancellationRegistry, JobCancellationRegistry>()`;
   - +4 unit-теста реестра.
 - **Осталось:** кооперативность самих tool'ов (Puppeteer/LLM могут не
-  проверять `ct` между шагами) — см. KI-258.
+  проверять `ct` между шагами) — **реализовано в v2.1.1**, см. KI-263
+  (в `DESIGN_BACKGROUND_JOBS § 12` фигурировало под номером KI-258,
+  который в реестре уже занят другой задачей — см. KI-264).
 - **Связанные:** KI-260, `DESIGN_BACKGROUND_JOBS § 9.7`.
 
 ---
@@ -6245,26 +6250,99 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-263 — Cooperative cancellation: Orchestrator / VisionAgent / BrowserSmokeRunner
+
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed** | **Исправлено в:** v2.1.1 (в работе)
+- **Обнаружено:** 2026-10-20 (DSH; в `DESIGN_BACKGROUND_JOBS § 12` значилось как KI-258;
+  в реестре это имя уже занято — см. KI-264).
+- **Файлы:** `OrchestrateTaskTool.cs`, `VisionAgentService.cs`, `BrowserSmokeRunner.cs`,
+  `BrowserSessionManager.cs`, `BackgroundJobRunner.cs` + unit-тесты
+  (`OrchestrateTaskToolTests.cs`, `VisionAgentServiceTests.cs`).
+- **Описание:** KI-259 передал per-job `CancellationToken` в
+  `ToolExecutionContext`, но сами tool'ы его почти не проверяли:
+  `orchestrate_task` не проверял **вообще** (после «Отмены» продолжал выполнять
+  все подзадачи), `vision_agent` / `run_smoke` проверяли только на входе в
+  цикл без логирования, а `BackgroundJobRunner` помечал job `Failed`, если tool
+  кооперативно вернул `Fail("Операция отменена.")` вместо `OperationCanceledException`.
+- **Реализовано (v2.1.1):**
+  - `OrchestrateTaskTool`: pre-check токена до старта и перед каждой подзадачей
+    (последовательно и в `Task.WhenAll`-ветке), `catch (OperationCanceledException)`
+    до `catch (Exception)`; отменённые подзадачи → `status="cancelled"` (не `failed`),
+    сессия `AgentDebateSession` → `CancelAsync` (не `CompleteAsync` — тот всегда
+    ставит `Completed`), итог — `ToolResult.Fail("Операция отменена.", data)` с
+    аддитивными полями `cancelled` / `cancelledSubtasks`;
+  - `VisionAgentService`: проверка `effectiveCts.Token` в начале каждой итерации,
+    лог `"Задача отменена пользователем. Шаг {Step}."` для внешней отмены и
+    STOP в overlay; аудит подтвердил, что все per-step I/O уже получают токен;
+  - `BrowserSmokeRunner`: проверка `ct` перед каждым шагом, `Task.WaitAsync(ct)`
+    для Puppeteer-операций (v7.1.0 не имеет overload'ов с `CancellationToken`) +
+    `page.DefaultTimeout`, различение «отмена пользователя» / «общий таймаут 60 с»;
+  - `BackgroundJobRunner`: если tool вернул Fail после отмены per-job CTS —
+    статус `Cancelled`, а не `Failed`.
+  - +4 unit-теста (3 Orchestrator, 1 VisionAgent); Build 0/0, Test 1220 passed.
+- **Ограничения:** отмена кооперативная — она срабатывает **между** шагами/подзадачами.
+  Внутри одного длинного вызова (HTTP к LLM у worker'а, одна Puppeteer-операция)
+  остановка происходит по завершении вызова или по его таймауту; Orchestrator
+  полагается на то, что worker-агенты сами проверяют переданный им `ct`.
+- **Связанные:** KI-259 (token propagation), KI-264 (нумерация), `DESIGN_BACKGROUND_JOBS § 9.7 / § 12`.
+
+---
+
+### KI-264 — Документация: номера KI-257…260 из DESIGN § 12 не совпадают с реестром
+
+- **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v2.1.x
+- **Обнаружено:** 2026-10-20 (DSH, при регистрации KI-258/cooperative cancellation).
+- **Файлы:** `docs/development/v2.1/DESIGN_BACKGROUND_JOBS.md` (§ 11–12),
+  `docs/KNOWN_ISSUES.md`, `CHANGELOG.md`, `docs/development/RULES.md`.
+- **Описание:** DESIGN § 12 «Предлагаемые KI» использовал номера KI-257…KI-260
+  («при регистрации уточнить»), но после аудита KI-256 реестр уже занял их
+  другими задачами: KI-257 — cast к `BrowserSessionManager`, KI-258 — регистр
+  `assert_text`, KI-259 — отмена Background Jobs, KI-260 — `DropWrite`.
+  В итоге `CHANGELOG.md [Unreleased]` и KI-259 ссылались на «KI-258» в двух
+  разных смыслах. Дополнительно: постановка отчёта ссылается на RULES § 2.18
+  «Стандарт отчётов», которого в `RULES.md` v1.4.35 нет (раздел заканчивается § 2.11).
+- **Решение:** cooperative cancellation зарегистрирована как **KI-263**, durable
+  queue — **KI-265**; обновлены ссылки в KI-259, KI-189, CHANGELOG и примечание
+  в DESIGN § 12. RULES § 2.18 — добавить/уточнить при следующем обновлении правил.
+- **Связанные:** KI-263, KI-265, KI-254 (устаревшая выжимка KI в RULES § 7).
+
+---
+
+### KI-265 — Durable queue для Background Jobs
+
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.1.x
+- **Обнаружено:** 2026-10-20 (в `DESIGN_BACKGROUND_JOBS § 12` значилось как KI-257;
+  номер занят — см. KI-264).
+- **Файлы:** `BackgroundJobQueue.cs`, `BackgroundJobRunner.cs`.
+- **Описание:** очередь `Channel<int>` живёт в памяти. При рестарте `Pending`
+  восстанавливаются из БД, `Running` помечаются `Failed`; нет гарантии
+  «задача выполнится ровно один раз».
+- **Решение:** outbox-таблица / polling БД / Hangfire; idempotency key;
+  recovery вместо «Failed».
+- **Связанные:** KI-260, KI-264.
+
+---
+
 ## Сводка по статусам
 
-**Пересчитано:** 2026-10-19 (KI-252). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-10-20 (после регистрации KI-263…KI-265). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 155 |
-| Planned | 48 |
-| Documented | 24 |
+| Fixed (включая Implemented / Resolved) | 156 |
+| Planned | 49 |
+| Documented | 25 |
 | Deferred | 8 |
 | Partially Fixed | 4 |
 | In Progress | 1 |
 | Won't Fix | 1 |
-| **Всего** | **241** |
+| **Всего** | **244** |
 
-**Сверка:** 155 + 48 + 24 + 8 + 4 + 1 + 1 = **241**.
+**Сверка:** 156 + 49 + 25 + 8 + 4 + 1 + 1 = **244**.
 
-- **Секций `### KI-`:** 242 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
-- **Уникальных номеров:** 241.
+- **Секций `### KI-`:** 245 (после слияния `KI-031a` → `KI-031` и `KI-061a` → `KI-061`).
+- **Уникальных номеров:** 244.
 - **Дублей по полному ID:** 0.
 - **`KI-110a` / `KI-110b`:** две самостоятельные секции одного номера `KI-110`
   (Anthropic / Gemini); в счёте учитываются один раз.

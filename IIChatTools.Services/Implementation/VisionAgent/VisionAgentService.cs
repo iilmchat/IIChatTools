@@ -239,6 +239,11 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             using var effectiveCts = CancellationTokenSource.CreateLinkedTokenSource(
                 timeoutCts.Token, overlayStopToken);
 
+            // KI-258: номер текущего шага нужен в catch-блоках отмены —
+            // переменная step видна только внутри тела цикла, а catch-блоки
+            // находятся вне try. Объявляем ДО try, значение пишем в loop'е.
+            var currentStep = 0;
+
             try
             {
                 // 3. Открыть стартовый URL (если задан).
@@ -261,9 +266,29 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
                 // 4. Main loop.
                 var plan = new List<string>();   // пока пустой; LLM может сам планировать.
+
                 for (int step = 1; step <= maxSteps; step++)
                 {
-                    effectiveCts.Token.ThrowIfCancellationRequested();
+                    currentStep = step;
+
+                    // KI-258: кооперативная отмена — не начинаем следующий шаг,
+                    // если пользователь нажал «Стоп» (внешний токен), STOP в
+                    // overlay или истёк MaxTaskSeconds. OCE пробрасываем —
+                    // catch-блоки ниже различают причину отмены.
+                    // Фразу «отменена пользователем» пишем только для внешней
+                    // отмены / STOP в overlay; timeout логируется отдельно.
+                    if (effectiveCts.Token.IsCancellationRequested)
+                    {
+                        if (cancellationToken.IsCancellationRequested
+                            || overlayStopToken.IsCancellationRequested)
+                        {
+                            _logger.LogInformation(
+                                "Задача отменена пользователем. Шаг {Step}. VisionAgent[{TaskId}]",
+                                currentStep, taskId);
+                        }
+
+                        effectiveCts.Token.ThrowIfCancellationRequested();
+                    }
 
                     // Ф6.8: прогресс в overlay (если включён).
                     try
@@ -600,10 +625,14 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 // это не «отмена стрима», а «отмена tool-call'а»).
                 // Проверяется ПЕРВЫМ: если STOP и timeout сработали одновременно,
                 // приоритет — у активного действия пользователя.
-                result.Error = "Отменено пользователем (STOP в overlay).";
+                // KI-258: STOP — это отмена пользователем. Возвращаем «Операция
+                // отменена.» (как VisionAgentTool для внешней отмены) и пишем
+                // ту же фразу, что и для внешней отмены, с номером шага.
+                result.Error = "Операция отменена.";
                 _logger.LogInformation(
-                    "VisionAgent[{TaskId}]: STOP от overlay, steps={Steps}",
-                    taskId, history.Count);
+                    "Задача отменена пользователем. Шаг {Step}. (STOP в overlay) " +
+                    "VisionAgent[{TaskId}], steps={Steps}",
+                    currentStep, taskId, history.Count);
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested
                                                      && !cancellationToken.IsCancellationRequested)
@@ -618,8 +647,12 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             catch (OperationCanceledException)
             {
                 // Внешняя отмена (Stop в чате / HTTP abort) — пробрасываем.
+                // KI-258: логируем шаг, на котором пользователь остановил задачу.
                 result.Error = "Задача отменена.";
-                _logger.LogInformation("VisionAgent[{TaskId}]: отменена", taskId);
+                _logger.LogInformation(
+                    "Задача отменена пользователем. Шаг {Step}. VisionAgent[{TaskId}] " +
+                    "(внешняя отмена)",
+                    currentStep, taskId);
                 throw;
             }
             catch (Exception ex)

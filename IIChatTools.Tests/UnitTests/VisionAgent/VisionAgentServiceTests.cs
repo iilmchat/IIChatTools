@@ -53,7 +53,7 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
         private static VisionAgentService CreateService(
             FakeVisionBackend backend,
             FakeVisionLlmClient visionLlm,
-            FakePlannerLlmClient plannerLlm,
+            IPlannerLlmClient plannerLlm,
             FakeVisionScreenshotStore store = null,
             IVisionRateLimiter rateLimiter = null,
             VisionAgentOptions options = null,
@@ -375,6 +375,94 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(
                 () => svc.RunTaskAsync(Request(), UserId, cts.Token));
+        }
+
+        // ============ 14.1. KI-258: отмена между шагами ============
+
+        /// <summary>
+        /// KI-258: Planner, который отменяет внешний <see cref="CancellationTokenSource"/>
+        /// на заданном по счёту вызове <see cref="PlanNextAsync"/> — эмуляция
+        /// «Стоп» посреди loop'а Vision Agent.
+        /// </summary>
+        private sealed class CancellingPlannerLlmClient : IPlannerLlmClient
+        {
+            private readonly CancellationTokenSource _cts;
+            private readonly int _cancelOnCall;
+            private readonly VisionActionDto _response;
+
+            public CancellingPlannerLlmClient(
+                CancellationTokenSource cts,
+                int cancelOnCall,
+                VisionActionDto response)
+            {
+                _cts = cts;
+                _cancelOnCall = cancelOnCall;
+                _response = response;
+            }
+
+            /// <summary>Сколько раз вызывался <see cref="PlanNextAsync"/>.</summary>
+            public int CallCount { get; private set; }
+
+            public bool IsReady => true;
+
+            public Task<VisionActionDto> PlanNextAsync(
+                string task,
+                IReadOnlyList<VisionStepDto> history,
+                ScreenDescriptionDto screen,
+                IReadOnlyList<string> plan,
+                int userId = 0,
+                CancellationToken cancellationToken = default)
+            {
+                CallCount++;
+
+                if (CallCount == _cancelOnCall)
+                {
+                    _cts.Cancel();
+                }
+
+                return Task.FromResult(_response);
+            }
+        }
+
+        [Fact]
+        public async Task RunTaskAsync_CancelledBetweenSteps_StopsLoop()
+        {
+            // Arrange: Planner отменяет задачу на 2-м вызове. Fake backend
+            // токен не проверяет, поэтому 2-й шаг доигрывается, а loop
+            // останавливается на проверке отмены в начале 3-го шага.
+            var backend = new FakeVisionBackend();
+            var visionLlm = new FakeVisionLlmClient
+            {
+                DefaultResponse = new ScreenDescriptionDto
+                {
+                    UiElements = new List<UiElementDto>
+                    {
+                        new UiElementDto
+                        {
+                            Id = "btn",
+                            Type = "button",
+                            Center = new UiElementCenterDto { X = 10, Y = 20 }
+                        }
+                    }
+                }
+            };
+
+            using var cts = new CancellationTokenSource();
+            var planner = new CancellingPlannerLlmClient(
+                cts,
+                cancelOnCall: 2,
+                response: new VisionActionDto { Action = "click", Target = "btn" });
+
+            var svc = CreateService(backend, visionLlm, planner, options: DefaultOptions());
+
+            // Act
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => svc.RunTaskAsync(Request(), UserId, cts.Token));
+
+            // Assert: loop остановлен — 3-го шага (скриншот / план / клик) не было.
+            Assert.Equal(2, planner.CallCount);
+            Assert.Equal(2, backend.CallLog.FindAll(c => c == "Screenshot").Count);
+            Assert.Equal(2, backend.CallLog.FindAll(c => c.StartsWith("Click")).Count);
         }
 
         // ============ 15. userId прокидывается в Planner ============

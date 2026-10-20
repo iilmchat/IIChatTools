@@ -848,6 +848,14 @@ namespace IIChatTools.Services.Implementation
                             error = smokeResult.Error
                         };
 
+                        // KI-258: пользовательская отмена run_smoke — единый
+                        // ответ ToolResult.Fail("Операция отменена."), а не
+                        // «шаг N упал» (иначе job помечается Failed, а не Cancelled).
+                        if (context.CancellationToken.IsCancellationRequested)
+                        {
+                            return ToolResult.Fail("Операция отменена.", payload);
+                        }
+
                         return smokeResult.Passed
                             ? ToolResult.Ok(payload)
                             : ToolResult.Fail(smokeResult.Error, payload);

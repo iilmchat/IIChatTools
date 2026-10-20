@@ -169,6 +169,17 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
                 }
                 else
                 {
+                    // KI-258: инструмент мог кооперативно вернуть
+                    // Fail("Операция отменена.") вместо OperationCanceledException.
+                    // В этом случае job — Cancelled, а не Failed.
+                    if (jobCts.Token.IsCancellationRequested)
+                    {
+                        _logger.LogInformation(
+                            "Job {JobId}: tool вернул Fail после отмены — статус Cancelled", jobId);
+                        await jobService.UpdateStatusAsync(jobId, "Cancelled", 0, "Отменено");
+                        return;
+                    }
+
                     await jobService.UpdateStatusAsync(jobId, "Failed", 100, "Ошибка", error: result.Message);
                 }
             }

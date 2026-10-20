@@ -297,6 +297,11 @@ namespace IIChatTools.Services.Implementation.Browser
                 for (var i = 0; i < plan.Steps.Count; i++)
                 {
                     currentStep = i + 1;
+
+                    // KI-258: кооперативная отмена — не начинаем следующий шаг,
+                    // если пользователь нажал «Отмена» (cancel_job / Stop).
+                    // Log — в catch ниже (там же обрабатывается отмена,
+                    // пришедшая посреди шага через WaitAsync).
                     cancellationToken.ThrowIfCancellationRequested();
 
                     var step = plan.Steps[i];
@@ -328,9 +333,23 @@ namespace IIChatTools.Services.Implementation.Browser
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // KI-258: различаем внешнюю отмену (пользователь / cancel_job)
+                // и внутренний общий таймаут сценария. Оба приходят через один
+                // linked-токен, но внешний виден по context.CancellationToken.
+                if (context.CancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation(
+                        "Задача отменена пользователем. Шаг {Step}.",
+                        currentStep);
+
+                    return Failure(
+                        currentStep, started.ElapsedMilliseconds, screenshots, plan.Steps.Count,
+                        $"Операция отменена. Шаг {currentStep}.");
+                }
+
                 return Failure(
                     currentStep, started.ElapsedMilliseconds, screenshots, plan.Steps.Count,
-                    $"Smoke-сценарий отменён или превышен общий таймаут ({OverallTimeoutSeconds} с) на шаге {currentStep}.");
+                    $"Превышен общий таймаут smoke-сценария ({OverallTimeoutSeconds} с) на шаге {currentStep}.");
             }
             catch (Exception ex)
             {
@@ -386,14 +405,21 @@ namespace IIChatTools.Services.Implementation.Browser
             List<string> screenshots,
             CancellationToken cancellationToken)
         {
+            // KI-258: не начинаем шаг, если отмена пришла между шагами.
+            cancellationToken.ThrowIfCancellationRequested();
+
             switch (step.Action)
             {
                 case "goto":
-                    await page.GoToAsync(step.Url);
+                    // KI-258: у PuppeteerSharp 7.1.0 нет overload'ов с CancellationToken,
+                    // поэтому оборачиваем ожидание в Task.WaitAsync(ct). Сам запрос
+                    // прерывается page.DefaultTimeout'ом (effectiveTimeoutMs), а мы
+                    // перестаём ждать и не запускаем следующий шаг.
+                    await page.GoToAsync(step.Url).WaitAsync(cancellationToken);
                     break;
 
                 case "click":
-                    await page.ClickAsync(step.Selector);
+                    await page.ClickAsync(step.Selector).WaitAsync(cancellationToken);
                     break;
 
                 case "click_by_text":
@@ -421,7 +447,9 @@ namespace IIChatTools.Services.Implementation.Browser
                         return { ok: false, error: 'Элемент с текстом «' + target + '» не найден' };
                     }";
 
-                    var clickResult = await page.EvaluateFunctionAsync<JObject>(clickScript, step.Text);
+                    var clickResult = await page
+                        .EvaluateFunctionAsync<JObject>(clickScript, step.Text)
+                        .WaitAsync(cancellationToken);
                     var ok = clickResult?["ok"]?.Value<bool>() ?? false;
                     if (!ok)
                     {
@@ -433,18 +461,18 @@ namespace IIChatTools.Services.Implementation.Browser
                 }
 
                 case "type":
-                    await page.TypeAsync(step.Selector, step.Text);
+                    await page.TypeAsync(step.Selector, step.Text).WaitAsync(cancellationToken);
                     break;
 
                 case "press_key":
-                    await page.Keyboard.PressAsync(step.Key);
+                    await page.Keyboard.PressAsync(step.Key).WaitAsync(cancellationToken);
                     break;
 
                 case "wait_for_selector":
                     await page.WaitForSelectorAsync(step.Selector, new WaitForSelectorOptions
                     {
                         Timeout = effectiveTimeoutMs
-                    });
+                    }).WaitAsync(cancellationToken);
                     break;
 
                 case "assert_text":
@@ -455,7 +483,9 @@ namespace IIChatTools.Services.Implementation.Browser
                         return (el.innerText || el.textContent || '');
                     }";
 
-                    var actual = await page.EvaluateFunctionAsync<string>(textScript, step.Selector);
+                    var actual = await page
+                        .EvaluateFunctionAsync<string>(textScript, step.Selector)
+                        .WaitAsync(cancellationToken);
                     if (actual == null)
                         throw new InvalidOperationException($"Элемент '{step.Selector}' не найден.");
 
@@ -482,7 +512,9 @@ namespace IIChatTools.Services.Implementation.Browser
                             && s.opacity !== '0';
                     }";
 
-                    var visible = await page.EvaluateFunctionAsync<bool>(visibleScript, step.Selector);
+                    var visible = await page
+                        .EvaluateFunctionAsync<bool>(visibleScript, step.Selector)
+                        .WaitAsync(cancellationToken);
                     if (!visible)
                         throw new InvalidOperationException(
                             $"Элемент '{step.Selector}' не найден или не виден.");
@@ -508,7 +540,7 @@ namespace IIChatTools.Services.Implementation.Browser
                     {
                         Type = ScreenshotType.Png,
                         FullPage = false
-                    });
+                    }).WaitAsync(cancellationToken);
 
                     await File.WriteAllBytesAsync(safePath, bytes, cancellationToken);
                     screenshots.Add(step.Path);

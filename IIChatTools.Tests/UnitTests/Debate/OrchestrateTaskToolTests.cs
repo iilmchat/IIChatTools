@@ -77,6 +77,20 @@ namespace IIChatTools.Tests.UnitTests.Debate
 
             public List<string> CalledTools { get; } = new List<string>();
 
+            /// <summary>
+            /// v2.1.x (KI-258): опциональный хук — вызывается перед выдачей
+            /// ответа (например, чтобы отменить CTS между подзадачами).
+            /// </summary>
+            public Action<string> OnExecute { get; set; }
+
+            /// <summary>
+            /// v2.1.x (KI-258): инструменты, для которых <c>ExecuteAsync</c>
+            /// бросает <see cref="OperationCanceledException"/> (эмуляция
+            /// отмены worker'а).
+            /// </summary>
+            public HashSet<string> ThrowCancellationFor { get; }
+                = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             public IReadOnlyList<ToolDescriptor> GetAllDescriptors() => Array.Empty<ToolDescriptor>();
             public ToolDescriptor GetDescriptor(string name) => null;
             public ITool GetTool(string name) => null;
@@ -85,6 +99,14 @@ namespace IIChatTools.Tests.UnitTests.Debate
                 string toolName, ToolExecutionContext context, JObject arguments)
             {
                 CalledTools.Add(toolName);
+                OnExecute?.Invoke(toolName);
+
+                // KI-258: эмуляция отмены внутри worker'а.
+                if (ThrowCancellationFor.Contains(toolName))
+                {
+                    throw new OperationCanceledException();
+                }
+
                 if (ResponsesByTool.TryGetValue(toolName, out var q) && q.Count > 0)
                 {
                     return Task.FromResult(q.Dequeue());
@@ -139,6 +161,12 @@ namespace IIChatTools.Tests.UnitTests.Debate
             sessionMock.Setup(s => s.CompleteAsync(
                     It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            // v2.1.x (KI-258): отмена сессии (CancelAsync) — дефолт true,
+            // чтобы тесты без отмены не падали при неожиданном вызове.
+            sessionMock.Setup(s => s.CancelAsync(
+                    It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
 
             blackboardMock ??= new Mock<IAgentBlackboard>();
@@ -789,6 +817,164 @@ namespace IIChatTools.Tests.UnitTests.Debate
             Assert.Contains("Результат A", artifact);
             Assert.Contains("Результат B", artifact);
             Assert.Contains("web_agent", artifact);
+        }
+
+        // ============================================================
+        // Кооперативная отмена (v2.1.x, KI-258)
+        // ============================================================
+
+        [Fact]
+        public async Task ExecuteAsync_CancelledBeforeStart_ReturnsFail()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool[PlannerToolName] = new Queue<ToolResult>(new[]
+            {
+                AgentOk(PlanJson(false, ("1", "web_agent", "t1")))
+            });
+
+            var sessionMock = new Mock<IAgentDebateSessionService>();
+            var tool = CreateTool(registry, sessionMock: sessionMock);
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            var ctx = new ToolExecutionContext
+            {
+                UserId = 1,
+                ChatId = 1,
+                CancellationToken = cts.Token
+            };
+
+            var result = await tool.ExecuteAsync(
+                ctx, new JObject { ["task"] = "Test" });
+
+            Assert.False(result.Success);
+            Assert.Contains("Операция отменена", result.Message);
+
+            // Планировщик и сессия даже не начинали работу.
+            Assert.Empty(registry.CalledTools);
+            sessionMock.Verify(s => s.StartAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<AgentDebateConfigSnapshot>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            sessionMock.Verify(s => s.CancelAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_CancellationBetweenSubtasks_StopsAndMarksCancelled()
+        {
+            const int SessionId = 777;
+
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool[PlannerToolName] = new Queue<ToolResult>(new[]
+            {
+                AgentOk(PlanJson(false,
+                    ("1", "web_agent", "t1"),
+                    ("2", "web_agent", "t2"),
+                    ("3", "web_agent", "t3")))
+            });
+            registry.ResponsesByTool["web_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("r1"), AgentOk("r2"), AgentOk("r3")
+            });
+
+            using var cts = new CancellationTokenSource();
+
+            // Отменяем токен при первом же вызове worker'а: вторая и третья
+            // подзадачи не должны запуститься.
+            registry.OnExecute = toolName =>
+            {
+                if (string.Equals(toolName, "web_agent", StringComparison.OrdinalIgnoreCase))
+                {
+                    cts.Cancel();
+                }
+            };
+
+            var sessionMock = new Mock<IAgentDebateSessionService>();
+            var tool = CreateTool(registry, sessionMock: sessionMock);
+
+            var ctx = new ToolExecutionContext
+            {
+                UserId = 1,
+                ChatId = 1,
+                CancellationToken = cts.Token
+            };
+
+            var result = await tool.ExecuteAsync(
+                ctx, new JObject { ["task"] = "Test" });
+
+            Assert.False(result.Success);
+            Assert.Contains("Операция отменена", result.Message);
+
+            var data = JObject.FromObject(result.Data);
+            Assert.Equal(3, data["totalSubtasks"]?.Value<int>());
+            Assert.Equal(1, data["completedSubtasks"]?.Value<int>());
+            Assert.Equal(0, data["failedSubtasks"]?.Value<int>());
+            Assert.Equal(2, data["cancelledSubtasks"]?.Value<int>());
+            Assert.True(data["cancelled"]?.Value<bool>());
+
+            var subtasks = data["subtasks"] as JArray;
+            Assert.NotNull(subtasks);
+            Assert.Equal("completed",
+                subtasks.First(s => s["id"]?.ToString() == "1")["status"]?.ToString());
+            Assert.Equal("cancelled",
+                subtasks.First(s => s["id"]?.ToString() == "2")["status"]?.ToString());
+            Assert.Equal("cancelled",
+                subtasks.First(s => s["id"]?.ToString() == "3")["status"]?.ToString());
+
+            // Planner + один worker; 2-я и 3-я подзадачи не запускались.
+            Assert.Equal(2, registry.CalledTools.Count);
+            Assert.Equal(1, registry.CalledTools.Count(t => t == "web_agent"));
+
+            // Сессия отменена через CancelAsync (НЕ CompleteAsync).
+            sessionMock.Verify(s => s.CancelAsync(
+                SessionId, 1, It.IsAny<CancellationToken>()), Times.Once);
+            sessionMock.Verify(s => s.CompleteAsync(
+                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WorkerThrowsOperationCanceled_MarksCancelledNotFailed()
+        {
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool[PlannerToolName] = new Queue<ToolResult>(new[]
+            {
+                AgentOk(PlanJson(false,
+                    ("1", "web_agent", "t1"),
+                    ("2", "code_agent", "t2")))
+            });
+            registry.ThrowCancellationFor.Add("web_agent");
+            registry.ResponsesByTool["web_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("r1")
+            });
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("r2")
+            });
+
+            var tool = CreateTool(registry);
+            var result = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Test" });
+
+            Assert.False(result.Success);
+            Assert.Contains("Операция отменена", result.Message);
+
+            var data = JObject.FromObject(result.Data);
+            Assert.Equal(1, data["cancelledSubtasks"]?.Value<int>());
+            Assert.Equal(0, data["failedSubtasks"]?.Value<int>());
+            Assert.True(data["cancelled"]?.Value<bool>());
+
+            var subtasks = data["subtasks"] as JArray;
+            Assert.NotNull(subtasks);
+            var cancelledSub = subtasks.First(s => s["id"]?.ToString() == "1");
+            Assert.Equal("cancelled", cancelledSub["status"]?.ToString());
+            Assert.NotEqual("failed", cancelledSub["status"]?.ToString());
+            Assert.Contains("Операция отменена пользователем",
+                cancelledSub["error"]?.ToString());
         }
     }
 }

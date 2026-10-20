@@ -61,6 +61,12 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         private const int MaxTaskLength = 8000;
         private const int MaxSubtaskLength = 2000;
 
+        // v2.1.x (KI-258): кооперативная отмена Orchestrator'а.
+        // Сообщение пользователю при отмене (как в VisionAgent / BrowserSmokeRunner).
+        private const string OperationCancelledMessage = "Операция отменена.";
+        // Ошибка подзадачи, остановленной отменой пользователя.
+        private const string SubtaskCancelledError = "Операция отменена пользователем.";
+
         // ============================================================
         // Зависимости
         // ============================================================
@@ -158,6 +164,16 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             if (task.Length > MaxTaskLength)
                 return ToolResult.Fail($"Задача превышает {MaxTaskLength} символов.");
 
+            // ---------- 1.5. KI-258: кооперативная отмена ----------
+            // Токен отменён ещё до старта — не создаём сессию и не зовём
+            // планировщика, сразу отдаём Fail (BackgroundJobRunner превратит
+            // его в статус Cancelled, а не Failed).
+            if (context.CancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("Задача отменена пользователем. Шаг 0.");
+                return ToolResult.Fail(OperationCancelledMessage);
+            }
+
             // ---------- 2. Конфиг ----------
             var config = ReadConfig();
             var parallelOverride = arguments["parallel"]?.Value<bool?>();
@@ -222,6 +238,19 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             var planResult = await CallPlannerAsync(context, task);
             if (!planResult.Success)
             {
+                // KI-258: отмена во время декомпозиции — гасим сессию через
+                // CancelAsync (не CompleteAsync: тот всегда ставит Completed).
+                if (planResult.Cancelled)
+                {
+                    if (sessionId.HasValue)
+                    {
+                        await SafeCancelAsync(sessionId.Value, context.UserId);
+                        _blackboard.Clear(sessionId.Value);
+                    }
+
+                    return ToolResult.Fail(OperationCancelledMessage);
+                }
+
                 return ToolResult.Fail(
                     $"Декомпозиция не удалась: {planResult.Message}");
             }
@@ -339,7 +368,30 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
                 var tasks = activeSubtasks.Select(async (st, idx) =>
                 {
-                    await semaphore.WaitAsync(context.CancellationToken);
+                    // KI-258: кооперативная отмена — не запускаем подзадачу,
+                    // если токен отменён ещё до захвата семафора.
+                    if (context.CancellationToken.IsCancellationRequested)
+                    {
+                        MarkSubtaskAsCancelled(st);
+                        _logger.LogInformation(
+                            "Задача отменена пользователем. Шаг {Step}.", idx + 1);
+                        return;
+                    }
+
+                    try
+                    {
+                        await semaphore.WaitAsync(context.CancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Отмена во время ожидания семафора: слот НЕ захвачен,
+                        // поэтому Release не нужен.
+                        MarkSubtaskAsCancelled(st);
+                        _logger.LogInformation(
+                            "Задача отменена пользователем. Шаг {Step}.", idx + 1);
+                        return;
+                    }
+
                     try
                     {
                         await ExecuteSubtaskAsync(
@@ -351,7 +403,19 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     }
                 });
 
-                await Task.WhenAll(tasks);
+                try
+                {
+                    await Task.WhenAll(tasks);
+                }
+                catch (OperationCanceledException)
+                {
+                    // KI-258: OCE не должен покидать ExecuteAsync — статусы уже
+                    // проставлены в лямбдах, страхуем оставшиеся подзадачи.
+                    MarkRemainingAsCancelled(subtasks);
+                    _logger.LogInformation(
+                        "OrchestrateTaskTool: параллельное выполнение прервано " +
+                        "отменой пользователя.");
+                }
             }
             else
             {
@@ -365,6 +429,16 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 var seqIndex = 0;
                 foreach (var st in activeSubtasks)
                 {
+                    // KI-258: кооперативная отмена между подзадачами — не
+                    // запускаем следующую, помечаем текущую и все ожидающие.
+                    if (context.CancellationToken.IsCancellationRequested)
+                    {
+                        _logger.LogInformation(
+                            "Задача отменена пользователем. Шаг {Step}.", seqIndex + 1);
+                        MarkRemainingAsCancelled(subtasks);
+                        break;
+                    }
+
                     await ExecuteSubtaskAsync(
                         context, st, sessionId, subtasks.Count, ++seqIndex);
                 }
@@ -372,9 +446,21 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
             stopwatch.Stop();
 
+            // ---------- 6.5. KI-258: итоговая проверка отмены ----------
+            // Отмена могла прийти между подзадачами (токен) либо кооперативно
+            // из worker'а (OperationCanceledException → status="cancelled").
+            var wasCancelled = context.CancellationToken.IsCancellationRequested
+                || subtasks.Any(s => s.Status == "cancelled");
+
+            if (wasCancelled)
+            {
+                MarkRemainingAsCancelled(subtasks);
+            }
+
             // ---------- 7. Финальный артефакт ----------
             var completed = subtasks.Count(s => s.Status == "completed");
             var failed = subtasks.Count(s => s.Status == "failed" || s.Status == "rejected");
+            var cancelledSubtasks = subtasks.Count(s => s.Status == "cancelled");
 
             var finalArtifact = BuildFinalArtifact(task, subtasks);
 
@@ -397,6 +483,10 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 totalSubtasks = subtasks.Count,
                 completedSubtasks = completed,
                 failedSubtasks = failed,
+                // v2.1.x (KI-258): аддитивные поля кооперативной отмены
+                // (не переименовываем существующие — их читает UI/JobRunner).
+                cancelledSubtasks,
+                cancelled = wasCancelled,
                 parallel = effectiveParallel,
                 parallelRequested = plan.Parallel,
                 hasExternalWorker = hasExternalWorker,
@@ -408,21 +498,33 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
             _logger.LogInformation(
                 "OrchestrateTaskTool: завершено за {Ms} мс " +
-                "(подзадач: {Total}, completed: {Ok}, failed: {Fail}, truncated: {Trunc})",
-                stopwatch.ElapsedMilliseconds, subtasks.Count, completed, failed, truncated);
+                "(подзадач: {Total}, completed: {Ok}, failed: {Fail}, " +
+                "cancelled: {Cancelled}, truncated: {Trunc})",
+                stopwatch.ElapsedMilliseconds, subtasks.Count, completed, failed,
+                cancelledSubtasks, truncated);
 
-            // ---------- Persistence: CompleteAsync + SSE orchestrator_completed ----------
+            // ---------- Persistence: CompleteAsync/CancelAsync + SSE orchestrator_completed ----------
             if (sessionId.HasValue)
             {
-                var verdict = failed == 0
-                    ? "Approved"
-                    : (completed > 0 ? "PartiallyApproved" : "Failed");
+                if (wasCancelled)
+                {
+                    // KI-258: отмена — это НЕ Completed. CompleteAsync всегда
+                    // ставит Status="Completed", поэтому вызываем CancelAsync.
+                    // CancellationToken.None: запись должна пройти после отмены.
+                    await SafeCancelAsync(sessionId.Value, context.UserId);
+                }
+                else
+                {
+                    var verdict = failed == 0
+                        ? "Approved"
+                        : (completed > 0 ? "PartiallyApproved" : "Failed");
 
-                await SafeCompleteAsync(
-                    sessionId.Value,
-                    verdict,
-                    Newtonsoft.Json.JsonConvert.SerializeObject(new { finalArtifact }),
-                    context.CancellationToken);
+                    await SafeCompleteAsync(
+                        sessionId.Value,
+                        verdict,
+                        Newtonsoft.Json.JsonConvert.SerializeObject(new { finalArtifact }),
+                        context.CancellationToken);
+                }
 
                 TryEmit(context, ChatStreamEvent.OrchestratorCompleted(
                     new ChatOrchestratorCompletedDto
@@ -437,6 +539,13 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
                 // Cleanup Blackboard.
                 _blackboard.Clear(sessionId.Value);
+            }
+
+            if (wasCancelled)
+            {
+                // KI-258: кооперативная отмена — Fail (JobRunner → Cancelled),
+                // data сохраняет частичный прогресс (sessionId, subtasks, ...).
+                return ToolResult.Fail(OperationCancelledMessage, data);
             }
 
             var message = failed > 0
@@ -502,6 +611,19 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 {
                     Success = true,
                     RawAnswer = finalAnswer
+                };
+            }
+            catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
+            {
+                // KI-258: отмена пользователем во время декомпозиции —
+                // это плановая остановка, а не ошибка планировщика.
+                _logger.LogInformation(
+                    "OrchestrateTaskTool: декомпозиция отменена пользователем.");
+                return new PlannerCallResult
+                {
+                    Success = false,
+                    Cancelled = true,
+                    Message = OperationCancelledMessage
                 };
             }
             catch (Exception ex)
@@ -687,6 +809,17 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             int totalSubtasks,
             int index)
         {
+            // KI-258: defense in depth — не запускаем подзадачу, если токен
+            // отменён (последовательный цикл проверяет до вызова, параллельный —
+            // до захвата семафора; здесь — последний рубеж).
+            if (context.CancellationToken.IsCancellationRequested)
+            {
+                MarkSubtaskAsCancelled(subtask);
+                _logger.LogInformation(
+                    "Задача отменена пользователем. Шаг {Step}.", index);
+                return;
+            }
+
             subtask.Status = "running";
             var sw = Stopwatch.StartNew();
 
@@ -717,13 +850,40 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 }
                 else
                 {
-                    subtask.Status = "failed";
-                    subtask.Error = result.Message ?? "Tool вернул Fail без сообщения.";
+                    // KI-258: worker мог кооперативно вернуть
+                    // Fail("Операция отменена.") вместо OperationCanceledException.
+                    // Если отмена уже запрошена — это cancelled, а не failed.
+                    if (context.CancellationToken.IsCancellationRequested)
+                    {
+                        MarkSubtaskAsCancelled(subtask);
 
-                    _logger.LogWarning(
-                        "OrchestrateTaskTool: подзадача {Id} ({Agent}) провалена: {Error}",
-                        subtask.Id, subtask.Agent, subtask.Error);
+                        _logger.LogInformation(
+                            "OrchestrateTaskTool: подзадача {Id} ({Agent}) " +
+                            "отменена пользователем",
+                            subtask.Id, subtask.Agent);
+                    }
+                    else
+                    {
+                        subtask.Status = "failed";
+                        subtask.Error = result.Message ?? "Tool вернул Fail без сообщения.";
+
+                        _logger.LogWarning(
+                            "OrchestrateTaskTool: подзадача {Id} ({Agent}) провалена: {Error}",
+                            subtask.Id, subtask.Agent, subtask.Error);
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // KI-258: worker остановлен отменой (внешней или собственной) —
+                // это cancelled, а НЕ failed.
+                sw.Stop();
+                subtask.DurationMs = sw.ElapsedMilliseconds;
+                MarkSubtaskAsCancelled(subtask);
+
+                _logger.LogInformation(
+                    "OrchestrateTaskTool: подзадача {Id} ({Agent}) отменена пользователем",
+                    subtask.Id, subtask.Agent);
             }
             catch (Exception ex)
             {
@@ -847,6 +1007,33 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         }
 
         /// <summary>
+        /// v2.1.x (KI-258): безопасный вызов
+        /// <see cref="IAgentDebateSessionService.CancelAsync"/> — не падает
+        /// при ошибке.
+        ///
+        /// <para>
+        /// Важно: используется <see cref="CancellationToken.None"/>, потому что
+        /// запись отмены должна пройти уже после отмены пользовательского токена.
+        /// </para>
+        /// </summary>
+        /// <param name="sessionId">ID сессии.</param>
+        /// <param name="userId">ID пользователя-владельца (проверка владения).</param>
+        private async Task SafeCancelAsync(int sessionId, int userId)
+        {
+            try
+            {
+                await _sessionService.CancelAsync(
+                    sessionId, userId, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "OrchestrateTaskTool: ошибка CancelAsync (sessionId={SessionId})",
+                    sessionId);
+            }
+        }
+
+        /// <summary>
         /// Извлекает «полезный» текст из <see cref="ToolResult"/>:
         /// <c>finalAnswer</c> для агентов, иначе — <c>Data</c> как JSON-строка.
         /// </summary>
@@ -909,6 +1096,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     "completed" => "✅",
                     "failed" => "❌",
                     "rejected" => "⛔",
+                    // v2.1.x (KI-258): отменённая пользователем подзадача.
+                    "cancelled" => "⏹",
                     _ => "⏳"
                 };
 
@@ -923,7 +1112,9 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     sb.AppendLine();
                     sb.AppendLine(st.Result ?? "(пусто)");
                 }
-                else if (st.Status == "failed" || st.Status == "rejected")
+                else if (st.Status == "failed"
+                         || st.Status == "rejected"
+                         || st.Status == "cancelled")
                 {
                     sb.AppendLine($"**Ошибка:** {st.Error}");
                 }
@@ -1009,6 +1200,10 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         private sealed class PlannerCallResult
         {
             public bool Success { get; set; }
+
+            // v2.1.x (KI-258): отмена пользователем (а не ошибка декомпозитора).
+            public bool Cancelled { get; set; }
+
             public string RawAnswer { get; set; }
             public string Message { get; set; }
         }
@@ -1026,6 +1221,35 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         // ============================================================
         // Хелперы
         // ============================================================
+
+        /// <summary>
+        /// v2.1.x (KI-258): помечает одну подзадачу как отменённую
+        /// (status="cancelled", не "failed").
+        /// </summary>
+        /// <param name="subtask">Состояние подзадачи (мутируется).</param>
+        private static void MarkSubtaskAsCancelled(SubtaskState subtask)
+        {
+            subtask.Status = "cancelled";
+            subtask.Error = SubtaskCancelledError;
+        }
+
+        /// <summary>
+        /// v2.1.x (KI-258): помечает все незавершённые подзадачи
+        /// (<c>pending</c> / <c>running</c>) как <c>cancelled</c>.
+        /// Завершённые, failed и rejected не трогает.
+        /// </summary>
+        /// <param name="subtasks">Список подзадач плана.</param>
+        private static void MarkRemainingAsCancelled(
+            IReadOnlyList<SubtaskState> subtasks)
+        {
+            foreach (var st in subtasks)
+            {
+                if (st.Status == "pending" || st.Status == "running")
+                {
+                    MarkSubtaskAsCancelled(st);
+                }
+            }
+        }
 
         private static string Truncate(string value, int max)
         {
