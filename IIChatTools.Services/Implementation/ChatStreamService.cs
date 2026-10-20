@@ -144,6 +144,8 @@ namespace IIChatTools.Services.Implementation
         /// <summary>Минимальный score для вставки в system prompt (по умолчанию).</summary>
         private const float DefaultAutoInjectMinScore = 0.35f;
 
+        private const string ReflectTaskToolName = "reflect_task";
+
         /// <summary>
         /// Базовый system prompt, добавляемый к КАЖДОМУ чату.
         /// Даёт LLM явные правила выбора инструментов (в дополнение к
@@ -710,6 +712,12 @@ namespace IIChatTools.Services.Implementation
                     allowedNames.Add(OrchestrateTaskToolName);
                 }
 
+                // v2.2.0 (KI-244): Reflection
+                if (!allowedNames.Contains(ReflectTaskToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    allowedNames.Add(ReflectTaskToolName);
+                }
+
                 // v2.1.0 (Background Jobs): явно добавляем в allowedNames.
                 if (!allowedNames.Contains(StartBackgroundJobToolName, StringComparer.OrdinalIgnoreCase))
                 {
@@ -1076,6 +1084,7 @@ namespace IIChatTools.Services.Implementation
                     var isMultiAgentTool =
                         string.Equals(functionName, CodeAgentWithReviewToolName, StringComparison.Ordinal)
                         || string.Equals(functionName, PlannerWithDebateToolName, StringComparison.Ordinal)
+                        || string.Equals(functionName, ReflectTaskToolName, StringComparison.Ordinal)                        
                         || string.Equals(functionName, OrchestrateTaskToolName, StringComparison.Ordinal);
 
                     if (isMultiAgentTool && toolResult.Data != null)

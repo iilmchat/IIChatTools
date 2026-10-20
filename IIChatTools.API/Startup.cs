@@ -640,6 +640,9 @@ namespace IIChatTools.API
             // RULES § 4.44: обязательно в allowedNames ChatStreamService.
             services.AddScoped<ITool, OrchestrateTaskTool>();
 
+            // v2.2.0 (KI-244): Reflection
+            services.AddScoped<ITool, ReflectTaskTool>();
+            
             // v1.7.0 (KI-097, Фаза 5): Database Agent tool.
             // Не регистрируется при SqlAgent:Enabled = false (DESIGN § 3.4).
             RegisterSqlAgentTools(services, Configuration);

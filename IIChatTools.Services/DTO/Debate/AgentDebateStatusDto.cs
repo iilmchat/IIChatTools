@@ -148,5 +148,10 @@ namespace IIChatTools.Services.DTO.Debate
         /// </summary>
         public IReadOnlyList<AgentDebateRoundDto> Rounds { get; set; }
             = new List<AgentDebateRoundDto>();
+
+        /// <summary>
+        /// Reflection: имя агента (reflector_agent). null для других паттернов.
+        /// </summary>
+        public string ReflectionAgent { get; set; }            
     }
 }

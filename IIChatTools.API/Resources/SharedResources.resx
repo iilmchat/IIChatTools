@@ -1223,4 +1223,13 @@
   <data name="ChatPrompt6" xml:space="preserve">
     <value>Open example.com and tell me what's there</value>
   </data>        
+  <data name="ChatDebateTitleReflection" xml:space="preserve">
+    <value>Reflection (self-critique)</value>
+  </data>
+  <data name="ChatDebateReflectionDraft" xml:space="preserve">
+    <value>Draft</value>
+  </data>
+  <data name="ChatDebateSelfCritique" xml:space="preserve">
+    <value>Self-critique</value>
+  </data>  
 </root>

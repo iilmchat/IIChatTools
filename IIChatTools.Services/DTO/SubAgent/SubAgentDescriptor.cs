@@ -89,5 +89,10 @@ namespace IIChatTools.Services.DTO.SubAgent
         /// </para>
         /// </summary>
         public bool Internal { get; set; } = false;
+
+        /// <summary>
+        /// v2.2.0 (KI-244): Системный промпт для самокритики (только для Reflection).
+        /// </summary>
+        public string SelfCritiquePrompt { get; set; }        
     }
 }

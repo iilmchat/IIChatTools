@@ -311,7 +311,9 @@ namespace IIChatTools.Services.Implementation.Debate
                 patternType, "Debate", StringComparison.OrdinalIgnoreCase);
             var isOrchestrator = string.Equals(
                 patternType, "Orchestrator", StringComparison.OrdinalIgnoreCase);
-            var isActorCritic = !isDebate && !isOrchestrator;
+            var isReflection = string.Equals(
+                patternType, "Reflection", StringComparison.OrdinalIgnoreCase);
+            var isActorCritic = !isDebate && !isOrchestrator && !isReflection;
 
             // v2.0.0 (KI-126, Фаза 3): статистика подзадач — для UI-заголовка.
             int totalSubtasks = 0;
@@ -365,7 +367,9 @@ namespace IIChatTools.Services.Implementation.Debate
                 TotalSubtasks = isOrchestrator ? totalSubtasks : 0,
                 CompletedSubtasks = isOrchestrator ? completedSubtasks : 0,
                 FailedSubtasks = isOrchestrator ? failedSubtasks : 0,
-                Rounds = rounds.Select(ToRoundDto).ToList()
+                // v2.2.0 (KI-244): Reflection
+                ReflectionAgent = isReflection ? "reflector_agent" : null,                   
+                Rounds = rounds.Select(ToRoundDto).ToList()             
             };
         }
 

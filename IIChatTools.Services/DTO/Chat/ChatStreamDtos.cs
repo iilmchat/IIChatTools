@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.DTO.Chat
 {
@@ -338,5 +339,68 @@ namespace IIChatTools.Services.DTO.Chat
                 Type = "job_started",
                 Data = dto
             };
+
+        public static ChatStreamEvent ReflectStarted(ChatReflectStartedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "reflect_started",
+                Data = dto
+            };
+
+        public static ChatStreamEvent ReflectRound(ChatReflectRoundDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "reflect_round",
+                Data = dto
+            };
+
+        public static ChatStreamEvent ReflectCompleted(ChatReflectCompletedDto dto)
+            => new ChatStreamEvent
+            {
+                Type = "reflect_completed",
+                Data = dto
+            };       
     }
+
+    /// <summary>
+    /// v2.2.0 (KI-244): SSE-событие начала Reflection.
+    /// </summary>
+    public class ChatReflectStartedDto
+    {
+        public int SessionId { get; set; }
+        public string PatternType { get; set; } = "Reflection";
+        public string Task { get; set; }
+        public string Agent { get; set; } = "reflector_agent";
+        public int MaxRounds { get; set; }
+        public string DraftModel { get; set; }
+        public string SelfCritiqueModel { get; set; }
+    }
+
+    /// <summary>
+    /// v2.2.0 (KI-244): SSE-событие раунда Reflection (черновик + критика).
+    /// </summary>
+    public class ChatReflectRoundDto
+    {
+        public int SessionId { get; set; }
+        public string PatternType { get; set; } = "Reflection";
+        public int RoundNumber { get; set; }
+        public string Draft { get; set; }
+        public string Verdict { get; set; }
+        public JArray Issues { get; set; }
+        public string CritiqueSummary { get; set; }
+        public long DurationMs { get; set; }
+    }
+
+    /// <summary>
+    /// v2.2.0 (KI-244): SSE-событие завершения Reflection.
+    /// </summary>
+    public class ChatReflectCompletedDto
+    {
+        public int SessionId { get; set; }
+        public string PatternType { get; set; } = "Reflection";
+        public string Verdict { get; set; }
+        public int TotalRounds { get; set; }
+        public string FinalArtifact { get; set; }
+        public long TotalDurationMs { get; set; }
+    }    
 }

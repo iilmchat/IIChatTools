@@ -6323,6 +6323,48 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-266 — Reflection: прямой вызов ISubAgentService минует AuditLogs/Admin UI
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
+- **Файлы:** `ReflectTaskTool.cs` (план), `AgentStatsService.cs`, `admin-agents.js`.
+- **Описание:** `reflect_task` вызывает `ISubAgentService` напрямую (чтобы передать `SystemPromptOverride`), минуя `AgentToolBase`. Из-за этого:
+  1. Нет записи `agent.reflector_agent` в `AuditLogs` → статистика в `/admin/agents/stats` не видит этот агент.
+  2. `SelfCritiquePrompt` нельзя редактировать через Admin UI (только через appsettings).
+- **Решение:** либо добавить prompt-override в `AgentToolBase` (и использовать обёртку), либо вручную писать audit-лог в `ReflectTaskTool`, либо расширить Admin UI.
+- **Связанные:** KI-244 (Reflection), KI-052 (Multi-Agent).
+
+---
+
+### KI-267 — Reflection: гетерогенная модель самокритики / эскалация
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
+- **Файлы:** `ReflectTaskTool.cs`, `SubAgents:reflector_agent:SelfCritiqueModel`.
+- **Описание:** По умолчанию самокритика использует ту же 4B-модель (`qwen3-4b`), что и черновик. Это даёт `self-approval bias` (модель склонна одобрять свой же код). Смешивание `qwen3-coder-30b` и 4B упирается в VRAM. `Uncertain` можно эскалировать на внешнюю LLM (как в Actor-Critic).
+- **Решение:** Добавить `SelfCritiqueModel` в конфиг (если RAM/VRAM позволяет) или эскалацию.
+- **Связанные:** KI-244 (Reflection), KI-126 (Actor-Critic — эскалация).
+
+---
+
+### KI-268 — Reflection как тип Background Job
+- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
+- **Файлы:** `BackgroundJobRunner.cs`, `StartBackgroundJobTool.cs`.
+- **Описание:** `start_background_job` знает только `Orchestrator`, `Vision`, `Smoke`. Длинные Reflection-сессии (5 раундов × 2 вызова) могут занимать >2 минут и блокировать чат. Нужно добавить тип `Reflection` в whitelist Background Jobs.
+- **Решение:** Добавить валидацию в `StartBackgroundJobTool` и маппинг в `BackgroundJobRunner`.
+- **Связанные:** KI-244 (Reflection), KI-256 (Smoke Runner), v2.1.0 (Background Jobs).
+
+---
+
+### KI-269 — Reflection: дублирование черновиков в AgentStates без retention
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
+- **Файлы:** `SubAgentService.cs`, `AgentState.cs`.
+- **Описание:** `SubAgentService` пишет `AgentStates.TaskDescription = request.Task` на каждый вызов. При прямом вызове для Reflection (2-3 раза на сессию) черновик сохраняется в `AgentStates` (без FK на Chat и без cleanup). В итоге черновик хранится и в `AgentDebateRound.ActorOutput`, и в `AgentStates` — дублирование.
+- **Решение:** `PersistState=false` для Reflection (в `SubAgentTaskRequest`) или retention для `AgentStates`.
+- **Связанные:** KI-244 (Reflection), KI-111 (stateless agent).
+
+---
+
 ## Сводка по статусам
 
 **Пересчитано:** 2026-10-20 (после регистрации KI-263…KI-265). Считаются **уникальные номера** `KI-XXX`;
@@ -6337,7 +6379,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Partially Fixed | 4 |
 | In Progress | 1 |
 | Won't Fix | 1 |
-| **Всего** | **244** |
+| **Всего** | **245** |
 
 **Сверка:** 156 + 49 + 25 + 8 + 4 + 1 + 1 = **244**.
 

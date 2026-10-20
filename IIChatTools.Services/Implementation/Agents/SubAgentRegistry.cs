@@ -131,6 +131,7 @@ namespace IIChatTools.Services.Implementation.Agents
                     DisplayName = child["DisplayName"] ?? name,
                     Description = child["Description"] ?? string.Empty,
                     SystemPrompt = child["SystemPrompt"],
+                    SelfCritiquePrompt = child["SelfCritiquePrompt"], // <--- ДОБАВИТЬ
                     Model = child["Model"],
                     MaxSteps = ParseInt(child["MaxSteps"], defaultValue: 10, min: 1, max: 30),
                     RequiresApprovalByDefault = ParseBool(child["RequiresApproval"], defaultValue: true),
@@ -194,6 +195,7 @@ namespace IIChatTools.Services.Implementation.Agents
                 DisplayName = source.DisplayName,
                 Description = source.Description,
                 SystemPrompt = source.SystemPrompt,
+                SelfCritiquePrompt = source.SelfCritiquePrompt, // <--- ДОБАВИТЬ
                 Model = source.Model,
                 MaxSteps = source.MaxSteps,
                 RequiresApprovalByDefault = source.RequiresApprovalByDefault,
