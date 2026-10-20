@@ -1,7 +1,7 @@
 # Правила разработки IIChatTools
 
-**Версия:** 1.4.35,
-**Обновлено:** 2026-10-12
+**Версия:** 1.4.36,
+**Обновлено:** 2026-10-20
 **Назначение:** единый свод правил для команды и ассистента.
 
 При работе над проектом **все** изменения должны соответствовать этим правилам.
@@ -46,6 +46,7 @@
 | 2.9 | **`docs/development/RELEASES.md` — единый чек-лист релиза.** Обновляется при изменении процесса (новые файлы в § 2, автоматизация в § 9). См. KI-071-инцидент (пропущенный Release v1.3.0). |
 | 2.10 | **Markdown-файлы с внутренними code-блоками — выводить в 4 бэктиках снаружи** (````). Иначе при копировании из чата DeepSeek внешняя обёртка ```markdown «съедает» внутренние ```powershell/```csharp/```yaml — файл приходит с битой разметкой (2 инцидента: DESIGN.md v1.4.0, RELEASES.md). Правило действует для всех будущих .md-файлов, содержащих fenced code blocks. |
 | 2.11 | **Большие MD-файлы (README, CHANGELOG, RULES, KNOWN_ISSUES, RELEASES) — НЕ выводить целиком в чате.** Вместо этого — **точечный diff** («Найти X / Заменить на Y») или отдельная секция (в 4 бэктиках снаружи, 3 внутри). Причина: третья итерация с развалившейся разметкой README.md (28 KB, ~800 строк) — при копировании внутренние code-блоки слипаются, восстанавливать вручную долго. Правило согласовано 2026-09-25. |
+| 2.18 | **Стандарт отчётов по фазе (7 разделов).** Каждый отчёт о фазе/задаче — строго 7 разделов: **(1) Файлы (+/-)** — созданные/изменённые пути; **(2) Покрытие** — новые/обновлённые тесты; **(3) Результаты** — Build 0/0 и Tests X/Y; **(4) Smoke** — ручной сценарий проверки; **(5) Что не так** — известные ограничения/риски; **(6) Новые KI** — зарегистрированные KI или «нет»; **(7) Обоснование** — почему выбрана такая архитектура. Файл отчёта: `docs/development/reports/vX.Y/<PHASE>.md`, полный текст дублируется в ответе пользователю. Основание: KI-264 (ссылки на § 2.18 существовали, пункта не было). |
 
 **Типы записей в CHANGELOG:** `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
@@ -132,6 +133,7 @@
 | 4.52 | **`yield return` запрещён в блоке с `catch` (CS1631), но разрешён в `try-finally` без `catch`.** Тот же код ошибки, что § 4.1, но практический паттерн обработки: **ошибку сохраняем в локальную переменную, `yield return` — ПОСЛЕ блока**. <br/>**(❌) Плохо:** <br/>`try { await DoAsync(); }`<br/>`catch (Exception ex) { yield return Error(...); yield break; }` <br/>**(✅) Правильно:** <br/>`string err = null;`<br/>`try { await DoAsync(); }`<br/>`catch (Exception ex) { _logger.LogError(ex, ...); err = "..."; }`<br/>`if (err != null) { yield return Error(err); yield break; }` <br/>**Прецедент:** KI-230 (`ChatStreamService.ContinueInternalAsync` — `AppendToAssistantMessageAsync` в try, `yield return Error` в catch). **Сборка:** CS1631. |
 | 4.53 | **Расширение § 4.34: после изменения ЛЮБОГО сервис-интерфейса (`I*Service`, не только `ITool`) — обязательный grep по ВСЕМ реализациям, включая fake-заглушки в тестах.** Пропустишь fake — Build упадёт с CS0535 на этапе `dotnet build` (компилятор не различает production и test). **Правильный порядок:** <br/>1) изменил интерфейс; <br/>2) `Select-String -Path IIChatTools.Tests\**\*.cs -Pattern ': IYourInterface' -List` — все реализации; <br/>3) `Select-String -Path IIChatTools.Tests\**\*.cs -Pattern 'NewMethodName'` — все использования; <br/>4) добавил недостающие члены в **каждый** fake; <br/>5) только теперь `dotnet build`. **Для fake-заглушек:** недостающий метод реализуем через `throw new NotImplementedException();` (документирует «здесь не должен вызываться»), а не `return Task.FromResult<X>(null)` (тихо маскирует пропущенный тест). **Прецеденты:** KI-126 Шаг 1D-fix1 (расширение `IToolRegistry.GetTool` → 2 fake в `ChatStreamServiceTests`), KI-230 (`IChatService.AppendToAssistantMessageAsync` → `FakeChatService` в `ChatAttachmentsControllerTests`). |
 | 4.54 | **`dataset.camelCase` не работает для `data-*-1`** (HTML Living Standard: дефис убирается только перед строчной буквой `[a-z]`, а не перед цифрой). `data-label-prompt-1` → `dataset['labelPrompt-1']` (**с дефисом**), а не `dataset.labelPrompt1`. Для `data-*-N` (N — цифра) использовать `element.getAttribute('data-label-prompt-1')` или `element.dataset['labelPrompt-1']`. Симптом: prompts / chips / любые элементы с `data-*-1`…`data-*-N` не рендерятся, `undefined` в консоли. См. KI-235 (v1.13.17, suggested prompts). |
+| 4.56 | **`I*Tool`, провайдеры и сервисы читают `IConfiguration` только через indexer (`_configuration[key]`) + `int.TryParse`/`bool.TryParse`, не через `GetValue<T>()`/`GetSection(...).Get<T>()`.** Причина: `GetValue<T>` — extension из `Microsoft.Extensions.Configuration.Binder`, который внутри вызывает `GetSection(key).Value`; в тестах fake/section-конфигурация может бросать `NotImplementedException`, а поведение биндинга хуже контролируется. Для массивов допустим `section.GetChildren()` (без `Get<T>`). Прецедент: `ReflectTaskToolTests` — 20 падений после KI-270-fix (v2.2.1); `OrchestratorOptionsProvider` (KI-245, v2.2.2). |
 
 ---
 
@@ -224,6 +226,8 @@
 
 **Documented в v1.13.1:** KI-144 (Chrome virtual audio device).
 
+**Fixed в v2.2.2:** KI-245 (Admin UI Orchestrator — runtime whitelist/лимиты воркеров).
+
 **Planned (v1.13.x+):** KI-146 (fallback-полировка + дедупликация), KI-147 (ARCHITECTURE.md).
 
 **Implemented в v1.7.0:** KI-088 (`docs/TESTING.md`).
@@ -282,6 +286,8 @@
 | 2026-10-11 | **1.4.33** | § 4.52 (CS1631 в `try-catch` — паттерн «сохранить в переменную, yield вне блока»), § 4.53 (расширение § 4.34: grep по fake'ам после изменения ЛЮБОГО сервис-интерфейса). **Прецеденты:** KI-230 (`ChatStreamService.ContinueInternalAsync`, `FakeChatService` в `ChatAttachmentsControllerTests`). |
 | 2026-10-12 | **1.4.34** | § 7 — актуализация KI-выжимки: KI-126 → Fixed (Ф3 в v2.0.0). **Docs-only.** |
 | 2026-10-12 | **1.4.35** | § 7 — KI-249 → Fixed (v2.0.1), KI-250 → Fixed (v2.0.1). **Docs-only.** |
+| 2026-10-20 | **1.4.36** | § 2.18 (стандарт отчётов, 7 разделов), § 4.56 (`IConfiguration` — только indexer + TryParse). **KI-245** (Admin UI Orchestrator), KI-264 (ссылки на § 2.18 актуализированы). |
+| 2026-10-20 | **1.4.36b** | § 7 — KI-245 → Fixed (v2.2.2). **Docs-only.** |
 
 ---
 

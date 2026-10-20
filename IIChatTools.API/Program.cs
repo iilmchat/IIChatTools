@@ -7,6 +7,7 @@ using IIChatTools.Data;
 using IIChatTools.Services.DTO.SqlAgent;   // v1.7.0 (KI-097): SqlAgent
 using IIChatTools.Services.DTO.SubAgent;   // v1.4.0 Фаза 6 (KI-052)
 using IIChatTools.Services.Implementation.SqlAgent;  // v1.7.0 (KI-097): SqlAgentOptionsProvider
+using IIChatTools.Services.Implementation.Orchestrator; // v2.2.2 (KI-245): OrchestratorOverridesLoader
 using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Interfaces; // v1.8.1 (KI-109): IExternalProviderRegistry
 using Microsoft.AspNetCore.Hosting;
@@ -273,6 +274,12 @@ namespace IIChatTools.API
                 // (ключи с префиксом SqlAgent.) и применяем к SqlAgentOptionsProvider.
                 LoadSqlAgentOverrides(services, logger);
 
+                // ---------- 6.1. Orchestrator overrides (v2.2.2, KI-245) ----------
+                // Читаем сохранённые в AppSettings override'ы настроек Orchestrator'а
+                // (ключи Orchestrator.*) и применяем к IOrchestratorOptionsProvider
+                // до старта хоста — без рестарта после каждой правки в админке.
+                await LoadOrchestratorOverridesAsync(services, logger);
+
                 // ---------- 7. External-LLM fail-fast (v1.8.1, KI-109) ----------
                 // Конструктор ExternalProviderRegistry выполняет fail-fast валидацию
                 // (BaseUrl, DefaultProvider, ApiKeySecretName) при Enabled = true.
@@ -479,6 +486,45 @@ namespace IIChatTools.API
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "SqlAgent overrides: не удалось загрузить");
+            }
+        }
+
+        /// <summary>
+        /// Загружает override'ы настроек Orchestrator'а из <c>AppSettings</c>
+        /// и применяет их к <see cref="IOrchestratorOptionsProvider"/>
+        /// (v2.2.2, KI-245).
+        /// <para>
+        /// Разбор ключей <c>Orchestrator.*</c> и устойчивость к мусору в БД
+        /// вынесены в тестируемый <see cref="OrchestratorOverridesLoader"/>
+        /// (Program только резолвит зависимости и логирует ошибки).
+        /// </para>
+        /// <para>
+        /// Некорректные значения в БД не должны ронять приложение: при ошибке
+        /// валидации провайдер остаётся на baseline, в лог пишется warning.
+        /// </para>
+        /// </summary>
+        /// <param name="services">Провайдер сервисов (уже в scope)</param>
+        /// <param name="logger">Логгер</param>
+        private static async Task LoadOrchestratorOverridesAsync(
+            IServiceProvider services, ILogger logger)
+        {
+            try
+            {
+                var settingsService = services.GetRequiredService<IAppSettingsService>();
+                var provider = services.GetRequiredService<IOrchestratorOptionsProvider>();
+
+                await OrchestratorOverridesLoader.ApplyAsync(
+                    settingsService, provider, logger);
+            }
+            catch (ArgumentException ex)
+            {
+                logger.LogWarning(ex,
+                    "Orchestrator overrides: некорректные значения в AppSettings — " +
+                    "использован baseline.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Orchestrator overrides: не удалось загрузить");
             }
         }
     }

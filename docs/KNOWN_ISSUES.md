@@ -5850,19 +5850,66 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-245 — Admin UI для whitelist воркеров Orchestrator
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.0.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v2.2.2
 - **Обнаружено:** 2026-10-12 (DESIGN v2.0 § 2.4).
-- **Файлы (план):**
-  - `Views/Home/Admin.cshtml` — 10-я или 11-я вкладка «Orchestrator»;
-  - `wwwroot/js/modules/admin-orchestrator.js` (новый);
-  - `AdminOrchestratorController.cs` (новый);
-  - `SharedResources*.resx` (RU + EN).
+- **Файлы:**
+  - `IIChatTools.Services/DTO/Orchestrator/OrchestratorSettingsDto.cs` (новый);
+  - `IIChatTools.Services/Interfaces/IOrchestratorOptionsProvider.cs` +
+    `IAdminOrchestratorService.cs` (новые);
+  - `IIChatTools.Services/Implementation/Orchestrator/OrchestratorOptionsProvider.cs`
+    + `AdminOrchestratorService.cs` + `OrchestratorOverridesLoader.cs` (новые);
+  - `IIChatTools.API/Controllers/AdminOrchestratorController.cs` (новый);
+  - `IIChatTools.API/Views/Home/Admin.cshtml` — 8-я вкладка «Оркестратор»;
+  - `IIChatTools.API/wwwroot/js/modules/admin-orchestrator.js` (новый);
+  - `IIChatTools.API/Resources/SharedResources*.resx` (RU + EN, ~20 ключей);
+  - `IIChatTools.API/Startup.cs` — DI-регистрация;
+  - `IIChatTools.API/Program.cs` — `LoadOrchestratorOverridesAsync`;
+  - `IIChatTools.Services/Implementation/Tools/Debate/OrchestrateTaskTool.cs`.
 - **Описание:** В v2.0.0 whitelist воркеров (`SubAgents:orchestrate_task:AllowedWorkerAgents`)
-  задаётся только в `appsettings.json`. При изменении — рестарт приложения.
+  задавался только в `appsettings.json`. При изменении — рестарт приложения.
   По образцу `SubAgents:*` (v1.4.0) и `SqlAgent.*` (v1.7.0) — нужен Admin UI
   для runtime-редактирования + persist в `AppSettings` + восстановление при
   старте через `Program.LoadOrchestratorOverrides`.
-- **Оценка:** ~2-3 ч.
+- **Решение (v2.2.2):**
+  - **Провайдер** — Singleton `OrchestratorOptionsProvider`: baseline из
+    `IConfiguration` (секция `SubAgents:orchestrate_task`, чтение через
+    indexer + `int.TryParse`, RULES § 4.56) + runtime-overrides;
+    `Get()` возвращает копию, есть `Update()` / `Reset()` / `IsOverridden`.
+  - **Сервис** — Scoped `AdminOrchestratorService`
+    (`GetSettingsAsync` / `UpdateSettingsAsync` / `ResetAsync`): валидация
+    диапазонов (`MaxSubtasks` 1–10, `MaxParallel` 1–10, `TokenBudget`
+    1000–1 000 000, whitelist 1–50 агентов, `HumanApproval` ∈
+    `Never`/`BetweenSubtasks`/`AtEnd`), persist в `AppSettings` (ключи
+    `Orchestrator.*`), in-memory применение к провайдеру, audit-запись.
+  - **Контроллер** — `AdminOrchestratorController` (**AdminOnly**):
+    `GET`/`PUT /api/admin/orchestrator/settings`,
+    `POST /api/admin/orchestrator/reset`; единый формат
+    `{ success, data, message }`.
+  - **UI** — 8-я вкладка «Оркестратор» в `Admin.cshtml` +
+    `admin-orchestrator.js` (загрузка/сохранение/сброс, бейдж «изменено»),
+    ~20 ключей `.resx` RU + EN.
+  - **Startup-load** — `Program.LoadOrchestratorOverridesAsync` восстанавливает
+    persisted-override'ы (`Orchestrator.*`) из `AppSettings` при старте,
+    до первого вызова инструмента. Разбор ключей и устойчивость к мусору в БД
+    вынесены в тестируемый `OrchestratorOverridesLoader` (11 unit-тестов).
+  - **Тесты** — `OrchestrateTaskToolTests`: конструктор переведён на
+    `IOrchestratorOptionsProvider` (+ тест runtime-override, применяемого
+    со следующего вызова); новые `OrchestratorOptionsProviderTests` (30),
+    `AdminOrchestratorServiceTests` (24), `AdminOrchestratorControllerTests` (8),
+    `OrchestratorOverridesLoaderTests` (11) + 3 граничных кейса провайдера
+    (итог: +74 тест-кейса, Build 0/0, Test 1319 / 1327).
+  - **Конфигурация:** секция `SubAgents:orchestrate_task` **отсутствует** в
+    `appsettings.json` — провайдер использует hardcoded defaults
+    (`MaxSubtasks=5`, `MaxParallel=3`, `TokenBudget=50000`,
+    `HumanApproval=Never`, whitelist из 6 воркеров). Persisted override'ы
+    загружаются при старте.
+  - **Runtime-применение:** изменения действуют со **следующего** вызова
+    `orchestrate_task` (Singleton-провайдер читается на каждый вызов).
+    Уже запущенная сессия orchestration сохраняет snapshot настроек на момент
+    старта — **это ожидаемо**, перезапуск сессии не требуется.
+  - **Без миграции БД:** значения хранятся в `AppSettings`.
+- **Связанные:** KI-126 (родительский мультиагентный KI), KI-097 (образец —
+  Admin UI SqlAgent, Fixed v1.7.0), KI-264 (RULES § 2.18 — стандарт отчётов).
 
 ---
 
@@ -6435,26 +6482,71 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ---
 
+### KI-273 — Orchestrator Admin UI: whitelist не валидируется против реестра агентов
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Обнаружено:** 2026-10-20 (DSH, при реализации KI-245).
+- **Файлы:** `IIChatTools.Services/Implementation/Orchestrator/AdminOrchestratorService.cs`,
+  `OrchestratorOptionsProvider.cs`, `Views/Home/Admin.cshtml`,
+  `wwwroot/js/modules/admin-orchestrator.js`.
+- **Описание:** вкладка «Оркестратор» использует `textarea` со свободным вводом
+  (по ТЗ KI-245), а backend валидирует только **синтаксис** whitelist:
+  непустой список, ≤ 50 агентов, trim + дедупликация без учёта регистра.
+  Имя не сверяется с `ISubAgentRegistry` / `SubAgents:*:Enabled`, поэтому
+  админ может сохранить опечатку (`web-agent`) или выключенного агента.
+  Ошибки не будет: каждая подзадача с таким агентом просто получит
+  `status = "rejected"` («не в whitelist воркеров»), а причина (опечатка
+  в настройке) останется неочевидной.
+- **Решение:** инжектить read-model реестра (`ISubAgentRegistry`) в
+  `AdminOrchestratorService`, валидировать/предупреждать о неизвестных или
+  disabled-агентах; в UI заменить textarea на multi-select / `datalist`
+  с известными enabled-агентами (с сохранением free-form для будущих агентов).
+- **Связанные:** KI-245 (реализация Admin UI), KI-052 (SubAgents/Registry),
+  KI-126 (Orchestrator).
+
+---
+
+### KI-274 — Admin UI Orchestrator: persist 5 ключей без транзакции
+
+- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Обнаружено:** 2026-10-20 (DSH, при верификации KI-245).
+- **Файлы:** `IIChatTools.Services/Implementation/Orchestrator/AdminOrchestratorService.cs`
+  (`UpdateSettingsAsync` / `ResetAsync`), `IAppSettingsService`.
+- **Описание:** настройки сохраняются 5 независимыми операциями
+  `Create/Update` (и удаляются по одной при reset) — без транзакции.
+  Если сбой БД произойдёт посередине: часть ключей зафиксирована, часть — нет;
+  runtime-провайдер при этом **не** обновляется (он обновляется после всех
+  записей), audit не пишется. При следующем старте `OrchestratorOverridesLoader`
+  применит частичный набор ключей, которого админ целиком не сохранял.
+  Унаследованный паттерн `AdminSqlAgentService` (v1.7.0, KI-097) имеет то же
+  ограничение; на практике сбой Sqlite/SqlServer посередине 5 upsert'ов маловероятен.
+- **Решение:** обернуть upsert/delete в транзакцию `AppDbContext`
+  (или добавить batch-метод в `IAppSettingsService`), при ошибке —
+  компенсация/откат; тест «сбой на 3-м ключе → БД и runtime не изменены».
+- **Связанные:** KI-245, KI-097 (прецедент), KI-273.
+
+---
+
 ## Сводка по статусам
 
-**Пересчитано:** 2026-10-20 (после KI-244 → Fixed, v2.2.0, KI-272 → Fixed, v2.2.2 и регистрации KI-263…KI-271). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-10-20 (после KI-244 → Fixed, v2.2.0, KI-272 → Fixed, v2.2.2, KI-245 → Fixed v2.2.2 и регистрации KI-273, KI-274). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 161 |
-| Planned | 51 |
+| Fixed (включая Implemented / Resolved) | 162 |
+| Planned | 52 |
 | Documented | 25 |
 | Deferred | 8 |
 | Partially Fixed | 4 |
 | In Progress | 1 |
 | Won't Fix | 1 |
-| **Всего** | **251** |
+| **Всего** | **253** |
 
-**Сверка:** 161 + 51 + 25 + 8 + 4 + 1 + 1 = **251**.
+**Сверка:** 162 + 52 + 25 + 8 + 4 + 1 + 1 = **253**.
 
-- **Секций `### KI-`:** 252 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272).
-- **Уникальных номеров:** 251.
+- **Секций `### KI-`:** 254 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-274).
+- **Уникальных номеров:** 253.
 - **Дублей по полному ID:** 0.
 - **`KI-110a` / `KI-110b`:** две самостоятельные секции одного номера `KI-110`
   (Anthropic / Gemini); в счёте учитываются один раз.

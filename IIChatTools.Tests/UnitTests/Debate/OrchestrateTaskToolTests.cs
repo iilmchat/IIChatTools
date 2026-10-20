@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Debate;
+using IIChatTools.Services.DTO.Orchestrator;
+using IIChatTools.Services.Implementation.Orchestrator;
 using IIChatTools.Services.Implementation.Tools.Debate;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -142,7 +144,8 @@ namespace IIChatTools.Tests.UnitTests.Debate
             string[] allowedWorkers = null,
             Mock<IAgentDebateSessionService> sessionMock = null,
             Mock<IAgentBlackboard> blackboardMock = null,
-            Action<AgentDebateRoundDto> onRoundAdded = null)
+            Action<AgentDebateRoundDto> onRoundAdded = null,
+            IOrchestratorOptionsProvider optionsProvider = null)
         {
             sessionMock ??= new Mock<IAgentDebateSessionService>();
             sessionMock.Setup(s => s.StartAsync(
@@ -185,7 +188,9 @@ namespace IIChatTools.Tests.UnitTests.Debate
                 () => registry,
                 sessionMock.Object,
                 blackboardMock.Object,
-                BuildConfig(maxSubtasks, maxParallel, allowedWorkers),
+                optionsProvider ?? new OrchestratorOptionsProvider(
+                    BuildConfig(maxSubtasks, maxParallel, allowedWorkers),
+                    NullLogger<OrchestratorOptionsProvider>.Instance),
                 NullLogger<OrchestrateTaskTool>.Instance);
         }
 
@@ -441,6 +446,56 @@ namespace IIChatTools.Tests.UnitTests.Debate
             Assert.Equal("rejected", rejectedSub["status"]?.ToString());
             Assert.Contains("whitelist", rejectedSub["error"]?.ToString(),
                 StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_RuntimeOverride_IsAppliedOnNextCall()
+        {
+            // v2.2.2 (KI-245): настройки читаются из провайдера при каждом
+            // вызове — изменение whitelist в runtime (как из админки) должно
+            // применяться к следующей оркестрации без пересоздания tool'а.
+            var provider = new OrchestratorOptionsProvider(
+                BuildConfig(allowedWorkers: new[] { "web_agent" }),
+                NullLogger<OrchestratorOptionsProvider>.Instance);
+
+            var registry = new FakeToolRegistry();
+            registry.ResponsesByTool[PlannerToolName] = new Queue<ToolResult>(new[]
+            {
+                AgentOk(PlanJson(false, ("1", "code_agent", "первый"))),
+                AgentOk(PlanJson(false, ("1", "code_agent", "второй")))
+            });
+            registry.ResponsesByTool["code_agent"] = new Queue<ToolResult>(new[]
+            {
+                AgentOk("Результат")
+            });
+
+            var tool = CreateTool(registry, optionsProvider: provider);
+
+            // 1-й вызов: code_agent не в whitelist → rejected, worker не вызван.
+            var first = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Test" });
+            Assert.True(first.Success);
+            var firstData = JObject.FromObject(first.Data);
+            Assert.Equal(1, firstData["failedSubtasks"]?.Value<int>());
+            Assert.DoesNotContain("code_agent", registry.CalledTools);
+
+            // Runtime-override: теперь code_agent разрешён.
+            provider.Update(new OrchestratorSettingsDto
+            {
+                MaxSubtasks = 5,
+                MaxParallel = 3,
+                TokenBudget = 50_000,
+                HumanApproval = "Never",
+                AllowedWorkerAgents = new List<string> { "code_agent" }
+            });
+
+            // 2-й вызов: override применён без пересоздания tool'а.
+            var second = await tool.ExecuteAsync(
+                CtxWithChat(), new JObject { ["task"] = "Test" });
+            Assert.True(second.Success);
+            var secondData = JObject.FromObject(second.Data);
+            Assert.Equal(1, secondData["completedSubtasks"]?.Value<int>());
+            Assert.Contains("code_agent", registry.CalledTools);
         }
 
         [Fact]

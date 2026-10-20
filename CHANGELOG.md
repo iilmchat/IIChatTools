@@ -23,6 +23,33 @@
 - **KI-268** — Reflection добавлен в `start_background_job` и `BackgroundJobRunner`.
 
 ### Added
+- **Admin UI Orchestrator (v2.2.2, KI-245)** — runtime-редактирование
+  whitelist воркеров и лимитов Orchestrator-Worker **без перезапуска**
+  приложения: 8-я вкладка «Оркестратор» в `/Admin` (`Views/Home/Admin.cshtml`)
+  + модуль `wwwroot/js/modules/admin-orchestrator.js`, ~20 ключей `.resx`
+  (RU + EN). API (**AdminOnly**): `GET`/`PUT /api/admin/orchestrator/settings`,
+  `POST /api/admin/orchestrator/reset` (`AdminOrchestratorController`).
+  Паттерн — как у `SqlAgent` (v1.7.0, KI-097): Singleton
+  **`IOrchestratorOptionsProvider`/`OrchestratorOptionsProvider`** (baseline
+  из `IConfiguration` + runtime-overrides) и Scoped
+  **`IAdminOrchestratorService`/`AdminOrchestratorService`** (persist в
+  `AppSettings`: `Orchestrator.MaxSubtasks`, `.MaxParallel`, `.TokenBudget`,
+  `.HumanApproval`, `.AllowedWorkerAgents` — JSON-массив). При старте —
+  `Program.LoadOrchestratorOverridesAsync` (разбор ключей вынесен в
+  `OrchestratorOverridesLoader`). `OrchestrateTaskTool` теперь
+  принимает `IOrchestratorOptionsProvider` вместо `IConfiguration`
+  (RULES § 4.56). Секции `SubAgents:orchestrate_task` в `appsettings.json`
+  **нет** — провайдер использует hardcoded defaults (`MaxSubtasks=5`,
+  `MaxParallel=3`, `TokenBudget=50000`, `HumanApproval=Never`, 6 воркеров).
+  Изменения применяются на следующем вызове `orchestrate_task`; запущенная
+  сессия сохраняет свой snapshot (ожидаемо). **Миграция БД не требуется.**
+- **Admin UI Orchestrator — тесты (v2.2.2, KI-245)** —
+  `OrchestrateTaskToolTests`: конструктор обновлён под
+  `IOrchestratorOptionsProvider` (+ тест runtime-override, применяемого
+  со следующего вызова); новые `OrchestratorOptionsProviderTests` (30),
+  `AdminOrchestratorServiceTests` (24), `AdminOrchestratorControllerTests` (8),
+  `OrchestratorOverridesLoaderTests` (11). Итого **+74 тест-кейса**
+  (1 253 → 1 327), Build 0/0, Test 1 319 / 1 327.
 - **Reflection (v2.2.0, KI-244)** — четвёртый мультиагентный паттерн
   (Actor-Critic → Debate → Orchestrator → **Reflection**): top-level `ITool`
   **`reflect_task`** — один агент пишет черновик → критикует сам себя →

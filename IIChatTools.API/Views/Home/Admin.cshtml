@@ -46,6 +46,12 @@
                 @Localizer["AdminTabSqlAgent"]
             </button>
         </li>
+        <!-- v2.2.2 (KI-245): Orchestrator runtime limits + worker whitelist -->
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-orchestrator" data-bs-toggle="tab" data-bs-target="#pane-orchestrator" type="button" role="tab">
+                @Localizer["AdminTabOrchestrator"]
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content border border-top-0 p-3 bg-body">
@@ -358,6 +364,79 @@
                 </table>
             </div>
         </div>
+
+        <!-- Вкладка: Оркестратор (v2.2.2, KI-245) — runtime-лимиты и белый список worker-агентов -->
+        <div class="tab-pane fade"
+             id="pane-orchestrator"
+             role="tabpanel"
+             data-label-intro="@Localizer["AdminOrchestratorIntro"]"
+             data-label-max-subtasks="@Localizer["OrchestratorMaxSubtasksLabel"]"
+             data-label-max-parallel="@Localizer["OrchestratorMaxParallelLabel"]"
+             data-label-token-budget="@Localizer["OrchestratorTokenBudgetLabel"]"
+             data-label-human-approval="@Localizer["OrchestratorHumanApprovalLabel"]"
+             data-label-allowed-workers="@Localizer["OrchestratorAllowedWorkersLabel"]"
+             data-label-save="@Localizer["OrchestratorSaveButton"]"
+             data-label-reset="@Localizer["OrchestratorResetButton"]"
+             data-label-saved="@Localizer["OrchestratorSaveSuccess"]"
+             data-label-reset-done="@Localizer["OrchestratorResetSuccess"]"
+             data-label-reset-confirm="@Localizer["OrchestratorResetConfirm"]"
+             data-label-max-subtasks-validation="@Localizer["OrchestratorMaxSubtasksValidation"]"
+             data-label-max-parallel-validation="@Localizer["OrchestratorMaxParallelValidation"]"
+             data-label-token-budget-validation="@Localizer["OrchestratorTokenBudgetValidation"]"
+             data-label-workers-required="@Localizer["OrchestratorWorkersRequired"]"
+             data-label-overridden-badge="@Localizer["OrchestratorOverriddenBadge"]"
+             data-label-approval-never="@Localizer["OrchestratorApprovalNever"]"
+             data-label-approval-between-subtasks="@Localizer["OrchestratorApprovalBetweenSubtasks"]"
+             data-label-approval-at-end="@Localizer["OrchestratorApprovalAtEnd"]"
+             data-label-load-error="@Localizer["OrchestratorLoadError"]">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <p class="text-muted small mb-0">@Localizer["AdminOrchestratorIntro"]</p>
+                <span class="badge bg-warning text-dark ms-2" id="orch-overridden-badge" hidden>
+                    @Localizer["OrchestratorOverriddenBadge"]
+                </span>
+            </div>
+            <div id="orch-loading" class="text-muted small mb-2">@Localizer["Загрузка"]…</div>
+            <form id="orch-form" novalidate>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small" for="orch-max-subtasks">@Localizer["OrchestratorMaxSubtasksLabel"]</label>
+                        <input type="number" class="form-control form-control-sm" id="orch-max-subtasks"
+                               min="1" max="10" step="1" inputmode="numeric">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small" for="orch-max-parallel">@Localizer["OrchestratorMaxParallelLabel"]</label>
+                        <input type="number" class="form-control form-control-sm" id="orch-max-parallel"
+                               min="1" max="10" step="1" inputmode="numeric">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small" for="orch-token-budget">@Localizer["OrchestratorTokenBudgetLabel"]</label>
+                        <input type="number" class="form-control form-control-sm" id="orch-token-budget"
+                               min="1000" max="1000000" step="1" inputmode="numeric">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small" for="orch-human-approval">@Localizer["OrchestratorHumanApprovalLabel"]</label>
+                        <select class="form-select form-select-sm" id="orch-human-approval">
+                            <option value="Never">@Localizer["OrchestratorApprovalNever"]</option>
+                            <option value="BetweenSubtasks">@Localizer["OrchestratorApprovalBetweenSubtasks"]</option>
+                            <option value="AtEnd">@Localizer["OrchestratorApprovalAtEnd"]</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label small" for="orch-allowed-workers">@Localizer["OrchestratorAllowedWorkersLabel"]</label>
+                        <textarea class="form-control form-control-sm font-monospace" id="orch-allowed-workers"
+                                  rows="6" spellcheck="false"></textarea>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button id="btn-save-orchestrator" type="button" class="btn btn-primary btn-sm">
+                        @Localizer["OrchestratorSaveButton"]
+                    </button>
+                    <button id="btn-reset-orchestrator" type="button" class="btn btn-outline-warning btn-sm">
+                        @Localizer["OrchestratorResetButton"]
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -424,9 +503,11 @@
         import { initAgentsTab } from '/js/modules/admin-agents.js';
         import { initKnowledgeTab } from '/js/modules/admin-knowledge.js';
         import { initSqlAgentTab } from '/js/modules/admin-sql-agent.js';
+        import { initOrchestratorTab } from '/js/modules/admin-orchestrator.js';
         initAdminPage();
         initAgentsTab();
         initKnowledgeTab();
         initSqlAgentTab();
+        initOrchestratorTab();
     </script>
 }

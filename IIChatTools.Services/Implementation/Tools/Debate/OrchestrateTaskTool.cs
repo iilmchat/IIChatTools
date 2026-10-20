@@ -10,7 +10,6 @@ using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Debate;
 using IIChatTools.Services.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 
@@ -47,6 +46,14 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
     /// <b>DI-цикл:</b> использует <see cref="Func{T}"/> от <see cref="IToolRegistry"/>
     /// (RULES § 4.51, ADR-002).
     /// </para>
+    ///
+    /// <para>
+    /// <b>v2.2.2 (KI-245):</b> настройки (<c>MaxSubtasks</c>, <c>MaxParallel</c>,
+    /// <c>TokenBudget</c>, <c>HumanApproval</c>, whitelist воркеров) читаются
+    /// из <see cref="IOrchestratorOptionsProvider"/> при каждом вызове —
+    /// их можно менять из админки без рестарта приложения. Прямой инжект
+    /// <c>IConfiguration</c> удалён (RULES § 4.56).
+    /// </para>
     /// </summary>
     public class OrchestrateTaskTool : ITool
     {
@@ -56,8 +63,6 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
         private const string OrchestratorPlannerAgent = "orchestrator_planner_agent";
 
-        private const int DefaultMaxSubtasks = 5;
-        private const int HardLimitMaxSubtasks = 10;
         private const int MaxTaskLength = 8000;
         private const int MaxSubtaskLength = 2000;
 
@@ -74,7 +79,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         private readonly Func<IToolRegistry> _toolRegistryFactory;
         private readonly IAgentDebateSessionService _sessionService;
         private readonly IAgentBlackboard _blackboard;
-        private readonly IConfiguration _configuration;
+        private readonly IOrchestratorOptionsProvider _optionsProvider;
         private readonly ILogger<OrchestrateTaskTool> _logger;
 
         /// <inheritdoc />
@@ -130,14 +135,18 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         /// v2.0.0 (KI-126, Ф3, Шаг 3F): общий shared state Orchestrator-Worker
         /// (in-memory, TTL 30 мин).
         /// </param>
-        /// <param name="configuration">Конфигурация (для чтения SubAgents:orchestrate_task:*).</param>
+        /// <param name="optionsProvider">
+        /// v2.2.2 (KI-245): провайдер актуальных настроек Orchestrator'а
+        /// (baseline из <c>SubAgents:orchestrate_task</c> + runtime-override
+        /// из админки). Читается при каждом вызове — без рестарта.
+        /// </param>
         /// <param name="logger">Логгер.</param>
         /// <exception cref="ArgumentNullException">Если параметр равен null.</exception>
         public OrchestrateTaskTool(
             Func<IToolRegistry> toolRegistryFactory,
             IAgentDebateSessionService sessionService,
             IAgentBlackboard blackboard,
-            IConfiguration configuration,
+            IOrchestratorOptionsProvider optionsProvider,
             ILogger<OrchestrateTaskTool> logger)
         {
             _toolRegistryFactory = toolRegistryFactory
@@ -146,8 +155,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 ?? throw new ArgumentNullException(nameof(sessionService));
             _blackboard = blackboard
                 ?? throw new ArgumentNullException(nameof(blackboard));
-            _configuration = configuration
-                ?? throw new ArgumentNullException(nameof(configuration));
+            _optionsProvider = optionsProvider
+                ?? throw new ArgumentNullException(nameof(optionsProvider));
             _logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -175,7 +184,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             }
 
             // ---------- 2. Конфиг ----------
-            var config = ReadConfig();
+            // v2.2.2 (KI-245): актуальные настройки (baseline + runtime-override).
+            var config = _optionsProvider.Get();
             var parallelOverride = arguments["parallel"]?.Value<bool?>();
 
             _logger.LogInformation(
@@ -1132,47 +1142,6 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         }
 
         // ============================================================
-        // Конфигурация
-        // ============================================================
-
-        /// <summary>
-        /// Читает секцию <c>SubAgents:orchestrate_task:*</c> из конфигурации.
-        /// </summary>
-        private OrchestrateTaskConfig ReadConfig()
-        {
-            var section = _configuration.GetSection("SubAgents:orchestrate_task");
-
-            var maxSubtasks = section.GetValue<int>("MaxSubtasks", DefaultMaxSubtasks);
-            maxSubtasks = Math.Clamp(maxSubtasks, 1, HardLimitMaxSubtasks);
-
-            var allowed = section.GetSection("AllowedWorkerAgents")
-                .Get<string[]>() ?? Array.Empty<string>();
-
-            // Default whitelist — если в конфиге пусто.
-            if (allowed.Length == 0)
-            {
-                allowed = new[]
-                {
-                    "code_agent",
-                    "web_agent",
-                    "file_system_agent",
-                    "database_agent",
-                    "browser_agent",
-                    "external_llm_agent"
-                };
-            }
-
-            return new OrchestrateTaskConfig
-            {
-                MaxSubtasks = maxSubtasks,
-                MaxParallel = section.GetValue<int>("MaxParallel", 3),
-                TokenBudget = section.GetValue<int>("TokenBudget", 50000),
-                HumanApproval = section.GetValue<string>("HumanApproval") ?? "Never",
-                AllowedWorkerAgents = allowed
-            };
-        }
-
-        // ============================================================
         // Внутренние типы
         // ============================================================
 
@@ -1206,16 +1175,6 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
 
             public string RawAnswer { get; set; }
             public string Message { get; set; }
-        }
-
-        /// <summary>Настройки Orchestrator'а (из IConfiguration).</summary>
-        private sealed class OrchestrateTaskConfig
-        {
-            public int MaxSubtasks { get; set; }
-            public int MaxParallel { get; set; }
-            public int TokenBudget { get; set; }
-            public string HumanApproval { get; set; }
-            public string[] AllowedWorkerAgents { get; set; }
         }
 
         // ============================================================

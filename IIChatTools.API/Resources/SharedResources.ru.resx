@@ -785,6 +785,71 @@
       <value>Подключение не найдено</value>
     </data>
 
+    <!-- ===== Orchestrator admin UI (v2.2.2, KI-245) ===== -->
+    <data name="AdminTabOrchestrator" xml:space="preserve">
+      <value>Оркестратор</value>
+    </data>
+    <data name="AdminOrchestratorIntro" xml:space="preserve">
+      <value>Лимиты runtime и белый список воркеров для мультиагентного оркестратора.</value>
+    </data>
+    <data name="OrchestratorMaxSubtasksLabel" xml:space="preserve">
+      <value>Макс. подзадач (1–10)</value>
+    </data>
+    <data name="OrchestratorMaxParallelLabel" xml:space="preserve">
+      <value>Макс. параллельных подзадач (1–10)</value>
+    </data>
+    <data name="OrchestratorTokenBudgetLabel" xml:space="preserve">
+      <value>Бюджет токенов (1000–1000000)</value>
+    </data>
+    <data name="OrchestratorHumanApprovalLabel" xml:space="preserve">
+      <value>Подтверждение человеком</value>
+    </data>
+    <data name="OrchestratorAllowedWorkersLabel" xml:space="preserve">
+      <value>Разрешённые воркер-агенты (по одному в строке)</value>
+    </data>
+    <data name="OrchestratorSaveButton" xml:space="preserve">
+      <value>Сохранить</value>
+    </data>
+    <data name="OrchestratorResetButton" xml:space="preserve">
+      <value>Сбросить к умолчаниям</value>
+    </data>
+    <data name="OrchestratorSaveSuccess" xml:space="preserve">
+      <value>Настройки оркестратора сохранены</value>
+    </data>
+    <data name="OrchestratorResetSuccess" xml:space="preserve">
+      <value>Настройки оркестратора сброшены к умолчаниям</value>
+    </data>
+    <data name="OrchestratorResetConfirm" xml:space="preserve">
+      <value>Сбросить настройки оркестратора к умолчаниям?</value>
+    </data>
+    <data name="OrchestratorMaxSubtasksValidation" xml:space="preserve">
+      <value>Макс. подзадач должен быть от 1 до 10</value>
+    </data>
+    <data name="OrchestratorMaxParallelValidation" xml:space="preserve">
+      <value>Макс. параллельных подзадач должен быть от 1 до 10</value>
+    </data>
+    <data name="OrchestratorTokenBudgetValidation" xml:space="preserve">
+      <value>Бюджет токенов должен быть от 1000 до 1000000</value>
+    </data>
+    <data name="OrchestratorWorkersRequired" xml:space="preserve">
+      <value>Требуется хотя бы один воркер-агент</value>
+    </data>
+    <data name="OrchestratorOverriddenBadge" xml:space="preserve">
+      <value>изменено</value>
+    </data>
+    <data name="OrchestratorApprovalNever" xml:space="preserve">
+      <value>Никогда</value>
+    </data>
+    <data name="OrchestratorApprovalBetweenSubtasks" xml:space="preserve">
+      <value>Между подзадачами</value>
+    </data>
+    <data name="OrchestratorApprovalAtEnd" xml:space="preserve">
+      <value>В конце</value>
+    </data>
+    <data name="OrchestratorLoadError" xml:space="preserve">
+      <value>Не удалось загрузить настройки оркестратора</value>
+    </data>
+
     <!-- ===== Status page localization (v1.7.1, KI-103) ===== -->
     <data name="StatusOnline" xml:space="preserve">
       <value>Онлайн</value>

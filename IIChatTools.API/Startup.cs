@@ -30,6 +30,7 @@ using IIChatTools.Services.Implementation.Tools.GitHub;
 using IIChatTools.Services.Implementation.Tools.BackgroundJobs;
 using IIChatTools.Services.Implementation.Speech;
 using IIChatTools.Services.Implementation.SqlAgent;       // v1.7.0 (KI-097): SqlAgent
+using IIChatTools.Services.Implementation.Orchestrator;    // v2.2.2 (KI-245): OrchestratorOptionsProvider
 using IIChatTools.Services.Implementation.VisionAgent;    // v1.12.0 (KI-131, Ф2.2): LocalHarnessVisionBackend
 using IIChatTools.Services.DTO.VisionAgent;               // v1.12.0 (KI-131): VisionAgentOptions
 using IIChatTools.Services.Implementation.Mail;           // v1.8.0 (KI-107): Mail Agent
@@ -531,6 +532,16 @@ namespace IIChatTools.API
             // v1.7.0 (KI-097, Фаза 6A): admin-сервис для управления подключениями
             // (persist override'ов в AppSettings + runtime-применение).
             services.AddScoped<IAdminSqlAgentService, AdminSqlAgentService>();
+
+            // ============ Orchestrator (v2.2.2, KI-245) ============
+            // Baseline-конфиг из appsettings:SubAgents:orchestrate_task. Runtime-overrides
+            // применяются в Program.LoadOrchestratorOverridesAsync (до старта хоста)
+            // и из AdminOrchestratorController (без перезапуска).
+            // Provider — Singleton: OrchestrateTaskTool читает актуальные
+            // значения при каждом вызове (не кэширует), RULES § 4.56.
+            services.AddSingleton<IOrchestratorOptionsProvider, OrchestratorOptionsProvider>();
+            // Admin-сервис (Scoped): persist override'ов в AppSettings + audit.
+            services.AddScoped<IAdminOrchestratorService, AdminOrchestratorService>();
 
             // ============ Mail Agent (v1.8.0, KI-107, Фаза 2) ============
             // Baseline-конфиг из appsettings:Mail. Credentials (Username / Password) —
