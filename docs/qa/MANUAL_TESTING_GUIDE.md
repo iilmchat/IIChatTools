@@ -3,16 +3,16 @@
 > **Расположение:** `docs/qa/MANUAL_TESTING_GUIDE.md` (переименован из `docs/TESTING.md`
 > при реорганизации документации v2.0.1).
 
-**Версия:** 1.8.1
-**Обновлено:** 2026-09-30
-**Связанные KI:** KI-088 (создание), KI-083 (RAG v1.5.0), KI-086 (sources/citations — v1.6.0), KI-097 (Database Agent — v1.7.0), KI-103 (локализация `/status` — v1.7.1), KI-104 (PDF/DOCX парсеры — v1.7.1), KI-107 (Mail Agent — v1.8.0), KI-109 (External-LLM Agent — v1.8.1).
-**Связанные DESIGN:** [v1.3](../development/v1.3/DESIGN.md) (Chat UI), [v1.4](../development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](../development/v1.5/DESIGN.md) (RAG), [v1.7](../development/v1.7/DESIGN_DB_AGENT.md) (Database Agent).
+**Версия:** 2.2.2
+**Обновлено:** 2026-11-21 (спринт S01, KI-253/KI-088)
+**Связанные KI:** KI-088 (создание), KI-126 (Multi-Agent), KI-131 (Vision), KI-140 (Speech), KI-214 (GitHub Issues sync), KI-244 (Reflection), KI-245 (Orchestrator Admin UI), KI-249 (approval-модалка), KI-250 (toggle дебатов), KI-253 (актуализация документа), KI-263 (cooperative cancellation), KI-272 (Reflection verdict).
+**Связанные DESIGN:** [v1.3](../development/v1.3/DESIGN.md) (Chat UI), [v1.4](../development/v1.4/DESIGN.md) (Multi-Agent), [v1.5](../development/v1.5/DESIGN.md) (RAG), [v1.7](../development/v1.7/DESIGN_DB_AGENT.md) (Database Agent), [v2.0](../development/v2.0/DESIGN_ORCHESTRATOR_WORKER.md) (Orchestrator), [v2.1](../development/v2.1/DESIGN_BACKGROUND_JOBS.md) (Background Jobs), [v2.2](../development/v2.2/DESIGN_REFLECTION.md) (Reflection).
 
 ---
 
 ## § 1. Как пользоваться
 
-Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **424/424**) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end, Database Agent с реальной БД, Mail Agent с реальным IMAP/SMTP.
+Документ — **для ручной приёмки релиза**. Автотесты (xUnit, **1319/1327**, 8 Skip) покрывают код, но **не** UX/UI, SSE-стриминг, tool calling loop, approvals end-to-end, Database Agent с реальной БД, Mail Agent с реальным IMAP/SMTP.
 
 Каждый сценарий — таблица:
 
@@ -30,7 +30,7 @@
 
 ---
 
-## § 2. Smoke-сценарии v1.8.0 (20 шт, ~25 мин)
+## § 2. Smoke-сценарии v2.2.2 (24 шт, ~25 мин)
 
 | # | Действие | Ожидание | Статус | Комментарий |
 |:---:|---|---|:---:|---|
@@ -176,7 +176,7 @@
 
 ## § 5. Что НЕ покрыто автотестами (проверять **вручную**!)
 
-**Автотесты** (424/424) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов, **SqlAgent** (валидатор, connection provider, admin service + controller, integration через real Sqlite), **PDF/DOCX-парсеры** (`PdfParser`, `DocxParser`), **Mail Agent** (7 tools, `MailAttachmentService`, `InMemoryMailRateLimiter`, `MailKitClient`, `GlobalMailAccountProvider`).
+**Автотесты** (1319/1327, 8 Skip) покрывают: сервисы, chunking, vector store, DTO, контроллеры через fake-зависимости, `PathHelper`, локализацию `.resx`, реестр агентов, **SqlAgent** (валидатор, connection provider, admin service + controller, integration через real Sqlite), **PDF/DOCX-парсеры** (`PdfParser`, `DocxParser`), **Mail Agent** (7 tools, `MailAttachmentService`, `InMemoryMailRateLimiter`, `MailKitClient`, `GlobalMailAccountProvider`).
 
 **НЕ покрыто** — критично для ручной приёмки:
 
@@ -219,3 +219,5 @@
 | 2026-09-29 | 1.7.1 | KI-103 (локализация `/status`) + KI-104 (PDF/DOCX-парсеры). Smoke +2 (#17, #18), § 3.2 +4 (3.2.13–3.2.16). § 5.7 переведён из «не в MVP» в «требует реального файла». Автотесты 341 → 374. |
 | 2026-09-29 | 1.8.0 | KI-107 (Mail Agent — IMAP/SMTP через MailKit). Smoke +2 (#19, #20 — Mail Agent), § 3.6 — новый (10 сценариев Mail Agent), § 5 +5.13. Автотесты 374 → 424. |
 | 2026-09-30 | 1.8.1 | KI-109 (External-LLM Agent — DeepSeek/OpenAI/Groq/Together/Ollama). Smoke +3 (#21–#24), § 5 +5.14. Автотесты 424 → 496 (+72, 3 Skip). |
+| 2026-10-20 | 2.0.1–2.2.2 | Реорганизация документации (переименован в `docs/qa/`), Background Jobs, Todo Tracking, Orchestrator/Worker, Reflection, Admin UI Orchestrator. Автотесты 496 → 1327 (8 Skip). |
+| 2026-11-21 | 2.2.2 | Спринт S01 (KI-253/KI-088): версия, счётчик тестов, список KI/DESIGN актуализированы. Новые smoke-сценарии для v2.x — в DESIGN-документах до отдельной записи KI. |

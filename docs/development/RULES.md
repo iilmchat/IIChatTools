@@ -172,67 +172,15 @@
 
 См. [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — полный реестр.
 
-**Краткая выжимка Open/Deferred/Documented (после релиза v1.13.1):**
+**Актуальная сводка (2026-11-21, спринт S01):** всего **254** уникальных KI
+(255 секций; `KI-110a/b` — один номер): Fixed 169 (включая Implemented/Resolved),
+Planned 48, Documented 24, Deferred 8, Partially Fixed 4, In Progress 1,
+Won't Fix 1.
 
-| KI | Приоритет | Статус | Суть | План |
-|----|-----------|--------|------|------|
-| ~~KI-109~~ | — | ✅ **Fixed (v1.8.1)** | External-LLM Agent (DeepSeek/OpenAI/Groq/Together/Ollama). Все 5 фаз закрыты. +72 теста (424 → 496). DESIGN: `docs/development/v1.8/DESIGN_EXTERNAL_LLM.md`. | — |
-| KI-044 | 🟢 | Documented | `iichattools_audit_entries_total` / `lmstudio_requests_total` не инкрементируются | v1.7.x |
-| KI-047 | 🟡 | Deferred | Fallback PATCH/DELETE через POST (для старых сетей) | v1.7.x+ |
-| KI-053 | 🟡 | Deferred | Multi-user approvals (роли approver, уведомления) | v1.7.x+ |
-| KI-057 | 🟢 | Partially Fixed | Config-driven exclusion patterns моделей | v1.7.x |
-| KI-070 | 🟢 | Documented | Sqlite stale DB / `EnsureCreated` не мигрирует | v1.7.x |
-| KI-077 | 🟢 | Documented | `model: null` при PUT агента = «сброс» | — |
-| KI-082 | 🟢 | Deferred | Модалка-редактор длинных user-сообщений | v1.8.0+ |
-| KI-085 | 🟢 | Documented | SQLite `database is locked` (внешний клиент) | — |
-| KI-090 | 🟢 | Documented | SqlServer-migrations snapshot drift | — |
-| KI-091 | 🟡 | Deferred | SqlServer цепочка миграций повреждена | **v1.7.x (обязательно перед prod-SqlServer)** |
-| KI-092 | 🟢 | Documented | Bootstrap 5.2 `aria-hidden` warning | — |
-| KI-093 | 🟢 | Documented | SQLite locked (дубликат KI-085, оставлен для истории) | — |
-| KI-094 | 🟢 | Documented | `wikipedia_search` intermittent timeout (SSL через прокси) | v1.7.x |
-| KI-095 | 🟢 | Documented | snippet `fetch_web_content` дублирует label | — |
-| KI-096 | 🟢 | Deferred | GitHub Wiki для проекта | v1.8.0+ |
-| KI-099 | 🟢 | Deferred | Внешние БД (Postgres / MySQL) для Database Agent | v1.8.0 |
-| KI-103 | 🟡 | Documented | `/status` — hardcoded RU в `status.js` | v1.7.x |
-| KI-128 | 🟡 | Planned | Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`) | v1.11.x |
-| KI-131 | 🟡 | Planned | Vision Agent (Vision LLM + Planner LLM + 3 backend'а) | **v1.12.0** |
-| KI-137 | 🟢 | ✅ **Fixed (v1.13.x)** | Vision Agent: OCR-fallback для мелкого текста | — |
-| KI-138 | 🟢 | Planned | Vision Agent: маскирование PII на скриншотах | v1.12.x |
-| KI-139 | 🟢 | Planned | Vision Agent: внешние VL (Claude Computer Use / OpenAI CUA) | v1.12.x |
-| KI-140 | 🟢 | **Fixed (v1.13.0)** | Speech Recognition — офлайн STT (Whisper.net) | — |
-| KI-144 | 🟢 | Documented | Chrome может выбрать virtual audio device (Steam Streaming, `maxAbs=0`) | — |
-| KI-145 | 🟡 | **Fixed (v1.13.1)** | Device picker в `/profile → 🎤 Аудио` | — |
-| KI-146 | 🟢 | Planned | Device picker: fallback-полировка + дедупликация label | v1.13.x |
-| KI-214 | 🟢 | Planned | Интеграция KNOWN_ISSUES.md с GitHub Issues (витрина) | v1.14 |
-| KI-215 | 🟠 | ✅ **Fixed (v1.13.x)** | Vision LLM: `center` как expression ломает JSON | — |
-| KI-216 | 🟡 | ✅ **Fixed (v1.13.x)** | Vision Agent: `MaxTaskSeconds=500` недостаточно для сложных задач | — |
-| KI-147 | 🟢 | Planned | ARCHITECTURE.md устарел (v1.7.0 → v1.13.1) | v1.13.x |
-| KI-161 | 🟢 | **Fixed (v1.13.x)** | Vision Agent: PuppeteerSharp DOM+Vision (CDP-attach) | — |
-| KI-194 | 🟡 | ✅ **Fixed (v1.13.x)** | Vision Planner: `done` без проверки результата. Literal/goal + article_title. | — |
-| KI-203 | 🟡 | ✅ **Fixed (v1.13.x)** | RAG: OCR сканов PDF (Tesseract + PDFtoImage). | — |
-| KI-206 | 🟢 | ✅ Fixed (v1.13.x) | RAG: Page viewer UX (thumbnails, zoom, скролл) | — |
-| KI-207 | 🟢 | ✅ Fixed (v1.13.x) | RAG: Page viewer — text layer + поиск + выделение | — |
-| KI-126 | 🟡 Medium | ✅ **Fixed (v1.11.0 / v1.14.0 / v2.0.0)** | Actor-Critic / Debate / Orchestrator мультиагенты | — |
-
-**Fixed в v1.7.0:** KI-097 (Database Agent), KI-098 (Admin UI whitelist), KI-101 (per-action approval), KI-102 (Admin UI локализация).
-
-**Fixed в v1.11.0:** KI-126 (Actor-Critic Ф1), KI-127 (`code_agent_with_review` выбор), KI-129 (F5 persistence), KI-130 (code_agent + вложения), KI-132 (tool_result раздут), KI-133 (Skip feedback), KI-134 (tool-сообщение при отмене SSE), KI-135 (orphaned sessionId), KI-136 (порядок yield).
-
-**Fixed в v1.12.0:** KI-131 (Vision Agent, MVP: `local-harness` + `vision_agent`).
-
-**Fixed в v1.13.0:** KI-140 (Speech Recognition, Whisper.net).
-
-**Fixed в v1.13.1:** KI-145 (Device picker в `/profile → 🎤 Аудио`).
-
-**Documented в v1.13.1:** KI-144 (Chrome virtual audio device).
-
-**Fixed в v2.2.2:** KI-245 (Admin UI Orchestrator — runtime whitelist/лимиты воркеров).
-
-**Planned (v1.13.x+):** KI-146 (fallback-полировка + дедупликация), KI-147 (ARCHITECTURE.md).
-
-**Implemented в v1.7.0:** KI-088 (`docs/TESTING.md`).
-
-**Всего в реестре:** ~99 KI. **Fixed/Resolved:** ~88. **Deferred:** 5. **Documented:** 13. **Planned:** ~12. **Partially Fixed:** 1 (`KI-057`).
+Полный и единственный source of truth — [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md).
+Здесь не дублируем таблицу KI: она устаревала уже дважды (KI-214, KI-254).
+Ре-триаж и порядок устранения — в `docs/TODO_KI.md` (89 незакрытых записей),
+разбивка по спринтам — в `docs/TODO_KI_SPRINTS.md`.
 
 > **KI-068** (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
 >

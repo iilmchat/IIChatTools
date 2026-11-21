@@ -19,6 +19,11 @@
 ## [Unreleased]
 
 ### Fixed
+- **Спринт S01 (документация, KI-088 / KI-253 / KI-254 / KI-264 / KI-275):**
+  актуализированы `docs/qa/MANUAL_TESTING_GUIDE.md` (версия 2.2.2, тесты
+  1319/1327, 8 Skip), `README.md` (счётчик тестов), `RULES.md` § 7 (сводка KI
+  вместо устаревшей таблицы), `DESIGN_BACKGROUND_JOBS.md` (KI-257 → KI-265),
+  сводка `KNOWN_ISSUES.md` (254 уникальных KI; зарегистрирован KI-275).
 - **KI-270** — `ReflectTaskTool` читает `MaxRounds` и `TokenBudget` из конфига (`IConfiguration`).
 - **KI-268** — Reflection добавлен в `start_background_job` и `BackgroundJobRunner`.
 

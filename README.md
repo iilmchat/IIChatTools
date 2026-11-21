@@ -1136,9 +1136,9 @@ dotnet build IIChatTools.sln -c Release
 dotnet test IIChatTools.sln -c Release
 ```
 
-**Статус**: 1216/1224 тестов проходят (unit + integration), 8 Skip (реальные
+**Статус**: 1319/1327 тестов проходят (unit + integration), 8 Skip (реальные
 провайдеры — DeepSeek / OpenAI / Groq / Together / Ollama / Anthropic / Gemini;
-Chrome CDP — KI-161).
+Chrome CDP — KI-161). Актуализировано в спринте S01 (KI-253).
 
 ---
 
