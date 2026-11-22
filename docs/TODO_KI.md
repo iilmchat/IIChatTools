@@ -170,11 +170,11 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-007** ✅ Documented (S16) — `gh issue create` требует заранее созданные метки — 🟢 Low
 - [x] **KI-009** ✅ Documented (S16) — `ERR_CONNECTION_RESET` на сайтах с SSO — 🟡 Medium
 - [x] **KI-032** ✅ Documented (S16) — `Unprotect ticket failed` (старые cookies от .NET Core 3.1) — 🟡 Medium
-- [ ] **KI-044** — Метрики `iichattools_audit_entries_total` / `iichattools_lmstudio_requests_total` не инкрементируются — 🟢 Low, v1.2.x
+- [x] **KI-044** ✅ Documented (S19) — Метрики `iichattools_audit_entries_total` / `iichattools_lmstudio_requests_total` не инкрементируются — 🟢 Low, v1.2.x
 - [x] **KI-048** ✅ Documented (S16) — Email автора коммитов в git-истории — 🟢 Low
 - [ ] **KI-070** — Sqlite: stale DB без новых таблиц (`no such table`) — 🟢 Low, v1.3.x
-- [ ] **KI-077** — `model: null` при PUT агента = «сбросить на default», а не «не менять» — 🟢 Low
-- [ ] **KI-089** — Секция конфигурации эмбеддингов (`Rag:Embedding` vs `LmStudio:Embedding*`) — 🟢 Low
+- [x] **KI-077** ✅ Documented (S19) — `model: null` при PUT агента = «сбросить на default», а не «не менять» — 🟢 Low
+- [x] **KI-089** ✅ Documented (S19) — Секция конфигурации эмбеддингов (`Rag:Embedding` vs `LmStudio:Embedding*`) — 🟢 Low
 - [ ] **KI-090** — SqlServer-migrations содержали Sqlite-типы (snapshot drift) — 🟢 Low
 - [x] **KI-093** ✅ Documented (S16) — SQLite `database is locked` (дубликат KI-085, оставлен для истории) — 🟢 Low
 - [x] **KI-094** ✅ Documented (S17) — `wikipedia_search` intermittent timeout в агенте (SSL через прокси) — 🟢 Low, v1.6.2
@@ -189,8 +189,8 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-180** ✅ Documented (S18) — Approval-модалка попадает в скриншот Vision Agent — 🟢 Low
 - [x] **KI-186** ✅ Documented (S18) — Vision Agent не может работать с UI IIChatTools (fresh profile) — 🟢 Low
 - [x] **KI-189** ✅ Documented (S18) — После STOP от overlay Chat возвращает корректный ответ — 🟢 Low
-- [ ] **KI-239** — Chat: слабые LLM галлюцинируют синтаксис mermaid (gantt, ER) — 🟢 Low
-- [ ] **KI-241** — Debate: `tokensIn`/`tokensOut` = 0 в `AgentDebateRound` — 🟢 Low, v1.14.x
+- [x] **KI-239** ✅ Documented (S19) — Chat: слабые LLM галлюцинируют синтаксис mermaid (gantt, ER) — 🟢 Low
+- [x] **KI-241** ✅ Documented (S19) — Debate: `tokensIn`/`tokensOut` = 0 в `AgentDebateRound` — 🟢 Low, v1.14.x
 - [x] **KI-264** — Документация: номера KI-257…260 из DESIGN § 12 не совпадают с реестром — 🟢 Low, ✅ Fixed в S01 (v2.2.x)
 
 ### 3.8. Won't Fix (1)

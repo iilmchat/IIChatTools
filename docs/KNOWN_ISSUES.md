@@ -266,6 +266,7 @@
 
 ### KI-044 — Метрики `iichattools_audit_entries_total` и `iichattools_lmstudio_requests_total` пока не инкрементируются
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.2.x
+- **Верификация (2026-11-22, S19):** ограничение остаётся задокументированным; изменений кода не требуется.
 - **Обнаружено:** 2026-09-18
 - **Файлы:** `IIChatTools.API/Metrics/AppMetrics.cs`, `IIChatTools.Services/Implementation/LmStudioClient.cs`, `IIChatTools.Services/Implementation/AuditService.cs`
 - **Описание:** Счётчики зарегистрированы, но вызовы `.Inc()` не добавлены в `LmStudioClient` и `AuditService`. Метрики будут отдавать 0.
@@ -780,6 +781,7 @@
 
 ### KI-077 — `model: null` при PUT агента = «сбросить на default», а не «не менять»
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Верификация (2026-11-22, S19):** ограничение остаётся задокументированным; изменений кода не требуется.
 - **Обнаружено:** 2026-09-24 (Фаза 6.1-6.4 KI-052) | **Устранено:** —
 - **Файлы:** `IIChatTools.API/Controllers/AdminAgentsController.cs` (метод `UpdateAgentAsync`), `IIChatTools.Services/DTO/Admin/UpdateAgentRequest.cs`
 - **Описание:** В `UpdateAgentRequest.Model` (тип `string`) невозможно отличить «поле не передано» от «явно передано `null`». Текущая логика: `string.IsNullOrWhiteSpace(request.Model) ? null : ...` — то есть **любое непереданное значение сбрасывает модель в null** (= «использовать `LmStudio:Model` из appsettings»). Например, PUT с `{ displayName: "...", maxSteps: 15 }` (без model) → `model: null` в результирующем дескрипторе.
@@ -1040,6 +1042,7 @@
 
 ### KI-089 — Секция конфигурации эмбеддингов (`Rag:Embedding` vs `LmStudio:Embedding*`)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** после Фазы 1 KI-083 (при необходимости)
+- **Верификация (2026-11-22, S19):** ограничение остаётся задокументированным; изменений кода не требуется.
 - **Обнаружено:** 2026-09-25
 - **Файлы:** `IIChatTools.API/appsettings.json`, `IIChatTools.API/appsettings.Development.json`, `IIChatTools.Services/Implementation/LmStudioClient.cs`
 - **Описание:** Эмбеддинги конфигурируются в секции `Rag:Embedding` (Model, Dimensions, BatchSize, TimeoutSeconds, CacheEnabled), хотя клиент — `LmStudioClient` (для chat читает `LmStudio:*`). В Фазе 1 (KI-083) оставлено как в DESIGN.md § 8.1 для совместимости с будущими подсекциями (`Rag:Chunking`, `Rag:Ingestion`, `Rag:Retrieval`, `Rag:Attachments`).
@@ -3469,6 +3472,7 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ### KI-239 — Chat: слабые LLM галлюцинируют синтаксис mermaid (gantt, ER)
 
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** —
+- **Верификация (2026-11-22, S19):** ограничение остаётся задокументированным; изменений кода не требуется.
 - **Обнаружено:** 2026-10-11 (smoke KI-232 — gantt-диаграмма).
 - **Файлы:** `chat.js` (обработка ошибок `mermaid.render`), документация KI-232.
 - **Описание:** qwen3-4b (4B параметров) на запрос «Составь gantt-план
@@ -3499,6 +3503,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 ### KI-241 — Debate: tokensIn/tokensOut = 0 в AgentDebateRound
 
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.14.x
+- **Верификация (2026-11-22, S19):** ограничение остаётся задокументированным; изменений кода не требуется.
 - **Обнаружено:** 2026-10-12 (smoke Шага 2C.2 KI-126).
 - **Файлы:** `AgentDebateRound.TokensIn` / `TokensOut` (entity),
   `PlannerWithDebateTool` / `CodeAgentWithReviewTool` (persist),
@@ -6664,7 +6669,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
