@@ -177,11 +177,11 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [ ] **KI-089** — Секция конфигурации эмбеддингов (`Rag:Embedding` vs `LmStudio:Embedding*`) — 🟢 Low
 - [ ] **KI-090** — SqlServer-migrations содержали Sqlite-типы (snapshot drift) — 🟢 Low
 - [x] **KI-093** ✅ Documented (S16) — SQLite `database is locked` (дубликат KI-085, оставлен для истории) — 🟢 Low
-- [ ] **KI-094** — `wikipedia_search` intermittent timeout в агенте (SSL через прокси) — 🟢 Low, v1.6.2
-- [ ] **KI-095** — `snippet` `fetch_web_content` может начинаться с текста, дублирующего `label` — 🟢 Low
-- [ ] **KI-112** — Docker-образ `iichattools` без `git`, `gh`, `python3`, `node` — 🟢 Low
-- [ ] **KI-116** — `gemma-4-12b-coder-fable5-composer2.5-v1` не поддерживает OpenAI tool calling — 🔴 High
-- [ ] **KI-117** — LM Studio: Context Length 8192 недостаточно для агентов — 🟠 High
+- [x] **KI-094** ✅ Documented (S17) — `wikipedia_search` intermittent timeout в агенте (SSL через прокси) — 🟢 Low, v1.6.2
+- [x] **KI-095** ✅ Documented (S17) — `snippet` `fetch_web_content` может начинаться с текста, дублирующего `label` — 🟢 Low
+- [x] **KI-112** ✅ Documented (S17) — Docker-образ `iichattools` без `git`, `gh`, `python3`, `node` — 🟢 Low
+- [x] **KI-116** ✅ Documented (S17) — `gemma-4-12b-coder-fable5-composer2.5-v1` не поддерживает OpenAI tool calling — 🔴 High
+- [x] **KI-117** ✅ Documented (S17) — LM Studio: Context Length 8192 недостаточно для агентов — 🟠 High
 - [ ] **KI-118** — Chat LLM не вызывает `code_agent` для простых задач — 🟢 Low
 - [ ] **KI-120** — Chat LLM галлюцинирует количество инструментов — 🟢 Low
 - [ ] **KI-144** — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone) — 🟢 Low

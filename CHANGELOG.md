@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Changed
+- **Спринт S17 (Documented KI-094 / KI-095 / KI-112 / KI-116 / KI-117):**
+  ограничения (wikipedia timeout, snippet, Docker, model capabilities,
+  context length) верифицированы и оставлены задокументированными.
 - **Спринт S16 (Documented KI-007 / KI-009 / KI-032 / KI-048 / KI-093):**
   ограничения верифицированы и оставлены задокументированными.
 
