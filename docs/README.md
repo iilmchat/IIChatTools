@@ -1,6 +1,6 @@
-# Документация IIChatTools v2.0.1
+# Документация IIChatTools v2.2.x
 
-**Обновлено:** 2026-10-19
+**Обновлено:** 2026-11-22 (спринты S01–S20, Design v2.3)
 **Назначение:** единая точка входа в документацию проекта. Выберите роль —
 и переходите по ссылке.
 
@@ -23,18 +23,22 @@
 docs/
 ├── README.md                  ← этот хаб
 ├── KNOWN_ISSUES.md            ← реестр проблем (KI-XXX)
+├── TODO_KI.md                 ← план устранения KI (S01–S20 выполнены)
+├── TODO_KI_SPRINTS.md         ← разбивка на 20 спринтов
+├── TODO_DESIGN_SPRINTS.md     ← программа улучшений v2.3 (D01–D18)
 ├── user_guide/
 │   └── USER_GUIDE.md          ← Chat UI, Multi-Agent, RAG
 ├── qa/
 │   └── MANUAL_TESTING_GUIDE.md ← ручная приёмка (бывший docs/TESTING.md)
 └── development/
-    ├── RULES.md               ← правила разработки (v1.4.35)
+    ├── RULES.md               ← правила разработки (v1.4.36)
     ├── ARCHITECTURE.md        ← архитектура, слои, DI, ADR
     ├── RELEASES.md            ← процесс релиза
     ├── reports/               ← отчёты по задачам/релизам
     │   └── v2.0.1/DOCS_REORG.md
     ├── adr/                   ← индекс архитектурных решений
-    ├── v1.3 … v2.0/           ← дизайн-документы по версиям
+    ├── v1.3 … v2.3/           ← дизайн-документы по версиям
+    │   └── v2.3/DESIGN_IMPROVEMENTS.md ← программа улучшений (best practices)
     └── archive/               ← устаревшие документы (история)
 ```
 
@@ -52,7 +56,7 @@ docs/
 
 - **[Чек-лист ручной приёмки](qa/MANUAL_TESTING_GUIDE.md)** — smoke, full regression,
   UI/UX, список непокрытого автотестами.
-- **Автотесты:** `dotnet test IIChatTools.sln -c Release` (1180 тестов).
+- **Автотесты:** `dotnet test IIChatTools.sln -c Release` (1326/1334, 8 Skip).
 - **Найденный дефект** → запись `KI-XXX` в [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
   (RULES § 1.13).
 

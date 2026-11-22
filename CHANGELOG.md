@@ -18,6 +18,13 @@
 
 ## [Unreleased]
 
+### Added
+- **Программа улучшений v2.3 (Design):** `docs/development/v2.3/DESIGN_IMPROVEMENTS.md`
+  — целевая архитектура (провайдеры, надёжность, observability, безопасность,
+  Vision-платформа, docs-as-code), 6 этапов / 18 спринтов (D01–D18);
+  план — `docs/TODO_DESIGN_SPRINTS.md`. Основан на итогах 20 KI-спринтов
+  (отчёты `docs/development/reports/v2.2/S01_KI.md` … `S20_KI.md`).
+
 ### Changed
 - **Спринт S20 (финальный, Documented KI-118 / KI-169, KI-143):**
   ограничения верифицированы; Avalonia-overlay (KI-143) перенесён в

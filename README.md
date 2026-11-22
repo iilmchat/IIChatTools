@@ -52,7 +52,8 @@ IIChatTools — серверное приложение на **.NET 10 LTS**, п
 | Пользователям | [docs/user_guide/USER_GUIDE.md](docs/user_guide/USER_GUIDE.md) — Chat UI, Multi-Agent, RAG |
 | Тестировщикам | [docs/qa/MANUAL_TESTING_GUIDE.md](docs/qa/MANUAL_TESTING_GUIDE.md) — чек-лист ручной приёмки |
 | Разработчикам | [docs/development/RULES.md](docs/development/RULES.md) · [ARCHITECTURE.md](docs/development/ARCHITECTURE.md) · [RELEASES.md](docs/development/RELEASES.md) · [reports/](docs/development/reports/) |
-| Реестр проблем | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) |
+| Реестр проблем | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) · [TODO_KI.md](docs/TODO_KI.md) · [спринты S01–S20](docs/TODO_KI_SPRINTS.md) |
+| Программа улучшений v2.3 | [DESIGN_IMPROVEMENTS.md](docs/development/v2.3/DESIGN_IMPROVEMENTS.md) · [спринты D01–D18](docs/TODO_DESIGN_SPRINTS.md) |
 | История версий | [CHANGELOG.md](CHANGELOG.md) |
 
 ---

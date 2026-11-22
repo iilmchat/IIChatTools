@@ -172,15 +172,17 @@
 
 См. [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — полный реестр.
 
-**Актуальная сводка (2026-11-21, спринт S01):** всего **254** уникальных KI
-(255 секций; `KI-110a/b` — один номер): Fixed 169 (включая Implemented/Resolved),
-Planned 48, Documented 24, Deferred 8, Partially Fixed 4, In Progress 1,
-Won't Fix 1.
+**Актуальная сводка (2026-11-22, после спринтов S01–S20):** всего **254**
+уникальных KI (255 секций; `KI-110a/b` — один номер): Fixed 203 (включая
+Implemented/Resolved), Planned 19, Documented 24, Deferred 7,
+Partially Fixed 0, In Progress 0, Won't Fix 1.
 
 Полный и единственный source of truth — [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md).
 Здесь не дублируем таблицу KI: она устаревала уже дважды (KI-214, KI-254).
-Ре-триаж и порядок устранения — в `docs/TODO_KI.md` (89 незакрытых записей),
-разбивка по спринтам — в `docs/TODO_KI_SPRINTS.md`.
+Ре-триаж и порядок устранения — в `docs/TODO_KI.md`, разбивка по спринтам —
+в `docs/TODO_KI_SPRINTS.md` (20 спринтов S01–S20 выполнены).
+Программа дальнейших улучшений — `docs/development/v2.3/DESIGN_IMPROVEMENTS.md`
+(18 спринтов D01–D18), план — `docs/TODO_DESIGN_SPRINTS.md`.
 
 > **KI-068** (поиск по содержимому) исправлен **дважды**: первая версия использовала `LOWER() LIKE`, не работала с кириллицей на SQLite. Итоговое решение — фильтрация в памяти (см. § 4.26).
 >
