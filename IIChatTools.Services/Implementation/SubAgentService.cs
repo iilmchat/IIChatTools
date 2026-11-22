@@ -130,6 +130,10 @@ namespace IIChatTools.Services.Implementation
             // 4. Основной цикл
             var finalAnswer = string.Empty;
             var completed = false;
+            // KI-167: счётчики вызовов инструментов — для детекции «галлюцинации
+            // успеха», когда все вызовы провалились, а агент claimed success.
+            var toolCallsTotal = 0;
+            var toolCallsFailed = 0;
 
             for (var step = 1; step <= maxSteps; step++)
             {
@@ -222,6 +226,7 @@ namespace IIChatTools.Services.Implementation
                     }
 
                     usedTools.Add(functionName);
+                    toolCallsTotal++;
 
                     ToolResult toolResult;
                     try
@@ -233,6 +238,9 @@ namespace IIChatTools.Services.Implementation
                         _logger.LogError(ex, "Ошибка выполнения инструмента {Tool} в суб-агенте", functionName);
                         toolResult = ToolResult.Fail($"Ошибка выполнения: {ex.Message}");
                     }
+
+                    if (!toolResult.Success)
+                        toolCallsFailed++;
 
                     // v1.6.1 (KI-086-post): собираем sources от inner-инструмента.
                     // Для wikipedia_search / web_search — Citations (после A2/A3);
@@ -279,6 +287,22 @@ namespace IIChatTools.Services.Implementation
                     _logger.LogWarning(ex, "Не удалось получить финальное резюме суб-агента");
                     finalAnswer = "Задача не завершена в отведённое число шагов.";
                 }
+            }
+
+            // KI-167: детекция «галлюцинации успеха». Если агент объявил
+            // задачу выполненной, но ВСЕ вызовы инструментов провалились
+            // (например, path-traversal отклонён PathHelper) — честно
+            // помечаем Completed=false. AgentToolBase после этого вернёт
+            // ToolResult.Fail (KI-114), и Chat LLM не поверит ложному успеху.
+            if (completed && toolCallsTotal > 0 && toolCallsFailed == toolCallsTotal)
+            {
+                _logger.LogWarning(
+                    "Суб-агент {SessionId}: все вызовы инструментов провалились ({Failed}/{Total}) — Completed=false (KI-167)",
+                    sessionId, toolCallsFailed, toolCallsTotal);
+                completed = false;
+                finalAnswer =
+                    $"Все вызовы инструментов завершились неудачно ({toolCallsFailed}/{toolCallsTotal}). " +
+                    finalAnswer;
             }
 
             // 5. Авто-отладка (опционально)

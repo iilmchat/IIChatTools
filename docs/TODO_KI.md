@@ -94,10 +94,10 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 
 ### 3.3. Planned — High (5)
 
-- [ ] **KI-167** — `file_system_agent` галлюцинирует успех вне workspace (рецидив KI-113) — 🟠 High, v1.13.x
-- [ ] **KI-177** — Vision Agent: `click(target=X)` не находит X в свежем describe — 🟠 High, v1.13.x
-- [ ] **KI-178** — Vision LLM timeout 300 сек при 2000+ токенах промпта — 🟠 High, v1.13.x
-- [ ] **KI-192** — Vision Agent: VL возвращает пустой `ui_elements` на медленно грузящихся страницах — 🟠 High, v1.13.x
+- [x] **KI-167** — `file_system_agent` галлюцинирует успех вне workspace (рецидив KI-113) — 🟠 High, ✅ Fixed в S03 (v2.2.x)
+- [x] **KI-177** — Vision Agent: `click(target=X)` не находит X в свежем describe — 🟠 High, ✅ Fixed в S03 (v2.2.x)
+- [x] **KI-178** — Vision LLM timeout 300 сек при 2000+ токенах промпта — 🟠 High, ✅ Fixed в S03 (v2.2.x)
+- [x] **KI-192** — Vision Agent: VL возвращает пустой `ui_elements` на медленно грузящихся страницах — 🟠 High, ✅ Fixed в S03 (v2.2.x)
 - [ ] **KI-227** — RAG embeddings зависят от LM Studio (нет внешнего провайдера) — 🟠 High, v1.14
 
 ### 3.4. Planned — Medium (16)

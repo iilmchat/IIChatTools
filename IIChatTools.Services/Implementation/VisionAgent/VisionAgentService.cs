@@ -168,6 +168,9 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             var ocrWasRun = false;
             var forceOcrOnNextDescribe = false;
             ScreenDescriptionDto lastScreen = null;
+            // KI-177: предыдущий describe — fallback для семантического target,
+            // если VL-модель выдаёт другие id в свежем describe того же экрана.
+            ScreenDescriptionDto previousScreen = null;
 
             var history = new List<VisionStepDto>();
             var result = new VisionTaskResultDto
@@ -440,6 +443,9 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     }
 
                     // KI-137: сохраняем последний screen — для result.OcrText.
+                    // KI-177: сдвигаем его в previousScreen ДО обновления —
+                    // action этого шага может ссылаться на id из прошлого describe.
+                    previousScreen = lastScreen;
                     lastScreen = screen;
 
                     // KI-137: OCR Trigger A (проактивный) + reactive flag (Trigger B).
@@ -573,7 +579,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                         // внутри ResolveCoordinatesAsync (кроп вокруг bounds).
                         await ExecuteActionAsync(
                                 _backend, actionType, effectiveAction, screen, png,
-                                effectiveCts.Token)
+                                previousScreen, effectiveCts.Token)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
@@ -811,6 +817,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             VisionActionDto action,
             ScreenDescriptionDto screen,
             byte[] currentScreenshotPng,
+            ScreenDescriptionDto fallbackScreen,
             CancellationToken ct)
         {
             switch (actionType)
@@ -821,7 +828,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                 case "move_mouse":
                 {
                     var (x, y) = await ResolveCoordinatesAsync(
-                            action, screen, currentScreenshotPng, ct)
+                            action, screen, currentScreenshotPng, fallbackScreen, ct)
                         .ConfigureAwait(false);
                     switch (actionType)
                     {
@@ -890,6 +897,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             VisionActionDto action,
             ScreenDescriptionDto screen,
             byte[] currentScreenshotPng,
+            ScreenDescriptionDto fallbackScreen,
             CancellationToken ct)
         {
             // 1. Приоритет — target (семантический id).
@@ -897,6 +905,23 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             {
                 var element = screen?.UiElements?.FirstOrDefault(el =>
                     string.Equals(el.Id, action.Target, StringComparison.Ordinal));
+
+                // KI-177: VL-модель нестабильна в именовании id — action может
+                // ссылаться на id из ПРЕДЫДУЩЕГО describe. Пробуем его перед
+                // тем как объявлять target ненайденным.
+                var usedFallback = false;
+                if (element == null && fallbackScreen != null)
+                {
+                    element = fallbackScreen.UiElements?.FirstOrDefault(el =>
+                        string.Equals(el.Id, action.Target, StringComparison.Ordinal));
+                    usedFallback = element != null;
+                    if (usedFallback)
+                    {
+                        _logger.LogInformation(
+                            "VisionAgent: target '{Target}' найден в предыдущем describe (KI-177).",
+                            action.Target);
+                    }
+                }
 
                 if (element == null)
                 {

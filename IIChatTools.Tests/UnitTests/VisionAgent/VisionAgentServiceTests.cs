@@ -714,5 +714,59 @@ namespace IIChatTools.Tests.UnitTests.VisionAgent
             Assert.Equal(0, ocr.LayoutCallCount);              // OCR не вызывался
             Assert.DoesNotContain("ScreenshotFullResolution", backend.CallLog);
         }
+
+        // ============ KI-177: fallback target из предыдущего describe ============
+
+        /// <summary>
+        /// VL-модель выдаёт разные id для одного и того же элемента. Planner
+        /// ссылается на id из предыдущего describe — клик должен резолвиться
+        /// через fallback, а не падать с «target не найден» (KI-177).
+        /// </summary>
+        [Fact]
+        public async Task RunTaskAsync_TargetFromPreviousDescribe_ClickSucceeds()
+        {
+            var backend = new FakeVisionBackend();
+            var firstScreen = new ScreenDescriptionDto
+            {
+                Description = "first",
+                UiElements = new List<UiElementDto>
+                {
+                    new UiElementDto
+                    {
+                        Id = "stable_btn",
+                        Type = "button",
+                        Center = new UiElementCenterDto { X = 100, Y = 200 }
+                    }
+                }
+            };
+            var secondScreen = new ScreenDescriptionDto
+            {
+                Description = "second — VL переименовал id",
+                UiElements = new List<UiElementDto>
+                {
+                    new UiElementDto
+                    {
+                        Id = "different_btn",
+                        Type = "button",
+                        Center = new UiElementCenterDto { X = 300, Y = 400 }
+                    }
+                }
+            };
+
+            var visionLlm = new FakeVisionLlmClient();
+            visionLlm.Responses.Enqueue(firstScreen);
+            visionLlm.Responses.Enqueue(secondScreen);
+
+            var planner = new FakePlannerLlmClient();
+            planner.Responses.Enqueue(new VisionActionDto { Action = "click", Target = "stable_btn" });
+            planner.Responses.Enqueue(new VisionActionDto { Action = "done", Reason = "click выполнен" });
+
+            var sut = CreateService(backend, visionLlm, planner);
+
+            var result = await sut.RunTaskAsync(Request(), UserId, CancellationToken.None);
+
+            Assert.Contains("Click(100,200)", backend.CallLog);  // координаты из ПРЕДЫДУЩЕГО describe
+            Assert.True(result.Success, "клик по id из прошлого describe должен считаться успешным");
+        }
     }
 }

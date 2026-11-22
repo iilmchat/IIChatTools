@@ -19,6 +19,13 @@
 ## [Unreleased]
 
 ### Fixed
+- **Спринт S03 (High, KI-167 / KI-177 / KI-178 / KI-192):**
+  - KI-167 — `SubAgentService`: если все вызовы инструментов провалились,
+    агент больше не объявляет успех (`Completed=false` + предупреждение).
+  - KI-177 — `VisionAgentService`: target из предыдущего describe используется
+    как fallback при нестабильном именовании id VL-моделью (+1 тест).
+  - KI-178 — `VisionLlm:MaxTokens` снижен до 512 (dev + prod).
+  - KI-192 — верификация уже реализованного retry пустого `ui_elements`.
 - **KI-057** — `GET /api/models` поддерживает config-driven список исключений
   `LmStudio:ExcludeModelPatterns` (по умолчанию `["embed"]`); фильтрация
   регистронезависимая, +4 unit-теста (`ModelsControllerTests`). Спринт S02.

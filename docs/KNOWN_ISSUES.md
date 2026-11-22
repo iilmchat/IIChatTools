@@ -4530,7 +4530,12 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-167 — `file_system_agent` галлюцинирует успех вне workspace (рецидив KI-113)
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S03):** `SubAgentService.ExecuteTaskAsync` считает
+  неудачные вызовы инструментов; если агент claim'ит успех, но **все** вызовы
+  провалились (например, path-traversal отклонён `PathHelper`) — `Completed=false`
+  и предупреждение в `FinalAnswer`. В связке с KI-114 `AgentToolBase` вернёт
+  `ToolResult.Fail` вместо ложного «успеха».
 - **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`,
   `IIChatTools.Services/Implementation/SubAgentService.cs`,
@@ -4957,7 +4962,11 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-192 — Vision Agent: VL возвращает пустой `ui_elements` на медленно грузящихся страницах
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Верификация (2026-11-21, спринт S03):** retry на первом кадре
+  (`history.Count == 0`, `ui_elements=[]`) до 3 раз с паузой
+  `EmptyUiElementsRetryDelayMs` реализован в `VisionAgentService` (v1.13.x).
+  Изменений не потребовалось.
 - **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=41/42).
 - **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — loop), `VisionSystemPrompt.cs`
   (`PlannerPlanNext`).
@@ -5195,7 +5204,11 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-177 — Vision Agent: click(target=X) не находит X в свежем describe
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S03):** `VisionAgentService` хранит предыдущий
+  `ScreenDescriptionDto` и при отсутствии target в свежем describe пробует
+  resolver по предыдущему (VL-модель нестабильна в именовании id).
+  +1 unit-тест `RunTaskAsync_TargetFromPreviousDescribe_ClickSucceeds`.
 - **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
 - **Файлы:** `VisionAgentTool.cs` (`ClickAsync`), `VisionAgentService.ResolveCoordinates`.
 - **Симптом:** LLM вызывает `describe` → получает `ui_elements[].id`
@@ -5212,7 +5225,10 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-178 — Vision LLM timeout 300 сек при 2000+ токенах промпта
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S03):** `VisionLlm:MaxTokens` 1024→512 (dev) и
+  2048→512 (prod) в `appsettings*.json`; жёсткая инструкция «остановись сразу
+  после закрывающего ]» (правило 24 в `VisionSystemPrompt`) уже присутствует.
 - **Обнаружено:** 2026-10-06 (smoke #1 — три timeout за сессию).
 - **Файлы:** `appsettings.Development.json` (`VisionAgent:VisionLlm:MaxTokens`),
   `VisionSystemPrompt.PlannerPlanNext`.
@@ -6578,13 +6594,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 173 |
-| Planned | 48 |
+| Fixed (включая Implemented / Resolved) | 177 |
+| Planned | 44 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 0 |
@@ -6592,7 +6608,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 173 + 48 + 24 + 8 + 0 + 0 + 1 = **254**.
+**Сверка:** 177 + 44 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.
