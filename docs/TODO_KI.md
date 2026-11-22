@@ -103,8 +103,8 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 ### 3.4. Planned — Medium (16)
 
 - [x] **KI-088** — Актуальный чек-лист ручной приёмки (`docs/TESTING.md`) — 🟡 Medium, ✅ Fixed в S01 (v2.2.x)
-- [ ] **KI-111** — `mail_agent` не помнит контекст между вызовами — 🟡 Medium, v1.8.x
-- [ ] **KI-113** — `mail_agent`: qwen3-4b галлюцинирует «успех» при неудаче — 🟡 Medium, v1.8.x
+- [x] **KI-111** — `mail_agent` не помнит контекст между вызовами — 🟡 Medium, ✅ Fixed в S05 (v2.2.x)
+- [x] **KI-113** — `mail_agent`: qwen3-4b галлюцинирует «успех» при неудаче — 🟡 Medium, ✅ Fixed в S05 (v2.2.x)
 - [ ] **KI-128** — Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`) — 🟡 Medium, v1.11.x
 - [ ] **KI-168** — Chat LLM выбирает `file_system_agent` для задач вне workspace — 🟡 Medium, v1.13.x
 - [ ] **KI-172** — Chat LLM выбирает `vision_agent` для browser-задач — 🟡 Medium, v1.13.x

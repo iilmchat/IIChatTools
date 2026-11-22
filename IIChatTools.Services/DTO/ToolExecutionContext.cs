@@ -43,6 +43,14 @@ namespace IIChatTools.Services.DTO
         public int? ChatId { get; set; }
 
         /// <summary>
+        /// Краткий снимок последних сообщений чата (KI-111). Передаётся
+        /// субагентам через <c>SubAgentTaskRequest.Context</c>, чтобы
+        /// mail_agent и др. не делали лишние вызовы для поиска UID/темы
+        /// из уже показанных пользователю сообщений.
+        /// </summary>
+        public string RecentChatContext { get; set; }
+
+        /// <summary>
         /// Опциональный writer для SSE-событий, порождаемых внутри tool'а
         /// (v1.11.0, KI-126, Шаг 1E-part2).
         ///

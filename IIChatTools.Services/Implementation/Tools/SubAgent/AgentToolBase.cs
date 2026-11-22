@@ -139,6 +139,17 @@ namespace IIChatTools.Services.Implementation.Tools.SubAgent
                 return ToolResult.Fail("Описание задачи превышает 8000 символов");
 
             var extraContext = arguments.GetString("context");
+
+            // KI-111: подмешиваем краткий снимок истории чата — субагент
+            // видит последние сообщения и не ищет заново UID/темы.
+            if (!string.IsNullOrWhiteSpace(context?.RecentChatContext))
+            {
+                var snapshot = context.RecentChatContext;
+                extraContext = string.IsNullOrWhiteSpace(extraContext)
+                    ? snapshot
+                    : extraContext + "\n\n--- Последние сообщения чата ---\n" + snapshot;
+            }
+
             if (extraContext != null && extraContext.Length > 20000)
                 return ToolResult.Fail("Контекст превышает 20 000 символов");
 

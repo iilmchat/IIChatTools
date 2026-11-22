@@ -1025,7 +1025,8 @@ namespace IIChatTools.Services.Implementation
                                 WorkspaceRoot = workspaceRoot,
                                 ClientIp = null,
                                 CancellationToken = cancellationToken,
-                                ChatId = request.ChatId   // v1.11.0 (KI-126, 1E-part2)
+                                ChatId = request.ChatId,  // v1.11.0 (KI-126, 1E-part2)
+                                RecentChatContext = BuildRecentChatContext(messages)  // KI-111
                             };
 
                             var holder = new ToolStreamingResult();
@@ -1639,6 +1640,39 @@ namespace IIChatTools.Services.Implementation
         private sealed class ToolStreamingResult
         {
             public ToolResult Result { get; set; }
+        }
+
+        /// <summary>
+        /// Строит компактный снимок последних сообщений чата для субагентов (KI-111).
+        /// Берём не более 3 последних сообщений, обрезаем каждое до 500 символов.
+        /// </summary>
+        /// <param name="messages">Сообщения диалога в формате LLM</param>
+        /// <returns>Текст снимка или null, если history пуста</returns>
+        private static string BuildRecentChatContext(JArray messages)
+        {
+            if (messages == null || messages.Count == 0)
+                return null;
+
+            var start = Math.Max(0, messages.Count - 3);
+            var lines = new List<string>();
+            for (var i = start; i < messages.Count; i++)
+            {
+                var msg = messages[i] as JObject;
+                if (msg == null)
+                    continue;
+
+                var role = msg["role"]?.Value<string>() ?? "unknown";
+                var raw = msg["content"]?.Value<string>() ?? string.Empty;
+                // tool_calls-сообщения могут не иметь content — пропускаем.
+                if (string.IsNullOrWhiteSpace(raw))
+                    continue;
+
+                if (raw.Length > 500)
+                    raw = raw.Substring(0, 500) + "…";
+                lines.Add($"{role}: {raw}");
+            }
+
+            return lines.Count > 0 ? string.Join("\n", lines) : null;
         }
 
         /// <summary>

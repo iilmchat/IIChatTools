@@ -19,6 +19,11 @@
 ## [Unreleased]
 
 ### Fixed
+- **Спринт S05 (KI-111 / KI-113):** субагенты получили снимок последних
+  3 сообщений чата (`ToolExecutionContext.RecentChatContext` → `SubAgentTaskRequest.Context`,
+  +1 тест); промпт `mail_agent` дополнен запретом на ложные «успешно»
+  (KI-113). KI-108 (per-user почта) перенесён в отдельный спринт — требует
+  миграции БД и UI.
 - **Спринт S04 (KI-193 / KI-205 / KI-226 / KI-227):**
   - KI-227 — `EmbeddingService`: fallback на внешний OpenAI-совместимый
     `/v1/embeddings` при недоступности LM Studio (`Rag:Embedding:External*`).

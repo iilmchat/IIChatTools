@@ -1740,7 +1740,11 @@
 ---
 
 ### KI-111 — `mail_agent` не помнит контекст между вызовами
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S05):** `ToolExecutionContext` получил поле
+  `RecentChatContext`; `ChatStreamService` заполняет его снимком последних
+  3 сообщений (≤500 символов каждое), `AgentToolBase` подмешивает снимок
+  в `SubAgentTaskRequest.Context`. +1 тест в `AgentToolBaseTests`.
 - **Обнаружено:** 2026-09-29 (smoke Mail Agent)
 - **Файлы:** `IIChatTools.Services/Implementation/SubAgentService.cs`, `AgentToolBase.cs`,
   `ChatStreamService.cs`.
@@ -1792,7 +1796,11 @@
 ---
 
 ### KI-113 — `mail_agent`: qwen3-4b галлюцинирует «успех» при неудаче
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.8.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S05):** в `SubAgents:mail_agent:SystemPrompt`
+  (appsettings + Development) добавлено правило 7 — прямой запрет писать
+  «успешно» при невыполненной операции, с формулировкой честного ответа.
+  В связке с KI-114/KI-167 провал детектируется и на уровне кода.
 - **Обнаружено:** 2026-09-29 (smoke Mail Agent, скриншот)
 - **Файлы:** `appsettings.json` (`SubAgents:mail_agent:SystemPrompt`),
 `appsettings.Development.json` (то же).
@@ -6606,13 +6614,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 181 |
-| Planned | 40 |
+| Fixed (включая Implemented / Resolved) | 183 |
+| Planned | 38 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 0 |
@@ -6620,7 +6628,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 181 + 40 + 24 + 8 + 0 + 0 + 1 = **254**.
+**Сверка:** 183 + 38 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.

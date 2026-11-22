@@ -309,6 +309,30 @@ namespace IIChatTools.Tests.IntegrationTests
         }
 
         /// <summary>
+        /// KI-111: снимок истории чата из ToolExecutionContext подмешивается
+        /// в SubAgentTaskRequest.Context даже если аргумент context не задан.
+        /// </summary>
+        [Fact]
+        public async Task ExecuteAsync_RecentChatContext_AppendedToSubAgentRequest()
+        {
+            var descriptor = BuildDescriptor(maxSteps: 7);
+            var (tool, subAgent, _) = CreateTool(
+                agentName: "file_system_agent",
+                descriptorOrNull: descriptor);
+
+            var ctx = Ctx();
+            ctx.RecentChatContext = "user: найди письмо про Алису\nassistant: найдено uid=42";
+
+            var args = new JObject { ["task"] = "Прочитай письмо" };
+
+            await tool.ExecuteAsync(ctx, args);
+
+            Assert.NotNull(subAgent.LastRequest);
+            // Аргумент context не задан — снимок становится контекстом целиком.
+            Assert.Equal(ctx.RecentChatContext, subAgent.LastRequest.Context);
+        }
+
+        /// <summary>
         /// maxSteps в аргументах &gt; 30 → clamp до 30.
         /// </summary>
         [Fact]
