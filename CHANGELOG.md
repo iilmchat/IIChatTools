@@ -18,6 +18,11 @@
 
 ## [Unreleased]
 
+### Changed
+- **Спринт S11 (KI-164 / KI-165 / KI-166):** задачи Vision backend'
+  (drag-select, clipboard, taskbar) оставлены Planned — требуется расширение
+  протокола `IVisionBackend`; причины зафиксированы в реестре.
+
 ### Fixed
 - **Спринт S10 (верификация, KI-151 / KI-162):** подтверждено удаление
   временного Chrome-профиля и Coordinate-then-Verify в Vision Agent.

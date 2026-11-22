@@ -4481,6 +4481,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-164 — Vision Agent: drag-select (выделение текста мышью)
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Спринт S11 (2026-11-22):** оставлен Planned — реализация требует нового backend-actions (drag_select / clipboard / taskbar) в IVisionBackend + валидаторе + промпте; перенесён в отдельный спринт после проектирования расширения протокола.
 - **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «DeepSeek API»).
 - **Файлы (план):** `IVisionBackend` (+`DragAsync`), `LocalHarnessVisionBackend`,
   `VisionAgentTool` (+ action `drag`), `VisionActionValidator`.
@@ -4500,6 +4501,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-165 — Vision Agent: чтение буфера обмена (read clipboard)
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Спринт S11 (2026-11-22):** оставлен Planned — реализация требует нового backend-actions (drag_select / clipboard / taskbar) в IVisionBackend + валидаторе + промпте; перенесён в отдельный спринт после проектирования расширения протокола.
 - **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «DeepSeek API»).
 - **Файлы (план):** `IIChatTools.Services/Implementation/Tools/VisionAgent/ReadClipboardTool.cs` (новый),
   `Startup.cs` (регистрация `ITool`).
@@ -4523,6 +4525,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-166 — Vision Agent: детекция иконок в taskbar (Win+1, crop, fallback)
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Спринт S11 (2026-11-22):** оставлен Planned — реализация требует нового backend-actions (drag_select / clipboard / taskbar) в IVisionBackend + валидаторе + промпте; перенесён в отдельный спринт после проектирования расширения протокола.
 - **Обнаружено:** 2026-10-05 (при планировании smoke-сценария «Начало дня»).
 - **Файлы (план):** `VisionSystemPrompt.PlannerPlanNext` (few-shot),
   `LocalHarnessVisionBackend` (+`DetectTaskbarIcons`), `appsettings.json`
@@ -6628,7 +6631,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
