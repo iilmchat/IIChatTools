@@ -19,6 +19,8 @@
 ## [Unreleased]
 
 ### Changed
+- **Спринт S18 (Documented KI-120 / KI-144 / KI-180 / KI-186 / KI-189):**
+  ограничения LLM/аудио/overlay верифицированы и оставлены задокументированными.
 - **Спринт S17 (Documented KI-094 / KI-095 / KI-112 / KI-116 / KI-117):**
   ограничения (wikipedia timeout, snippet, Docker, model capabilities,
   context length) верифицированы и оставлены задокументированными.
