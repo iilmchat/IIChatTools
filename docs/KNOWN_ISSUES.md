@@ -3830,7 +3830,12 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-227 — RAG embeddings зависят от LM Studio (нет внешнего провайдера)
 
-- **Приоритет:** 🟠 High | **Статус:** Planned | **Запланировано:** v1.14
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S04):** `EmbeddingService` при недоступности
+  LM Studio делает fallback на внешний OpenAI-совместимый `/v1/embeddings`
+  (`Rag:Embedding:ExternalBaseUrl` / `ExternalApiKey` / `ExternalModel`,
+  по умолчанию пусто — поведение как раньше). Таймаут 15 с, внешняя отмена
+  не перехватывается. Конфиг читается через индексер (RULES § 4.56).
 - **Обнаружено:** 2026-10-10 (аудит после KI-224).
 - **Описание:** RAG-индексация и retrieval работают через
   `ILmStudioClient.GetEmbeddingsAsync` (модель `text-embedding-nomic-embed-text-v1.5`).
@@ -3859,7 +3864,11 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-226 — `/api/models` и UI-селектор модели зависят от LM Studio
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.14
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S04):** ответ `GET /api/models` дополнен полем
+  `providers` со списком `ExternalLlm:Providers` (name/displayName/model),
+  доступным даже при недоступном LM Studio. +2 теста. Изменение формата
+  `Chat.Model` на `<provider>:<model>` (п. 4–5 постановки) — отдельная задача.
 - **Обнаружено:** 2026-10-10 (аудит после KI-224).
 - **Описание:** Эндпоинт `GET /api/models` возвращает список моделей **из
   LM Studio** (`ILmStudioClient.GetModelIdsAsync`). UI-селектор модели в
@@ -4870,7 +4879,10 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-193 — Vision LLM: id drift между кадрами (`search_btn` → `search_button`)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Верификация (2026-11-21, спринт S04):** `VisionIdNormalizer` применяется
+  в `ScreenDescriptionParser` и `DetectPlannerCycle` (сравнение нормализованных
+  target'ов). Изменений не потребовалось.
 - **Обнаружено:** 2026-10-07 (smoke KI-162, chatId=36, задача «Открой wikipedia.org и кликни по кнопке поиска»).
 - **Файлы:** `VisionSystemPrompt.VisionUiDescribe` (правило 21), `VisionActionValidator`,
   `VisionAgentService.DetectPlannerCycle`.
@@ -5358,7 +5370,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-205 — RAG: постраничный просмотр PNG сканов
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v1.13.x)** | **Исправлено в:** v1.13.x
 - **Обнаружено:** 2026-10-07 (smoke KI-203 — temp PNG страниц удаляются, пользователь не видит распознанное).
 - **Файлы (план):** `PdfParser.cs` (`RenderPageToPng`),
   `ChatAttachmentService.cs`, `ChatAttachmentsController.cs`,
@@ -6594,13 +6606,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 177 |
-| Planned | 44 |
+| Fixed (включая Implemented / Resolved) | 181 |
+| Planned | 40 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 0 |
@@ -6608,7 +6620,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 177 + 44 + 24 + 8 + 0 + 0 + 1 = **254**.
+**Сверка:** 181 + 40 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.

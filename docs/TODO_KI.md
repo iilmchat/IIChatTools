@@ -98,7 +98,7 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-177** — Vision Agent: `click(target=X)` не находит X в свежем describe — 🟠 High, ✅ Fixed в S03 (v2.2.x)
 - [x] **KI-178** — Vision LLM timeout 300 сек при 2000+ токенах промпта — 🟠 High, ✅ Fixed в S03 (v2.2.x)
 - [x] **KI-192** — Vision Agent: VL возвращает пустой `ui_elements` на медленно грузящихся страницах — 🟠 High, ✅ Fixed в S03 (v2.2.x)
-- [ ] **KI-227** — RAG embeddings зависят от LM Studio (нет внешнего провайдера) — 🟠 High, v1.14
+- [x] **KI-227** — RAG embeddings зависят от LM Studio (нет внешнего провайдера) — 🟠 High, ✅ Fixed в S04 (v2.2.x)
 
 ### 3.4. Planned — Medium (16)
 
@@ -109,12 +109,12 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [ ] **KI-168** — Chat LLM выбирает `file_system_agent` для задач вне workspace — 🟡 Medium, v1.13.x
 - [ ] **KI-172** — Chat LLM выбирает `vision_agent` для browser-задач — 🟡 Medium, v1.13.x
 - [ ] **KI-179** — Chat LLM зацикливается на Vision-задачах — 🟡 Medium, v1.13.x
-- [ ] **KI-193** — Vision LLM: id drift между кадрами (`search_btn` → `search_button`) — 🟡 Medium, v1.13.x
+- [x] **KI-193** — Vision LLM: id drift между кадрами (`search_btn` → `search_button`) — 🟡 Medium, ✅ Fixed в S04 (v2.2.x)
 - [ ] **KI-204** — RAG: нет индикации прогресса OCR при загрузке PDF — 🟡 Medium, v1.13.x
-- [ ] **KI-205** — RAG: постраничный просмотр PNG сканов — 🟢 Low, v1.13.x
+- [x] **KI-205** — RAG: постраничный просмотр PNG сканов — 🟢 Low, ✅ Fixed в S04 (v1.13.x, верификация)
 - [ ] **KI-206** — RAG: Page viewer — thumbnails, зум, скролл — 🟡 Medium, v1.13.x
 - [ ] **KI-213** — RAG: Page viewer — подгонка text layer под bbox — 🟡 Medium, v1.13.x / v1.14
-- [ ] **KI-226** — `/api/models` и UI-селектор модели зависят от LM Studio — 🟡 Medium, v1.14
+- [x] **KI-226** — `/api/models` и UI-селектор модели зависят от LM Studio — 🟡 Medium, ✅ Fixed в S04 (v2.2.x)
 - [ ] **KI-231** — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V) — 🟡 Medium, v1.13.14
 - [x] **KI-253** — `qa/MANUAL_TESTING_GUIDE.md` устарел (v1.8.1, 424 теста) — 🟡 Medium, ✅ Fixed в S01 (v2.2.x)
 - [ ] **KI-265** — Durable queue для Background Jobs — 🟡 Medium, v2.1.x

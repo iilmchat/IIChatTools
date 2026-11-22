@@ -6,6 +6,9 @@ using IIChatTools.Services.DTO.LmStudio;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Implementation.Rag
 {
@@ -33,6 +36,13 @@ namespace IIChatTools.Services.Implementation.Rag
 
         /// <summary>Максимум текстов за один вызов LM Studio (из конфига, default 64).</summary>
         private readonly int _batchSize;
+
+        /// <summary>
+        /// Внешний OpenAI-совместимый провайдер эмбеддингов (KI-227).
+        /// Используется как fallback, если LM Studio недоступен.
+        /// </summary>
+        private readonly HttpClient _externalClient;
+        private readonly string _externalModel;
 
         /// <summary>
         /// Создаёт сервис эмбеддингов.
@@ -64,6 +74,23 @@ namespace IIChatTools.Services.Implementation.Rag
                     _batchSize);
                 _batchSize = 64;
             }
+
+            // KI-227: внешний провайдер эмбеддингов (OpenAI-совместимый).
+            // Читаем через индексер (RULES § 4.56) — без GetValue<T>.
+            var externalUrl = configuration["Rag:Embedding:ExternalBaseUrl"];
+            var externalKey = configuration["Rag:Embedding:ExternalApiKey"];
+            _externalModel = configuration["Rag:Embedding:ExternalModel"];
+            if (!string.IsNullOrWhiteSpace(externalUrl))
+            {
+                _externalClient = new HttpClient
+                {
+                    BaseAddress = new Uri(externalUrl),
+                    Timeout = TimeSpan.FromSeconds(15)
+                };
+                if (!string.IsNullOrWhiteSpace(externalKey))
+                    _externalClient.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", externalKey);
+            }
         }
 
         /// <inheritdoc />
@@ -77,7 +104,7 @@ namespace IIChatTools.Services.Implementation.Rag
             if (string.IsNullOrEmpty(text))
                 throw new ArgumentException("Текст не может быть пустым", nameof(text));
 
-            var vectors = await _lmStudioClient.GetEmbeddingsAsync(
+            var vectors = await GetEmbeddingsWithFallbackAsync(
                 new[] { text }, model: null, cancellationToken);
 
             var vector = ExtractVector(vectors, 0);
@@ -99,7 +126,7 @@ namespace IIChatTools.Services.Implementation.Rag
             // Быстрый путь: всё в один батч.
             if (texts.Count <= _batchSize)
             {
-                var single = await _lmStudioClient.GetEmbeddingsAsync(
+                var single = await GetEmbeddingsWithFallbackAsync(
                     texts, model: null, cancellationToken);
                 return NormalizeAndValidate(single, texts.Count);
             }
@@ -121,7 +148,7 @@ namespace IIChatTools.Services.Implementation.Rag
                 for (int j = 0; j < take; j++)
                     batch.Add(texts[i + j]);
 
-                var batchResponse = await _lmStudioClient.GetEmbeddingsAsync(
+                var batchResponse = await GetEmbeddingsWithFallbackAsync(
                     batch, model: null, cancellationToken);
 
                 var batchVectors = NormalizeAndValidate(batchResponse, take);
@@ -208,6 +235,71 @@ namespace IIChatTools.Services.Implementation.Rag
         {
             var raw = configuration[key];
             return int.TryParse(raw, out var v) ? v : defaultValue;
+        }
+
+        /// <summary>
+        /// Вызывает LM Studio; при недоступности — внешний OpenAI-совместимый
+        /// провайдер (KI-227). Внешняя отмена всегда пробрасывается.
+        /// </summary>
+        private async Task<EmbeddingResponse> GetEmbeddingsWithFallbackAsync(
+            IReadOnlyList<string> texts,
+            string model,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await _lmStudioClient.GetEmbeddingsAsync(
+                    texts, model, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;   // внешняя отмена (Stop) — не fallback
+            }
+            catch (Exception ex)
+            {
+                if (_externalClient == null)
+                    throw;
+
+                _logger.LogWarning(ex,
+                    "LM Studio embeddings недоступен — пробуем внешний провайдер (KI-227)");
+                return await GetExternalEmbeddingsAsync(texts, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Запрос к внешнему OpenAI-совместимому эндпоинту /v1/embeddings.
+        /// </summary>
+        private async Task<EmbeddingResponse> GetExternalEmbeddingsAsync(
+            IReadOnlyList<string> texts,
+            CancellationToken cancellationToken)
+        {
+            var payload = new JObject
+            {
+                ["model"] = string.IsNullOrWhiteSpace(_externalModel)
+                    ? "text-embedding-3-small" : _externalModel,
+                ["input"] = JArray.FromObject(texts)
+            };
+
+            using var content = new StringContent(
+                payload.ToString(), System.Text.Encoding.UTF8, "application/json");
+            using var response = await _externalClient
+                .PostAsync("v1/embeddings", content, cancellationToken)
+                .ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            var json = JObject.Parse(await response.Content
+                .ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+            var result = new EmbeddingResponse();
+            foreach (var item in json["data"] as JArray ?? new JArray())
+            {
+                result.Data.Add(new EmbeddingData
+                {
+                    Index = item["index"]?.Value<int>() ?? 0,
+                    Embedding = item["embedding"]?.ToObject<float[]>() ?? Array.Empty<float>()
+                });
+            }
+            return result;
         }
     }
 }

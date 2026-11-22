@@ -19,6 +19,13 @@
 ## [Unreleased]
 
 ### Fixed
+- **Спринт S04 (KI-193 / KI-205 / KI-226 / KI-227):**
+  - KI-227 — `EmbeddingService`: fallback на внешний OpenAI-совместимый
+    `/v1/embeddings` при недоступности LM Studio (`Rag:Embedding:External*`).
+  - KI-226 — `GET /api/models` возвращает `providers` из `ExternalLlm:Providers`
+    (+2 теста); UI-селектор может группировать модели по провайдеру.
+  - KI-193 / KI-205 — верификация уже реализованных фиксов (VisionIdNormalizer,
+    постраничный просмотр PNG сканов).
 - **Спринт S03 (High, KI-167 / KI-177 / KI-178 / KI-192):**
   - KI-167 — `SubAgentService`: если все вызовы инструментов провалились,
     агент больше не объявляет успех (`Completed=false` + предупреждение).

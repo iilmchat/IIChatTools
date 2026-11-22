@@ -47,7 +47,9 @@ namespace IIChatTools.Tests.UnitTests
 
             var settings = new Dictionary<string, string>
             {
-                ["LmStudio:Model"] = DefaultModel
+                ["LmStudio:Model"] = DefaultModel,
+                ["ExternalLlm:Providers:deepseek:DisplayName"] = "DeepSeek",
+                ["ExternalLlm:Providers:deepseek:Model"] = "deepseek-chat"
             };
             if (excludePatterns != null)
             {
@@ -122,9 +124,30 @@ namespace IIChatTools.Tests.UnitTests
                 Array.Empty<string>(),
                 throwOnGetModels: true);
 
-            var ids = GetIds(await controller.GetModelsAsync(CancellationToken.None));
+            var result = await controller.GetModelsAsync(CancellationToken.None);
+            var ids = GetIds(result);
 
             Assert.Equal(new[] { DefaultModel }, ids);
+
+            // KI-226: провайдеры доступны даже при недоступном LM Studio.
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var providers = (JArray)JObject.FromObject(ok.Value)["providers"];
+            Assert.Single(providers);
+            Assert.Equal("deepseek", providers[0]!["name"]!.Value<string>());
+            Assert.Equal("DeepSeek", providers[0]!["displayName"]!.Value<string>());
+        }
+
+        [Fact]
+        public async Task GetModelsAsync_IncludesExternalProviders()
+        {
+            var controller = CreateController(new[] { "qwen2.5-3b-instruct" });
+
+            var result = await controller.GetModelsAsync(CancellationToken.None);
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var providers = (JArray)JObject.FromObject(ok.Value)["providers"];
+
+            Assert.NotNull(providers);
+            Assert.Equal("deepseek-chat", providers[0]!["model"]!.Value<string>());
         }
     }
 }

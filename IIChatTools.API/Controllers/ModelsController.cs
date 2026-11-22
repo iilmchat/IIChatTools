@@ -91,7 +91,16 @@ namespace IIChatTools.API.Controllers
                     "Список моделей LM Studio: default={Default}, total={Total}",
                     defaultModel, list.Count);
 
-                return Ok(new { success = true, data = list });
+                // KI-226: добавляем модели внешних провайдеров (группировка
+                // по провайдеру). UI может показывать optgroup; значения
+                // Chat.Model пока остаются <model> (изменение контракта БД
+                // на `<provider>:<model>` — отдельная задача).
+                return Ok(new
+                {
+                    success = true,
+                    data = list,
+                    providers = GetExternalProviders()
+                });
             }
             catch (Exception ex)
             {
@@ -115,9 +124,29 @@ namespace IIChatTools.API.Controllers
                 {
                     success = true,
                     data = fallback,
+                    providers = GetExternalProviders(),
                     message = "LM Studio недоступен, показана только модель по умолчанию."
                 });
             }
+        }
+
+        /// <summary>
+        /// Возвращает список внешних провайдеров LLM из конфигурации
+        /// (<c>ExternalLlm:Providers</c>) для группировки моделей в UI (KI-226).
+        /// </summary>
+        /// <returns>Массив объектов { name, displayName, model }</returns>
+        private object[] GetExternalProviders()
+        {
+            return _configuration
+                .GetSection("ExternalLlm:Providers")
+                .GetChildren()
+                .Select(p => new
+                {
+                    name = p.Key,
+                    displayName = p["DisplayName"] ?? p.Key,
+                    model = p["Model"] ?? string.Empty
+                })
+                .ToArray();
         }
 
         /// <summary>
