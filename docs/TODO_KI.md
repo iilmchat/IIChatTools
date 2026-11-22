@@ -167,16 +167,16 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 Проверить актуальность; если ограничение снято или признано допустимым —
 закрыть с пояснением, если нет — перевести в Planned и дать новую версию.
 
-- [ ] **KI-007** — `gh issue create` требует заранее созданные метки — 🟢 Low
-- [ ] **KI-009** — `ERR_CONNECTION_RESET` на сайтах с SSO — 🟡 Medium
-- [ ] **KI-032** — `Unprotect ticket failed` (старые cookies от .NET Core 3.1) — 🟡 Medium
+- [x] **KI-007** ✅ Documented (S16) — `gh issue create` требует заранее созданные метки — 🟢 Low
+- [x] **KI-009** ✅ Documented (S16) — `ERR_CONNECTION_RESET` на сайтах с SSO — 🟡 Medium
+- [x] **KI-032** ✅ Documented (S16) — `Unprotect ticket failed` (старые cookies от .NET Core 3.1) — 🟡 Medium
 - [ ] **KI-044** — Метрики `iichattools_audit_entries_total` / `iichattools_lmstudio_requests_total` не инкрементируются — 🟢 Low, v1.2.x
-- [ ] **KI-048** — Email автора коммитов в git-истории — 🟢 Low
+- [x] **KI-048** ✅ Documented (S16) — Email автора коммитов в git-истории — 🟢 Low
 - [ ] **KI-070** — Sqlite: stale DB без новых таблиц (`no such table`) — 🟢 Low, v1.3.x
 - [ ] **KI-077** — `model: null` при PUT агента = «сбросить на default», а не «не менять» — 🟢 Low
 - [ ] **KI-089** — Секция конфигурации эмбеддингов (`Rag:Embedding` vs `LmStudio:Embedding*`) — 🟢 Low
 - [ ] **KI-090** — SqlServer-migrations содержали Sqlite-типы (snapshot drift) — 🟢 Low
-- [ ] **KI-093** — SQLite `database is locked` (дубликат KI-085, оставлен для истории) — 🟢 Low
+- [x] **KI-093** ✅ Documented (S16) — SQLite `database is locked` (дубликат KI-085, оставлен для истории) — 🟢 Low
 - [ ] **KI-094** — `wikipedia_search` intermittent timeout в агенте (SSL через прокси) — 🟢 Low, v1.6.2
 - [ ] **KI-095** — `snippet` `fetch_web_content` может начинаться с текста, дублирующего `label` — 🟢 Low
 - [ ] **KI-112** — Docker-образ `iichattools` без `git`, `gh`, `python3`, `node` — 🟢 Low

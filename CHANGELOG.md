@@ -18,6 +18,10 @@
 
 ## [Unreleased]
 
+### Changed
+- **Спринт S16 (Documented KI-007 / KI-009 / KI-032 / KI-048 / KI-093):**
+  ограничения верифицированы и оставлены задокументированными.
+
 ### Fixed
 - **KI-257 / KI-258 (спринт S15):** убран cast к конкретному
   `BrowserSessionManager` (используется интерфейс); `run_smoke:assert_text`
