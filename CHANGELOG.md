@@ -19,6 +19,10 @@
 ## [Unreleased]
 
 ### Fixed
+- **Спринт S06 (верификация, KI-128 / KI-168 / KI-172 / KI-179 / KI-231):**
+  подтверждено соответствие кода реестру: browser-инструменты и правило 9
+  в `DefaultSystemPrompt`, разграничение workspace (правило 8), запрет
+  повторов после Fail (правило 11), drag-and-drop/paste-image в `chat.js`.
 - **Спринт S05 (KI-111 / KI-113):** субагенты получили снимок последних
   3 сообщений чата (`ToolExecutionContext.RecentChatContext` → `SubAgentTaskRequest.Context`,
   +1 тест); промпт `mail_agent` дополнен запретом на ложные «успешно»

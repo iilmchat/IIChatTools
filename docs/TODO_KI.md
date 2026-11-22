@@ -105,17 +105,17 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-088** — Актуальный чек-лист ручной приёмки (`docs/TESTING.md`) — 🟡 Medium, ✅ Fixed в S01 (v2.2.x)
 - [x] **KI-111** — `mail_agent` не помнит контекст между вызовами — 🟡 Medium, ✅ Fixed в S05 (v2.2.x)
 - [x] **KI-113** — `mail_agent`: qwen3-4b галлюцинирует «успех» при неудаче — 🟡 Medium, ✅ Fixed в S05 (v2.2.x)
-- [ ] **KI-128** — Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`) — 🟡 Medium, v1.11.x
-- [ ] **KI-168** — Chat LLM выбирает `file_system_agent` для задач вне workspace — 🟡 Medium, v1.13.x
-- [ ] **KI-172** — Chat LLM выбирает `vision_agent` для browser-задач — 🟡 Medium, v1.13.x
-- [ ] **KI-179** — Chat LLM зацикливается на Vision-задачах — 🟡 Medium, v1.13.x
+- [x] **KI-128** ✅ Fixed в S06 — Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`) — 🟡 Medium, v1.11.x
+- [x] **KI-168** ✅ Fixed в S06 — Chat LLM выбирает `file_system_agent` для задач вне workspace — 🟡 Medium, v1.13.x
+- [x] **KI-172** ✅ Fixed в S06 — Chat LLM выбирает `vision_agent` для browser-задач — 🟡 Medium, v1.13.x
+- [x] **KI-179** ✅ Fixed в S06 — Chat LLM зацикливается на Vision-задачах — 🟡 Medium, v1.13.x
 - [x] **KI-193** — Vision LLM: id drift между кадрами (`search_btn` → `search_button`) — 🟡 Medium, ✅ Fixed в S04 (v2.2.x)
 - [ ] **KI-204** — RAG: нет индикации прогресса OCR при загрузке PDF — 🟡 Medium, v1.13.x
 - [x] **KI-205** — RAG: постраничный просмотр PNG сканов — 🟢 Low, ✅ Fixed в S04 (v1.13.x, верификация)
 - [ ] **KI-206** — RAG: Page viewer — thumbnails, зум, скролл — 🟡 Medium, v1.13.x
 - [ ] **KI-213** — RAG: Page viewer — подгонка text layer под bbox — 🟡 Medium, v1.13.x / v1.14
 - [x] **KI-226** — `/api/models` и UI-селектор модели зависят от LM Studio — 🟡 Medium, ✅ Fixed в S04 (v2.2.x)
-- [ ] **KI-231** — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V) — 🟡 Medium, v1.13.14
+- [x] **KI-231** ✅ Fixed в S06 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V) — 🟡 Medium, v1.13.14
 - [x] **KI-253** — `qa/MANUAL_TESTING_GUIDE.md` устарел (v1.8.1, 424 теста) — 🟡 Medium, ✅ Fixed в S01 (v2.2.x)
 - [ ] **KI-265** — Durable queue для Background Jobs — 🟡 Medium, v2.1.x
 - [ ] **KI-267** — Reflection: гетерогенная модель самокритики / эскалация — 🟡 Medium, v2.2.x

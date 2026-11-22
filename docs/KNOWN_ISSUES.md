@@ -2300,7 +2300,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-128 — Browser workflow недоступен через Chat (`browser_agent` + `save_screenshot_to_file`)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.11.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased) | **Запланировано:** v1.11.x
+- **Верификация (2026-11-22, спринт S06):** `browser_agent` и `save_screenshot_to_file` зарегистрированы и видны в `allowedNames` Chat; правило 9 `DefaultSystemPrompt` явно направляет browser-задачи в `browser_agent`. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-02 (smoke Chat — «Открой rzd.ru и сделай скриншот»)
 - **Файлы (план):** `Startup.cs` (`RegisterSpecializedAgentTools`),
   `appsettings.json` / `appsettings.Development.json` (`SubAgents:browser_agent`),
@@ -3415,7 +3416,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 
 ### KI-231 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V)
 
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.14
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased) | **Запланировано:** v1.13.14
+- **Верификация (2026-11-22, спринт S06):** `chat.js` содержит обработчики `dragenter/dragover/drop` и `paste` с загрузкой изображений в RAG; локализация в обоих `.resx`. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js`, `chat.css`, `Index.cshtml`,
   `SharedResources*.resx` (RU + EN).
@@ -4588,7 +4590,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-168 — Chat LLM выбирает `file_system_agent` для задач вне workspace
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased) | **Запланировано:** v1.13.x
+- **Верификация (2026-11-22, спринт S06):** правило 8 `DefaultSystemPrompt` и пример 3 разграничивают задачи внутри/вне workspace. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-05 (smoke #3 «Запуск скрипта»).
 - **Файлы:** `IIChatTools.Services/Implementation/ChatTools/ChatStreamService.cs`
   (`DefaultSystemPrompt`), `appsettings.Development.json`
@@ -4639,7 +4642,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-172 — Chat LLM выбирает `vision_agent` для browser-задач
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased) | **Запланировано:** v1.13.x
+- **Верификация (2026-11-22, спринт S06):** правило 9 `DefaultSystemPrompt` и пример 4 направляют сайты в `browser_agent`/`consult_secondary_agent`, а не в `vision_agent`. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-05 (smoke #1 «DeepSeek API»).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
 - **Симптом:** Задача «Зайди на chat.deepseek.com, задай вопрос, верни ответ» —
@@ -5263,7 +5267,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-179 — Chat LLM зацикливается на Vision-задачах
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased) | **Запланировано:** v1.13.x
+- **Верификация (2026-11-22, спринт S06):** правило 11 `DefaultSystemPrompt` запрещает повторять действия после `success=false` и честно отвечать после 2+ Fail. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-06 (smoke #1 — «Создай новый чат»).
 - **Файлы:** `ChatStreamService.DefaultSystemPrompt`.
 - **Симптом:** qwen3-4b вызывает `describe → click (Fail) → describe →
@@ -6614,13 +6619,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 183 |
-| Planned | 38 |
+| Fixed (включая Implemented / Resolved) | 188 |
+| Planned | 33 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 0 |
@@ -6628,7 +6633,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 183 + 38 + 24 + 8 + 0 + 0 + 1 = **254**.
+**Сверка:** 188 + 33 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.
