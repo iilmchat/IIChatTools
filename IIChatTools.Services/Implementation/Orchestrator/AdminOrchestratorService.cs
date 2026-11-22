@@ -67,6 +67,7 @@ namespace IIChatTools.Services.Implementation.Orchestrator
         private readonly IOrchestratorOptionsProvider _optionsProvider;
         private readonly IAppSettingsService _settingsService;
         private readonly IAuditService _auditService;
+        private readonly ISubAgentRegistry _subAgentRegistry;   // KI-273
         private readonly ILogger<AdminOrchestratorService> _logger;
 
         /// <summary>
@@ -75,12 +76,14 @@ namespace IIChatTools.Services.Implementation.Orchestrator
         /// <param name="optionsProvider">Провайдер актуальных настроек Orchestrator'а</param>
         /// <param name="settingsService">Сервис настроек (persist override'ов)</param>
         /// <param name="auditService">Сервис аудита</param>
+        /// <param name="subAgentRegistry">Реестр агентов (проверка whitelist, KI-273)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если любой параметр = null</exception>
         public AdminOrchestratorService(
             IOrchestratorOptionsProvider optionsProvider,
             IAppSettingsService settingsService,
             IAuditService auditService,
+            ISubAgentRegistry subAgentRegistry,
             ILogger<AdminOrchestratorService> logger)
         {
             _optionsProvider = optionsProvider
@@ -89,6 +92,8 @@ namespace IIChatTools.Services.Implementation.Orchestrator
                 ?? throw new ArgumentNullException(nameof(settingsService));
             _auditService = auditService
                 ?? throw new ArgumentNullException(nameof(auditService));
+            _subAgentRegistry = subAgentRegistry
+                ?? throw new ArgumentNullException(nameof(subAgentRegistry));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -180,7 +185,7 @@ namespace IIChatTools.Services.Implementation.Orchestrator
         /// диапазоны чисел, канонический режим approval, trim + дедупликация
         /// whitelist. Некорректные значения → <see cref="ArgumentException"/>.
         /// </summary>
-        private static OrchestratorSettingsDto ValidateAndNormalize(
+        private OrchestratorSettingsDto ValidateAndNormalize(
             OrchestratorSettingsDto source)
         {
             if (source.MaxSubtasks < OrchestratorOptionsProvider.MinMaxSubtasks
@@ -229,6 +234,19 @@ namespace IIChatTools.Services.Implementation.Orchestrator
                     $"AllowedWorkerAgents: не более " +
                     $"{OrchestratorOptionsProvider.MaxWorkerAgents} агентов.",
                     nameof(source));
+            }
+
+            // KI-273: предупреждаем об опечатках и отключённых агентах —
+            // без блокировки сохранения (whitelist остаётся free-form).
+            foreach (var name in agents)
+            {
+                var descriptor = _subAgentRegistry.Get(name);
+                if (descriptor == null)
+                    _logger.LogWarning(
+                        "Orchestrator whitelist: агент '{Agent}' не найден в реестре (KI-273)", name);
+                else if (descriptor.Disabled)
+                    _logger.LogWarning(
+                        "Orchestrator whitelist: агент '{Agent}' отключён администратором (KI-273)", name);
             }
 
             return new OrchestratorSettingsDto

@@ -148,7 +148,7 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [ ] **KI-262** — Todo: гонка `MAX(SortOrder)+1` при параллельном `add_todo` — 🟢 Low, v2.1.x
 - [x] **KI-266** ✅ Fixed в S08 — Reflection: прямой вызов `ISubAgentService` минует AuditLogs/Admin UI — 🟢 Low, v2.2.x
 - [x] **KI-269** ✅ Fixed в S08 — Reflection: дублирование черновиков в `AgentStates` без retention — 🟢 Low, v2.2.x
-- [ ] **KI-273** — Orchestrator Admin UI: whitelist не валидируется против реестра агентов — 🟢 Low, v2.2.x
+- [x] **KI-273** ✅ Fixed в S09 — Orchestrator Admin UI: whitelist не валидируется против реестра агентов — 🟢 Low, v2.2.x
 - [ ] **KI-274** — Admin UI Orchestrator: persist 5 ключей без транзакции — 🟢 Low, v2.2.x
 
 ### 3.6. Deferred (8)

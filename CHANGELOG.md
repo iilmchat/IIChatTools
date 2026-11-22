@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Fixed
+- **KI-273** — Admin UI Orchestrator: whitelist проверяется против
+  `ISubAgentRegistry`; неизвестные/отключённые агенты логируются как
+  предупреждения. Спринт S09. KI-246/247/248/274 остаются Planned.
 - **Спринт S08 (KI-266 / KI-267 / KI-269):** Reflection — ручной audit
   `agent.reflector_agent`, конфиг `SubAgents:reflect_task:SelfCritiqueModel`
   для гетерогенной самокритики, `SubAgentTaskRequest.PersistState=false`

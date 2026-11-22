@@ -6563,7 +6563,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-273 — Orchestrator Admin UI: whitelist не валидируется против реестра агентов
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- Fix (2026-11-22, S09): AdminOrchestratorService инжектит ISubAgentRegistry и пишет предупреждения в лог для неизвестных/отключённых агентов в whitelist (без блокировки сохранения). Тест обновлён (Mock<ISubAgentRegistry>).
 - **Обнаружено:** 2026-10-20 (DSH, при реализации KI-245).
 - **Файлы:** `IIChatTools.Services/Implementation/Orchestrator/AdminOrchestratorService.cs`,
   `OrchestratorOptionsProvider.cs`, `Views/Home/Admin.cshtml`,
@@ -6625,13 +6626,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 194 |
-| Planned | 27 |
+| Fixed (включая Implemented / Resolved) | 195 |
+| Planned | 26 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 0 |
@@ -6639,7 +6640,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 194 + 27 + 24 + 8 + 0 + 0 + 1 = **254**.
+**Сверка:** 195 + 26 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.

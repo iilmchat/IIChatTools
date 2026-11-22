@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO.Admin;
 using IIChatTools.Services.DTO.Orchestrator;
+using IIChatTools.Services.DTO.SubAgent;
 using IIChatTools.Services.Implementation.Orchestrator;
 using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -394,10 +395,20 @@ namespace IIChatTools.Tests.UnitTests.Orchestrator
                     .Setup(a => a.LogActionAsync(It.IsAny<AuditLog>()))
                     .Returns(Task.CompletedTask);
 
+                var registryMock = new Mock<ISubAgentRegistry>();
+                registryMock
+                    .Setup(r => r.Get(It.IsAny<string>()))
+                    .Returns((string name) => new SubAgentDescriptor
+                    {
+                        Name = name,
+                        Disabled = false
+                    });
+
                 var service = new AdminOrchestratorService(
                     provider,
                     settings,
                     auditMock.Object,
+                    registryMock.Object,   // KI-273
                     NullLogger<AdminOrchestratorService>.Instance);
 
                 return new TestContext(settings, provider, auditMock, service);
