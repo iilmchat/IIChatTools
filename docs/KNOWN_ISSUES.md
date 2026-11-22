@@ -394,7 +394,11 @@
 ---
 
 ### KI-057 — `/api/models` возвращает embedding-модели
-- **Приоритет:** 🟢 Low | **Статус:** Partially Fixed | **Запланировано:** v1.3.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Fix (2026-11-21, спринт S02):** добавлен config-driven список
+  `LmStudio:ExcludeModelPatterns` (по умолчанию `["embed"]`). `ModelsController`
+  читает шаблоны через `GetChildren()` (RULES § 4.56) и отфильтровывает
+  совпадения регистронезависимо. +4 unit-теста (`ModelsControllerTests`).
 - **Обнаружено:** 2026-09-22
 - **Файлы:** `IIChatTools.API/Controllers/ModelsController.cs`
 - **Описание:** LM Studio отдаёт в `GET /v1/models` все модели, включая embedding (`text-embedding-nomic-embed-text-v1.5`). Если пользователь выберет её для чата — LM Studio вернёт 400.
@@ -1811,7 +1815,10 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-114 — `AgentToolBase` возвращает `ToolResult.Ok` при `Completed=false`
-- **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Верификация (2026-11-21, спринт S02):** код `AgentToolBase.ExecuteAsync`
+  содержит финал v1.13.x — Fail при `Completed == false` и `UsedTools.Count == 0`,
+  Ok с данными иначе (смягчение ложных негативов). Изменений не потребовалось.
 - **Обнаружено:** 2026-09-29 (smoke Mail Agent)
 - **Файлы:** `IIChatTools.Services/Implementation/Tools/SubAgent/AgentToolBase.cs`
 (строка после `var result = await subAgent.ExecuteTaskAsync(context, request);`).
@@ -3671,7 +3678,12 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-234 — Chat: Retry в error-bubble (после network error)
 
-- **Приоритет:** 🟢 Low | **Статус:** 🟡 **In Progress** | **Запланировано:** v1.13.17
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Верификация (2026-11-21, спринт S02):** реализовано в v1.13.17 —
+  `appendAssistantError` рендерит кнопку `data-action="retry-error"`,
+  обработчик в `onMessageActionClick` вызывает `regenerateLastMessage({allowNoAssistant: true})`,
+  локализация `ChatRetryError` в обоих `.resx`, `data-label-retry-error` в
+  `Views/Chat/Index.cshtml`. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-11 (аудит «Что не хватает из industry best practices»).
 - **Файлы (план):** `chat.js` (`appendAssistantError`, `renderMessageActions`),
   `chat.css`.
@@ -5080,7 +5092,10 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-182 — Vision Planner зацикливается на одном target
-- **Приоритет:** 🟠 High | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x (Commit E)
+- **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Верификация (2026-11-21, спринт S02):** Commit E/F реализованы:
+  правила 10–11 в `VisionSystemPrompt.PlannerPlanNext` + детектор цикла
+  в `VisionAgentService` (сейчас значится как KI-187). Изменений не потребовалось.
 - **Обнаружено:** 2026-10-06 (smoke — «Создай новый чат с заголовком "Тест"»).
 - **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — детектор цикла, план — Commit F),
   `VisionSystemPrompt.cs` (`PlannerPlanNext` — правила 10-11).
@@ -5243,7 +5258,10 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-173 — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout
-- **Приоритет:** 🟡 Medium | **Статус:** Partially Fixed | **Исправлено в:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **Верификация (2026-11-21, спринт S02):** fallback URL из `task` через regex
+  в `VisionAgentService.RunTaskAsync` + правило 10 в `DefaultSystemPrompt`
+  на месте. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-05 (smoke #1 вторая попытка — gismeteo).
 - **Файлы:** `VisionAgentService.cs` (`RunTaskAsync` — fallback URL из task),
   `ChatStreamService.DefaultSystemPrompt` (правило 10).
@@ -6560,21 +6578,21 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 169 |
+| Fixed (включая Implemented / Resolved) | 173 |
 | Planned | 48 |
 | Documented | 24 |
 | Deferred | 8 |
-| Partially Fixed | 4 |
-| In Progress | 1 |
+| Partially Fixed | 0 |
+| In Progress | 0 |
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 169 + 48 + 24 + 8 + 4 + 1 + 1 = **254**.
+**Сверка:** 173 + 48 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.
@@ -6583,10 +6601,11 @@ requirement) работают **стабильно**. Gantt требует бо�
   (Anthropic / Gemini); в счёте учитываются один раз.
 - **`Implemented`** (KI-054, KI-055) и **`Resolved`** (KI-008, KI-051)
   приравнены к `Fixed` (как и в `check-zombie-ki.ps1`).
-- **`In Progress`:** KI-234 — единственный.
+- **`In Progress`:** нет (KI-234 закрыт в спринте S02).
+- **`Partially Fixed`:** нет (KI-057/114/173/182 закрыты в спринте S02).
 
 Проверка: `pwsh -ExecutionPolicy Bypass -File scripts/setup/check-zombie-ki.ps1`
-→ актуальный результат см. отчёт спринта S01 (`docs/development/reports/v2.2/S01_KI.md`).
+→ актуальный результат см. отчёт спринта S02 (`docs/development/reports/v2.2/S02_KI.md`).
 
 ---
 

@@ -69,13 +69,15 @@ namespace IIChatTools.API.Controllers
                     }
                 };
 
-                // Добавляем остальные модели из LM Studio,
-                // исключая дубль default и embedding-модели
-                // (embedding-модели не поддерживают /v1/chat/completions).
-                // TODO v1.3.x: config-driven exclusion patterns (KI-057).
+                // Добавляем остальные модели из LM Studio, исключая дубль default
+                // и модели, попадающие под настраиваемые шаблоны (KI-057).
+                // По умолчанию исключаем embedding-модели ("embed") — они не
+                // поддерживают /v1/chat/completions. Шаблоны задаются в
+                // LmStudio:ExcludeModelPatterns (config-driven, RULES § 4.56).
+                var excludePatterns = GetExcludePatterns();
                 foreach (var id in ids.Where(x =>
                     !string.Equals(x, defaultModel, StringComparison.Ordinal) &&
-                    !IsEmbeddingModel(x)))
+                    !IsExcludedModel(x, excludePatterns)))
                 {
                     list.Add(new ModelInfoDto
                     {
@@ -119,15 +121,38 @@ namespace IIChatTools.API.Controllers
         }
 
         /// <summary>
-        /// Проверяет, является ли модель embedding-моделью (не поддерживает chat completion).
-        /// Эвристика по имени: содержит "embed" (например, <c>text-embedding-nomic-embed-text-v1.5</c>).
+        /// Возвращает шаблоны исключения моделей из конфигурации
+        /// (<c>LmStudio:ExcludeModelPatterns</c>). Если ключ не задан —
+        /// используется шаблон по умолчанию "embed" (KI-057).
+        /// </summary>
+        /// <returns>Список подстрок для исключения (не пустой)</returns>
+        private string[] GetExcludePatterns()
+        {
+            var children = _configuration
+                .GetSection("LmStudio:ExcludeModelPatterns")
+                .GetChildren()
+                .Select(x => x.Value)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToArray();
+
+            return children.Length > 0 ? children : new[] { "embed" };
+        }
+
+        /// <summary>
+        /// Проверяет, попадает ли модель под один из шаблонов исключения.
+        /// Сравнение регистронезависимое (RULES § 4.16 — ключи .resx
+        /// case-insensitive; здесь та же логика для имён моделей).
         /// </summary>
         /// <param name="modelId">Идентификатор модели</param>
-        /// <returns>true, если модель является embedding-моделью</returns>
-        private static bool IsEmbeddingModel(string modelId)
+        /// <param name="patterns">Шаблоны подстрок</param>
+        /// <returns>true, если модель нужно скрыть из списка</returns>
+        private static bool IsExcludedModel(string modelId, string[] patterns)
         {
-            return !string.IsNullOrEmpty(modelId)
-                && modelId.Contains("embed", StringComparison.OrdinalIgnoreCase);
-        }        
+            if (string.IsNullOrEmpty(modelId))
+                return false;
+
+            return patterns.Any(p =>
+                modelId.Contains(p, StringComparison.OrdinalIgnoreCase));
+        }
     }
 }

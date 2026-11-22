@@ -19,6 +19,12 @@
 ## [Unreleased]
 
 ### Fixed
+- **KI-057** — `GET /api/models` поддерживает config-driven список исключений
+  `LmStudio:ExcludeModelPatterns` (по умолчанию `["embed"]`); фильтрация
+  регистронезависимая, +4 unit-теста (`ModelsControllerTests`). Спринт S02.
+- **Спринт S02 (верификация, KI-114 / KI-173 / KI-182 / KI-234):** закрыты
+  записи, чьи фиксы уже присутствуют в коде v1.13.x (Fail при провале агента,
+  fallback URL из task, детектор цикла Planner, Retry в error-bubble).
 - **Спринт S01 (документация, KI-088 / KI-253 / KI-254 / KI-264 / KI-275):**
   актуализированы `docs/qa/MANUAL_TESTING_GUIDE.md` (версия 2.2.2, тесты
   1319/1327, 8 Skip), `README.md` (счётчик тестов), `RULES.md` § 7 (сводка KI

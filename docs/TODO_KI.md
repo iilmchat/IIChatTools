@@ -83,14 +83,14 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 
 ### 3.1. In Progress (1)
 
-- [ ] **KI-234** — Chat: Retry в error-bubble (после network error) — 🟢 Low, In Progress, v1.13.17
+- [x] **KI-234** — Chat: Retry в error-bubble (после network error) — 🟢 Low, ✅ Fixed в S02 (v2.2.x)
 
 ### 3.2. Partially Fixed (4)
 
-- [ ] **KI-057** — `/api/models` возвращает embedding-модели — 🟢 Low, Partially Fixed, v1.3.x
-- [ ] **KI-114** — `AgentToolBase` возвращает `ToolResult.Ok` при `Completed=false` — 🟡 Medium, Partially Fixed
-- [ ] **KI-173** — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout — 🟡 Medium, Partially Fixed
-- [ ] **KI-182** — Vision Planner зацикливается на одном target — 🟠 High, Partially Fixed
+- [x] **KI-057** — `/api/models` возвращает embedding-модели — 🟢 Low, ✅ Fixed в S02 (v2.2.x)
+- [x] **KI-114** — `AgentToolBase` возвращает `ToolResult.Ok` при `Completed=false` — 🟡 Medium, ✅ Fixed в S02 (v2.2.x)
+- [x] **KI-173** — Vision Agent: LLM не передаёт `url` отдельно, падает на timeout — 🟡 Medium, ✅ Fixed в S02 (v2.2.x)
+- [x] **KI-182** — Vision Planner зацикливается на одном target — 🟠 High, ✅ Fixed в S02 (v2.2.x)
 
 ### 3.3. Planned — High (5)
 
