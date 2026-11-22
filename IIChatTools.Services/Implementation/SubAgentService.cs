@@ -100,8 +100,12 @@ namespace IIChatTools.Services.Implementation
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-            _dbContext.AgentStates.Add(state);
-            await _dbContext.SaveChangesAsync();
+            // KI-269: stateless-вызовы (Reflection) не пишут черновик в AgentStates.
+            if (request.PersistState)
+            {
+                _dbContext.AgentStates.Add(state);
+                await _dbContext.SaveChangesAsync();
+            }
 
             _logger.LogInformation(
                 "Старт суб-агента {SessionId} (пользователь {UserId}, задача: {Task}, лимит шагов: {Max})",
@@ -332,7 +336,9 @@ namespace IIChatTools.Services.Implementation
             });
             state.IsCompleted = true;
             state.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            // KI-269: см. выше — stateless-вызовы не сохраняют состояние.
+            if (request.PersistState)
+                await _dbContext.SaveChangesAsync();
 
             sw.Stop();
 

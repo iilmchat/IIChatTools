@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Debate;
@@ -24,6 +25,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
         private readonly ISubAgentRegistry _subAgentRegistry;
         private readonly IAgentDebateSessionService _sessionService;
         private readonly IConfiguration _configuration; // <--- Добавлено
+        private readonly IAuditService _auditService;
         private readonly ILogger<ReflectTaskTool> _logger;
 
         public ReflectTaskTool(
@@ -31,12 +33,14 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             ISubAgentRegistry subAgentRegistry,
             IAgentDebateSessionService sessionService,
             IConfiguration configuration, // <--- Добавлено
+            IAuditService auditService,   // KI-266
             ILogger<ReflectTaskTool> logger)
         {
             _subAgentServiceFactory = subAgentServiceFactory;
             _subAgentRegistry = subAgentRegistry;
             _sessionService = sessionService;
             _configuration = configuration;
+            _auditService = auditService;
             _logger = logger;
         }
 
@@ -79,6 +83,12 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             if (descriptor == null || descriptor.Disabled)
                 return ToolResult.Fail("Агент 'reflector_agent' не зарегистрирован или отключён.");
 
+            // KI-267: гетерогенная модель самокритики. Отдельная модель
+            // снижает self-approval bias; по умолчанию — та же, что у черновика.
+            var selfCritiqueModel = _configuration["SubAgents:reflect_task:SelfCritiqueModel"];
+            if (string.IsNullOrWhiteSpace(selfCritiqueModel))
+                selfCritiqueModel = descriptor.Model;
+
             var draftPrompt = descriptor.SystemPrompt;
             var critiquePrompt = descriptor.SelfCritiquePrompt;
             if (string.IsNullOrWhiteSpace(draftPrompt) || string.IsNullOrWhiteSpace(critiquePrompt))
@@ -96,7 +106,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     AllowEscalation = false,
                     HumanApproval = "Never",
                     ActorModel = descriptor.Model,
-                    CriticModel = descriptor.Model
+                    CriticModel = selfCritiqueModel
                 };
 
                 sessionId = await _sessionService.StartAsync(
@@ -118,7 +128,7 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 Task = task,
                 MaxRounds = maxRounds,
                 DraftModel = descriptor.Model,
-                SelfCritiqueModel = descriptor.Model
+                SelfCritiqueModel = selfCritiqueModel
             }));
 
             try
@@ -152,7 +162,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                         $"Черновик:\n{draft}";
 
                     var critiqueRaw = await CallAgentAsync(
-                        context, critiqueTask, critiquePrompt, $"critique-{round}");
+                        context, critiqueTask, critiquePrompt, $"critique-{round}",
+                        modelOverride: selfCritiqueModel);
 
                     if (critiqueRaw == null)
                     {
@@ -281,6 +292,38 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                     finalArtifact = draft
                 };
 
+                // KI-266: прямой вызов ISubAgentService минует AgentToolBase —
+                // пишем audit вручную, чтобы reflector_agent попадал в
+                // /admin/agents/stats так же, как остальные агенты.
+                try
+                {
+                    await _auditService.LogActionAsync(new AuditLog
+                    {
+                        UserId = context.UserId,
+                        ToolName = "agent.reflector_agent",
+                        ParametersJson = JsonConvert.SerializeObject(new
+                        {
+                            pattern = "Reflection",
+                            maxRounds,
+                            draftModel = descriptor.Model,
+                            selfCritiqueModel
+                        }),
+                        ResultJson = JsonConvert.SerializeObject(new
+                        {
+                            verdict = finalVerdict,
+                            completedRounds,
+                            sessionId = sessionId.Value
+                        }),
+                        Status = "Success",
+                        ClientIp = context.ClientIp
+                    });
+                }
+                catch (Exception ex)
+                {
+                    // Аудит не должен ломать основной поток (RULES § 1.8).
+                    _logger.LogWarning(ex, "ReflectTask: не удалось записать audit агента");
+                }
+
                 return ToolResult.Ok(data,
                     $"Reflection завершён: {finalVerdict} ({completedRounds} раундов).");
             }
@@ -301,7 +344,8 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
             ToolExecutionContext context,
             string task,
             string promptOverride,
-            string label)
+            string label,
+            string modelOverride = null)
         {
             try
             {
@@ -310,7 +354,9 @@ namespace IIChatTools.Services.Implementation.Tools.Debate
                 {
                     Task = task,
                     MaxSteps = 3,
-                    SystemPromptOverride = promptOverride
+                    SystemPromptOverride = promptOverride,
+                    ModelOverride = modelOverride,
+                    PersistState = false   // KI-269: черновик не дублируется в AgentStates
                 };
 
                 var result = await service.ExecuteTaskAsync(context, request);

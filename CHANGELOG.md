@@ -19,6 +19,11 @@
 ## [Unreleased]
 
 ### Fixed
+- **Спринт S08 (KI-266 / KI-267 / KI-269):** Reflection — ручной audit
+  `agent.reflector_agent`, конфиг `SubAgents:reflect_task:SelfCritiqueModel`
+  для гетерогенной самокритики, `SubAgentTaskRequest.PersistState=false`
+  (черновики не дублируются в `AgentStates`). KI-265 (durable queue)
+  остаётся Planned — требует отдельного спринта.
 - **Спринт S07 (верификация, KI-204 / KI-206 / KI-213):** подтверждено
   наличие OCR-прогресса, thumbnails/зума/скролла и text layer с bbox-выделением
   в page viewer (`chat.js`). Изменений кода не требовалось.

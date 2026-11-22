@@ -41,6 +41,13 @@ namespace IIChatTools.Services.DTO.SubAgent
         public string SystemPromptOverride { get; set; }
 
         /// <summary>
+        /// Сохранять состояние агента в <c>AgentStates</c> (по умолчанию true).
+        /// <c>false</c> — для stateless-вызовов (например, Reflection, KI-269),
+        /// чтобы не дублировать черновики без FK на чат и retention.
+        /// </summary>
+        public bool PersistState { get; set; } = true;
+
+        /// <summary>
         /// Модель LM Studio. Если <c>null</c> — <c>LmStudio:Model</c>
         /// (для consult_secondary_agent) или <c>SubAgents:X.Model</c>
         /// (для специализированных, через <see cref="SubAgentDescriptor.Model"/>).

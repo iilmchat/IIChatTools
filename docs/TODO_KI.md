@@ -118,7 +118,7 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-231** ✅ Fixed в S06 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V) — 🟡 Medium, v1.13.14
 - [x] **KI-253** — `qa/MANUAL_TESTING_GUIDE.md` устарел (v1.8.1, 424 теста) — 🟡 Medium, ✅ Fixed в S01 (v2.2.x)
 - [ ] **KI-265** — Durable queue для Background Jobs — 🟡 Medium, v2.1.x
-- [ ] **KI-267** — Reflection: гетерогенная модель самокритики / эскалация — 🟡 Medium, v2.2.x
+- [x] **KI-267** ✅ Fixed в S08 — Reflection: гетерогенная модель самокритики / эскалация — 🟡 Medium, v2.2.x
 
 ### 3.5. Planned — Low (29)
 
@@ -146,8 +146,8 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [ ] **KI-257** — `BrowserSessionControlTool`: cast к конкретному `BrowserSessionManager` — 🟢 Low, v2.1.0
 - [ ] **KI-258** — `run_smoke`: `assert_text` регистрозависим — 🟢 Low, v2.1.0
 - [ ] **KI-262** — Todo: гонка `MAX(SortOrder)+1` при параллельном `add_todo` — 🟢 Low, v2.1.x
-- [ ] **KI-266** — Reflection: прямой вызов `ISubAgentService` минует AuditLogs/Admin UI — 🟢 Low, v2.2.x
-- [ ] **KI-269** — Reflection: дублирование черновиков в `AgentStates` без retention — 🟢 Low, v2.2.x
+- [x] **KI-266** ✅ Fixed в S08 — Reflection: прямой вызов `ISubAgentService` минует AuditLogs/Admin UI — 🟢 Low, v2.2.x
+- [x] **KI-269** ✅ Fixed в S08 — Reflection: дублирование черновиков в `AgentStates` без retention — 🟢 Low, v2.2.x
 - [ ] **KI-273** — Orchestrator Admin UI: whitelist не валидируется против реестра агентов — 🟢 Low, v2.2.x
 - [ ] **KI-274** — Admin UI Orchestrator: persist 5 ключей без транзакции — 🟢 Low, v2.2.x
 

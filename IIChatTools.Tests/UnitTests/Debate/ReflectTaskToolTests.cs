@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using IIChatTools.Data.Entities;
 using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.DTO.Debate;
@@ -18,6 +19,14 @@ using Microsoft.Extensions.Primitives;      // <--- IChangeToken
 
 namespace IIChatTools.Tests.UnitTests.Debate
 {
+    /// <summary>
+    /// Fake аудита для ReflectTaskTool (KI-266) — не пишет в БД.
+    /// </summary>
+    internal sealed class NoopAuditService : IAuditService
+    {
+        public Task LogActionAsync(AuditLog logEntry) => Task.CompletedTask;
+    }
+
     /// <summary>
     /// Unit-тесты <see cref="ReflectTaskTool"/> (v2.2.0, KI-244, Фаза 5).
     ///
@@ -261,6 +270,7 @@ namespace IIChatTools.Tests.UnitTests.Debate
                 registry,
                 sessions,
                 config,
+                new NoopAuditService(),   // KI-266
                 NullLogger<ReflectTaskTool>.Instance);
         }
 

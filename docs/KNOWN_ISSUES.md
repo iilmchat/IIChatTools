@@ -6467,7 +6467,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-266 — Reflection: прямой вызов ISubAgentService минует AuditLogs/Admin UI
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- Fix (2026-11-22, S08): ReflectTaskTool инжектит IAuditService и пишет запись agent.reflector_agent в AuditLogs при завершении сессии (с verdict и моделью). Аудит не ломает основной поток. Тесты обновлены (NoopAuditService).
 - **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
 - **Файлы:** `ReflectTaskTool.cs` (план), `AgentStatsService.cs`, `admin-agents.js`.
 - **Описание:** `reflect_task` вызывает `ISubAgentService` напрямую (чтобы передать `SystemPromptOverride`), минуя `AgentToolBase`. Из-за этого:
@@ -6479,7 +6480,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-267 — Reflection: гетерогенная модель самокритики / эскалация
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- Fix (2026-11-22, S08): добавлен конфиг SubAgents:reflect_task:SelfCritiqueModel — самокритика может выполняться другой моделью (fallback на модель черновика). Модель пробрасывается в SubAgentTaskRequest.ModelOverride, SSE и AgentDebateConfigSnapshot.CriticModel.
 - **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
 - **Файлы:** `ReflectTaskTool.cs`, `SubAgents:reflector_agent:SelfCritiqueModel`.
 - **Описание:** По умолчанию самокритика использует ту же 4B-модель (`qwen3-4b`), что и черновик. Это даёт `self-approval bias` (модель склонна одобрять свой же код). Смешивание `qwen3-coder-30b` и 4B упирается в VRAM. `Uncertain` можно эскалировать на внешнюю LLM (как в Actor-Critic).
@@ -6499,7 +6501,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-269 — Reflection: дублирование черновиков в AgentStates без retention
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- Fix (2026-11-22, S08): SubAgentTaskRequest.PersistState (default true); ReflectTaskTool передаёт false — черновики Reflection больше не дублируются в AgentStates.
 - **Обнаружено:** 2026-10-20 (DSH, при верификации DESIGN_REFLECTION).
 - **Файлы:** `SubAgentService.cs`, `AgentState.cs`.
 - **Описание:** `SubAgentService` пишет `AgentStates.TaskDescription = request.Task` на каждый вызов. При прямом вызове для Reflection (2-3 раза на сессию) черновик сохраняется в `AgentStates` (без FK на Chat и без cleanup). В итоге черновик хранится и в `AgentDebateRound.ActorOutput`, и в `AgentStates` — дублирование.
@@ -6622,13 +6625,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 191 |
-| Planned | 30 |
+| Fixed (включая Implemented / Resolved) | 194 |
+| Planned | 27 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 0 |
@@ -6636,7 +6639,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 191 + 30 + 24 + 8 + 0 + 0 + 1 = **254**.
+**Сверка:** 194 + 27 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.
