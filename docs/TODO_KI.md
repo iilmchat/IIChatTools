@@ -132,9 +132,9 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [ ] **KI-164** — Vision Agent: drag-select (выделение текста мышью) — 🟢 Low, v1.13.x
 - [ ] **KI-165** — Vision Agent: чтение буфера обмена (read clipboard) — 🟢 Low, v1.13.x
 - [ ] **KI-166** — Vision Agent: детекция иконок в taskbar (Win+1, crop, fallback) — 🟢 Low, v1.13.x
-- [ ] **KI-209** — RAG: Page viewer — экспорт отдельной страницы — 🟢 Low, v1.14
-- [ ] **KI-210** — RAG: Batch-экспорт нескольких attachment'ов — 🟢 Low, v1.14
-- [ ] **KI-211** — RAG: Page viewer — прогресс экспорта 100+ страниц — 🟢 Low, v1.14
+- [x] **KI-209** ✅ Fixed в S12 — RAG: Page viewer — экспорт отдельной страницы — 🟢 Low, v1.14
+- [x] **KI-210** ✅ Fixed в S12 — RAG: Batch-экспорт нескольких attachment'ов — 🟢 Low, v1.14
+- [x] **KI-211** ✅ Fixed в S12 — RAG: Page viewer — прогресс экспорта 100+ страниц — 🟢 Low, v1.14
 - [ ] **KI-237** — Chat UX backlog (бандл мелких улучшений) — 🟢 Low, v1.14+
 - [ ] **KI-240** — Chat: Feedback — Admin UI + экспорт JSONL для датасета — 🟢 Low, v1.14
 - [ ] **KI-242** — PostgreSQL как провайдер основного `AppDbContext` — 🟢 Low, v1.15+ (дальнее будущее)

@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Changed
+- **Спринт S12 (KI-237 / KI-240):** Chat UX backlog и Feedback Admin UI
+  остаются Planned (экспорт JSONL требует нового API). KI-209/210/211
+  закрыты по факту реализации экспорта страниц.
 - **Спринт S11 (KI-164 / KI-165 / KI-166):** задачи Vision backend'
   (drag-select, clipboard, taskbar) оставлены Planned — требуется расширение
   протокола `IVisionBackend`; причины зафиксированы в реестре.
