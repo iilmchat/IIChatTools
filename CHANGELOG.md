@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Fixed
+- **Спринт S10 (верификация, KI-151 / KI-162):** подтверждено удаление
+  временного Chrome-профиля и Coordinate-then-Verify в Vision Agent.
+  KI-138/139/163 остаются Planned (PII, внешние VL, Set-of-Mark).
 - **KI-273** — Admin UI Orchestrator: whitelist проверяется против
   `ISubAgentRegistry`; неизвестные/отключённые агенты логируются как
   предупреждения. Спринт S09. KI-246/247/248/274 остаются Planned.
