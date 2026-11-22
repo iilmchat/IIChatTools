@@ -182,10 +182,10 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-112** ✅ Documented (S17) — Docker-образ `iichattools` без `git`, `gh`, `python3`, `node` — 🟢 Low
 - [x] **KI-116** ✅ Documented (S17) — `gemma-4-12b-coder-fable5-composer2.5-v1` не поддерживает OpenAI tool calling — 🔴 High
 - [x] **KI-117** ✅ Documented (S17) — LM Studio: Context Length 8192 недостаточно для агентов — 🟠 High
-- [ ] **KI-118** — Chat LLM не вызывает `code_agent` для простых задач — 🟢 Low
+- [x] **KI-118** ✅ Documented (S20) — Chat LLM не вызывает `code_agent` для простых задач — 🟢 Low
 - [x] **KI-120** ✅ Documented (S18) — Chat LLM галлюцинирует количество инструментов — 🟢 Low
 - [x] **KI-144** ✅ Documented (S18) — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone) — 🟢 Low
-- [ ] **KI-169** — SubAgent: внутренние tool-вызовы не попадают в AuditLogs — 🟢 Low
+- [x] **KI-169** ✅ Documented (S20) — SubAgent: внутренние tool-вызовы не попадают в AuditLogs — 🟢 Low
 - [x] **KI-180** ✅ Documented (S18) — Approval-модалка попадает в скриншот Vision Agent — 🟢 Low
 - [x] **KI-186** ✅ Documented (S18) — Vision Agent не может работать с UI IIChatTools (fresh profile) — 🟢 Low
 - [x] **KI-189** ✅ Documented (S18) — После STOP от overlay Chat возвращает корректный ответ — 🟢 Low

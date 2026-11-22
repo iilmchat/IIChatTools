@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Changed
+- **Спринт S20 (финальный, Documented KI-118 / KI-169, KI-143):**
+  ограничения верифицированы; Avalonia-overlay (KI-143) перенесён в
+  Design-этап. Все 20 спринтов плана TODO_KI_SPRINTS выполнены.
 - **Спринт S19 (Documented KI-239 / KI-241 / KI-077 / KI-044 / KI-089):**
   ограничения (mermaid, Debate-токены, model:null, метрики, embedding-конфиг)
   верифицированы и оставлены задокументированными.
