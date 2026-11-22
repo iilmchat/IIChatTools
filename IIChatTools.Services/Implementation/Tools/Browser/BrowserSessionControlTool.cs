@@ -117,13 +117,11 @@ namespace IIChatTools.Services.Implementation.Tools.Browser
             var timeoutMs = arguments.GetInt("timeoutMs", 15000);
             if (timeoutMs <= 0 || timeoutMs > 120000) timeoutMs = 15000;
 
-            // Делегируем менеджеру через расширенный интерфейс.
-            // Для простоты используем dynamic-доступ к внутреннему методу (см. ниже).
-            var manager = _sessionManager as BrowserSessionManager;
-            if (manager == null)
-                return ToolResult.Fail("Менеджер сессий не поддерживает управление командой");
-
-            return await manager.ExecuteCommandAsync(context, sessionId, command, arguments, timeoutMs);
+            // KI-257: метод ExecuteCommandAsync объявлен в IBrowserSessionManager —
+            // cast к конкретному BrowserSessionManager не нужен (и ломает
+            // подмену интерфейса в тестах / альтернативные реализации).
+            return await _sessionManager.ExecuteCommandAsync(
+                context, sessionId, command, arguments, timeoutMs);
         }
     }
 }

@@ -489,7 +489,9 @@ namespace IIChatTools.Services.Implementation.Browser
                     if (actual == null)
                         throw new InvalidOperationException($"Элемент '{step.Selector}' не найден.");
 
-                    if (!actual.Contains(step.Contains, StringComparison.Ordinal))
+                    // KI-258: сравнение регистронезависимое — браузерные тесты
+                    // не должны падать из-за регистра текста на странице.
+                    if (!actual.Contains(step.Contains, StringComparison.OrdinalIgnoreCase))
                     {
                         var preview = actual.Length > 200 ? actual.Substring(0, 200) + "…" : actual;
                         throw new InvalidOperationException(

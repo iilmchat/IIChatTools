@@ -599,6 +599,7 @@
 
 ### KI-070 — Sqlite: stale DB без новых таблиц (`no such table`)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Запланировано:** v1.3.x
+- **Спринт S15 (2026-11-22):** оставлен без изменений — требует миграции БД / является задокументированным ограничением; перенесён в Design-этап.
 - **Обнаружено:** 2026-09-23 | **Устранено:** —
 - **Файлы:** `IIChatTools.API/Program.cs`, `README.md`
 - **Описание:** При переходе на Sqlite (`Database:Provider = Sqlite`) на машине с существующим `Data/iichattools-dev.db` (созданным до появления новых сущностей, например `Chat`/`ChatMessage`) приложение падает с `SQLite Error 1: no such table: Chats`. Причина — `EnsureCreatedAsync()` **идемпотентен**: если БД существует, он **не создаёт недостающие таблицы** и не мигрирует схему.
@@ -1050,6 +1051,7 @@
 
 ### KI-090 — SqlServer-migrations содержали Sqlite-типы (snapshot drift)
 - **Приоритет:** 🟢 Low | **Статус:** Documented | **Обнаружено:** 2026-09-25
+- **Спринт S15 (2026-11-22):** оставлен без изменений — требует миграции БД / является задокументированным ограничением; перенесён в Design-этап.
 - **Файлы:** `IIChatTools.Data/Migrations/SqlServer/*.cs` (все предыдущие до `AddDocumentChunks`), `appsettings.Development.json` (`Database:Provider`)
 - **Описание:** При генерации миграций для SqlServer (`Migrations/SqlServer/`) в Development-окружении `Database:Provider` был выставлен в `Sqlite`. `dotnet ef migrations add` читает провайдер из `appsettings.Development.json`, поэтому миграции `AddUserSettings`, `SRVFixPendingChanges`, `AddChatMessageStats` сгенерировались с **Sqlite-типами** (`TEXT`, `INTEGER`) и попали в папку `SqlServer`. Snapshot (`AppDbContextModelSnapshot.cs`) тоже содержал смешанные типы.
 - **Симптом:** при генерации следующей SqlServer-миграции (`AddDocumentChunks`) EF видел расхождения типов и генерировал **большой блок `AlterColumn`** (перевод всей схемы с `TEXT`→`nvarchar`, `INTEGER`→`int`). Дополнительно: файлы предыдущих миграций раздулись (68-72 KB вместо обычных 5-10 KB).
@@ -6318,7 +6320,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-257 — BrowserSessionControlTool: cast к конкретному BrowserSessionManager
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- Fix (2026-11-22, S15): BrowserSessionControlTool вызывает ExecuteCommandAsync напрямую через IBrowserSessionManager — cast к конкретному BrowserSessionManager удалён.
 - **Обнаружено:** 2026-10-19 (DSH, при аудите KI-256).
 - **Файлы:** `BrowserSessionControlTool.cs`.
 - **Описание:** Для вызова `run_smoke` тул кастует `IBrowserSessionManager` к конкретному классу `BrowserSessionManager`. Из-за этого нельзя подставить Moq-менеджер в интеграционные тесты (нужен реальный Chromium). Решение: вынести все команды `ExecuteCommandAsync` в интерфейс.
@@ -6327,7 +6330,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-258 — run_smoke: assert_text регистрозависим
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.1.0
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- Fix (2026-11-22, S15): BrowserSmokeRunner.assert_text сравнивает текст через StringComparison.OrdinalIgnoreCase.
 - **Обнаружено:** 2026-10-19 (DSH, при аудите KI-256).
 - **Файлы:** `BrowserSmokeRunner.cs`.
 - **Описание:** Проверка `assert_text` использует `StringComparison.Ordinal`. Для UI-текста (где регистр может меняться стилями) это может давать ложные FAIL. Решение: добавить параметр `ignoreCase: true` по умолчанию.
@@ -6394,6 +6398,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-262 — Todo: гонка `MAX(SortOrder)+1` при параллельном add_todo
 - **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.1.x
+- **Спринт S15 (2026-11-22):** оставлен без изменений — требует миграции БД / является задокументированным ограничением; перенесён в Design-этап.
 - **Обнаружено:** 2026-10-20 (Фаза 5, DSH).
 - **Файлы:** `TodoService.cs`, `AppDbContext.cs` (конфигурация `ChatTodos`).
 - **Описание:** `TodoService.CreateAsync` вычисляет
@@ -6644,13 +6649,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 201 |
-| Planned | 21 |
+| Fixed (включая Implemented / Resolved) | 203 |
+| Planned | 19 |
 | Documented | 24 |
 | Deferred | 7 |
 | Partially Fixed | 0 |
@@ -6658,7 +6663,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 201 + 21 + 24 + 7 + 0 + 0 + 1 = **254**.
+**Сверка:** 203 + 19 + 24 + 7 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.

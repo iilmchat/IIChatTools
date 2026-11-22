@@ -143,8 +143,8 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [ ] **KI-247** — Orchestrator: pre-checks circuit breaker / budget на уровне оркестратора — 🟢 Low, v2.0.x
 - [ ] **KI-248** — Orchestrator: Human-in-the-loop между подзадачами — 🟢 Low, v2.0.x
 - [x] **KI-254** — `RULES.md` § 7: выжимка KI устарела (99 KI vs 230) — 🟢 Low, ✅ Fixed в S01 (v2.2.x)
-- [ ] **KI-257** — `BrowserSessionControlTool`: cast к конкретному `BrowserSessionManager` — 🟢 Low, v2.1.0
-- [ ] **KI-258** — `run_smoke`: `assert_text` регистрозависим — 🟢 Low, v2.1.0
+- [x] **KI-257** ✅ Fixed в S15 — `BrowserSessionControlTool`: cast к конкретному `BrowserSessionManager` — 🟢 Low, v2.1.0
+- [x] **KI-258** ✅ Fixed в S15 — `run_smoke`: `assert_text` регистрозависим — 🟢 Low, v2.1.0
 - [ ] **KI-262** — Todo: гонка `MAX(SortOrder)+1` при параллельном `add_todo` — 🟢 Low, v2.1.x
 - [x] **KI-266** ✅ Fixed в S08 — Reflection: прямой вызов `ISubAgentService` минует AuditLogs/Admin UI — 🟢 Low, v2.2.x
 - [x] **KI-269** ✅ Fixed в S08 — Reflection: дублирование черновиков в `AgentStates` без retention — 🟢 Low, v2.2.x
