@@ -110,10 +110,10 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-172** ✅ Fixed в S06 — Chat LLM выбирает `vision_agent` для browser-задач — 🟡 Medium, v1.13.x
 - [x] **KI-179** ✅ Fixed в S06 — Chat LLM зацикливается на Vision-задачах — 🟡 Medium, v1.13.x
 - [x] **KI-193** — Vision LLM: id drift между кадрами (`search_btn` → `search_button`) — 🟡 Medium, ✅ Fixed в S04 (v2.2.x)
-- [ ] **KI-204** — RAG: нет индикации прогресса OCR при загрузке PDF — 🟡 Medium, v1.13.x
+- [x] **KI-204** ✅ Fixed в S07 — RAG: нет индикации прогресса OCR при загрузке PDF — 🟡 Medium, v1.13.x
 - [x] **KI-205** — RAG: постраничный просмотр PNG сканов — 🟢 Low, ✅ Fixed в S04 (v1.13.x, верификация)
-- [ ] **KI-206** — RAG: Page viewer — thumbnails, зум, скролл — 🟡 Medium, v1.13.x
-- [ ] **KI-213** — RAG: Page viewer — подгонка text layer под bbox — 🟡 Medium, v1.13.x / v1.14
+- [x] **KI-206** ✅ Fixed в S07 — RAG: Page viewer — thumbnails, зум, скролл — 🟡 Medium, v1.13.x
+- [x] **KI-213** ✅ Fixed в S07 — RAG: Page viewer — подгонка text layer под bbox — 🟡 Medium, v1.13.x / v1.14
 - [x] **KI-226** — `/api/models` и UI-селектор модели зависят от LM Studio — 🟡 Medium, ✅ Fixed в S04 (v2.2.x)
 - [x] **KI-231** ✅ Fixed в S06 — Chat: Drag-and-Drop файлов + Paste Image (Ctrl+V) — 🟡 Medium, v1.13.14
 - [x] **KI-253** — `qa/MANUAL_TESTING_GUIDE.md` устарел (v1.8.1, 424 теста) — 🟡 Medium, ✅ Fixed в S01 (v2.2.x)

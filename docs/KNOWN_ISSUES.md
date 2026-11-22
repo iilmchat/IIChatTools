@@ -5358,7 +5358,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-204 — RAG: нет индикации прогресса OCR при загрузке PDF
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.x)** | **Исправлено в:** v1.13.x (верификация S07)
+- Верификация (2026-11-22, S07): в chat.js реализован polling OCR-прогресса (ocrProgress.isProcessing, currentPage/totalPages, labelOcrProgress) + прогресс-бар в renderAttachmentsBar. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-07 (smoke KI-203 — сканы PDF обрабатываются ~20 сек без обратной связи).
 - **Файлы:** `wwwroot/js/modules/chat.js` (`uploadFiles`, `renderAttachmentsBar`),
   `ChatAttachmentsController.cs` (`UploadAsync`), `ChatAttachmentService.cs`,
@@ -5469,7 +5470,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-206 — RAG: Page viewer — thumbnails, зум, скролл (улучшения UX)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.x)** | **Исправлено в:** v1.13.x (верификация S07)
+- Верификация (2026-11-22, S07): page viewer в chat.js содержит thumbnails, zoom (data-zoom/data-fit) и скролл (.chat-pages-viewport). Изменений не потребовалось.
 - **Обнаружено:** 2026-10-07 (smoke KI-205 — UI без sidebar thumbnails/zoom).
 - **Файлы:** `chat.js`, `chat.css`, `Index.cshtml`, `.resx` (RU + EN).
 - **Описание:** Базовая модалка KI-205 работает, но UX беден:
@@ -5683,7 +5685,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 ---
 
 ### KI-213 — RAG: Page viewer — подгонка text layer под bbox (выделение)
-- **Приоритет:** 🟡 Medium | **Статус:** Planned | **Запланировано:** v1.13.x / v1.14
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v1.13.x)** | **Исправлено в:** v1.13.x (верификация S07)
+- Верификация (2026-11-22, S07): text layer позиционируется поверх bbox страницы (chat-pages-text-layer / data-word-index), поиск и выделение реализованы. Изменений не потребовалось.
 - **Обнаружено:** 2026-10-08 (smoke KI-207/208).
 - **Файлы (план):** `chat.js` (`renderTextLayer`, `exportPagesPdf`),
   `chat.css` (`.chat-pages-text-word`), `scripts/setup/download-pdf-lib.ps1`
@@ -6619,13 +6622,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 188 |
-| Planned | 33 |
+| Fixed (включая Implemented / Resolved) | 191 |
+| Planned | 30 |
 | Documented | 24 |
 | Deferred | 8 |
 | Partially Fixed | 0 |
@@ -6633,7 +6636,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 188 + 33 + 24 + 8 + 0 + 0 + 1 = **254**.
+**Сверка:** 191 + 30 + 24 + 8 + 0 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.
