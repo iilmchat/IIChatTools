@@ -18,6 +18,12 @@
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-11-25
+
+**Программа улучшений v2.3 (D01–D18):** Port'ы и адаптеры, resilience,
+observability, безопасность, Vision-платформа v3, docs-as-code.
+Все 18 Design-спринтов выполнены, отчёты — в `docs/development/reports/v2.3/`.
+
 ### Added
 - **CI KI consistency check + contract tests (Design D17):** в `.github/workflows/ci.yml`
   добавлена проверка `check-zombie-ki.ps1` и `generate-ki-summary.ps1 -Check`;

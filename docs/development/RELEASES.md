@@ -21,6 +21,24 @@
 
 ---
 
+## § 1b. Релиз v2.3.0 (2026-11-25)
+
+**Программа улучшений D01–D18** ([DESIGN](../v2.3/DESIGN_IMPROVEMENTS.md),
+[спринты](../TODO_DESIGN_SPRINTS.md)).
+
+- [x] 18/18 Design-спринтов выполнены; отчёты — `reports/v2.3/D01…D18_*.md`.
+- [x] Build 0 warnings / 0 errors; Tests 1352/1360 (8 Skip).
+- [x] `check-zombie-ki.ps1` и `generate-ki-summary.ps1 -Check` — зелёные, в CI.
+- [x] Версия в `Directory.Build.props` — 2.3.0; CHANGELOG — `[2.3.0] — 2026-11-25`.
+- [x] Документация актуализирована: RULES § 2.12, ARCHITECTURE v2.3.0,
+      MANUAL_TESTING_GUIDE § 6.1, README.
+
+**Известные ограничения v2.3.0:** KI-265 (outbox часть 2), KI-242 (PostgreSQL),
+KI-108 (БД/UI), KI-143 (Avalonia), KI-139 (внешние VL), KI-164/165/166 (части 2)
+— перенесены в Design-этап v2.4 с фиксацией причин в KNOWN_ISSUES.md.
+
+---
+
 ## § 1a. Известные ограничения релиза v1.13.1
 
 > **ОБЯЗАТЕЛЬНО прочитать перед деплоем.** Ниже — задокументированные

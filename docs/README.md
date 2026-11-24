@@ -1,6 +1,6 @@
-# Документация IIChatTools v2.2.x
+# Документация IIChatTools v2.3.0
 
-**Обновлено:** 2026-11-22 (спринты S01–S20, Design v2.3)
+**Обновлено:** 2026-11-25 (релиз v2.3.0, Design D01–D18)
 **Назначение:** единая точка входа в документацию проекта. Выберите роль —
 и переходите по ссылке.
 
@@ -56,7 +56,7 @@ docs/
 
 - **[Чек-лист ручной приёмки](qa/MANUAL_TESTING_GUIDE.md)** — smoke, full regression,
   UI/UX, список непокрытого автотестами.
-- **Автотесты:** `dotnet test IIChatTools.sln -c Release` (1326/1334, 8 Skip).
+- **Автотесты:** `dotnet test IIChatTools.sln -c Release` (1352/1360, 8 Skip).
 - **Найденный дефект** → запись `KI-XXX` в [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
   (RULES § 1.13).
 
