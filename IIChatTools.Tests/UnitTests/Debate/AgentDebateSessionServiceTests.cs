@@ -302,6 +302,36 @@ namespace IIChatTools.Tests.UnitTests.Debate
             Assert.Equal("deepseek", stored.EscalationProvider);
         }
 
+        /// <summary>
+        /// D01 / KI-241: когда воркер не вернул usage, токены оцениваются по
+        /// длине текста (а не остаются нулевыми).
+        /// </summary>
+        [Fact]
+        public async Task AddRoundAsync_ZeroTokens_EstimatesFromText()
+        {
+            var (service, db, chat) = CreateServiceWithChat();
+            var sessionId = await service.StartAsync(chat.Id, TestUserId, "task", null);
+
+            await service.AddRoundAsync(sessionId, new AgentDebateRoundDto
+            {
+                RoundNumber = 1,
+                SubtaskTask = new string('a', 40),        // ~10 токенов
+                SubtaskResult = new string('b', 80),      // ~20 токенов
+                ActorModel = TestModel,
+                TokensIn = 0,
+                TokensOut = 0
+            });
+
+            var session = await db.AgentDebateSessions.FindAsync(sessionId);
+            var stored = db.AgentDebateRounds
+                .Single(r => r.SessionId == sessionId && r.RoundNumber == 1);
+
+            Assert.Equal(10, stored.TokensIn);
+            Assert.Equal(20, stored.TokensOut);
+            Assert.Equal(10, session.TotalTokensIn);
+            Assert.Equal(20, session.TotalTokensOut);
+        }
+
         [Fact]
         public async Task AddRoundAsync_TwoRounds_AccumulatesTotals()
         {

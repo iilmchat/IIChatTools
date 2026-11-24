@@ -486,6 +486,18 @@ namespace IIChatTools.Services.Implementation.Debate
 
             if (!sessionExists) return false;
 
+            // D01 / KI-241: worker-ы Orchestrator не возвращают usage —
+            // оцениваем токены по длительности текста (chars/4), чтобы
+            // статистика раундов и сессий не была всегда нулевой.
+            // Точные значения от провайдера имеют приоритет.
+            var estimatedIn = round.TokensIn;
+            var estimatedOut = round.TokensOut;
+            if (estimatedIn == 0)
+                estimatedIn = EstimateTokens(round.SubtaskTask, round.ActorOutput);
+            if (estimatedOut == 0)
+                estimatedOut = EstimateTokens(round.SubtaskResult, round.ProOutput,
+                    round.ContraOutput, round.CriticFeedbackJson, round.JudgeFeedbackJson);
+
             var entity = new AgentDebateRound
             {
                 SessionId = sessionId,
@@ -511,8 +523,8 @@ namespace IIChatTools.Services.Implementation.Debate
                 CriticModel = round.CriticModel,
                 WasEscalated = round.WasEscalated,
                 EscalationProvider = round.EscalationProvider,
-                TokensIn = round.TokensIn,
-                TokensOut = round.TokensOut,
+                TokensIn = estimatedIn,
+                TokensOut = estimatedOut,
                 CostUsd = round.CostUsd,
                 DurationMs = round.DurationMs,
                 CreatedAt = DateTime.UtcNow
@@ -527,8 +539,8 @@ namespace IIChatTools.Services.Implementation.Debate
             if (session != null)
             {
                 session.TotalCostUsd += round.CostUsd;
-                session.TotalTokensIn += round.TokensIn;
-                session.TotalTokensOut += round.TokensOut;
+                session.TotalTokensIn += estimatedIn;
+                session.TotalTokensOut += estimatedOut;
                 session.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -618,6 +630,25 @@ namespace IIChatTools.Services.Implementation.Debate
                 CostUsd = entity.CostUsd,
                 DurationMs = entity.DurationMs
             };
+        }
+
+        /// <summary>
+        /// D01 / KI-241: грубая оценка числа токенов по длине текста
+        /// (≈4 символа на токен для русского/английского). Используется
+        /// только когда провайдер не вернул точный usage.
+        /// </summary>
+        /// <param name="parts">Фрагменты текста раунда</param>
+        /// <returns>Оценка токенов (0, если все фрагменты пусты)</returns>
+        private static int EstimateTokens(params string[] parts)
+        {
+            if (parts == null) return 0;
+            var chars = 0;
+            foreach (var part in parts)
+            {
+                if (!string.IsNullOrWhiteSpace(part))
+                    chars += part.Length;
+            }
+            return chars == 0 ? 0 : Math.Max(1, chars / 4);
         }
     }
 }

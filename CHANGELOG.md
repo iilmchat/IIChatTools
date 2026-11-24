@@ -18,6 +18,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Design D01 (этап A, KI-044 / KI-241):** метрики аудита и LM Studio
+  реально инкрементируются; токены раундов Debate оцениваются при отсутствии
+  usage провайдера (+1 тест).
+
 ### Added
 - **Программа улучшений v2.3 (Design):** `docs/development/v2.3/DESIGN_IMPROVEMENTS.md`
   — целевая архитектура (провайдеры, надёжность, observability, безопасность,

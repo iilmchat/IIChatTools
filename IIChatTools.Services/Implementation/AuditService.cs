@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using IIChatTools.Data;
 using IIChatTools.Data.Entities;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Metrics;
 using Microsoft.Extensions.Logging;
 
 
@@ -32,10 +33,17 @@ namespace IIChatTools.Services.Implementation
             {
                 _dbContext.AuditLogs.Add(logEntry);
                 await _dbContext.SaveChangesAsync();
+
+                // D01 / KI-044: метрика записей аудита ранее не инкрементировалась.
+                // Статус берём из записи; пустой → "Unknown".
+                AppMetrics.AuditEntriesTotal
+                    .WithLabels(string.IsNullOrWhiteSpace(logEntry.Status) ? "Unknown" : logEntry.Status)
+                    .Inc();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при записи аудита");
+                AppMetrics.AuditEntriesTotal.WithLabels("Error").Inc();
                 // Не пробрасываем, чтобы не нарушить основной поток
             }
         }

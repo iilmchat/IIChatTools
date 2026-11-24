@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.LmStudio;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -139,18 +140,23 @@ namespace IIChatTools.Services.Implementation
                     result.ReasoningContent?.Length ?? 0,
                     result.ToolCalls?.Count ?? 0);
 
+                // D01 / KI-044: счётчик запросов LM Studio.
+                AppMetrics.LmStudioRequestsTotal.WithLabels("Success").Inc();
                 return result;
             }
             catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // Внешняя отмена (Stop) — не считаем ошибкой провайдера.
                 throw;
             }
             catch (TaskCanceledException)
             {
+                AppMetrics.LmStudioRequestsTotal.WithLabels("Timeout").Inc();
                 throw new TimeoutException($"LM Studio не ответил за {timeoutSeconds} секунд");
             }
             catch (Exception ex)
             {
+                AppMetrics.LmStudioRequestsTotal.WithLabels("Error").Inc();
                 _logger.LogError(ex, "Ошибка при обращении к LM Studio: {Url}", url);
                 throw;
             }
@@ -293,8 +299,16 @@ namespace IIChatTools.Services.Implementation
 
                     yield return result;
 
-                    if (result.IsDone) yield break;
+                    if (result.IsDone)
+                    {
+                        // D01 / KI-044: SSE-стрим завершён успешно.
+                        AppMetrics.LmStudioRequestsTotal.WithLabels("Success").Inc();
+                        yield break;
+                    }
                 }
+
+                // Поток завершился без явного done — тоже считаем успешным запросом.
+                AppMetrics.LmStudioRequestsTotal.WithLabels("Success").Inc();
             }
         }
 
