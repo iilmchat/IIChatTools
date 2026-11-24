@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **Vision backend actions (Design D11, KI-164/165):** `DragSelectAsync`
+  (SendInput) и `ReadClipboardAsync` (Win32 CF_UNICODETEXT) в IVisionBackend
+  + LocalHarnessVisionBackend; action'ы drag_select/read_clipboard.
 - **CorrelationContext + tool audit (Design D10, KI-169):** внутренние
   tool-вызовы суб-агентов пишутся в AuditLogs с correlationId (+2 теста).
 - **PiiMasker (Design D09, KI-138):** маскирование email/телефонов/карт/СНИЛС

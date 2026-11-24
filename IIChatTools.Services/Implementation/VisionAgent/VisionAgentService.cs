@@ -860,6 +860,25 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     await backend.WaitAsync(action.DeltaY ?? DefaultWaitMs, ct);
                     break;
 
+                // D11 / KI-164: выделение текста мышью (x1,y1 → x2,y2).
+                case "drag_select":
+                    await backend.DragSelectAsync(
+                        action.X ?? 0, action.Y ?? 0,
+                        action.X2 ?? (action.X ?? 0), action.Y2 ?? (action.Y ?? 0), ct)
+                        .ConfigureAwait(false);
+                    break;
+
+                // D11 / KI-165: чтение clipboard. Текст пока только логируется
+                // (длина) — передача в Planner требует результата шага (отдельный этап).
+                case "read_clipboard":
+                {
+                    var text = await backend.ReadClipboardAsync(ct).ConfigureAwait(false);
+                    _logger.LogInformation(
+                        "VisionAgent: read_clipboard прочитано {Length} символов (D11/KI-165)",
+                        text?.Length ?? 0);
+                    break;
+                }
+
                 default:
                     throw new InvalidOperationException(
                         $"VisionAgentService: неизвестный action для backend'а: '{actionType}'.");

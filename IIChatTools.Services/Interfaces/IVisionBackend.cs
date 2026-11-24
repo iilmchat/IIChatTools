@@ -97,6 +97,21 @@ namespace IIChatTools.Services.Interfaces
         Task WaitAsync(int milliseconds, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// D11 / KI-164: выделение текста мышью (drag от (x1,y1) до (x2,y2)).
+        /// Default-реализация — no-op для backend'ов без поддержки.
+        /// </summary>
+        Task DragSelectAsync(int x1, int y1, int x2, int y2,
+            CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        /// <summary>
+        /// D11 / KI-165: чтение текста из буфера обмена.
+        /// Default-реализация — null, если backend не поддерживает.
+        /// </summary>
+        Task<string> ReadClipboardAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<string>(null);
+
+        /// <summary>
         /// Возвращает провайдер координат из DOM (KI-161), если backend
         /// поддерживает CDP-attach. <c>null</c> — DOM недоступен,
         /// используется VL-fallback (bounds-center, KI-190).

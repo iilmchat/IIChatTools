@@ -31,6 +31,12 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// <summary>Координата Y (fallback, если <see cref="Target"/> не задан).</summary>
         public int? Y { get; set; }
 
+        /// <summary>Конечная координата X для <c>drag_select</c> (D11/KI-164).</summary>
+        public int? X2 { get; set; }
+
+        /// <summary>Конечная координата Y для <c>drag_select</c> (D11/KI-164).</summary>
+        public int? Y2 { get; set; }
+
         /// <summary>Текст для <c>action = "type"</c>.</summary>
         public string Text { get; set; }
 

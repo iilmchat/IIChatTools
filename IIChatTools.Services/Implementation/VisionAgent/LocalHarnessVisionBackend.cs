@@ -1149,6 +1149,41 @@ namespace IIChatTools.Services.Implementation.VisionAgent
 
         /// <inheritdoc />
         /// <remarks>
+        /// D11 / KI-164: Move → LeftDown → Move → LeftUp через SendInput.
+        /// </remarks>
+        public async Task DragSelectAsync(
+            int x1, int y1, int x2, int y2, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            EnsureForegroundProcessAllowed();
+
+            var (rx1, ry1) = ScaleToScreen(x1, y1);
+            var (rx2, ry2) = ScaleToScreen(x2, y2);
+            var (ax, ay) = NormalizeCoordinates(rx1, ry1);
+            var (bx, by) = NormalizeCoordinates(rx2, ry2);
+
+            var inputs = new[]
+            {
+                MakeMouseInput(ax, ay, Win32Interop.MOUSEEVENTF_MOVE | Win32Interop.MOUSEEVENTF_ABSOLUTE),
+                MakeMouseInput(ax, ay, Win32Interop.MOUSEEVENTF_LEFTDOWN),
+                MakeMouseInput(bx, by, Win32Interop.MOUSEEVENTF_MOVE | Win32Interop.MOUSEEVENTF_ABSOLUTE),
+                MakeMouseInput(bx, by, Win32Interop.MOUSEEVENTF_LEFTUP)
+            };
+            SendInputBatch(inputs);
+            _logger.LogInformation("VisionAgent: DRAG_SELECT ({X1},{Y1}) → ({X2},{Y2})", x1, y1, x2, y2);
+            await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        /// <remarks>D11 / KI-165: Windows clipboard, CF_UNICODETEXT.</remarks>
+        public Task<string> ReadClipboardAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(ClipboardReader.ReadText());
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
         /// v1.12.0 (KI-131, Ф2.5): два клика с паузой 50 мс (порог double-click Windows).
         /// </remarks>
         public async Task DoubleClickAsync(int x, int y, CancellationToken cancellationToken = default)
