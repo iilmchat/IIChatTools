@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **POST fallback endpoints (Design D16, KI-047):**
+  `POST /api/chats/{id}/update` и `/delete` — эмуляция PATCH/DELETE
+  для старых прокси, без изменения основного REST-контракта.
 - **Admin feedback JSONL export (Design D15, KI-240):** Admin-only
   `GET /api/admin/feedback/export` — все 👍/👎 в формате NDJSON для датасета.
 - **generate-ki-summary.ps1 (Design D14, KI-254/275):** генератор и

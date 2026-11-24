@@ -314,7 +314,8 @@
 ---
 
 ### KI-047 — Fallback PATCH/DELETE через POST для старых сетей
-- **Приоритет:** 🟡 Medium | **Статус:** Deferred | **Запланировано:** v1.3.x
+- **Приоритет:** 🟡 Medium | **Статус:** ✅ **Fixed (v2.3.0)** | **Исправлено в:** v2.3.0 (Design D16)
+- Fix (2026-11-25, D16): POST /api/chats/{id}/update и /delete — теневые эндпоинты, делегируют PATCH/DELETE-логике. Основной REST-контракт сохранён.
 - **Спринт S14 (2026-11-22):** оставлен Deferred — требует изменений в API/UI/структуре тестов; перенесён в Design-этап.
 - **Обнаружено:** 2026-09-21
 - **Файлы:** `IIChatTools.API/Controllers/ChatController.cs` (и другие контроллеры с PATCH/DELETE)
@@ -830,6 +831,7 @@
 
 ### KI-074 — Split тестового проекта на Unit / Integration
 - **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.4.x (опционально)
+- **D16:** остаётся Deferred — требует Structural changes (split проектов / новая модалка); приоритет ниже завершения Design-программы.
 - **Спринт S14 (2026-11-22):** оставлен Deferred — требует изменений в API/UI/структуре тестов; перенесён в Design-этап.
 - **Обнаружено:** 2026-09-24 (в ходе диагностики KI-073)
 - **Описание:** `IIChatTools.Tests` ссылается на `IIChatTools.API` → тянет PuppeteerSharp и 30+ DLL. Только `LocalizationSyncTests` реально использует типы API.
@@ -840,6 +842,7 @@
 
 ### KI-082 — Модалка-редактор длинных user-сообщений
 - **Приоритет:** 🟢 Low | **Статус:** Deferred | **Запланировано:** v1.5.0+ (дальний фокус)
+- **D16:** остаётся Deferred — требует Structural changes (split проектов / новая модалка); приоритет ниже завершения Design-программы.
 - **Спринт S14 (2026-11-22):** оставлен Deferred — требует изменений в API/UI/структуре тестов; перенесён в Design-этап.
 - **Обнаружено:** 2026-09-25
 - **Файлы (план):** `IIChatTools.API/Views/Chat/Index.cshtml`, `wwwroot/js/modules/chat.js`, `wwwroot/css/chat.css`
@@ -6695,21 +6698,21 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (Design D15: KI-240 → Fixed, KI-237 → Partially Fixed; Design D14: KI-275 → Fixed, KI-147 → note; Design D13: KI-139 → Documented, prompt v3; Design D12: KI-166 → Partially Fixed, KI-143 → заметка; Design D11: KI-164/165 → Partially Fixed; Design D10: KI-169 → Fixed, correlationId; Design D09: KI-138 → Fixed; Design D08: KI-108 → Partially Fixed (часть 1); Design D07: KI-242 → Partially Fixed (резолвер), KI-091 → заметка; Design D06: KI-226 → ModelReference; Design D05: KI-243 → Fixed; Design D04: KI-227 → рефакторинг на IEmbeddingProvider; Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (Design D16: KI-047 → Fixed, KI-074/082 → note; Design D15: KI-240 → Fixed, KI-237 → Partially Fixed; Design D14: KI-275 → Fixed, KI-147 → note; Design D13: KI-139 → Documented, prompt v3; Design D12: KI-166 → Partially Fixed, KI-143 → заметка; Design D11: KI-164/165 → Partially Fixed; Design D10: KI-169 → Fixed, correlationId; Design D09: KI-138 → Fixed; Design D08: KI-108 → Partially Fixed (часть 1); Design D07: KI-242 → Partially Fixed (резолвер), KI-091 → заметка; Design D06: KI-226 → ModelReference; Design D05: KI-243 → Fixed; Design D04: KI-227 → рефакторинг на IEmbeddingProvider; Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 212 |
+| Fixed (включая Implemented / Resolved) | 213 |
 | Planned | 5 |
 | Documented | 22 |
-| Deferred | 7 |
+| Deferred | 6 |
 | Partially Fixed | 7 |
 | In Progress | 0 |
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 212 + 5 + 22 + 7 + 7 + 0 + 1 = **254**.
+**Сверка:** 213 + 5 + 22 + 6 + 7 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.

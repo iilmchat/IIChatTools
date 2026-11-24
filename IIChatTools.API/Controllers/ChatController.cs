@@ -308,6 +308,23 @@ namespace IIChatTools.API.Controllers
         }
 
         /// <summary>
+        /// D16 / KI-047: POST-эмуляция PATCH для старых сетей/прокси,
+        /// которые блокируют PATCH. Делегирует UpdateChatAsync.
+        /// </summary>
+        [HttpPost("{id:int}/update")]
+        public Task<IActionResult> UpdateChatViaPostAsync(
+            int id, [FromBody] UpdateChatRequest request)
+            => UpdateChatAsync(id, request);
+
+        /// <summary>
+        /// D16 / KI-047: POST-эмуляция DELETE для старых сетей/прокси.
+        /// Делегирует DeleteChatAsync.
+        /// </summary>
+        [HttpPost("{id:int}/delete")]
+        public Task<IActionResult> DeleteChatViaPostAsync(int id)
+            => DeleteChatAsync(id);
+
+        /// <summary>
         /// Генерирует короткое название чата на основе первого сообщения пользователя
         /// (Фаза 2.2.1, ChatGPT-style). Не изменяет title, если LLM недоступен.
         /// </summary>
