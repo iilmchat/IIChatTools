@@ -19,6 +19,8 @@
 ## [Unreleased]
 
 ### Added
+- **TaskbarWindowResolver (Design D12, KI-166):** поиск окна по подстроке
+  заголовка + FocusWindowByTitleAsync в Vision backend (частично).
 - **Vision backend actions (Design D11, KI-164/165):** `DragSelectAsync`
   (SendInput) и `ReadClipboardAsync` (Win32 CF_UNICODETEXT) в IVisionBackend
   + LocalHarnessVisionBackend; action'ы drag_select/read_clipboard.

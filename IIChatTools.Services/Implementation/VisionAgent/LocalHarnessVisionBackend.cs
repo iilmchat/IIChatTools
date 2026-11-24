@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1181,6 +1182,34 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(ClipboardReader.ReadText());
         }
+
+        /// <summary>
+        /// D12 / KI-166: фокус окна по подстроке заголовка (аналог Win+1).
+        /// </summary>
+        public Task<bool> FocusWindowByTitleAsync(
+            string titleQuery, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var matches = TaskbarWindowResolver.Find(titleQuery);
+            if (matches.Count == 0)
+            {
+                _logger.LogWarning("VisionAgent: окно «{Query}» не найдено (KI-166)", titleQuery);
+                return Task.FromResult(false);
+            }
+
+            // Первое совпадение — наиболее вероятная цель. SetForegroundWindow
+            // через уже используемый Win32Interop (KI-155).
+            var hwnd = FindWindowByTitle(matches[0]);
+            if (hwnd == IntPtr.Zero) return Task.FromResult(false);
+            Win32Interop.SetForegroundWindow(hwnd);
+            _logger.LogInformation("VisionAgent: фокус на окне «{Title}» (KI-166)", matches[0]);
+            return Task.FromResult(true);
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        private static IntPtr FindWindowByTitle(string title) => FindWindow(null, title);
 
         /// <inheritdoc />
         /// <remarks>
