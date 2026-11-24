@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.Chat;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -99,7 +100,11 @@ namespace IIChatTools.API.Controllers
                 {
                     success = true,
                     data = list,
-                    providers = GetExternalProviders()
+                    providers = GetExternalProviders(),
+                    // D06: для UI — автоматически сгенерированные ссылки
+                    // <provider>:<model> (старые значения без префикса
+                    // трактуются как lmstudio).
+                    refs = list.Select(m => new ModelReference("lmstudio", m.Id).ToString()).ToArray()
                 });
             }
             catch (Exception ex)
@@ -125,6 +130,7 @@ namespace IIChatTools.API.Controllers
                     success = true,
                     data = fallback,
                     providers = GetExternalProviders(),
+                    refs = new[] { new ModelReference("lmstudio", defaultModel).ToString() },
                     message = "LM Studio недоступен, показана только модель по умолчанию."
                 });
             }
@@ -144,7 +150,9 @@ namespace IIChatTools.API.Controllers
                 {
                     name = p.Key,
                     displayName = p["DisplayName"] ?? p.Key,
-                    model = p["Model"] ?? string.Empty
+                    model = p["Model"] ?? string.Empty,
+                    // D06: полная ссылка <provider>:<model> для UI-селектора.
+                    reference = new ModelReference(p.Key, p["Model"] ?? string.Empty).ToString()
                 })
                 .ToArray();
         }

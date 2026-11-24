@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **ModelReference (Design D06, KI-226):** формат `&lt;provider&gt;:&lt;model&gt;`
+  с обратной совместимостью; `GET /api/models` отдаёт `refs` и
+  `providers[].reference` (+5 тестов).
 - **QdrantVectorStore (Design D05, KI-243):** адаптер `IVectorStore` для
   внешнего Qdrant; DI выбирает его при `VectorStore:Qdrant:BaseUrl`, иначе
   остаётся InMemory (обратная совместимость).

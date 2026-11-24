@@ -148,6 +148,11 @@ namespace IIChatTools.Tests.UnitTests
 
             Assert.NotNull(providers);
             Assert.Equal("deepseek-chat", providers[0]!["model"]!.Value<string>());
+            // D06: ссылка <provider>:<model> для UI-селектора.
+            Assert.Equal("deepseek:deepseek-chat", providers[0]!["reference"]!.Value<string>());
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var refs = (JArray)JObject.FromObject(okResult.Value)["refs"];
+            Assert.Equal("lmstudio:" + DefaultModel, refs[0]!.Value<string>());
         }
     }
 }
