@@ -55,24 +55,43 @@ namespace IIChatTools.Services.Implementation.BackgroundJobs
                 throw new InvalidOperationException(
                     $"В чате уже {count} задач — максимум {MaxTodosPerChat}.");
 
-            var maxSortOrder = await _db.ChatTodos
-                .Where(t => t.ChatId == chatId)
-                .Select(t => (int?)t.SortOrder)
-                .MaxAsync() ?? -1;
-
-            var todo = new ChatTodo
+            // D02 / KI-262: при параллельном add_todo два вызова могут
+            // получить одинаковый MAX(SortOrder)+1. Уникальный индекс
+            // (ChatId, SortOrder) ловит коллизию; повторяем с новым максимумом.
+            const int MaxAttempts = 3;
+            for (var attempt = 1; attempt <= MaxAttempts; attempt++)
             {
-                ChatId = chatId,
-                Title = normalizedTitle,
-                Description = normalizedDescription,
-                Status = "Pending",
-                SortOrder = maxSortOrder + 1,
-                CreatedAt = DateTime.UtcNow
-            };
+                var maxSortOrder = await _db.ChatTodos
+                    .Where(t => t.ChatId == chatId)
+                    .Select(t => (int?)t.SortOrder)
+                    .MaxAsync() ?? -1;
 
-            _db.ChatTodos.Add(todo);
-            await _db.SaveChangesAsync();
-            return todo;
+                var todo = new ChatTodo
+                {
+                    ChatId = chatId,
+                    Title = normalizedTitle,
+                    Description = normalizedDescription,
+                    Status = "Pending",
+                    SortOrder = maxSortOrder + 1,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _db.ChatTodos.Add(todo);
+                try
+                {
+                    await _db.SaveChangesAsync();
+                    return todo;
+                }
+                catch (DbUpdateException) when (attempt < MaxAttempts)
+                {
+                    // Конкурентная вставка с тем же SortOrder — пробуем снова.
+                    _db.Entry(todo).State = EntityState.Detached;
+                    await Task.Delay(10 * attempt);
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Не удалось добавить задачу: конфликт порядка после 3 попыток.");
         }
 
         /// <inheritdoc />

@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Fixed
+- **Design D02 (этап A, KI-262 / KI-274):** уникальный индекс
+  `(ChatId, SortOrder)` + retry при гонке `add_todo`; атомарная запись
+  5 ключей Orchestrator через `IAppSettingsService.UpsertBatchAsync`.
 - **Design D01 (этап A, KI-044 / KI-241):** метрики аудита и LM Studio
   реально инкрементируются; токены раундов Debate оцениваются при отсутствии
   usage провайдера (+1 тест).

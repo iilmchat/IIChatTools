@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.Admin;
 
@@ -58,5 +59,34 @@ namespace IIChatTools.Services.Interfaces
         /// </summary>
         /// <returns>Количество обработанных ключей</returns>
         Task<int> SyncDefaultsFromConfigurationAsync();
+
+        /// <summary>
+        /// D02 / KI-274: атомарно применяет набор настроек (создание/обновление)
+        /// одним вызовом SaveChanges. Реализации по умолчанию — последовательный
+        /// fallback (для fake-сервисов в тестах); production-реализация
+        /// использует один контекст БД и одну транзакцию.
+        /// </summary>
+        /// <param name="settings">Настройки к применению</param>
+        /// <returns>Количество обработанных записей</returns>
+        async Task<int> UpsertBatchAsync(IReadOnlyList<SettingDto> settings)
+        {
+            // Default interface method — вызывается только через интерфейс
+            // (RULES § 4.46). Последовательный fallback для fake-сервисов;
+            // production-реализация переопределяет метод для атомарности.
+            if (settings == null) return 0;
+
+            var existing = await GetAllAsync();
+            var count = 0;
+            foreach (var setting in settings)
+            {
+                var found = existing.FirstOrDefault(s => s.Key == setting.Key);
+                if (found == null)
+                    await CreateAsync(setting);
+                else
+                    await UpdateAsync(found.Id, setting);
+                count++;
+            }
+            return count;
+        }
     }
 }

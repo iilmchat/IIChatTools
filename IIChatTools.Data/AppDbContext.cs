@@ -327,6 +327,9 @@ namespace IIChatTools.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(e => e.ChatId);
+                // D02 / KI-262: защита от гонки MAX(SortOrder)+1 при
+                // параллельном add_todo. Существующие БД требуют миграции.
+                entity.HasIndex(e => new { e.ChatId, e.SortOrder }).IsUnique();
             });
         }
     }

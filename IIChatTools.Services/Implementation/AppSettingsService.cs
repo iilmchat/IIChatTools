@@ -241,5 +241,46 @@ namespace IIChatTools.Services.Implementation
             if (key.StartsWith("Jwt", StringComparison.OrdinalIgnoreCase)) return "Аутентификация";
             return "Общие";
         }
+
+        /// <inheritdoc />
+        public async Task<int> UpsertBatchAsync(IReadOnlyList<SettingDto> settings)
+        {
+            if (settings == null || settings.Count == 0) return 0;
+
+            // D02 / KI-274: все изменения в одном контексте и одном SaveChanges
+            // (EF Core оборачивает его в транзакцию) — частичный set невозможен.
+            var keys = settings.Select(s => s.Key).ToList();
+            var existing = await _dbContext.AppSettings
+                .Where(s => keys.Contains(s.Key))
+                .ToDictionaryAsync(s => s.Key);
+
+            foreach (var dto in settings)
+            {
+                if (existing.TryGetValue(dto.Key, out var entity))
+                {
+                    entity.Value = dto.Value ?? string.Empty;
+                    entity.Type = string.IsNullOrWhiteSpace(dto.Type) ? entity.Type : dto.Type;
+                    entity.Category = string.IsNullOrWhiteSpace(dto.Category) ? entity.Category : dto.Category;
+                    entity.IsDefault = false;
+                    entity.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    _dbContext.AppSettings.Add(new AppSetting
+                    {
+                        Key = dto.Key,
+                        Value = dto.Value ?? string.Empty,
+                        Type = string.IsNullOrWhiteSpace(dto.Type) ? "string" : dto.Type,
+                        Category = string.IsNullOrWhiteSpace(dto.Category) ? "Общие" : dto.Category,
+                        IsDefault = false,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            await _dbContext.SaveChangesAsync();
+            _logger.LogInformation("Атомарно применено настроек: {Count}", settings.Count);
+            return settings.Count;
+        }
     }
 }

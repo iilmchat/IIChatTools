@@ -117,18 +117,17 @@ namespace IIChatTools.Services.Implementation.Orchestrator
             // Валидация ДО persist: некорректные значения не должны попасть в БД.
             var normalized = ValidateAndNormalize(settings);
 
-            var allSettings = await _settingsService.GetAllAsync();
-
-            await UpsertSettingAsync(allSettings, FieldMaxSubtasks,
-                normalized.MaxSubtasks.ToString(), "int");
-            await UpsertSettingAsync(allSettings, FieldMaxParallel,
-                normalized.MaxParallel.ToString(), "int");
-            await UpsertSettingAsync(allSettings, FieldTokenBudget,
-                normalized.TokenBudget.ToString(), "int");
-            await UpsertSettingAsync(allSettings, FieldHumanApproval,
-                normalized.HumanApproval, "string");
-            await UpsertSettingAsync(allSettings, FieldAllowedWorkerAgents,
-                JsonConvert.SerializeObject(normalized.AllowedWorkerAgents), "json");
+            // D02 / KI-274: пять ключей применяются одной операцией —
+            // при сбое БД не останется частичного набора настроек.
+            var batch = new[]
+            {
+                new SettingDto { Key = SettingKeyPrefix + FieldMaxSubtasks, Value = normalized.MaxSubtasks.ToString(), Type = "int", Category = SettingCategory },
+                new SettingDto { Key = SettingKeyPrefix + FieldMaxParallel, Value = normalized.MaxParallel.ToString(), Type = "int", Category = SettingCategory },
+                new SettingDto { Key = SettingKeyPrefix + FieldTokenBudget, Value = normalized.TokenBudget.ToString(), Type = "int", Category = SettingCategory },
+                new SettingDto { Key = SettingKeyPrefix + FieldHumanApproval, Value = normalized.HumanApproval, Type = "string", Category = SettingCategory },
+                new SettingDto { Key = SettingKeyPrefix + FieldAllowedWorkerAgents, Value = JsonConvert.SerializeObject(normalized.AllowedWorkerAgents), Type = "json", Category = SettingCategory }
+            };
+            await _settingsService.UpsertBatchAsync(batch);
 
             // Применяем in-memory (без рестарта приложения).
             _optionsProvider.Update(normalized);
