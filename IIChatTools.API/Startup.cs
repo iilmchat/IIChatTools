@@ -561,7 +561,12 @@ namespace IIChatTools.API
             // Tools (send_email и др.) регистрируются в Фазе 3 при Mail:Enabled = true.
             services.Configure<MailOptions>(Configuration.GetSection("Mail"));
             services.Configure<MailRateLimitOptions>(Configuration.GetSection("Mail:RateLimit"));
-            services.AddSingleton<IMailAccountProvider, GlobalMailAccountProvider>();
+            services.AddSingleton<GlobalMailAccountProvider>();
+            // D08 / KI-108: per-user ящики из Mail:Users:{userId}:*;
+            // при отсутствии — fallback на глобальный аккаунт.
+            services.AddSingleton<IMailAccountProvider>(sp => new PerUserMailAccountProvider(
+                Configuration,
+                sp.GetRequiredService<GlobalMailAccountProvider>()));
             services.AddSingleton<IMailClient, MailKitClient>();
 
             // v1.8.0 (KI-107, Фаза 4): rate limiter + attachment service.

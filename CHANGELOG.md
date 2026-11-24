@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **PerUserMailAccountProvider (Design D08, KI-108 часть 1):** персональные
+  ящики из `Mail:Users:{userId}:*` с fallback на глобальный; +2 теста.
+  БД-хранение с IDataProtector и UI — часть 2.
 - **DatabaseProviderResolver (Design D07, KI-242):** нормализация и проверка
   `Database:Provider`; понятная ошибка для неподдерживаемого PostgreSQL
   (+6 тестов). KI-242 → Partially Fixed.
