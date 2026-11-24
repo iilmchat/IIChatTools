@@ -1,8 +1,15 @@
 # Архитектура IIChatTools
 
-**Версия:** 2.2.0 (обновлено 2026-10-20)
+**Версия:** 2.3.0 (обновлено 2026-11-25, D14/KI-147)
 **Статус:** Living document — обновляется при значимых архитектурных изменениях.
-**Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md), [DESIGN v1.7 (Database Agent)](v1.7/DESIGN_DB_AGENT.md).
+**Связанные документы:** [RULES.md](RULES.md), [RELEASES.md](RELEASES.md), [DESIGN v1.3](v1.3/DESIGN.md), [DESIGN v1.4](v1.4/DESIGN.md), [DESIGN v1.5 (RAG)](v1.5/DESIGN.md), [DESIGN v1.7 (Database Agent)](v1.7/DESIGN_DB_AGENT.md), [DESIGN v2.3 (улучшения)](v2.3/DESIGN_IMPROVEMENTS.md).
+
+> **Архитектурные изменения v2.3 (D01–D13):** добавлены Port'ы
+> `IEmbeddingProvider` / `IVectorStore` (Qdrant) / `DatabaseProviderResolver`,
+> `ModelReference` (`<provider>:<model>`), `ResiliencePolicy`, `PiiMasker`,
+> `CorrelationContext`, Vision backend actions (drag_select/read_clipboard/
+> focus_window) и Prompt v3. Подробности — в DESIGN v2.3 и отчётах
+> `reports/v2.3/D01…D13_*.md`.
 
 ---
 

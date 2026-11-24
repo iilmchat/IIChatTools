@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **generate-ki-summary.ps1 (Design D14, KI-254/275):** генератор и
+  CI-проверка (-Check) сводки KNOWN_ISSUES; RULES § 2.12; ARCHITECTURE.md
+  обновлён до v2.3.0 (KI-147).
 - **TaskbarWindowResolver (Design D12, KI-166):** поиск окна по подстроке
   заголовка + FocusWindowByTitleAsync в Vision backend (частично).
 - **Vision backend actions (Design D11, KI-164/165):** `DragSelectAsync`

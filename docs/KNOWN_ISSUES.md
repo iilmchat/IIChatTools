@@ -4187,6 +4187,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-147 — ARCHITECTURE.md устарел (v1.7.0 → v1.13.1)
 - **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed** | **Исправлено в:** v1.13.4
+- **D14 (2026-11-25):** ARCHITECTURE.md обновлён до v2.3.0 с перечислением архитектурных изменений D01–D13.
 - **Обновлено (v1.13.4, 2026-10-08):** полная актуализация до v1.13.3:
   § 1 (OCR-fallback KI-137 + RAG OCR KI-203), § 2 (TesseractOcrService,
   OcrProgressTracker), § 4 (+IOcrService, +IOcrProgressTracker, оба
@@ -6673,7 +6674,8 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ### KI-275 — Расхождения в сводке статусов KNOWN_ISSUES.md и результате check-zombie-ki.ps1
 
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v2.2.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.3.0)** | **Исправлено в:** v2.3.0 (Design D14)
+- Fix (2026-11-25, Design D14): scripts/setup/generate-ki-summary.ps1 генерирует сводку из секций и проверяет её в CI (-Check); RULES § 2.12 запрещает ручное редактирование чисел.
 - **Обнаружено:** 2026-11-21 (составление `docs/TODO_KI.md`, спринт S01).
 - **Файлы:** `docs/KNOWN_ISSUES.md` (сводка), `scripts/setup/check-zombie-ki.ps1`.
 - **Описание:** сводка от 2026-10-20 содержала Fixed 162 / Planned 52 /
@@ -6690,13 +6692,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (Design D13: KI-139 → Documented, prompt v3; Design D12: KI-166 → Partially Fixed, KI-143 → заметка; Design D11: KI-164/165 → Partially Fixed; Design D10: KI-169 → Fixed, correlationId; Design D09: KI-138 → Fixed; Design D08: KI-108 → Partially Fixed (часть 1); Design D07: KI-242 → Partially Fixed (резолвер), KI-091 → заметка; Design D06: KI-226 → ModelReference; Design D05: KI-243 → Fixed; Design D04: KI-227 → рефакторинг на IEmbeddingProvider; Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (Design D14: KI-275 → Fixed, KI-147 → note; Design D13: KI-139 → Documented, prompt v3; Design D12: KI-166 → Partially Fixed, KI-143 → заметка; Design D11: KI-164/165 → Partially Fixed; Design D10: KI-169 → Fixed, correlationId; Design D09: KI-138 → Fixed; Design D08: KI-108 → Partially Fixed (часть 1); Design D07: KI-242 → Partially Fixed (резолвер), KI-091 → заметка; Design D06: KI-226 → ModelReference; Design D05: KI-243 → Fixed; Design D04: KI-227 → рефакторинг на IEmbeddingProvider; Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 210 |
-| Planned | 8 |
+| Fixed (включая Implemented / Resolved) | 211 |
+| Planned | 7 |
 | Documented | 22 |
 | Deferred | 7 |
 | Partially Fixed | 6 |
@@ -6704,7 +6706,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 210 + 8 + 22 + 7 + 6 + 0 + 1 = **254**.
+**Сверка:** 211 + 7 + 22 + 7 + 6 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.
