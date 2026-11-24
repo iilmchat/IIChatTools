@@ -43,6 +43,12 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Check KI registry consistency (D14)
+        shell: pwsh
+        run: |
+          ./scripts/setup/check-zombie-ki.ps1
+          ./scripts/setup/generate-ki-summary.ps1 -Check
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:

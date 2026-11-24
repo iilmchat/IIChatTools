@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **CI KI consistency check + contract tests (Design D17):** в `.github/workflows/ci.yml`
+  добавлена проверка `check-zombie-ki.ps1` и `generate-ki-summary.ps1 -Check`;
+  +2 контрактных теста провайдеров (IEmbeddingProvider / IVectorStore).
 - **POST fallback endpoints (Design D16, KI-047):**
   `POST /api/chats/{id}/update` и `/delete` — эмуляция PATCH/DELETE
   для старых прокси, без изменения основного REST-контракта.
