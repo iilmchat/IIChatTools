@@ -19,6 +19,8 @@
 ## [Unreleased]
 
 ### Added
+- **Admin feedback JSONL export (Design D15, KI-240):** Admin-only
+  `GET /api/admin/feedback/export` — все 👍/👎 в формате NDJSON для датасета.
 - **generate-ki-summary.ps1 (Design D14, KI-254/275):** генератор и
   CI-проверка (-Check) сводки KNOWN_ISSUES; RULES § 2.12; ARCHITECTURE.md
   обновлён до v2.3.0 (KI-147).

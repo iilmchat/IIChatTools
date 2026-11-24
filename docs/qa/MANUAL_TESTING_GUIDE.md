@@ -209,6 +209,22 @@
 
 ---
 
+## § 6.1. Smoke v2.3 (D01–D15)
+
+| # | Действие | Ожидание |
+|:---:|---|---|
+| 1 | Вызвать tool и записать аудит | `/metrics` показывает ненулевой `iichattools_audit_entries_total` и `iichattools_lmstudio_requests_total` (D01) |
+| 2 | Параллельно `add_todo` | SortOrder уникальны, дублей нет (D02) |
+| 3 | Изменить провайдер БД на PostgreSQL | Понятная ошибка «нужен Npgsql», а не unknown provider (D07) |
+| 4 | Задать `Mail:Users:{id}:*` в User Secrets | `mail_agent` использует ящик пользователя (D08) |
+| 5 | Отправить во внешний LLM текст с email | В payload только `[EMAIL]` (D09) |
+| 6 | Запустить `code_agent` | В `/admin → Аудит` есть `tool.*` с correlationId (D10) |
+| 7 | Vision: `drag_select` / `focus_window` | Действия выполняются, промпт v3 разрешает их (D11–D13) |
+| 8 | `pwsh scripts/setup/generate-ki-summary.ps1 -Check` | exit 0, сводка актуальна (D14) |
+| 9 | `GET /api/admin/feedback/export` (Admin) | JSONL со всеми 👍/👎 (D15) |
+
+---
+
 ## § 7. История изменений документа
 
 | Дата | Версия | Что |
@@ -221,3 +237,4 @@
 | 2026-09-30 | 1.8.1 | KI-109 (External-LLM Agent — DeepSeek/OpenAI/Groq/Together/Ollama). Smoke +3 (#21–#24), § 5 +5.14. Автотесты 424 → 496 (+72, 3 Skip). |
 | 2026-10-20 | 2.0.1–2.2.2 | Реорганизация документации (переименован в `docs/qa/`), Background Jobs, Todo Tracking, Orchestrator/Worker, Reflection, Admin UI Orchestrator. Автотесты 496 → 1327 (8 Skip). |
 | 2026-11-21 | 2.2.2 | Спринт S01 (KI-253/KI-088): версия, счётчик тестов, список KI/DESIGN актуализированы. Новые smoke-сценарии для v2.x — в DESIGN-документах до отдельной записи KI. |
+| 2026-11-25 | 2.3.0 | D15 (KI-253): добавлен § 6.1 — smoke v2.3 (9 сценариев D01–D15); автотесты 1350/1358 (8 Skip). |
