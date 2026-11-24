@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **DatabaseProviderResolver (Design D07, KI-242):** нормализация и проверка
+  `Database:Provider`; понятная ошибка для неподдерживаемого PostgreSQL
+  (+6 тестов). KI-242 → Partially Fixed.
 - **ModelReference (Design D06, KI-226):** формат `&lt;provider&gt;:&lt;model&gt;`
   с обратной совместимостью; `GET /api/models` отдаёт `refs` и
   `providers[].reference` (+5 тестов).

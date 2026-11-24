@@ -1,5 +1,6 @@
 using System;
 using IIChatTools.Data;
+using IIChatTools.Services.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +31,8 @@ namespace IIChatTools.API.Extensions
             if (services == null) throw new ArgumentNullException(nameof(services));
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
-            var provider = configuration["Database:Provider"] ?? "SqlServer";
+            // D07 / KI-242: единая проверка/нормализация провайдера.
+            var provider = DatabaseProviderResolver.Resolve(configuration["Database:Provider"]);
 
             services.AddDbContext<AppDbContext>(options =>
             {
