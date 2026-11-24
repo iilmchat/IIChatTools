@@ -138,7 +138,7 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [ ] **KI-237** — Chat UX backlog (бандл мелких улучшений) — 🟢 Low, v1.14+
 - [ ] **KI-240** — Chat: Feedback — Admin UI + экспорт JSONL для датасета — 🟢 Low, v1.14
 - [ ] **KI-242** — PostgreSQL как провайдер основного `AppDbContext` — 🟢 Low, v1.15+ (дальнее будущее)
-- [ ] **KI-243** — Qdrant как внешний `IVectorStore` (persistent vector store) — 🟢 Low, v1.15+ (дальнее будущее)
+- [x] **KI-243** ✅ Fixed в D05 (v2.3.0) — Qdrant как внешний `IVectorStore` (persistent vector store) — 🟢 Low, v1.15+ (дальнее будущее)
 - [ ] **KI-246** — Fallback на другого воркера при fail в Orchestrator — 🟢 Low, v2.0.x
 - [ ] **KI-247** — Orchestrator: pre-checks circuit breaker / budget на уровне оркестратора — 🟢 Low, v2.0.x
 - [ ] **KI-248** — Orchestrator: Human-in-the-loop между подзадачами — 🟢 Low, v2.0.x

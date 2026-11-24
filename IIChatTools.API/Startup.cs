@@ -454,10 +454,13 @@ namespace IIChatTools.API
             // v1.5.0 (KI-083, Фаза 1): сервис эмбеддингов для RAG (Singleton).
             services.AddSingleton<IEmbeddingService, EmbeddingService>();
 
-            // v1.5.0 (KI-083, Шаг 2C): векторное хранилище для RAG (Singleton).
+            // D05 / KI-243: выбор векторного хранилища конфигом.
             // InMemoryVectorStore реализует IDisposable — хост освободит
             // ReaderWriterLockSlim каждого индекса при shutdown.
-            services.AddSingleton<IVectorStore, InMemoryVectorStore>();
+            if (!string.IsNullOrWhiteSpace(Configuration["VectorStore:Qdrant:BaseUrl"]))
+                services.AddSingleton<IVectorStore, QdrantVectorStore>();
+            else
+                services.AddSingleton<IVectorStore, InMemoryVectorStore>();
 
             // v1.5.0 (KI-083, Шаг 3C): стратегии чанкинга + resolver.
             // Все три — stateless, регистрируются как Singleton через интерфейс.

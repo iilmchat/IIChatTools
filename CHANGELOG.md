@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **QdrantVectorStore (Design D05, KI-243):** адаптер `IVectorStore` для
+  внешнего Qdrant; DI выбирает его при `VectorStore:Qdrant:BaseUrl`, иначе
+  остаётся InMemory (обратная совместимость).
 - **IEmbeddingProvider (Design D04, KI-227):** Port для эмбеддингов с двумя
   адаптерами — LmStudio и OpenAI-compatible; `EmbeddingService` выбирает
   провайдеров через DI в порядке приоритета с fallback. +1 тест.
