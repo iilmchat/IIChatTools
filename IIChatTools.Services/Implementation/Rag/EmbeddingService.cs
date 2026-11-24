@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using IIChatTools.Services.DTO.LmStudio;
@@ -7,8 +8,6 @@ using IIChatTools.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using Newtonsoft.Json.Linq;
 
 namespace IIChatTools.Services.Implementation.Rag
 {
@@ -28,7 +27,8 @@ namespace IIChatTools.Services.Implementation.Rag
     /// </summary>
     public class EmbeddingService : IEmbeddingService
     {
-        private readonly ILmStudioClient _lmStudioClient;
+        private readonly IEmbeddingProvider _primaryProvider;
+        private readonly IEmbeddingProvider _fallbackProvider;
         private readonly ILogger<EmbeddingService> _logger;
 
         /// <summary>Размерность вектора (из конфига, default 768).</summary>
@@ -38,26 +38,24 @@ namespace IIChatTools.Services.Implementation.Rag
         private readonly int _batchSize;
 
         /// <summary>
-        /// Внешний OpenAI-совместимый провайдер эмбеддингов (KI-227).
-        /// Используется как fallback, если LM Studio недоступен.
-        /// </summary>
-        private readonly HttpClient _externalClient;
-        private readonly string _externalModel;
-
-        /// <summary>
         /// Создаёт сервис эмбеддингов.
         /// </summary>
-        /// <param name="lmStudioClient">Клиент LM Studio (Singleton)</param>
+        /// <param name="providers">Провайдеры в порядке приоритета (основной, резервный)</param>
         /// <param name="configuration">Конфигурация (секция <c>Rag:Embedding</c>)</param>
         /// <param name="logger">Логгер</param>
-        /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
+        /// <exception cref="ArgumentNullException">Если один из обязательных параметров равен null</exception>
         public EmbeddingService(
-            ILmStudioClient lmStudioClient,
+            IEnumerable<IEmbeddingProvider> providers,
             IConfiguration configuration,
             ILogger<EmbeddingService> logger)
         {
-            _lmStudioClient = lmStudioClient
-                ?? throw new ArgumentNullException(nameof(lmStudioClient));
+            if (providers == null) throw new ArgumentNullException(nameof(providers));
+            var list = providers.ToList();
+            if (list.Count == 0)
+                throw new ArgumentException("Нужен хотя бы один IEmbeddingProvider", nameof(providers));
+
+            _primaryProvider = list[0];
+            _fallbackProvider = list.Count > 1 ? list[1] : null;
 
             if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
@@ -73,23 +71,6 @@ namespace IIChatTools.Services.Implementation.Rag
                     "Rag:Embedding:BatchSize={BatchSize} некорректен, использую 64",
                     _batchSize);
                 _batchSize = 64;
-            }
-
-            // KI-227: внешний провайдер эмбеддингов (OpenAI-совместимый).
-            // Читаем через индексер (RULES § 4.56) — без GetValue<T>.
-            var externalUrl = configuration["Rag:Embedding:ExternalBaseUrl"];
-            var externalKey = configuration["Rag:Embedding:ExternalApiKey"];
-            _externalModel = configuration["Rag:Embedding:ExternalModel"];
-            if (!string.IsNullOrWhiteSpace(externalUrl))
-            {
-                _externalClient = new HttpClient
-                {
-                    BaseAddress = new Uri(externalUrl),
-                    Timeout = TimeSpan.FromSeconds(15)
-                };
-                if (!string.IsNullOrWhiteSpace(externalKey))
-                    _externalClient.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", externalKey);
             }
         }
 
@@ -238,8 +219,8 @@ namespace IIChatTools.Services.Implementation.Rag
         }
 
         /// <summary>
-        /// Вызывает LM Studio; при недоступности — внешний OpenAI-совместимый
-        /// провайдер (KI-227). Внешняя отмена всегда пробрасывается.
+        /// D04: вызывает основной провайдер; при transient-сбое — резервный
+        /// (IEmbeddingProvider). Внешняя отмена всегда пробрасывается.
         /// </summary>
         private async Task<EmbeddingResponse> GetEmbeddingsWithFallbackAsync(
             IReadOnlyList<string> texts,
@@ -248,58 +229,21 @@ namespace IIChatTools.Services.Implementation.Rag
         {
             try
             {
-                return await _lmStudioClient.GetEmbeddingsAsync(
+                return await _primaryProvider.GetEmbeddingsAsync(
                     texts, model, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;   // внешняя отмена (Stop) — не fallback
             }
-            catch (Exception ex)
+            catch (Exception ex) when (_fallbackProvider != null)
             {
-                if (_externalClient == null)
-                    throw;
-
                 _logger.LogWarning(ex,
-                    "LM Studio embeddings недоступен — пробуем внешний провайдер (KI-227)");
-                return await GetExternalEmbeddingsAsync(texts, cancellationToken)
-                    .ConfigureAwait(false);
+                    "Провайдер эмбеддингов '{Primary}' недоступен — пробуем '{Fallback}' (D04/KI-227)",
+                    _primaryProvider.Name, _fallbackProvider.Name);
+                return await _fallbackProvider.GetEmbeddingsAsync(
+                    texts, model, cancellationToken).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Запрос к внешнему OpenAI-совместимому эндпоинту /v1/embeddings.
-        /// </summary>
-        private async Task<EmbeddingResponse> GetExternalEmbeddingsAsync(
-            IReadOnlyList<string> texts,
-            CancellationToken cancellationToken)
-        {
-            var payload = new JObject
-            {
-                ["model"] = string.IsNullOrWhiteSpace(_externalModel)
-                    ? "text-embedding-3-small" : _externalModel,
-                ["input"] = JArray.FromObject(texts)
-            };
-
-            using var content = new StringContent(
-                payload.ToString(), System.Text.Encoding.UTF8, "application/json");
-            using var response = await _externalClient
-                .PostAsync("v1/embeddings", content, cancellationToken)
-                .ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = JObject.Parse(await response.Content
-                .ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
-            var result = new EmbeddingResponse();
-            foreach (var item in json["data"] as JArray ?? new JArray())
-            {
-                result.Data.Add(new EmbeddingData
-                {
-                    Index = item["index"]?.Value<int>() ?? 0,
-                    Embedding = item["embedding"]?.ToObject<float[]>() ?? Array.Empty<float>()
-                });
-            }
-            return result;
         }
     }
 }

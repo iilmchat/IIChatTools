@@ -114,7 +114,10 @@ namespace IIChatTools.Tests.UnitTests
                 })
                 .Build();
 
-            return new EmbeddingService(fake, config, NullLogger<EmbeddingService>.Instance);
+            // D04: сервис теперь принимает провайдеров (Port), а не ILmStudioClient.
+            var provider = new IIChatTools.Services.Implementation.Rag.Providers.LmStudioEmbeddingProvider(fake);
+            return new EmbeddingService(
+                new[] { provider }, config, NullLogger<EmbeddingService>.Instance);
         }
 
         /// <summary>
@@ -219,6 +222,65 @@ namespace IIChatTools.Tests.UnitTests
                 () => service.GetEmbeddingsAsync(new[] { "hello" }));
 
             Assert.Contains("500", ex.Message);
+        }
+
+        /// <summary>
+        /// D04 / KI-227: при сбое основного провайдера используется резервный.
+        /// </summary>
+        [Fact]
+        public async Task GetEmbeddingsAsync_PrimaryFails_UsesFallback()
+        {
+            var primary = new IIChatTools.Services.Implementation.Rag.Providers.LmStudioEmbeddingProvider(
+                new FakeLmStudioClient
+                {
+                    ExceptionToThrow = new InvalidOperationException("primary down")
+                });
+            var fallback = new StubEmbeddingProvider(new[] { new[] { 0.1f, 0.2f, 0.3f } });
+
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    ["Rag:Embedding:Dimensions"] = "3",
+                    ["Rag:Embedding:BatchSize"] = "64"
+                })
+                .Build();
+            var service = new EmbeddingService(
+                new IEmbeddingProvider[] { primary, fallback },
+                config,
+                NullLogger<EmbeddingService>.Instance);
+
+            var result = await service.GetEmbeddingsAsync(new[] { "hello" });
+
+            Assert.Single(result);
+            Assert.Equal(3, result[0].Length);
+            Assert.Equal(1, fallback.CallCount);
+        }
+
+        /// <summary>Простой fake-провайдер для проверки fallback.</summary>
+        private sealed class StubEmbeddingProvider : IEmbeddingProvider
+        {
+            private readonly float[][] _vectors;
+
+            public StubEmbeddingProvider(float[][] vectors) => _vectors = vectors;
+
+            public string Name => "stub";
+            public int CallCount { get; private set; }
+
+            public Task<EmbeddingResponse> GetEmbeddingsAsync(
+                IReadOnlyList<string> texts,
+                string model,
+                CancellationToken cancellationToken)
+            {
+                CallCount++;
+                var response = new EmbeddingResponse();
+                for (var i = 0; i < texts.Count; i++)
+                    response.Data.Add(new EmbeddingData
+                    {
+                        Index = i,
+                        Embedding = _vectors[i % _vectors.Length]
+                    });
+                return Task.FromResult(response);
+            }
         }
     }
 }

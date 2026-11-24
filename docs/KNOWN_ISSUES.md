@@ -3874,6 +3874,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 ### KI-227 — RAG embeddings зависят от LM Studio (нет внешнего провайдера)
 
 - **Приоритет:** 🟠 High | **Статус:** ✅ **Fixed (v2.2.x)** | **Исправлено в:** v2.2.x (Unreleased)
+- **D04 (2026-11-25, Design):** выделен Port `IEmbeddingProvider` + две реализации (LmStudio / OpenAI-compatible); `EmbeddingService` теперь использует упорядоченный список провайдеров с fallback. +1 тест.
 - **Fix (2026-11-21, спринт S04):** `EmbeddingService` при недоступности
   LM Studio делает fallback на внешний OpenAI-совместимый `/v1/embeddings`
   (`Rag:Embedding:ExternalBaseUrl` / `ExternalApiKey` / `ExternalModel`,
@@ -6677,7 +6678,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (Design D04: KI-227 → рефакторинг на IEmbeddingProvider; Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |

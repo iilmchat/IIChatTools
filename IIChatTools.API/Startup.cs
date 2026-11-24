@@ -9,6 +9,7 @@ using IIChatTools.Services.Implementation;
 using IIChatTools.Services.Implementation.ChatTools;      // ← ДОБАВИТЬ
 using IIChatTools.Services.Implementation.Debate;         // v1.11.0 (KI-126, Шаг 1B): AgentDebateSessionService
 using IIChatTools.Services.Implementation.Rag;            // v1.5.0 (KI-083): EmbeddingService
+using IIChatTools.Services.Implementation.Rag.Providers;  // D04: провайдеры эмбеддингов
 using IIChatTools.Services.DTO.SqlAgent;                  // v1.7.0 (KI-097): SqlAgentOptions
 using IIChatTools.Services.DTO.Mail;                      // v1.8.0 (KI-107): Mail Agent
 using IIChatTools.Services.DTO.ExternalLlm;               // v1.8.1 (KI-109): External-LLM
@@ -444,6 +445,11 @@ namespace IIChatTools.API
             });
 
             services.AddScoped<ISubAgentService, SubAgentService>();
+
+            // D04 / KI-227: провайдеры эмбеддингов (порядок = приоритет).
+            services.AddSingleton<IEmbeddingProvider, LmStudioEmbeddingProvider>();
+            if (!string.IsNullOrWhiteSpace(Configuration["Rag:Embedding:ExternalBaseUrl"]))
+                services.AddSingleton<IEmbeddingProvider, OpenAiEmbeddingProvider>();
 
             // v1.5.0 (KI-083, Фаза 1): сервис эмбеддингов для RAG (Singleton).
             services.AddSingleton<IEmbeddingService, EmbeddingService>();

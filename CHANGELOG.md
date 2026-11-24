@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **IEmbeddingProvider (Design D04, KI-227):** Port для эмбеддингов с двумя
+  адаптерами — LmStudio и OpenAI-compatible; `EmbeddingService` выбирает
+  провайдеров через DI в порядке приоритета с fallback. +1 тест.
 - **ResiliencePolicy (Design D03, KI-265 часть 1):** единый helpers для
   timeout/retry с exponential backoff + jitter и корректной внешней отменой
   (RULES § 4.28/§ 4.48), +3 теста.
