@@ -18,6 +18,11 @@
 
 ## [Unreleased]
 
+### Added
+- **ResiliencePolicy (Design D03, KI-265 часть 1):** единый helpers для
+  timeout/retry с exponential backoff + jitter и корректной внешней отменой
+  (RULES § 4.28/§ 4.48), +3 теста.
+
 ### Fixed
 - **Design D02 (этап A, KI-262 / KI-274):** уникальный индекс
   `(ChatId, SortOrder)` + retry при гонке `add_todo`; атомарная запись
