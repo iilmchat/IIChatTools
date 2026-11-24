@@ -10,6 +10,7 @@ using IIChatTools.Services.DTO;
 using IIChatTools.Services.DTO.Chat;      // v1.6.1 (KI-086-post): ChatSourceDto
 using IIChatTools.Services.DTO.SubAgent;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -38,6 +39,7 @@ namespace IIChatTools.Services.Implementation
         private readonly IToolRegistry _toolRegistry;
         private readonly AppDbContext _dbContext;
         private readonly IConfiguration _configuration;
+        private readonly IAuditService _auditService;
         private readonly ILogger<SubAgentService> _logger;
 
         /// <summary>
@@ -47,6 +49,7 @@ namespace IIChatTools.Services.Implementation
         /// <param name="toolRegistry">Реестр инструментов</param>
         /// <param name="dbContext">Контекст БД</param>
         /// <param name="configuration">Конфигурация</param>
+        /// <param name="auditService">Сервис аудита (внутренние tool-вызовы, D10)</param>
         /// <param name="logger">Логгер</param>
         /// <exception cref="ArgumentNullException">Если один из параметров равен null</exception>
         public SubAgentService(
@@ -54,12 +57,14 @@ namespace IIChatTools.Services.Implementation
             IToolRegistry toolRegistry,
             AppDbContext dbContext,
             IConfiguration configuration,
+            IAuditService auditService,
             ILogger<SubAgentService> logger)
         {
             _lmStudioClient = lmStudioClient ?? throw new ArgumentNullException(nameof(lmStudioClient));
             _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -78,6 +83,9 @@ namespace IIChatTools.Services.Implementation
             var defaultMax = GetIntConfig("SubAgent:DefaultMaxSteps", 10);
             var hardLimit = GetIntConfig("SubAgent:MaxStepsLimit", 30);
             var maxSteps = request.MaxSteps <= 0 ? defaultMax : Math.Min(request.MaxSteps, hardLimit);
+
+            // D10: единый correlationId для всех tool-вызовов этого суб-агента.
+            using var correlationScope = CorrelationContext.Begin();
 
             var sessionId = Guid.NewGuid().ToString("N");
             var usedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -260,6 +268,32 @@ namespace IIChatTools.Services.Implementation
                     });
 
                     messages.Add(BuildToolResultMessage(callId, toolResultJson));
+
+                    // D10 / KI-169: внутренние tool-вызовы суб-агента теперь
+                    // попадают в AuditLogs (ранее терялись). Аудит не ломает
+                    // основной поток — ошибки логируются.
+                    try
+                    {
+                        await _auditService.LogActionAsync(new AuditLog
+                        {
+                            UserId = context.UserId,
+                            ToolName = $"tool.{functionName}",
+                            ParametersJson = JsonConvert.SerializeObject(new
+                            {
+                                correlationId = CorrelationContext.Current,
+                                sessionId,
+                                step,
+                                hasArguments = true
+                            }),
+                            ResultJson = toolResultJson,
+                            Status = toolResult.Success ? "Success" : "Error",
+                            ClientIp = context.ClientIp
+                        });
+                    }
+                    catch (Exception auditEx)
+                    {
+                        _logger.LogWarning(auditEx, "Не удалось записать audit tool {Tool}", functionName);
+                    }
 
                     stepsLog.Add(new SubAgentStep
                     {

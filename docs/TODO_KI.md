@@ -185,7 +185,7 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 - [x] **KI-118** ✅ Documented (S20) — Chat LLM не вызывает `code_agent` для простых задач — 🟢 Low
 - [x] **KI-120** ✅ Documented (S18) — Chat LLM галлюцинирует количество инструментов — 🟢 Low
 - [x] **KI-144** ✅ Documented (S18) — Chrome использует virtual audio device по умолчанию (Steam Streaming Microphone) — 🟢 Low
-- [x] **KI-169** ✅ Documented (S20) — SubAgent: внутренние tool-вызовы не попадают в AuditLogs — 🟢 Low
+- [x] **KI-169** ✅ Fixed в D10 (v2.3.0) — SubAgent: внутренние tool-вызовы не попадают в AuditLogs — 🟢 Low
 - [x] **KI-180** ✅ Documented (S18) — Approval-модалка попадает в скриншот Vision Agent — 🟢 Low
 - [x] **KI-186** ✅ Documented (S18) — Vision Agent не может работать с UI IIChatTools (fresh profile) — 🟢 Low
 - [x] **KI-189** ✅ Documented (S18) — После STOP от overlay Chat возвращает корректный ответ — 🟢 Low

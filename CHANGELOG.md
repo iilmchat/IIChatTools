@@ -19,6 +19,8 @@
 ## [Unreleased]
 
 ### Added
+- **CorrelationContext + tool audit (Design D10, KI-169):** внутренние
+  tool-вызовы суб-агентов пишутся в AuditLogs с correlationId (+2 теста).
 - **PiiMasker (Design D09, KI-138):** маскирование email/телефонов/карт/СНИЛС
   в сообщениях перед отправкой во внешние LLM; флаг
   `ExternalLlm:PiiMaskingEnabled` (default true), +4 теста.
