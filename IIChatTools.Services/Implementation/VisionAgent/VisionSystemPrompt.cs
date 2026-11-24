@@ -176,6 +176,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             "{\n" +
             "  \"action\": \"click\" | \"double_click\" | \"right_click\" | \"move_mouse\" |\n" +
             "            \"type\" | \"press_key\" | \"hotkey\" | \"scroll\" | \"wait\" |\n" +
+            "            \"drag_select\" | \"read_clipboard\" | \"focus_window\" |\n" +
             "            \"done\" | \"fail\",\n" +
             "  \"target\": \"from_input\",        // ID из ui_elements (приоритет над x/y)\n" +
             "  \"x\": 100,                       // fallback, если нет target\n" +
@@ -184,12 +185,17 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             "  \"key\": \"Enter\",                 // для action=press_key\n" +
             "  \"keys\": [\"Ctrl\", \"C\"],        // для action=hotkey\n" +
             "  \"deltaY\": 300,                  // для action=scroll (+вниз / -вверх)\n" +
+            "  \"x2\": 400, \"y2\": 220,           // для action=drag_select (D11/KI-164)\n" +
+            "  \"titleQuery\": \"Chrome\",        // для action=focus_window (D12/KI-166)\n" +
             "  \"reason\": \"Поле «Откуда»\"       // пояснение для UI/audit\n" +
             "}\n" +
             "\n" +
-            "КРИТИЧНО — СПИСОК ACTIONS ЗАКРЫТ (KI-197):\n" +
-            "Разрешены ТОЛЬКО эти 11 actions: click, double_click, right_click,\n" +
-            "move_mouse, type, press_key, hotkey, scroll, wait, done, fail.\n" +
+            "КРИТИЧНО — СПИСОК ACTIONS ЗАКРЫТ (KI-197, v3):\n" +
+            "Разрешены ТОЛЬКО эти 14 actions: click, double_click, right_click,\n" +
+            "move_mouse, type, press_key, hotkey, scroll, wait, drag_select,\n" +
+            "read_clipboard, focus_window, done, fail.\n" +
+            "D11/D12: drag_select выделяет текст мышью (x,y → x2,y2);\n" +
+            "read_clipboard читает буфер; focus_window ищет окно по titleQuery.\n" +
             "\n" +
             "ЗАПРЕЩЕНО выдумывать actions вне списка. Примеры ТИПИЧНЫХ ошибок:\n" +
             "  ❌ { \"action\": \"navigate\", \"target\": \"wikipedia_org\" } — НЕ существует.\n" +

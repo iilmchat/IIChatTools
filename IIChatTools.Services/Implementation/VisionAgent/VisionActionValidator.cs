@@ -38,6 +38,8 @@ namespace IIChatTools.Services.Implementation.VisionAgent
             {
                 "click", "double_click", "right_click", "move_mouse",
                 "type", "press_key", "hotkey", "scroll", "wait",
+                // D11/D12: новые backend-actions
+                "drag_select", "read_clipboard", "focus_window",
                 "done", "fail"
             };
 

@@ -37,6 +37,9 @@ namespace IIChatTools.Services.DTO.VisionAgent
         /// <summary>Конечная координата Y для <c>drag_select</c> (D11/KI-164).</summary>
         public int? Y2 { get; set; }
 
+        /// <summary>Подстрока заголовка окна для <c>focus_window</c> (D12/KI-166).</summary>
+        public string TitleQuery { get; set; }
+
         /// <summary>Текст для <c>action = "type"</c>.</summary>
         public string Text { get; set; }
 

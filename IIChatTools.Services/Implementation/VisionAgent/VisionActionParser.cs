@@ -21,6 +21,7 @@ namespace IIChatTools.Services.Implementation.VisionAgent
         {
             "click", "double_click", "right_click", "move_mouse",
             "type", "press_key", "hotkey", "scroll", "wait",
+            "drag_select", "read_clipboard", "focus_window",
             "done", "fail"
         };
 

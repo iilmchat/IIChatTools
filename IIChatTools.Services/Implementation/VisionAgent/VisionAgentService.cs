@@ -879,6 +879,18 @@ namespace IIChatTools.Services.Implementation.VisionAgent
                     break;
                 }
 
+                // D12 / KI-166: фокус окна по подстроке заголовка.
+                case "focus_window":
+                {
+                    var focused = await backend.FocusWindowByTitleAsync(
+                            action.TitleQuery ?? action.Text ?? string.Empty, ct)
+                        .ConfigureAwait(false);
+                    _logger.LogInformation(
+                        "VisionAgent: focus_window '{Query}' = {Focused} (D12/KI-166)",
+                        action.TitleQuery ?? action.Text, focused);
+                    break;
+                }
+
                 default:
                     throw new InvalidOperationException(
                         $"VisionAgentService: неизвестный action для backend'а: '{actionType}'.");

@@ -64,6 +64,9 @@
   (отчёты `docs/development/reports/v2.2/S01_KI.md` … `S20_KI.md`).
 
 ### Changed
+- **Vision Planner prompt v3 (Design D13):** 14 actions — добавлены
+  drag_select / read_clipboard / focus_window в parser, validator и промпт.
+  KI-139 (внешние VL) оставлен Documented — нет API-ключей в offline.
 - **Спринт S20 (финальный, Documented KI-118 / KI-169, KI-143):**
   ограничения верифицированы; Avalonia-overlay (KI-143) перенесён в
   Design-этап. Все 20 спринтов плана TODO_KI_SPRINTS выполнены.

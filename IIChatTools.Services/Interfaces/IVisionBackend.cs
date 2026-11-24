@@ -112,6 +112,14 @@ namespace IIChatTools.Services.Interfaces
             => Task.FromResult<string>(null);
 
         /// <summary>
+        /// D12 / KI-166: перевести фокус на окно по подстроке заголовка.
+        /// Default — false (backend не поддерживает).
+        /// </summary>
+        Task<bool> FocusWindowByTitleAsync(
+            string titleQuery, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        /// <summary>
         /// Возвращает провайдер координат из DOM (KI-161), если backend
         /// поддерживает CDP-attach. <c>null</c> — DOM недоступен,
         /// используется VL-fallback (bounds-center, KI-190).
