@@ -123,7 +123,7 @@ KI-091, KI-114, KI-173), затем 16 Planned Medium. Группировать 
 ### 3.5. Planned — Low (29)
 
 - [ ] **KI-108** — Per-user mail accounts (свой ящик у каждого пользователя) — 🟢 Low, v1.8.x
-- [ ] **KI-138** — Vision Agent: маскирование PII на скриншотах — 🟢 Low, v1.12.x
+- [x] **KI-138** ✅ Fixed в D09 (v2.3.0) — Vision Agent: маскирование PII на скриншотах — 🟢 Low, v1.12.x
 - [ ] **KI-139** — Vision Agent: поддержка внешних VL (Claude Computer Use / OpenAI CUA) — 🟢 Low, v1.12.x
 - [ ] **KI-143** — Cross-platform overlay на Avalonia (альтернатива KI-142) — 🟢 Low, v1.13.x / v1.14.x
 - [x] **KI-151** ✅ Fixed в S10 — Chrome temp-профиль не удаляется (`BrowserMetrics-*.pma` locked) — 🟢 Low, v1.12.x

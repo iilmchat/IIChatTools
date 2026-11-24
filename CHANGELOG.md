@@ -19,6 +19,9 @@
 ## [Unreleased]
 
 ### Added
+- **PiiMasker (Design D09, KI-138):** маскирование email/телефонов/карт/СНИЛС
+  в сообщениях перед отправкой во внешние LLM; флаг
+  `ExternalLlm:PiiMaskingEnabled` (default true), +4 теста.
 - **PerUserMailAccountProvider (Design D08, KI-108 часть 1):** персональные
   ящики из `Mail:Users:{userId}:*` с fallback на глобальный; +2 теста.
   БД-хранение с IDataProtector и UI — часть 2.

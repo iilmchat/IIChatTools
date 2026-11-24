@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using IIChatTools.Services.DTO.ExternalLlm;
 using IIChatTools.Services.Implementation.ExternalLlm.Formats;
 using IIChatTools.Services.Interfaces;
+using IIChatTools.Services.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -274,7 +275,9 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             // 5. API key.
             var apiKey = ResolveApiKey(actualProviderName, provider);
 
-            // 6. Тело запроса — messages[] передаём как есть.
+            // 6. D09 / KI-138: маскируем PII перед отправкой наружу.
+            MaskMessagesIfEnabled(messages);
+
             var payload = new JObject
             {
                 ["model"] = provider.Model,
@@ -420,7 +423,9 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             // 5. API key.
             var apiKey = ResolveApiKey(actualProviderName, provider);
 
-            // 6. Тело запроса.
+            // 6. D09 / KI-138: маскируем PII перед отправкой наружу.
+            MaskMessagesIfEnabled(messages);
+
             var payload = new JObject
             {
                 ["model"] = provider.Model,
@@ -1192,6 +1197,36 @@ namespace IIChatTools.Services.Implementation.ExternalLlm
             }
 
             return apiKey;
+        }
+
+        /// <summary>
+        /// D09 / KI-138: маскирует PII в полях content сообщений перед
+        /// отправкой во внешний провайдер. Управляется флагом
+        /// <c>ExternalLlm:PiiMaskingEnabled</c> (по умолчанию true).
+        /// </summary>
+        /// <param name="messages">Сообщения запроса (изменяются на месте)</param>
+        private void MaskMessagesIfEnabled(JArray messages)
+        {
+            if (messages == null) return;
+            if (bool.TryParse(_configuration["ExternalLlm:PiiMaskingEnabled"], out var enabled) && !enabled)
+                return;
+
+            foreach (var msg in messages.OfType<JObject>())
+            {
+                var content = msg["content"];
+                if (content == null) continue;
+                if (content.Type == JTokenType.String)
+                    msg["content"] = PiiMasker.Mask(content.Value<string>());
+                else if (content is JArray parts)
+                {
+                    foreach (var part in parts.OfType<JObject>())
+                    {
+                        var text = part["text"];
+                        if (text?.Type == JTokenType.String)
+                            part["text"] = PiiMasker.Mask(text.Value<string>());
+                    }
+                }
+            }
         }
 
         /// <summary>

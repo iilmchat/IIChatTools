@@ -2919,7 +2919,8 @@ qwen3-4b предпочитает «мягкий» ответ вместо че�
 ---
 
 ### KI-138 — Vision Agent: маскирование PII на скриншотах
-- **Приоритет:** 🟢 Low | **Статус:** Planned | **Запланировано:** v1.12.x
+- **Приоритет:** 🟢 Low | **Статус:** ✅ **Fixed (v2.3.0)** | **Исправлено в:** v2.3.0 (Design D09)
+- Fix (2026-11-25, Design D09): PiiMasker (email/phone/card/SNILS → плейсхолдеры) применяется к messages[] в ExternalLlmClient до отправки; флаг ExternalLlm:PiiMaskingEnabled (default true). +4 теста.
 - **Обнаружено:** 2026-10-03
 - **DESIGN:** [`docs/development/v1.12/DESIGN_VISION_AGENT.md`](development/v1.12/DESIGN_VISION_AGENT.md) § 6.5.
 - **Описание:** VL-модель может «увидеть» на скриншоте:
@@ -6683,13 +6684,13 @@ requirement) работают **стабильно**. Gantt требует бо�
 
 ## Сводка по статусам
 
-**Пересчитано:** 2026-11-21 (Design D08: KI-108 → Partially Fixed (часть 1); Design D07: KI-242 → Partially Fixed (резолвер), KI-091 → заметка; Design D06: KI-226 → ModelReference; Design D05: KI-243 → Fixed; Design D04: KI-227 → рефакторинг на IEmbeddingProvider; Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
+**Пересчитано:** 2026-11-21 (Design D09: KI-138 → Fixed; Design D08: KI-108 → Partially Fixed (часть 1); Design D07: KI-242 → Partially Fixed (резолвер), KI-091 → заметка; Design D06: KI-226 → ModelReference; Design D05: KI-243 → Fixed; Design D04: KI-227 → рефакторинг на IEmbeddingProvider; Design D03: KI-265 → Partially Fixed (часть 1); Design D02: KI-262/274 → Fixed; Design D01: KI-044/241 → Fixed; спринт S20: Documented KI-118/169 — верификация; KI-143 — отложен; спринт S19: Documented KI-239/241/077/044/089 — верификация; спринт S18: Documented KI-120/144/180/186/189 — верификация; спринт S17: Documented KI-094/095/112/116/117 — верификация; спринт S16: Documented KI-007/009/032/048/093 — верификация; спринт S15: KI-257/258 → Fixed; спринт S14: KI-123 → Fixed; спринт S13: KI-091/096/099/242/243 — отложены, см. секции; спринт S12: KI-209/210/211 → Fixed; спринт S11: KI-164/165/166 — отложены, см. секции; спринт S10: KI-151, KI-162 → Fixed; спринт S09: KI-273 → Fixed; спринт S08: KI-266, KI-267, KI-269 → Fixed; спринт S07: KI-204, KI-206, KI-213 → Fixed; спринт S06: KI-128, KI-168, KI-172, KI-179, KI-231 → Fixed; спринт S05: KI-111, KI-113 → Fixed; спринт S04: KI-193, KI-205, KI-226, KI-227 → Fixed; спринт S03: KI-167, KI-177, KI-178, KI-192 → Fixed; спринт S02: KI-057, KI-114, KI-173, KI-182, KI-234 → Fixed; спринт S01: KI-088, KI-253, KI-254, KI-264 → Fixed; регистрация KI-275). Считаются **уникальные номера** `KI-XXX`;
 суффиксные секции (`KI-110a`, `KI-110b`) относятся к одному номеру.
 
 | Статус | Кол-во |
 |--------|-------:|
-| Fixed (включая Implemented / Resolved) | 208 |
-| Planned | 13 |
+| Fixed (включая Implemented / Resolved) | 209 |
+| Planned | 12 |
 | Documented | 22 |
 | Deferred | 7 |
 | Partially Fixed | 3 |
@@ -6697,7 +6698,7 @@ requirement) работают **стабильно**. Gantt требует бо�
 | Won't Fix | 1 |
 | **Всего** | **254** |
 
-**Сверка:** 208 + 13 + 22 + 7 + 3 + 0 + 1 = **254**.
+**Сверка:** 209 + 12 + 22 + 7 + 3 + 0 + 1 = **254**.
 
 - **Секций `### KI-`:** 255 (после слияния `KI-031a` → `KI-031`, `KI-061a` → `KI-061` и регистрации KI-272…KI-275).
 - **Уникальных номеров:** 254.
